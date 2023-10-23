@@ -18,7 +18,7 @@ jobs:
   push_to_registry:
     name: Push Docker image to GHCR
     runs-on: ubuntu-latest
-    if: github.repository == 'transfem-org/Sharkey'
+    if: github.repository == 'PrivateGER/Sharkey'
     permissions:
       contents: read
       packages: write
@@ -35,7 +35,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/transfem-org/sharkey
+          images: ${{ env.REGISTRY }}/PrivateGER/sharkey
           tags: |
             type=edge
             type=ref,event=pr
