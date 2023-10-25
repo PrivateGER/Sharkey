@@ -7,6 +7,13 @@
  * Misskey Entry Point!
  */
 
+import * as Sentry from "@sentry/node";
+Sentry.init({
+	dsn: 'https://7ab4cff9085b1a33b8fb1e0fbfa07c48@sentry.plasmatrap.com/2',
+	// Performance Monitoring
+	tracesSampleRate: 1.0,
+});
+
 import cluster from 'node:cluster';
 import { EventEmitter } from 'node:events';
 import chalk from 'chalk';
