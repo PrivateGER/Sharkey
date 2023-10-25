@@ -65,4 +65,4 @@ jobs:
           SENTRY_URL: https://sentry.plasmatrap.com/
         with:
           environment: production
-          sourcemaps: /sharkey/packages/backend/built/ /sharkey/packages/frontend/built/
+          sourcemaps: /sharkey/packages/backend/built/ /sharkey/built/_frontend_dist_/_vite_/
