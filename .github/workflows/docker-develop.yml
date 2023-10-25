@@ -56,10 +56,13 @@ jobs:
           labels: develop
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Push update to server
-        if: steps.build.outcome == 'success'
-        uses: indiesdev/curl@v1.1
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_URL: https://sentry.plasmatrap.com/
         with:
-          url: ${{ secrets.AUTO_UPDATE_DEV_URL }}
-          method: POST
-          timeout: 600000
+          environment: production
+          sourcemaps: /sharkey/packages/backend/built/ /sharkey/packages/frontend/built/
