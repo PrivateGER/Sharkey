@@ -66,3 +66,5 @@ jobs:
         with:
           environment: production
           sourcemaps: /sharkey/packages/backend/built/ /sharkey/built/_frontend_dist_/_vite_/
+          ignore_empty: true
+          ignore_missing: true
