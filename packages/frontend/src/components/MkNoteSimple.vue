@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
 		<div>
 			<p v-if="note.cw != null" :class="$style.cw">
-				<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :i="$i" :emojiUrls="note.emojis"/>
+				<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'account'" :emojiUrls="note.emojis"/>
 				<MkCwButton v-model="showContent" :note="note"/>
 			</p>
 			<div v-show="note.cw == null || showContent">
@@ -56,7 +56,7 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 	margin: 0 10px 0 0;
 	width: 34px;
 	height: 34px;
-	border-radius: 5px;
+	border-radius: var(--radius-sm);
 	position: sticky !important;
 	top: calc(16px + var(--stickyTop, 0px));
 	left: 0;
@@ -73,7 +73,6 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 }
 
 .cw {
-	cursor: default;
 	display: block;
 	margin: 0;
 	padding: 0;

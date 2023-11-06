@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</MkKeyValue>
 						</div>
 
-						<MkButton @click="updateRemoteUser"><i class="ph-arrows-counter-clockwise ph-bold pg-lg"></i> {{ i18n.ts.updateRemoteUser }}</MkButton>
+						<MkButton @click="updateRemoteUser"><i class="ph-arrows-counter-clockwise ph-bold ph-lg"></i> {{ i18n.ts.updateRemoteUser }}</MkButton>
 					</div>
 				</FormSection>
 
@@ -474,7 +474,7 @@ const headerTabs = $computed(() => [{
 }, {
 	key: 'roles',
 	title: i18n.ts.roles,
-	icon: 'ph-seal-check ph-bold pg-lg',
+	icon: 'ph-seal-check ph-bold ph-lg',
 }, {
 	key: 'announcements',
 	title: i18n.ts.announcements,
@@ -486,11 +486,11 @@ const headerTabs = $computed(() => [{
 }, {
 	key: 'chart',
 	title: i18n.ts.charts,
-	icon: 'ph-chart-line ph-bold pg-lg',
+	icon: 'ph-chart-line ph-bold ph-lg',
 }, {
 	key: 'raw',
 	title: 'Raw',
-	icon: 'ph-code ph-bold pg-lg',
+	icon: 'ph-code ph-bold ph-lg',
 }]);
 
 definePageMetadata(computed(() => ({
@@ -546,7 +546,7 @@ definePageMetadata(computed(() => ({
 			> .suspended, > .silenced, > .moderator {
 				display: inline-block;
 				border: solid 1px;
-				border-radius: 5px;
+				border-radius: var(--radius-sm);
 				padding: 2px 6px;
 				font-size: 85%;
 			}
@@ -638,7 +638,7 @@ definePageMetadata(computed(() => ({
 .announcementItem {
 	display: flex;
 	padding: 8px 12px;
-	border-radius: 5px;
+	border-radius: var(--radius-sm);
 	cursor: pointer;
 }
 </style>

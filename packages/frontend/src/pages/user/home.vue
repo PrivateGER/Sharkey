@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span v-if="user.isLocked" :title="i18n.ts.isLocked"><i class="ph-lock ph-bold ph-lg"></i></span>
 								<span v-if="user.isBot" :title="i18n.ts.isBot"><i class="ph-robot ph-bold ph-lg"></i></span>
 								<button v-if="!isEditingMemo && !memoDraft" class="_button add-note-button" @click="showMemoTextarea">
-									<i class="ph-pencil-line ph-bold pg-lg"/> {{ i18n.ts.addMemo }}
+									<i class="ph-pencil-line ph-bold ph-lg"/> {{ i18n.ts.addMemo }}
 								</button>
 							</div>
 						</div>
@@ -75,7 +75,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<div class="description">
 						<MkOmit>
-							<Mfm v-if="user.description" :text="user.description" :isNote="false" :author="user" :i="$i"/>
+							<Mfm v-if="user.description" :text="user.description" :isNote="false" :author="user"/>
 							<p v-else class="empty">{{ i18n.ts.noAccountDescription }}</p>
 						</MkOmit>
 					</div>
@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<Mfm :text="field.name" :plain="true" :colored="false"/>
 							</dt>
 							<dd class="value">
-								<Mfm :text="field.value" :author="user" :i="$i" :colored="false"/>
+								<Mfm :text="field.value" :author="user" :colored="false"/>
 								<i v-if="user.verifiedLinks.includes(field.value)" v-tooltip:dialog="i18n.ts.verifiedLink" class="ph-seal-check ph-bold ph-lg" :class="$style.verifiedLink"></i>
 							</dd>
 						</dl>
@@ -425,7 +425,7 @@ onUnmounted(() => {
 						color: #fff;
 						background: rgba(0, 0, 0, 0.7);
 						font-size: 0.7em;
-						border-radius: 5px;
+						border-radius: var(--radius-sm);
 					}
 
 					> .actions {
@@ -436,7 +436,7 @@ onUnmounted(() => {
 						backdrop-filter: var(--blur, blur(8px));
 						background: rgba(0, 0, 0, 0.2);
 						padding: 8px;
-						border-radius: 5px;
+						border-radius: var(--radius-lg);
 
 						> .menu {
 							vertical-align: bottom;
@@ -488,7 +488,7 @@ onUnmounted(() => {
 								color: #fff;
 								-webkit-backdrop-filter: var(--blur, blur(8px));
 								backdrop-filter: var(--blur, blur(8px));
-								border-radius: 5px;
+								border-radius: var(--radius-lg);
 								padding: 4px 8px;
 								font-size: 80%;
 							}
@@ -520,7 +520,7 @@ onUnmounted(() => {
 					z-index: 2;
 					width: 120px;
 					height: 120px;
-					box-shadow: 1px 1px 3px rgba(#000, 0.2);
+					filter: drop-shadow(1px 1px 3px rgba(#000, 0.2));
 				}
 
 				> .roles {
@@ -532,7 +532,7 @@ onUnmounted(() => {
 
 					> .role {
 						border: solid 1px var(--color, var(--divider));
-						border-radius: 4px;
+						border-radius: var(--radius-ellipse);
 						margin-right: 4px;
 						padding: 3px 8px;
 					}
@@ -547,7 +547,7 @@ onUnmounted(() => {
 					background: transparent;
 					color: var(--fg);
 					border: 1px solid var(--divider);
-					border-radius: 5px;
+					border-radius: var(--radius-sm);
 					padding: 8px;
 					line-height: 0;
 
@@ -755,9 +755,10 @@ onUnmounted(() => {
 	padding: calc(var(--margin) / 2) 0;
 	background: color-mix(in srgb, var(--bg) 65%, transparent);
 	backdrop-filter: var(--blur, blur(15px));
-	border-radius: 5px;
+	border-radius: var(--radius-sm);
+
 	> button {
-		border-radius: 5px;
+		border-radius: var(--radius-sm);
 		margin-left: 0.4rem;
 		margin-right: 0.4rem;
 	}
