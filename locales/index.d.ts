@@ -748,6 +748,8 @@ export interface Locale {
     "developer": string;
     "makeExplorable": string;
     "makeExplorableDescription": string;
+    "makeIndexable": string;
+    "makeIndexableDescription": string;
     "showGapBetweenNotesInTimeline": string;
     "duplicate": string;
     "left": string;
@@ -2508,6 +2510,12 @@ export interface Locale {
             "text": string;
             "confirm": string;
         };
+    };
+    "_dataRequest": {
+        "title": string;
+        "warn": string;
+        "text": string;
+        "button": string;
     };
 }
 declare const locales: {
