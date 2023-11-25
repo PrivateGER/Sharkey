@@ -125,6 +125,7 @@ import { deepClone } from '@/scripts/clone.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { miLocalStorage } from '@/local-storage.js';
 import { claimAchievement } from '@/scripts/achievements.js';
+import * as Sentry from "@sentry/vue";
 
 const modal = inject('modal');
 
@@ -773,6 +774,13 @@ async function post(ev?: MouseEvent) {
 	}
 
 	posting = true;
+
+  const transaction = Sentry.startTransaction({
+    name: "create_post"
+  });
+  Sentry.getCurrentHub().configureScope((scope) => scope.setSpan(transaction));
+
+
 	os.api(postData.editId ? "notes/edit" : "notes/create", postData, token).then(() => {
 		if (props.freezeAfterPosted) {
 			posted = true;
@@ -831,6 +839,8 @@ async function post(ev?: MouseEvent) {
 			if (m === 0 && s === 0) {
 				claimAchievement('postedAt0min0sec');
 			}
+
+      transaction.finish();
 		});
 	}).catch(err => {
 		posting = false;
@@ -838,6 +848,7 @@ async function post(ev?: MouseEvent) {
 			type: 'error',
 			text: err.message + '\n' + (err as any).id,
 		});
+    transaction.finish();
 	});
 }
 
