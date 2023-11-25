@@ -19,15 +19,31 @@ import { claimAchievement, claimedAchievements } from '@/scripts/achievements.js
 import { mainRouter } from '@/router.js';
 import { initializeSw } from '@/scripts/initialize-sw.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
+import * as Sentry from '@sentry/vue';
 
 export async function mainBoot() {
-	const { isClientUpdated } = await common(() => createApp(
+	const app = createApp(
 		new URLSearchParams(window.location.search).has('zen') || (ui === 'deck' && deckStore.state.useSimpleUiForNonRootPages && location.pathname !== '/') ? defineAsyncComponent(() => import('@/ui/zen.vue')) :
-		!$i ? defineAsyncComponent(() => import('@/ui/visitor.vue')) :
-		ui === 'deck' ? defineAsyncComponent(() => import('@/ui/deck.vue')) :
-		ui === 'classic' ? defineAsyncComponent(() => import('@/ui/classic.vue')) :
-		defineAsyncComponent(() => import('@/ui/universal.vue')),
-	));
+			!$i ? defineAsyncComponent(() => import('@/ui/visitor.vue')) :
+				ui === 'deck' ? defineAsyncComponent(() => import('@/ui/deck.vue')) :
+					ui === 'classic' ? defineAsyncComponent(() => import('@/ui/classic.vue')) :
+						defineAsyncComponent(() => import('@/ui/universal.vue')),
+	)
+
+	Sentry.init({
+		app,
+		dsn: "https://e01987edb77d63017714bf1c934e8fc4@sentry.plasmatrap.com/3",
+		tracesSampleRate: 1.0,
+		tracePropagationTargets: ["localhost", "https://plasmatrap.com/api"],
+		integrations: [
+			new Sentry.BrowserTracing(),
+			new Sentry.Replay(),
+		],
+		replaysSessionSampleRate: 0.1,
+		replaysOnErrorSampleRate: 1.0,
+	});
+
+	const { isClientUpdated } = await common(() => app);
 
 	reactionPicker.init();
 

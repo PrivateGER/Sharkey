@@ -672,6 +672,9 @@ importers:
       '@rollup/pluginutils':
         specifier: 5.0.5
         version: 5.0.5(rollup@4.4.1)
+      '@sentry/vue':
+        specifier: ^7.81.1
+        version: 7.81.1(vue@3.3.8)
       '@syuilo/aiscript':
         specifier: 0.16.0
         version: 0.16.0
@@ -5421,6 +5424,17 @@ packages:
       '@sentry/utils': 7.81.1
     dev: false
 
+  /@sentry/browser@7.81.1:
+    resolution: {integrity: sha512-DNtS7bZEnFPKVoGazKs5wHoWC0FwsOFOOMNeDvEfouUqKKbjO7+RDHbr7H6Bo83zX4qmZWRBf8V+3n3YPIiJFw==}
+    engines: {node: '>=8'}
+    dependencies:
+      '@sentry-internal/tracing': 7.81.1
+      '@sentry/core': 7.81.1
+      '@sentry/replay': 7.81.1
+      '@sentry/types': 7.81.1
+      '@sentry/utils': 7.81.1
+    dev: false
+
   /@sentry/core@7.81.1:
     resolution: {integrity: sha512-tU37yAmckOGCw/moWKSwekSCWWJP15O6luIq+u7wal22hE88F3Vc5Avo8SeF3upnPR+4ejaOFH+BJTr6bgrs6Q==}
     engines: {node: '>=8'}
@@ -5442,6 +5456,16 @@ packages:
       - supports-color
     dev: false
 
+  /@sentry/replay@7.81.1:
+    resolution: {integrity: sha512-4ueT0C4bYjngN/9p0fEYH10dTMLovHyk9HxJ6zSTgePvGVexhg+cSEHXisoBDwHeRZVnbIvsVM0NA7rmEDXJJw==}
+    engines: {node: '>=12'}
+    dependencies:
+      '@sentry-internal/tracing': 7.81.1
+      '@sentry/core': 7.81.1
+      '@sentry/types': 7.81.1
+      '@sentry/utils': 7.81.1
+    dev: false
+
   /@sentry/types@7.81.1:
     resolution: {integrity: sha512-dvJvGyctiaPMIQqa46k56Re5IODWMDxiHJ1UjBs/WYDLrmWFPGrEbyJ8w8CYLhYA+7qqrCyIZmHbWSTRIxstHw==}
     engines: {node: '>=8'}
@@ -5452,6 +5476,19 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       '@sentry/types': 7.81.1
+    dev: false
+
+  /@sentry/vue@7.81.1(vue@3.3.8):
+    resolution: {integrity: sha512-5vl6wDi2MGJK8WaL59DqA7KQKPHpVbLsicnBb8waNdnGbm3FarQxrOUhXOIeri9dD0/tM+1yeMgSM9oOfMn9Mg==}
+    engines: {node: '>=8'}
+    peerDependencies:
+      vue: 2.x || 3.x
+    dependencies:
+      '@sentry/browser': 7.81.1
+      '@sentry/core': 7.81.1
+      '@sentry/types': 7.81.1
+      '@sentry/utils': 7.81.1
+      vue: 3.3.8(typescript@5.2.2)
     dev: false
 
   /@sideway/address@4.1.4:

@@ -202,6 +202,7 @@ import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { showMovedDialog } from '@/scripts/show-moved-dialog.js';
 import { shouldCollapsed } from '@/scripts/collapsed.js';
 import { useRouter } from '@/router.js';
+import * as Sentry from '@sentry/vue';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
