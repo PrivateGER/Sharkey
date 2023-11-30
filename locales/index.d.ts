@@ -115,7 +115,6 @@ export interface Locale {
     "renoted": string;
     "quoted": string;
     "rmboost": string;
-    "rmquote": string;
     "cantRenote": string;
     "cantReRenote": string;
     "quote": string;
@@ -991,6 +990,7 @@ export interface Locale {
     "numberOfProfileView": string;
     "like": string;
     "unlike": string;
+    "defaultLike": string;
     "numberOfLikes": string;
     "show": string;
     "neverShow": string;

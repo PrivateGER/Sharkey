@@ -127,9 +127,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					ref="quoteButton"
 					:class="$style.footerButton"
 					class="_button"
-					:style="quoted ? 'color: var(--accent) !important;' : ''"
 					v-on:click.stop
-					@mousedown="quoted ? undoQuote(appearNote) : quote()"
+					@mousedown="quote()"
 				>
 					<i class="ph-quotes ph-bold ph-lg"></i>
 				</button>
@@ -282,14 +281,13 @@ const isLong = shouldCollapsed(appearNote, urls ?? []);
 const collapsed = ref(appearNote.cw == null && isLong);
 const isDeleted = ref(false);
 const renoted = ref(false);
-const quoted = ref(false);
 const muted = ref($i ? checkWordMute(appearNote, $i, $i.mutedWords) : false);
 const translation = ref<any>(null);
 const translating = ref(false);
 const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultStore.state.instanceTicker === 'remote' && appearNote.user.instance);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i.id));
 let renoteCollapsed = $ref(defaultStore.state.collapseRenotes && isRenote && (($i && ($i.id === note.userId || $i.id === appearNote.userId)) || (appearNote.myReaction != null)));
-const defaultLike = computed(() => defaultStore.state.like !== '❤️' ? defaultStore.state.like : null);
+const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
 
 const keymap = {
 	'r': () => reply(true),
@@ -367,15 +365,6 @@ if (!props.mock) {
 			limit: 1,
 		}).then((res) => {
 			renoted.value = res.length > 0;
-		});
-
-		os.api("notes/renotes", {
-			noteId: appearNote.id,
-			userId: $i.id,
-			limit: 1,
-			quote: true,
-		}).then((res) => {
-			quoted.value = res.length > 0;
 		});
 	}
 }
@@ -471,7 +460,6 @@ function quote() {
 					os.popup(MkRippleEffect, { x, y }, {}, 'end');
 				}
 
-				quoted.value = res.length > 0;
 				os.toast(i18n.ts.quoted);
 			});
 		});
@@ -494,7 +482,6 @@ function quote() {
 					os.popup(MkRippleEffect, { x, y }, {}, 'end');
 				}
 
-				quoted.value = res.length > 0;
 				os.toast(i18n.ts.quoted);
 			});
 		});
@@ -599,26 +586,6 @@ function undoRenote(note) : void {
 	renoted.value = false;
 
 	const el = renoteButton.value as HTMLElement | null | undefined;
-	if (el) {
-		const rect = el.getBoundingClientRect();
-		const x = rect.left + (el.offsetWidth / 2);
-		const y = rect.top + (el.offsetHeight / 2);
-		os.popup(MkRippleEffect, { x, y }, {}, 'end');
-	}
-}
-
-function undoQuote(note) : void {
-	if (props.mock) {
-		return;
-	}
-	os.api("notes/unrenote", {
-		noteId: note.id,
-		quote: true
-	});
-	os.toast(i18n.ts.rmquote);
-	quoted.value = false;
-
-	const el = quoteButton.value as HTMLElement | null | undefined;
 	if (el) {
 		const rect = el.getBoundingClientRect();
 		const x = rect.left + (el.offsetWidth / 2);
