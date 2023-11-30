@@ -704,37 +704,6 @@ async function post(ev?: MouseEvent) {
 
 	if (props.mock) return;
 
-	const annoying =
-		text.includes('$[x2') ||
-		text.includes('$[x3') ||
-		text.includes('$[x4') ||
-		text.includes('$[scale') ||
-		text.includes('$[position');
-
-	if (annoying && visibility === 'public') {
-		const { canceled, result } = await os.actions({
-			type: 'warning',
-			text: i18n.ts.thisPostMayBeAnnoying,
-			actions: [{
-				value: 'home',
-				text: i18n.ts.thisPostMayBeAnnoyingHome,
-				primary: true,
-			}, {
-				value: 'cancel',
-				text: i18n.ts.thisPostMayBeAnnoyingCancel,
-			}, {
-				value: 'ignore',
-				text: i18n.ts.thisPostMayBeAnnoyingIgnore,
-			}],
-		});
-
-		if (canceled) return;
-		if (result === 'cancel') return;
-		if (result === 'home') {
-			visibility = 'home';
-		}
-	}
-
 	let postData = {
 		text: text === '' ? null : text,
 		fileIds: files.length > 0 ? files.map(f => f.id) : undefined,
