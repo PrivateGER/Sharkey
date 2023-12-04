@@ -47,16 +47,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSwitch v-model="showClipButtonInNoteFooter">{{ i18n.ts.showClipButtonInNoteFooter }}</MkSwitch>
 				<MkSwitch v-model="collapseRenotes">{{ i18n.ts.collapseRenotes }}</MkSwitch>
 				<MkSwitch v-model="collapseFiles">{{ i18n.ts.collapseFiles }}</MkSwitch>
+				<MkSwitch v-model="uncollapseCW">Uncollapse CWs on notes</MkSwitch>
 				<MkSwitch v-model="autoloadConversation">{{ i18n.ts.autoloadConversation }}</MkSwitch>
+				<MkSwitch v-model="expandLongNote">Always expand long notes</MkSwitch>
 				<MkSwitch v-model="advancedMfm">{{ i18n.ts.enableAdvancedMfm }}</MkSwitch>
 				<MkSwitch v-if="advancedMfm" v-model="animatedMfm">{{ i18n.ts.enableAnimatedMfm }}</MkSwitch>
 				<MkSwitch v-model="showGapBetweenNotesInTimeline">{{ i18n.ts.showGapBetweenNotesInTimeline }}</MkSwitch>
 				<MkSwitch v-model="loadRawImages">{{ i18n.ts.loadRawImages }}</MkSwitch>
+				<MkSwitch v-model="showTickerOnReplies">Show instance ticker on replies</MkSwitch>
 				<MkRadios v-model="reactionsDisplaySize">
 					<template #label>{{ i18n.ts.reactionsDisplaySize }}</template>
 					<option value="small">{{ i18n.ts.small }}</option>
 					<option value="medium">{{ i18n.ts.medium }}</option>
 					<option value="large">{{ i18n.ts.large }}</option>
+				</MkRadios>
+				<MkRadios v-model="noteDesign">
+					<template #label>Note Design</template>
+					<option value="sharkey">Sharkey</option>
+					<option value="misskey">Misskey</option>
 				</MkRadios>
 			</div>
 
@@ -271,6 +279,10 @@ const notificationStackAxis = computed(defaultStore.makeGetterSetter('notificati
 const keepScreenOn = computed(defaultStore.makeGetterSetter('keepScreenOn'));
 const disableStreamingTimeline = computed(defaultStore.makeGetterSetter('disableStreamingTimeline'));
 const useGroupedNotifications = computed(defaultStore.makeGetterSetter('useGroupedNotifications'));
+const showTickerOnReplies = computed(defaultStore.makeGetterSetter('showTickerOnReplies'));
+const noteDesign = computed(defaultStore.makeGetterSetter('noteDesign'));
+const uncollapseCW = computed(defaultStore.makeGetterSetter('uncollapseCW'));
+const expandLongNote = computed(defaultStore.makeGetterSetter('expandLongNote'));
 
 watch(lang, () => {
 	miLocalStorage.setItem('lang', lang.value as string);

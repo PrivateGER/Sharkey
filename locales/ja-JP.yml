@@ -891,6 +891,7 @@ continueThread: "さらにスレッドを見る"
 deleteAccountConfirm: "アカウントが削除されます。よろしいですか？"
 incorrectPassword: "パスワードが間違っています。"
 voteConfirm: "「{choice}」に投票しますか？"
+voteConfirmMulti: "「{choice}」に投票しますか？\n　確認後、選択肢を増やすことができます。"
 hide: "隠す"
 useDrawerReactionPickerForMobile: "モバイルデバイスのときドロワーで表示"
 welcomeBackWithName: "おかえりなさい、{name}さん"
@@ -1606,6 +1607,7 @@ _role:
     high: "高"
   _options:
     gtlAvailable: "グローバルタイムラインの閲覧"
+    btlAvailable: "バブルのタイムラインを見ることができる"
     ltlAvailable: "ローカルタイムラインの閲覧"
     canPublicNote: "パブリック投稿の許可"
     canImportNotes: "ノートのインポートが可能"
@@ -2030,6 +2032,7 @@ _widgets:
   _userList:
     chooseList: "リストを選択"
   clicker: "クリッカー"
+  search: "検索"
 
 _cw:
   hide: "隠す"
@@ -2059,6 +2062,7 @@ _poll:
   remainingHours: "終了まであと{h}時間{m}分"
   remainingMinutes: "終了まであと{m}分{s}秒"
   remainingSeconds: "終了まであと{s}秒"
+  multiple: "複数の選択肢"
 
 _visibility:
   public: "パブリック"

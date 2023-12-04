@@ -5,11 +5,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div v-if="!muted" ref="el" :class="[$style.root, { [$style.children]: depth > 1 }]">
+	<div v-if="!hideLine" :class="$style.line"></div>
 	<div :class="$style.main">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
-		<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
+		<!-- new avatar container with line (post section) -->
+		<div :class="$style.avatarContainer">
+			<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
+			<template v-if="note.repliesCount > 0">
+				<div v-if="hideLine" :class="$style.threadLine"></div>
+			</template>
+		</div>
+		<!-- end new avatar container -->
 		<div :class="$style.body">
-			<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
+			<SkNoteHeader :class="$style.header" :note="note" :classic="true" :mini="true"/>
 			<div :class="$style.content">
 				<p v-if="note.cw != null" :class="$style.cw">
 					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
@@ -65,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 	<template v-if="depth < 5">
-		<MkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="$style.reply" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws"/>
+		<SkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [$style.single]: replies.length === 1 }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws"/>
 	</template>
 	<div v-else :class="$style.more">
 		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ph-caret-double-right ph-bold ph-lg"></i></MkA>
@@ -85,7 +93,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, shallowRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
-import MkNoteHeader from '@/components/MkNoteHeader.vue';
+import SkNoteHeader from '@/components/SkNoteHeader.vue';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
@@ -106,6 +114,7 @@ import { getNoteMenu } from '@/scripts/get-note-menu.js';
 import { useNoteCapture } from '@/scripts/use-note-capture.js';
 
 const canRenote = computed(() => ['public', 'home'].includes(props.note.visibility) || props.note.userId === $i.id);
+const hideLine = computed(() => { return props.detail ? true : false; });
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -400,7 +409,7 @@ if (props.detail) {
 
 <style lang="scss" module>
 .root {
-	padding: 16px 32px;
+	padding: 28px 32px;
 	font-size: 0.9em;
 	position: relative;
 
@@ -410,12 +419,20 @@ if (props.detail) {
 	}
 }
 
+.line {
+	position: absolute;
+	height: 100%;
+	left: 60px;
+	// using solid instead of dotted, stylelistic choice
+	border-left: 2.5px solid rgb(174, 174, 174);
+}
+
 .footer {
-		position: relative;
-		z-index: 1;
-		margin-top: 0.4em;
-		width: max-content;
-		min-width: max-content;
+	position: relative;
+	z-index: 1;
+	margin-top: 0.4em;
+	width: max-content;
+	min-width: max-content;
 }
 
 .main {
@@ -435,9 +452,9 @@ if (props.detail) {
 .avatar {
 	flex-shrink: 0;
 	display: block;
-	margin: 0 8px 0 0;
-	width: 38px;
-	height: 38px;
+	margin: 0 14px 0 0;
+	width: 58px;
+	height: 58px;
 	border-radius: var(--radius-sm);
 }
 
@@ -448,6 +465,11 @@ if (props.detail) {
 
 .content {
 	overflow: hidden;
+}
+
+.text {
+	margin: 0;
+	padding: 0;
 }
 
 .header {
@@ -466,6 +488,36 @@ if (props.detail) {
 
 	&:hover {
 		color: var(--fgHighlighted);
+	}
+}
+// Responsible for Reply borders 448 and 508
+.reply, .more {
+	//border-left: solid 0.5px var(--divider);
+	margin-top: 10px;
+}
+
+.more {
+	padding: 10px 0 0 16px;
+}
+
+@container (max-width: 580px) {
+	.root {
+		padding: 28px 26px 0;
+	}
+
+	.line {
+		left: 50.5px;
+	}
+
+	.avatar {
+		width: 50px;
+		height: 50px;
+	}
+}
+
+@container (max-width: 500px) {
+	.root {
+		padding: 23px 25px;
 	}
 }
 
@@ -500,7 +552,7 @@ if (props.detail) {
 }
 
 .reply, .more {
-	border-left: solid 0.5px var(--divider);
+	//border-left: solid 0.5px var(--divider);
 	margin-top: 10px;
 }
 
@@ -508,13 +560,24 @@ if (props.detail) {
 	padding: 10px 0 0 16px;
 }
 
-@container (max-width: 450px) {
+@container (max-width: 480px) {
 	.root {
-		padding: 14px 16px;
+		padding: 22px 24px;
 
 		&.children {
 			padding: 10px 0 0 8px;
 		}
+	}
+}
+
+@container (max-width: 450px) {
+	.line {
+		left: 46px;
+	}
+
+	.avatar {
+		width: 46px;
+		height: 46px;
 	}
 }
 
@@ -524,5 +587,84 @@ if (props.detail) {
 	border: 1px solid var(--divider);
 	margin: 8px 8px 0 8px;
 	border-radius: var(--radius-sm);
+}
+
+// avatar container with line
+.avatarContainer {
+	display: flex;
+	flex-direction: column;
+}
+
+.threadLine {
+	width: 0;
+	flex-grow: 1;
+	border-left: 2.5px solid rgb(174, 174, 174);
+	margin-left: 29px;
+}
+
+.reply {
+	margin-left: 29px;
+}
+
+.reply:not(:last-child) {
+	border-left: 2.5px solid rgb(174, 174, 174);
+
+	&::before {
+		left: -2px;
+	}
+}
+
+.reply::before {
+	position: absolute;
+	content: '';
+	left: 0px;
+	top: -10px;
+	height: 49px;
+	width: 15px;
+	border-left: 2.5px solid rgb(174, 174, 174);
+	border-bottom: 2.5px solid rgb(174, 174, 174);
+	border-bottom-left-radius: 15px;
+}
+
+.single {
+	margin-left: 0;
+	padding-left: 0 !important;
+
+	&::before {
+		left: 29px;
+		width: 0;
+		border-bottom: unset;
+	}
+}
+
+@container (max-width: 580px) {
+	.threadLine, .reply {
+		margin-left: 25px;
+	}
+	.reply::before {
+		height: 45px;
+	}
+	.single::before {
+		left: 25px;
+	}
+	.single {
+		margin-left: 0;
+	}
+}
+
+@container (max-width: 450px) {
+	.threadLine, .reply {
+		margin-left: 23px;
+	}
+	.reply::before {
+		height: 43px;
+	}
+	.single::before {
+		left: 23px;
+		width: 9px;
+	}
+	.single {
+		margin-left: 0;
+	}
 }
 </style>

@@ -74,6 +74,14 @@ export const defaultStore = markRaw(new Storage('base', {
 		where: 'account',
 		default: false,
 	},
+	uncollapseCW: {
+		where: 'account',
+		default: false,
+	},
+	expandLongNote: {
+		where: 'device',
+		default: false,
+	},
 	rememberNoteVisibility: {
 		where: 'account',
 		default: false,
@@ -249,6 +257,14 @@ export const defaultStore = markRaw(new Storage('base', {
 	showFixedPostFormInChannel: {
 		where: 'device',
 		default: false,
+	},
+	showTickerOnReplies: {
+		where: 'device',
+		default: false,
+	},
+	noteDesign: {
+		where: 'device',
+		default: 'sharkey' as 'sharkey' | 'misskey',
 	},
 	enableInfiniteScroll: {
 		where: 'device',
