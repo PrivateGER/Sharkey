@@ -109,6 +109,9 @@ importers:
       '@sentry/node':
         specifier: ^7.75.1
         version: 7.86.0
+      '@sharkey/sfm-js':
+        specifier: 0.23.3
+        version: 0.23.3
       '@simplewebauthn/server':
         specifier: 8.3.5
         version: 8.3.5
@@ -247,9 +250,6 @@ importers:
       meilisearch:
         specifier: 0.35.0
         version: 0.35.0
-      mfm-js:
-        specifier: 0.23.3
-        version: 0.23.3
       microformats-parser:
         specifier: 1.5.2
         version: 1.5.2
@@ -675,6 +675,9 @@ importers:
       '@sentry/vue':
         specifier: ^7.81.1
         version: 7.86.0(vue@3.3.8)
+      '@sharkey/sfm-js':
+        specifier: 0.23.3
+        version: 0.23.3
       '@syuilo/aiscript':
         specifier: 0.16.0
         version: 0.16.0
@@ -762,9 +765,6 @@ importers:
       matter-js:
         specifier: 0.19.0
         version: 0.19.0
-      mfm-js:
-        specifier: 0.23.3
-        version: 0.23.3
       misskey-js:
         specifier: workspace:*
         version: link:../misskey-js
@@ -5514,6 +5514,12 @@ packages:
       '@sentry/types': 7.86.0
       '@sentry/utils': 7.86.0
       vue: 3.3.8(typescript@5.2.2)
+    dev: false
+
+  /@sharkey/sfm-js@0.23.3:
+    resolution: {integrity: sha512-j4VxSmZIA438RKCe16kxaqhl2g+69w89x49ebm22XwRwH/KvYIC6uVQdcBhOovyN7l2xCCLdsPM1+bu8wZIP2A==, tarball: https://git.joinsharkey.org/api/packages/Sharkey/npm/%40sharkey%2Fsfm-js/-/0.23.3/sfm-js-0.23.3.tgz}
+    dependencies:
+      twemoji-parser: 14.0.0
     dev: false
 
   /@sideway/address@4.1.4:
@@ -14610,12 +14616,6 @@ packages:
   /methods@1.1.2:
     resolution: {integrity: sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==}
     engines: {node: '>= 0.6'}
-
-  /mfm-js@0.23.3:
-    resolution: {integrity: sha512-o8scYmbey6rMUmWAlT3k3ntt6khaCLdxlmHhAWV5wTTMj2OK1atQvZfRUq0SIVm1Jig08qlZg/ps71xUqrScNA==}
-    dependencies:
-      twemoji-parser: 14.0.0
-    dev: false
 
   /microformats-parser@1.5.2:
     resolution: {integrity: sha512-EcHm8zxEm3CggOLgILfxCo2wDiJEOnACzpV/FXWGLaRk24ECei+JkoWNdKdo2vzo/Pww9EvrQNeQsdv4JuHy7Q==}
