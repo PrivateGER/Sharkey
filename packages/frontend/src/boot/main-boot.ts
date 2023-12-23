@@ -29,7 +29,7 @@ export async function mainBoot() {
 				ui === 'deck' ? defineAsyncComponent(() => import('@/ui/deck.vue')) :
 					ui === 'classic' ? defineAsyncComponent(() => import('@/ui/classic.vue')) :
 						defineAsyncComponent(() => import('@/ui/universal.vue')),
-	)
+	);
 
 	Sentry.init({
 		app,
