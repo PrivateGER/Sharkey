@@ -321,7 +321,6 @@ export class SignupApiService {
 				});
 			}
 
-
 			if (instance.approvalRequiredForSignup) {
 				if (pendingUser.email) {
 					this.emailService.sendEmail(pendingUser.email, 'Approval pending',
