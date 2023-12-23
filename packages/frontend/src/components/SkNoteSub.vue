@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="!muted" ref="el" :class="[$style.root, { [$style.children]: depth > 1 }]">
+<div v-show="!isDeleted" v-if="!muted" ref="el" :class="[$style.root, { [$style.children]: depth > 1 }]">
 	<div v-if="!hideLine" :class="$style.line"></div>
 	<div :class="$style.main">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.content">
 				<p v-if="note.cw != null" :class="$style.cw">
 					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
-					<MkCwButton v-model="showContent" :note="note"/>
+					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
 				</p>
 				<div v-show="note.cw == null || showContent">
 					<MkSubNoteContent :class="$style.text" :note="note" :translating="translating" :translation="translation"/>
@@ -73,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 	<template v-if="depth < numberOfReplies">
-		<SkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [$style.single]: replies.length === 1 }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws"/>
+		<SkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [$style.single]: replies.length === 1 }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply"/>
 	</template>
 	<div v-else :class="$style.more">
 		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ph-caret-double-right ph-bold ph-lg"></i></MkA>
@@ -101,15 +101,14 @@ import { notePage } from '@/filters/note.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/account.js';
-import { userPage } from "@/filters/user.js";
-import { checkWordMute } from "@/scripts/check-word-mute.js";
-import { defaultStore } from "@/store.js";
+import { userPage } from '@/filters/user.js';
+import { checkWordMute } from '@/scripts/check-word-mute.js';
+import { defaultStore } from '@/store.js';
 import { pleaseLogin } from '@/scripts/please-login.js';
 import { showMovedDialog } from '@/scripts/show-moved-dialog.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { reactionPicker } from '@/scripts/reaction-picker.js';
 import { claimAchievement } from '@/scripts/achievements.js';
-import type { MenuItem } from '@/types/menu.js';
 import { getNoteMenu } from '@/scripts/get-note-menu.js';
 import { useNoteCapture } from '@/scripts/use-note-capture.js';
 
@@ -120,6 +119,7 @@ const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
 	detail?: boolean;
 	expandAllCws?: boolean;
+	onDeleteCallback?: (id: Misskey.entities.Note['id']) => void;
 
 	// how many notes are in between this one and the note being viewed in detail
 	depth?: number;
@@ -140,8 +140,9 @@ const quoteButton = shallowRef<HTMLElement>();
 const menuButton = shallowRef<HTMLElement>();
 const likeButton = shallowRef<HTMLElement>();
 
-let appearNote = $computed(() => isRenote ? props.note.renote as Misskey.entities.Note : props.note);
+let appearNote = computed(() => isRenote ? props.note.renote as Misskey.entities.Note : props.note);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
+const replies = ref<Misskey.entities.Note[]>([]);
 
 const isRenote = (
 	props.note.renote != null &&
@@ -150,15 +151,31 @@ const isRenote = (
 	props.note.poll == null
 );
 
+async function addReplyTo(replyNote: Misskey.entities.Note) {
+		replies.value.unshift(replyNote);
+		appearNote.value.repliesCount += 1;
+}
+
+async function removeReply(id: Misskey.entities.Note['id']) {
+		const replyIdx = replies.value.findIndex(note => note.id === id);
+		if (replyIdx >= 0) {
+			replies.value.splice(replyIdx, 1);
+			appearNote.value.repliesCount -= 1;
+		}
+}
+
 useNoteCapture({
 	rootEl: el,
-	note: $$(appearNote),
+	note: appearNote,
 	isDeletedRef: isDeleted,
+	// only update replies if we are, in fact, showing replies
+	onReplyCallback: props.detail && props.depth < numberOfReplies.value ? addReplyTo : undefined,
+	onDeleteCallback: props.detail && props.depth < numberOfReplies.value ? props.onDeleteCallback : undefined,
 });
 
 if ($i) {
-	os.api("notes/renotes", {
-		noteId: appearNote.id,
+	os.api('notes/renotes', {
+		noteId: appearNote.value.id,
 		userId: $i.id,
 		limit: 1,
 	}).then((res) => {
@@ -239,8 +256,8 @@ function undoReact(note): void {
 
 function undoRenote() : void {
 	if (!renoted.value) return;
-	os.api("notes/unrenote", {
-		noteId: appearNote.id,
+	os.api('notes/unrenote', {
+		noteId: appearNote.value.id,
 	});
 	os.toast(i18n.ts.rmboost);
 	renoted.value = false;
@@ -254,13 +271,11 @@ function undoRenote() : void {
 	}
 }
 
-let showContent = $ref(defaultStore.state.uncollapseCW);
+let showContent = ref(defaultStore.state.uncollapseCW);
 
 watch(() => props.expandAllCws, (expandAllCws) => {
-	if (expandAllCws !== showContent) showContent = expandAllCws;
+	if (expandAllCws !== showContent.value) showContent.value = expandAllCws;
 });
-
-let replies: Misskey.entities.Note[] = $ref([]);
 
 function boostVisibility() {
 	os.popupMenu([
@@ -302,7 +317,7 @@ function renote(visibility: 'public' | 'home' | 'followers' | 'specified' | 'loc
 	pleaseLogin();
 	showMovedDialog();
 
-	if (appearNote.channel) {
+	if (appearNote.value.channel) {
 		const el = renoteButton.value as HTMLElement | null | undefined;
 		if (el) {
 			const rect = el.getBoundingClientRect();
@@ -342,12 +357,12 @@ function quote() {
 	pleaseLogin();
 	showMovedDialog();
 
-	if (appearNote.channel) {
+	if (appearNote.value.channel) {
 		os.post({
-			renote: appearNote,
-			channel: appearNote.channel,
+			renote: appearNote.value,
+			channel: appearNote.value.channel,
 		}).then(() => {
-			os.api("notes/renotes", {
+			os.api('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
 				limit: 1,
@@ -367,9 +382,9 @@ function quote() {
 		});
 	} else {
 		os.post({
-			renote: appearNote,
+			renote: appearNote.value,
 		}).then(() => {
-			os.api("notes/renotes", {
+			os.api('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
 				limit: 1,
@@ -403,7 +418,7 @@ if (props.detail) {
 		limit: numberOfReplies.value,
 		showQuotes: false,
 	}).then(res => {
-		replies = res;
+		replies.value = res;
 	});
 }
 </script>
@@ -433,7 +448,8 @@ if (props.detail) {
 	z-index: 1;
 	margin-top: 0.4em;
 	width: max-content;
-	min-width: max-content;
+	min-width: min-content;
+	max-width: fit-content;
 }
 
 .main {
