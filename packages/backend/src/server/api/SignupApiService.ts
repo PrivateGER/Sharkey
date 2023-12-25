@@ -344,7 +344,7 @@ export class SignupApiService {
 			}
 
 			if (adminUser) {
-				await this.userFollowingService.follow(adminUser, account);
+				await this.userFollowingService.follow(account, adminUser);
 			}
 
 			return this.signinService.signin(request, reply, account as MiLocalUser);
