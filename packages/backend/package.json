@@ -19,7 +19,7 @@
 		"restart": "pnpm build && pnpm start",
 		"dev": "nodemon -w src -e ts,js,mjs,cjs,json --exec \"cross-env NODE_ENV=development pnpm run restart\"",
 		"typecheck": "pnpm --filter megalodon build && tsc --noEmit",
-		"eslint": "eslint --quiet \"src/**/*.ts\"",
+		"eslint": "eslint --cache --quiet \"src/**/*.ts\"",
 		"lint": "pnpm typecheck && pnpm eslint",
 		"jest": "cross-env NODE_ENV=test node --experimental-vm-modules --experimental-import-meta-resolve node_modules/jest/bin/jest.js --forceExit",
 		"jest-and-coverage": "cross-env NODE_ENV=test node --experimental-vm-modules --experimental-import-meta-resolve node_modules/jest/bin/jest.js --coverage --forceExit",
