@@ -400,39 +400,43 @@ function smallerVisibility(a: Visibility | string, b: Visibility | string): Visi
 }
 
 function boostVisibility() {
-	os.popupMenu([
-		{
-			type: 'button',
-			icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
-			text: i18n.ts._visibility['public'],
-			action: () => {
-				renote('public');
+	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+		renote(defaultStore.state.visibilityOnBoost);
+	} else {
+		os.popupMenu([
+			{
+				type: 'button',
+				icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
+				text: i18n.ts._visibility['public'],
+				action: () => {
+					renote('public');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-house ph-bold ph-lg',
-			text: i18n.ts._visibility['home'],
-			action: () => {
-				renote('home');
+			{
+				type: 'button',
+				icon: 'ph-house ph-bold ph-lg',
+				text: i18n.ts._visibility['home'],
+				action: () => {
+					renote('home');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-lock ph-bold ph-lg',
-			text: i18n.ts._visibility['followers'],
-			action: () => {
-				renote('followers');
+			{
+				type: 'button',
+				icon: 'ph-lock ph-bold ph-lg',
+				text: i18n.ts._visibility['followers'],
+				action: () => {
+					renote('followers');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-planet ph-bold ph-lg',
-			text: i18n.ts._timelines.local,
-			action: () => {
-				renote('local');
-			},
-		}], renoteButton.value);
+			{
+				type: 'button',
+				icon: 'ph-planet ph-bold ph-lg',
+				text: i18n.ts._timelines.local,
+				action: () => {
+					renote('local');
+				},
+			}], renoteButton.value);
+	}
 }
 
 function renote(visibility: Visibility | 'local') {
@@ -882,7 +886,6 @@ function emitUpdReaction(emoji: string, delta: number) {
 }
 
 .replyTo {
-	opacity: 0.7;
 	padding-bottom: 0;
 }
 
@@ -890,10 +893,27 @@ function emitUpdReaction(emoji: string, delta: number) {
 	position: relative;
 	display: flex;
 	align-items: center;
-	padding: 24px 38px 16px;
+	padding: 24px 32px 16px calc(32px + var(--avatar) + 14px);
 	line-height: 28px;
 	white-space: pre;
 	color: var(--renote);
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: calc(32px + .5 * var(--avatar));
+		bottom: -8px;
+		border-left: var(--thread-width) solid var(--thread);
+	}
+
+	&:first-child {
+		padding-left: 32px;
+
+		&::before {
+			display: none;
+		}
+	}
 
 	& + .article {
 		padding-top: 8px;
@@ -906,7 +926,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 
 .renoteAvatar {
 	flex-shrink: 0;
-	display: inline-block;
+	display: none; /* same as Firefish, but keeping the element around in case someone wants to add it back via CSS override */
 	width: 28px;
 	height: 28px;
 	margin: 0 8px 0 0;
@@ -987,8 +1007,8 @@ function emitUpdReaction(emoji: string, delta: number) {
 	display: block !important;
 	position: sticky !important;
 	margin: 0 14px 0 0;
-	width: 58px;
-	height: 58px;
+	width: var(--avatar);
+	height: var(--avatar);
 	position: sticky !important;
 	top: calc(22px + var(--stickyTop, 0px));
 	left: 0;

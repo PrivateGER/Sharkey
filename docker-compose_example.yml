@@ -2,8 +2,7 @@ version: "3"
 
 services:
   web:
-#   replace image below with git.joinsharkey.org/sharkey/sharkey:stable on next release
-#   image: ghcr.io/transfem-org/sharkey:stable
+#   image: git.joinsharkey.org/sharkey/sharkey:latest
     build: .
     restart: always
     links:
@@ -55,6 +54,7 @@ services:
 #    environment:
 #      - MEILI_NO_ANALYTICS=true
 #      - MEILI_ENV=production
+#      - MEILI_MASTER_KEY=ChangeThis
 #    networks:
 #      - shonk
 #    volumes:

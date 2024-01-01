@@ -178,7 +178,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="!repliesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
 			</div>
-			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" />
+			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply"/>
 		</div>
 		<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
 			<MkPagination :pagination="renotesPagination" :disableAutoLoad="true">
@@ -381,16 +381,16 @@ const reactionsPagination = computed(() => ({
 }));
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
-		replies.value.unshift(replyNote);
-		appearNote.value.repliesCount += 1;
+	replies.value.unshift(replyNote);
+	appearNote.value.repliesCount += 1;
 }
 
 async function removeReply(id: Misskey.entities.Note['id']) {
-		const replyIdx = replies.value.findIndex(note => note.id === id);
-		if (replyIdx >= 0) {
-			replies.value.splice(replyIdx, 1);
-			appearNote.value.repliesCount -= 1;
-		}
+	const replyIdx = replies.value.findIndex(note => note.id === id);
+	if (replyIdx >= 0) {
+		replies.value.splice(replyIdx, 1);
+		appearNote.value.repliesCount -= 1;
+	}
 }
 
 useNoteCapture({
@@ -449,39 +449,43 @@ function smallerVisibility(a: Visibility | string, b: Visibility | string): Visi
 }
 
 function boostVisibility() {
-	os.popupMenu([
-		{
-			type: 'button',
-			icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
-			text: i18n.ts._visibility['public'],
-			action: () => {
-				renote('public');
+	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+		renote(defaultStore.state.visibilityOnBoost);
+	} else {
+		os.popupMenu([
+			{
+				type: 'button',
+				icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
+				text: i18n.ts._visibility['public'],
+				action: () => {
+					renote('public');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-house ph-bold ph-lg',
-			text: i18n.ts._visibility['home'],
-			action: () => {
-				renote('home');
+			{
+				type: 'button',
+				icon: 'ph-house ph-bold ph-lg',
+				text: i18n.ts._visibility['home'],
+				action: () => {
+					renote('home');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-lock ph-bold ph-lg',
-			text: i18n.ts._visibility['followers'],
-			action: () => {
-				renote('followers');
+			{
+				type: 'button',
+				icon: 'ph-lock ph-bold ph-lg',
+				text: i18n.ts._visibility['followers'],
+				action: () => {
+					renote('followers');
+				},
 			},
-		},
-		{
-			type: 'button',
-			icon: 'ph-planet ph-bold ph-lg',
-			text: i18n.ts._timelines.local,
-			action: () => {
-				renote('local');
-			},
-		}], renoteButton.value);
+			{
+				type: 'button',
+				icon: 'ph-planet ph-bold ph-lg',
+				text: i18n.ts._timelines.local,
+				action: () => {
+					renote('local');
+				},
+			}], renoteButton.value);
+	}
 }
 
 function renote(visibility: Visibility | 'local') {
@@ -807,12 +811,11 @@ function animatedMFM() {
 }
 
 .replyTo {
-	opacity: 0.7;
 	padding-bottom: 0;
 }
 
 .replyToMore {
-	opacity: 0.7;
+	
 }
 
 .renote {
@@ -879,8 +882,8 @@ function animatedMFM() {
 .noteHeaderAvatar {
 	display: block;
 	flex-shrink: 0;
-	width: 58px;
-	height: 58px;
+	width: var(--avatar);
+	height: var(--avatar);
 }
 
 .noteHeaderBody {
@@ -970,7 +973,7 @@ function animatedMFM() {
 
 .quoteNote {
 	padding: 16px;
-	border: dashed 1px var(--renote);
+	border: solid 1px var(--renote);
 	border-radius: var(--radius-sm);
 	overflow: clip;
 }
