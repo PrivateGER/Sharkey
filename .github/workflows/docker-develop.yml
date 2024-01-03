@@ -52,7 +52,7 @@ jobs:
           push: true
           platforms: ${{ steps.buildx.outputs.platforms }}
           provenance: false
-          tags:  ${{ env.REGISTRY }}/privateger/sharkey:develop
+          tags:  ${{ env.REGISTRY }}/privateger/sharkey:develop,${{ env.REGISTRY }}/privateger/sharkey:${{ github.sha }}
           labels: develop
           cache-from: type=gha
           cache-to: type=gha,mode=max
