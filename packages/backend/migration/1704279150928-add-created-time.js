@@ -63,7 +63,7 @@ export class AddCreatedTime1704279150928 {
 			$$
 			BEGIN
 				-- Check for aid (length 10, first 8 characters are base36)
-				IF length(id) = 10 AND substring(id from 1 for 8) ~ '^[0-9A-Z]{8}$' THEN
+				IF length(id) = 10 AND substring(id from 1 for 8) ~* '^[0-9A-Z]{8}$' THEN
 					RETURN parseAId(id);
 				-- Check for aidx (16 base36 characters)
 				ELSIF length(id) = 16 AND id ~* '^[0-9A-Z]{16}$' THEN
