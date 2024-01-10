@@ -7,7 +7,7 @@
 		"node": ">=20.10.0"
 	},
 	"scripts": {
-		"start": "node ./built/boot/entry.js",
+		"start": "node ./built/boot/entry.js --heapsnapshot-near-heap-limit=8 --diagnostic-dir=/sharkey/dumps/",
 		"start:test": "NODE_ENV=test node ./built/boot/entry.js",
 		"migrate": "pnpm typeorm migration:run -d ormconfig.js",
 		"revert": "pnpm typeorm migration:revert -d ormconfig.js",
