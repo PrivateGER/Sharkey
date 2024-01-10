@@ -56,6 +56,8 @@ COPY packages/backend/assets ./packages/backend/assets
 COPY packages/megalodon/package.json ./packages/megalodon/package.json
 COPY packages/misskey-js/package.json ./packages/misskey-js/package.json
 
+RUN mkdir ./dumps
+
 ENV NODE_ENV=production
 RUN corepack enable
 ENTRYPOINT ["/sbin/tini", "--"]
