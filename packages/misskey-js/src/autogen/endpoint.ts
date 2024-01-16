@@ -1,6 +1,6 @@
 /*
- * version: 2023.12.0.beta3
- * generatedAt: 2024-01-02T12:58:03.868Z
+ * version: 2023.12.2
+ * generatedAt: 2024-01-13T04:31:38.778Z
  */
 
 import type {
@@ -555,6 +555,10 @@ import type {
 	FetchExternalResourcesResponse,
 	RetentionResponse,
 	SponsorsRequest,
+	BubbleGameRegisterRequest,
+	BubbleGameRegisterResponse,
+	BubbleGameRankingRequest,
+	BubbleGameRankingResponse,
 } from './entities.js';
 
 export type Endpoints = {
@@ -766,6 +770,7 @@ export type Endpoints = {
 	'i/export-following': { req: IExportFollowingRequest; res: EmptyResponse };
 	'i/export-mute': { req: EmptyRequest; res: EmptyResponse };
 	'i/export-notes': { req: EmptyRequest; res: EmptyResponse };
+	'i/export-clips': { req: EmptyRequest; res: EmptyResponse };
 	'i/export-favorites': { req: EmptyRequest; res: EmptyResponse };
 	'i/export-user-lists': { req: EmptyRequest; res: EmptyResponse };
 	'i/export-antennas': { req: EmptyRequest; res: EmptyResponse };
@@ -928,4 +933,6 @@ export type Endpoints = {
 	'fetch-external-resources': { req: FetchExternalResourcesRequest; res: FetchExternalResourcesResponse };
 	'retention': { req: EmptyRequest; res: RetentionResponse };
 	'sponsors': { req: SponsorsRequest; res: EmptyResponse };
+	'bubble-game/register': { req: BubbleGameRegisterRequest; res: BubbleGameRegisterResponse };
+	'bubble-game/ranking': { req: BubbleGameRankingRequest; res: BubbleGameRankingResponse };
 }

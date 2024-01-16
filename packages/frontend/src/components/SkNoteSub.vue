@@ -99,6 +99,7 @@ import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import { notePage } from '@/filters/note.js';
 import * as os from '@/os.js';
+import { misskeyApi } from '@/scripts/misskey-api.js';
 import * as sound from '@/scripts/sound.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/account.js';
@@ -175,7 +176,7 @@ useNoteCapture({
 });
 
 if ($i) {
-	os.api('notes/renotes', {
+	misskeyApi('notes/renotes', {
 		noteId: appearNote.value.id,
 		userId: $i.id,
 		limit: 1,
@@ -203,9 +204,9 @@ function reply(viaKeyboard = false): void {
 function react(viaKeyboard = false): void {
 	pleaseLogin();
 	showMovedDialog();
-	sound.play('reaction');
+	sound.playMisskeySfx('reaction');
 	if (props.note.reactionAcceptance === 'likeOnly') {
-		os.api('notes/like', {
+		misskeyApi('notes/like', {
 			noteId: props.note.id,
 			override: defaultLike.value,
 		});
@@ -219,7 +220,7 @@ function react(viaKeyboard = false): void {
 	} else {
 		blur();
 		reactionPicker.show(reactButton.value, reaction => {
-			os.api('notes/reactions/create', {
+			misskeyApi('notes/reactions/create', {
 				noteId: props.note.id,
 				reaction: reaction,
 			});
@@ -235,8 +236,8 @@ function react(viaKeyboard = false): void {
 function like(): void {
 	pleaseLogin();
 	showMovedDialog();
-	sound.play('reaction');
-	os.api('notes/like', {
+	sound.playMisskeySfx('reaction');
+	misskeyApi('notes/like', {
 		noteId: props.note.id,
 		override: defaultLike.value,
 	});
@@ -252,14 +253,14 @@ function like(): void {
 function undoReact(note): void {
 	const oldReaction = note.myReaction;
 	if (!oldReaction) return;
-	os.api('notes/reactions/delete', {
+	misskeyApi('notes/reactions/delete', {
 		noteId: note.id,
 	});
 }
 
 function undoRenote() : void {
 	if (!renoted.value) return;
-	os.api('notes/unrenote', {
+	misskeyApi('notes/unrenote', {
 		noteId: appearNote.value.id,
 	});
 	os.toast(i18n.ts.rmboost);
@@ -333,7 +334,7 @@ function renote(visibility: 'public' | 'home' | 'followers' | 'specified' | 'loc
 			os.popup(MkRippleEffect, { x, y }, {}, 'end');
 		}
 
-		os.api('notes/create', {
+		misskeyApi('notes/create', {
 			renoteId: props.note.id,
 			channelId: props.note.channelId,
 		}).then(() => {
@@ -349,7 +350,7 @@ function renote(visibility: 'public' | 'home' | 'followers' | 'specified' | 'loc
 			os.popup(MkRippleEffect, { x, y }, {}, 'end');
 		}
 
-		os.api('notes/create', {
+		misskeyApi('notes/create', {
 			renoteId: props.note.id,
 			localOnly: visibility === 'local' ? true : false,
 			visibility: visibility === 'local' || visibility === 'specified' ? props.note.visibility : visibility,
@@ -369,7 +370,7 @@ function quote() {
 			renote: appearNote.value,
 			channel: appearNote.value.channel,
 		}).then(() => {
-			os.api('notes/renotes', {
+			misskeyApi('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
 				limit: 1,
@@ -391,7 +392,7 @@ function quote() {
 		os.post({
 			renote: appearNote.value,
 		}).then(() => {
-			os.api('notes/renotes', {
+			misskeyApi('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
 				limit: 1,
@@ -420,7 +421,7 @@ function menu(viaKeyboard = false): void {
 }
 
 if (props.detail) {
-	os.api('notes/children', {
+	misskeyApi('notes/children', {
 		noteId: props.note.id,
 		limit: numberOfReplies.value,
 		showQuotes: false,
@@ -461,7 +462,27 @@ if (props.detail) {
 }
 
 .main {
-	display: flex;
+	position: relative;
+	display:  flex;
+
+	&::after {
+		content: "";
+		position: absolute;
+		top: -12px;
+		right: -12px;
+		left: -12px;
+		bottom: -12px;
+		background: var(--panelHighlight);
+		border-radius: var(--radius);
+		opacity: 0;
+		transition: opacity .2s, background .2s;
+		z-index: -1;
+	}
+	
+	&:hover::after,
+	&:focus-within::after {
+		opacity: 1;
+	}
 }
 
 .colorBar {
