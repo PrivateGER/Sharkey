@@ -128,14 +128,14 @@ export class ApNoteService {
 		const err = this.validateNote(object, entryUri);
 		if (err) {
 			// Avoid extreme error spam caused by Lemmy
-			if (object.type === 'Announce' || object.type === 'Like' || object.type === 'Dislike') {
-				return null;
+			if (object.type !== 'Announce' && object.type !== 'Like' && object.type === 'Dislike') {
+				this.logger.error(err.message, {
+					resolver: { history: resolver.getHistory() },
+					value,
+					object,
+				});
 			}
-			this.logger.error(err.message, {
-				resolver: { history: resolver.getHistory() },
-				value,
-				object,
-			});
+
 			throw new Error('invalid note');
 		}
 

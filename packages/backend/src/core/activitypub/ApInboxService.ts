@@ -287,9 +287,7 @@ export class ApInboxService {
 			try {
 				renote = await this.apNoteService.resolveNote(targetUri);
 				if (renote == null) {
-					this.logger.warn(`skip: target note not found ${targetUri}`);
-					return;
-					//throw new Error('announce target is null');
+					throw new Error('announce target is null');
 				}
 			} catch (err) {
 				// 対象が4xxならスキップ
