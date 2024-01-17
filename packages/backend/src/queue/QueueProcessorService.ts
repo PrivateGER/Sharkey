@@ -159,8 +159,21 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		this.systemQueueWorker
 			.on('active', (job) => systemLogger.debug(`active id=${job.id}`))
 			.on('completed', (job, result) => systemLogger.debug(`completed(${result}) id=${job.id}`))
-			.on('failed', (job, err) => systemLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, { job, e: renderError(err) }))
-			.on('error', (err: Error) => systemLogger.error(`error ${err.stack}`, { e: renderError(err) }))
+			.on('failed', (job, err) => {
+				if (err.stack?.includes('Error: invalid note')) {
+					systemLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, {
+						job,
+						e: renderError(err),
+					});
+				}
+			})
+			.on('error', (err: Error) => {
+				if (err.stack?.includes('Error: invalid note')) {
+					systemLogger.error(`error ${err.stack}`, {
+						e: renderError(err),
+					});
+				}
+			})
 			.on('stalled', (jobId) => systemLogger.warn(`stalled id=${jobId}`));
 		//#endregion
 
