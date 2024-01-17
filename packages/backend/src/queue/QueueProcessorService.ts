@@ -160,19 +160,15 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			.on('active', (job) => systemLogger.debug(`active id=${job.id}`))
 			.on('completed', (job, result) => systemLogger.debug(`completed(${result}) id=${job.id}`))
 			.on('failed', (job, err) => {
-				if (err.stack?.includes('Error: invalid note')) {
-					systemLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, {
-						job,
-						e: renderError(err),
-					});
-				}
+				systemLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, {
+					job,
+					e: renderError(err),
+				});
 			})
 			.on('error', (err: Error) => {
-				if (err.stack?.includes('Error: invalid note')) {
-					systemLogger.error(`error ${err.stack}`, {
-						e: renderError(err),
-					});
-				}
+				systemLogger.error(`error ${err.stack}`, {
+					e: renderError(err),
+				});
 			})
 			.on('stalled', (jobId) => systemLogger.warn(`stalled id=${jobId}`));
 		//#endregion
@@ -267,8 +263,21 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		this.inboxQueueWorker
 			.on('active', (job) => inboxLogger.debug(`active ${getJobInfo(job, true)}`))
 			.on('completed', (job, result) => inboxLogger.debug(`completed(${result}) ${getJobInfo(job, true)}`))
-			.on('failed', (job, err) => inboxLogger.warn(`failed(${err.stack}) ${getJobInfo(job)} activity=${job ? (job.data.activity ? job.data.activity.id : 'none') : '-'}`, { job, e: renderError(err) }))
-			.on('error', (err: Error) => inboxLogger.error(`error ${err.stack}`, { e: renderError(err) }))
+			.on('failed', (job, err) => {
+				if (err.stack?.includes('Error: invalid note')) {
+					inboxLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, {
+						job,
+						e: renderError(err),
+					});
+				}
+			})
+			.on('error', (err: Error) => {
+				if (err.stack?.includes('Error: invalid note')) {
+					inboxLogger.error(`error ${err.stack}`, {
+						e: renderError(err),
+					});
+				}
+			})
 			.on('stalled', (jobId) => inboxLogger.warn(`stalled id=${jobId}`));
 		//#endregion
 
