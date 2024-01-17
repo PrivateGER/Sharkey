@@ -127,6 +127,10 @@ export class ApNoteService {
 		const entryUri = getApId(value);
 		const err = this.validateNote(object, entryUri);
 		if (err) {
+			// Avoid extreme error spam caused by Lemmy
+			if (object.type === 'Announce' || object.type === 'Like' || object.type === 'Dislike') {
+				return null;
+			}
 			this.logger.error(err.message, {
 				resolver: { history: resolver.getHistory() },
 				value,
