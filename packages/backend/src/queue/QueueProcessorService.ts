@@ -264,7 +264,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			.on('active', (job) => inboxLogger.debug(`active ${getJobInfo(job, true)}`))
 			.on('completed', (job, result) => inboxLogger.debug(`completed(${result}) ${getJobInfo(job, true)}`))
 			.on('failed', (job, err) => {
-				if (err.stack?.includes('Error: invalid note')) {
+				if (err.message.includes('invalid note')) {
 					inboxLogger.warn(`failed(${err.stack}) id=${job ? job.id : '-'}`, {
 						job,
 						e: renderError(err),
@@ -272,7 +272,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 				}
 			})
 			.on('error', (err: Error) => {
-				if (err.stack?.includes('Error: invalid note')) {
+				if (err.message.includes('invalid note')) {
 					inboxLogger.error(`error ${err.stack}`, {
 						e: renderError(err),
 					});
