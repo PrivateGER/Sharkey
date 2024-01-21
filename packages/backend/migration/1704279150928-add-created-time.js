@@ -88,12 +88,12 @@ export class AddCreatedTime1704279150928 {
     }
 
     async down(queryRunner) {
-		await queryRunner.query(`DROP FUNCTION parseAId`);
-		await queryRunner.query(`DROP FUNCTION parseMeid`);
-		await queryRunner.query(`DROP FUNCTION parse`);
-		await queryRunner.query(`DROP FUNCTION base36_decode`);
+			await queryRunner.query(`DROP INDEX "IDX_post_time_order"`);
+			await queryRunner.query(`ALTER TABLE "note" DROP COLUMN "created_at"`);
 
-		await queryRunner.query(`ALTER TABLE "note" DROP COLUMN "created_at"`);
-		await queryRunner.query(`DROP INDEX "IDX_post_time_order"`);
+			await queryRunner.query(`DROP FUNCTION parseAId`);
+			await queryRunner.query(`DROP FUNCTION parseMeid`);
+			await queryRunner.query(`DROP FUNCTION parse`);
+			await queryRunner.query(`DROP FUNCTION base36_decode`);
     }
 }
