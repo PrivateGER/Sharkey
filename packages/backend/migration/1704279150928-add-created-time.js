@@ -42,7 +42,7 @@ export class AddCreatedTime1704279150928 {
 				-- Conversion to timestamp (first eight characters)
 				cutTimestamp := substring(id FROM 1 FOR 8);
 
-				RETURN to_timestamp((base36_decode(cutTimestamp) + 946684800000) / 1000);
+				RETURN to_timestamp((public.base36_decode(cutTimestamp) + 946684800000) / 1000);
 			END;
 			$$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
 		`);
