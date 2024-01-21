@@ -5,7 +5,7 @@ export class AddCreatedTime1704279150928 {
 
     async up(queryRunner) {
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION base36_decode(IN base36 varchar) RETURNS bigint AS $$
+			CREATE OR REPLACE FUNCTION public.base36_decode(IN base36 varchar) RETURNS bigint AS $$
 			DECLARE
 				a char[];
 				ret bigint;
@@ -33,7 +33,7 @@ export class AddCreatedTime1704279150928 {
 		`);
 
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parseAId(id varchar)
+			CREATE OR REPLACE FUNCTION public.parseAId(id varchar)
 				RETURNS timestamp AS
 			$$
 			DECLARE
@@ -48,7 +48,7 @@ export class AddCreatedTime1704279150928 {
 		`);
 
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parseMeid(id varchar)
+			CREATE OR REPLACE FUNCTION public.parseMeid(id varchar)
 			RETURNS timestamp AS
 			$$
 			BEGIN
@@ -58,7 +58,7 @@ export class AddCreatedTime1704279150928 {
 		`);
 
 		 await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parse(id varchar)
+			CREATE OR REPLACE FUNCTION public.parse(id varchar)
 			RETURNS timestamp AS
 			$$
 			BEGIN
@@ -79,7 +79,7 @@ export class AddCreatedTime1704279150928 {
 		`)
 
 		await queryRunner.query(`
-				ALTER TABLE "note" ADD "created_at" timestamp GENERATED ALWAYS AS (parse(id)) STORED;
+				ALTER TABLE "note" ADD "created_at" timestamp GENERATED ALWAYS AS (public.parse(id)) STORED;
 		`);
 
 		await queryRunner.query(`
@@ -91,9 +91,9 @@ export class AddCreatedTime1704279150928 {
 			await queryRunner.query(`DROP INDEX "IDX_post_time_order"`);
 			await queryRunner.query(`ALTER TABLE "note" DROP COLUMN "created_at"`);
 
-			await queryRunner.query(`DROP FUNCTION parseAId`);
-			await queryRunner.query(`DROP FUNCTION parseMeid`);
-			await queryRunner.query(`DROP FUNCTION parse`);
-			await queryRunner.query(`DROP FUNCTION base36_decode`);
+			await queryRunner.query(`DROP FUNCTION public.parseAId`);
+			await queryRunner.query(`DROP FUNCTION public.parseMeid`);
+			await queryRunner.query(`DROP FUNCTION public.parse`);
+			await queryRunner.query(`DROP FUNCTION public.base36_decode`);
     }
 }
