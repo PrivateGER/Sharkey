@@ -5,7 +5,7 @@ export class AddCreatedTime1704279150928 {
 
     async up(queryRunner) {
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION base36_decode(IN base36 varchar) RETURNS bigint AS $$
+			CREATE OR REPLACE FUNCTION public.base36_decode(IN base36 varchar) RETURNS bigint AS $$
 			DECLARE
 				a char[];
 				ret bigint;
@@ -33,7 +33,7 @@ export class AddCreatedTime1704279150928 {
 		`);
 
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parseAId(id varchar)
+			CREATE OR REPLACE FUNCTION public.parseAId(id varchar)
 				RETURNS timestamp AS
 			$$
 			DECLARE
@@ -42,13 +42,13 @@ export class AddCreatedTime1704279150928 {
 				-- Conversion to timestamp (first eight characters)
 				cutTimestamp := substring(id FROM 1 FOR 8);
 
-				RETURN to_timestamp((base36_decode(cutTimestamp) + 946684800000) / 1000);
+				RETURN to_timestamp((public.base36_decode(cutTimestamp) + 946684800000) / 1000);
 			END;
 			$$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
 		`);
 
 		await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parseMeid(id varchar)
+			CREATE OR REPLACE FUNCTION public.parseMeid(id varchar)
 			RETURNS timestamp AS
 			$$
 			BEGIN
@@ -58,19 +58,19 @@ export class AddCreatedTime1704279150928 {
 		`);
 
 		 await queryRunner.query(`
-			CREATE OR REPLACE FUNCTION parse(id varchar)
+			CREATE OR REPLACE FUNCTION public.parse(id varchar)
 			RETURNS timestamp AS
 			$$
 			BEGIN
 				-- Check for aid (length 10, first 8 characters are base36)
 				IF length(id) = 10 AND substring(id from 1 for 8) ~* '^[0-9A-Z]{8}$' THEN
-					RETURN parseAId(id);
+					RETURN public.parseAId(id);
 				-- Check for aidx (16 base36 characters)
 				ELSIF length(id) = 16 AND id ~* '^[0-9A-Z]{16}$' THEN
-					RETURN parseAId(id);
+					RETURN public.parseAId(id);
 				-- Check for meid (24 hexadecimal characters)
 				ELSIF length(id) = 24 AND id ~* '^[0-9A-F]{24}$' THEN
-					RETURN parseMeid(id);
+					RETURN public.parseMeid(id);
 				ELSE
 					RAISE EXCEPTION 'unrecognized id format: %', id;
 				END IF;
@@ -79,7 +79,7 @@ export class AddCreatedTime1704279150928 {
 		`)
 
 		await queryRunner.query(`
-				ALTER TABLE "note" ADD "created_at" timestamp GENERATED ALWAYS AS (parse(id)) STORED;
+				ALTER TABLE "note" ADD "created_at" timestamp GENERATED ALWAYS AS (public.parse(id)) STORED;
 		`);
 
 		await queryRunner.query(`
@@ -88,12 +88,12 @@ export class AddCreatedTime1704279150928 {
     }
 
     async down(queryRunner) {
-		await queryRunner.query(`DROP FUNCTION parseAId`);
-		await queryRunner.query(`DROP FUNCTION parseMeid`);
-		await queryRunner.query(`DROP FUNCTION parse`);
-		await queryRunner.query(`DROP FUNCTION base36_decode`);
+			await queryRunner.query(`DROP INDEX "IDX_post_time_order"`);
+			await queryRunner.query(`ALTER TABLE "note" DROP COLUMN "created_at"`);
 
-		await queryRunner.query(`ALTER TABLE "note" DROP COLUMN "created_at"`);
-		await queryRunner.query(`DROP INDEX "IDX_post_time_order"`);
+			await queryRunner.query(`DROP FUNCTION public.parseAId`);
+			await queryRunner.query(`DROP FUNCTION public.parseMeid`);
+			await queryRunner.query(`DROP FUNCTION public.parse`);
+			await queryRunner.query(`DROP FUNCTION public.base36_decode`);
     }
 }
