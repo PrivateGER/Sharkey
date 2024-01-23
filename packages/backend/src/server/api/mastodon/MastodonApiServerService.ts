@@ -89,7 +89,7 @@ export class MastodonApiServerService {
 				reply.code(401).send(e.response.data);
 			}
 		});
-    
+
 		fastify.get('/v1/instance', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -109,11 +109,11 @@ export class MastodonApiServerService {
 				const contact = admin == null ? null : await this.mastoConverter.convertAccount((await client.getAccount(admin.id)).data);
 				reply.send(await getInstance(data.data, contact as Entity.Account, this.config, await this.metaService.fetch()));
 			} catch (e: any) {
-				/* console.error(e); */
+				console.error(e);
 				reply.code(401).send(e.response.data);
 			}
 		});
-    
+
 		fastify.get('/v1/announcements', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -126,7 +126,7 @@ export class MastodonApiServerService {
 				reply.code(401).send(e.response.data);
 			}
 		});
-    
+
 		fastify.post<{ Body: { id: string } }>('/v1/announcements/:id/dismiss', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -177,8 +177,8 @@ export class MastodonApiServerService {
 				/* console.error(e); */
 				reply.code(401).send(e.response.data);
 			}
-		});        
-    
+		});
+
 		fastify.get('/v1/filters', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -192,7 +192,7 @@ export class MastodonApiServerService {
 				reply.code(401).send(e.response.data);
 			}
 		});
-    
+
 		fastify.get('/v1/trends', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -238,7 +238,7 @@ export class MastodonApiServerService {
 				reply.code(401).send(e.response.data);
 			}
 		});
-    
+
 		fastify.get('/v1/preferences', async (_request, reply) => {
 			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
 			const accessTokens = _request.headers.authorization;
@@ -291,18 +291,18 @@ export class MastodonApiServerService {
 							user: { id: tokeninfo.userId, host: null },
 							path: avatar.path,
 							name: avatar.originalname !== null && avatar.originalname !== 'file' ? avatar.originalname : undefined,
-							sensitive: false,				
+							sensitive: false,
 						});
 						if (upload.type.startsWith('image/')) {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							(_request.body as any).avatar = upload.id;
 						}
-					} else if (tokeninfo && header) {			
+					} else if (tokeninfo && header) {
 						const upload = await this.driveService.addFile({
 							user: { id: tokeninfo.userId, host: null },
 							path: header.path,
 							name: header.originalname !== null && header.originalname !== 'file' ? header.originalname : undefined,
-							sensitive: false,				
+							sensitive: false,
 						});
 						if (upload.type.startsWith('image/')) {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -324,7 +324,7 @@ export class MastodonApiServerService {
 						};
 					});
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(_request.body as any).fields_attributes = fields.filter((field: any) => field.name.trim().length > 0 && field.value.length > 0);		
+					(_request.body as any).fields_attributes = fields.filter((field: any) => field.name.trim().length > 0 && field.value.length > 0);
 				}
 
 				const data = await client.updateCredentials(_request.body!);
