@@ -419,10 +419,11 @@ export function form(title, form) {
 	});
 }
 
-export async function selectUser(opts: { includeSelf?: boolean } = {}): Promise<Misskey.entities.UserLite> {
+export async function selectUser(opts: { includeSelf?: boolean, local?: boolean } = {}): Promise<Misskey.entities.UserLite> {
 	return new Promise((resolve, reject) => {
 		popup(defineAsyncComponent(() => import('@/components/MkUserSelectDialog.vue')), {
 			includeSelf: opts.includeSelf,
+			local: opts.local,
 		}, {
 			ok: user => {
 				resolve(user);
