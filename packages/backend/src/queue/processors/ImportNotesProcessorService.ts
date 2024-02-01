@@ -130,6 +130,17 @@ export class ImportNotesProcessorService {
 		return typeof obj[Symbol.iterator] === 'function';
 	}
 
+	private parseTwitterFile(str : string) : null | [{ tweet: any }] {
+		const removed = str.replace(new RegExp('window\\.YTD\\.tweets\\.part0 = ', 'g'), '');
+	
+		try {
+			return JSON.parse(removed);
+		} catch (error) {
+			//The format is not what we expected. Either this file was tampered with or twitters exports changed
+			return null;
+		}
+	}
+
 	@bindThis
 	public async process(job: Bull.Job<DbNoteImportJobData>): Promise<void> {
 		this.logger.info(`Starting note import of ${job.data.user.id} ...`);
@@ -175,23 +186,20 @@ export class ImportNotesProcessorService {
 			try {
 				this.logger.succ(`Unzipping to ${outputPath}`);
 				ZipReader.withDestinationPath(outputPath).viaBuffer(await fs.promises.readFile(destPath));
-				const fakeWindow: any = {
-					window: {
-						YTD: {
-							tweets: {
-								part0: {},
-							},
-						},
-					},
-				};
-				const script = new vm.Script(fs.readFileSync(outputPath + '/data/tweets.js', 'utf-8'));
-				const context = vm.createContext(fakeWindow);
-				script.runInContext(context);
-				const tweets = Object.keys(fakeWindow.window.YTD.tweets.part0).reduce((m, key, i, obj) => {
-					return m.concat(fakeWindow.window.YTD.tweets.part0[key].tweet);
-				}, []);
-				const processedTweets = await this.recreateChain(['id_str'], ['in_reply_to_status_id_str'], tweets, false);
-				this.queueService.createImportTweetsToDbJob(job.data.user, processedTweets, null);
+
+				const unprocessedTweetJson = this.parseTwitterFile(fs.readFileSync(outputPath + '/data/tweets.js', 'utf-8'));
+
+				//Make sure that it isnt null (because if something went wrong in parseTwitterFile it returns null)
+				if (unprocessedTweetJson) {
+					const tweets = Object.keys(unprocessedTweetJson).reduce((m, key, i, obj) => {
+						return m.concat(unprocessedTweetJson[i].tweet);
+					}, []);
+
+					const processedTweets = await this.recreateChain(['id_str'], ['in_reply_to_status_id_str'], tweets, false);
+					this.queueService.createImportTweetsToDbJob(job.data.user, processedTweets, null);
+				} else {
+					this.logger.warn('Failed to import twitter notes due to malformed file');
+				}
 			} finally {
 				cleanup();
 			}
@@ -575,7 +583,7 @@ export class ImportNotesProcessorService {
 		async function replaceTwitterMentions(full_text: string, mentions: any) {
 			let full_textedit = full_text;
 			mentions.forEach((mention: any) => {
-				full_textedit = full_textedit.replaceAll(`@${mention.screen_name}`, `[@${mention.screen_name}](https://nitter.net/${mention.screen_name})`);
+				full_textedit = full_textedit.replaceAll(`@${mention.screen_name}`, `[@${mention.screen_name}](https://twitter.com/${mention.screen_name})`);
 			});
 			return full_textedit;
 		}
