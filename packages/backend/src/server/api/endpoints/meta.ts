@@ -314,6 +314,11 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			policies: {
+				type: 'object',
+				optional: false, nullable: false,
+				ref: 'RolePolicies',
+			},
 		},
 	},
 } as const;
@@ -411,7 +416,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				enableEmail: instance.enableEmail,
 				enableServiceWorker: instance.enableServiceWorker,
 
-				translatorAvailable: instance.deeplAuthKey != null,
+				translatorAvailable: instance.deeplAuthKey != null || instance.deeplFreeMode && instance.deeplFreeInstance,
 
 				serverRules: instance.serverRules,
 

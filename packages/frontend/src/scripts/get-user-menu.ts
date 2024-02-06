@@ -15,7 +15,7 @@ import { defaultStore, userActions } from '@/store.js';
 import { $i, iAmModerator } from '@/account.js';
 import { IRouter } from '@/nirax.js';
 import { antennasCache, rolesCache, userListsCache } from '@/cache.js';
-import { mainRouter } from '@/global/router/main.js';
+import { mainRouter } from '@/router/main.js';
 
 export function getUserMenu(user: Misskey.entities.UserDetailed, router: IRouter = mainRouter) {
 	const meId = $i ? $i.id : null;
@@ -170,20 +170,21 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: IRouter
 		action: () => {
 			copyToClipboard(`${user.host ?? host}/@${user.username}.atom`);
 		},
-	}, {
+	}, ...(user.host != null && user.url != null ? [{
+		icon: 'ph-share ph-bold ph-lg',
+		text: i18n.ts.showOnRemote,
+		action: () => {
+			if (user.url == null) return;
+			window.open(user.url, '_blank', 'noopener');
+		},
+	}] : []), {
 		icon: 'ph-share-network ph-bold ph-lg',
 		text: i18n.ts.copyProfileUrl,
 		action: () => {
 			const canonical = user.host === null ? `@${user.username}` : `@${user.username}@${toUnicode(user.host)}`;
 			copyToClipboard(`${url}/${canonical}`);
 		},
-	}, ...(user.host ? [{
-		icon: 'ph-share ph-bold ph-lg',
-		text: i18n.ts.openRemoteProfile,
-		action: () => {
-			open(`${user.uri}`, '_blank');
-		},
-	}] : []), {
+	}, {
 		icon: 'ph-envelope ph-bold ph-lg',
 		text: i18n.ts.sendMessage,
 		action: () => {
@@ -191,7 +192,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: IRouter
 			os.post({ specified: user, initialText: `${canonical} ` });
 		},
 	}, { type: 'divider' }, {
-		icon: 'ph-pencil ph-bold ph-lg',
+		icon: 'ph-pencil-simple ph-bold ph-lg',
 		text: i18n.ts.editMemo,
 		action: () => {
 			editMemo();
@@ -363,7 +364,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: IRouter
 
 	if ($i && meId === user.id) {
 		menu = menu.concat([{ type: 'divider' }, {
-			icon: 'ph-pencil ph-bold ph-lg',
+			icon: 'ph-pencil-simple ph-bold ph-lg',
 			text: i18n.ts.editProfile,
 			action: () => {
 				router.push('/settings/profile');

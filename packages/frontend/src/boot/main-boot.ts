@@ -19,8 +19,8 @@ import { claimAchievement, claimedAchievements } from '@/scripts/achievements.js
 import { initializeSw } from '@/scripts/initialize-sw.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
 import { emojiPicker } from '@/scripts/emoji-picker.js';
+import { mainRouter } from '@/router/main.js';
 import * as Sentry from '@sentry/vue';
-import { mainRouter } from '@/global/router/main.js';
 
 export async function mainBoot() {
 	const app = createApp(
@@ -97,13 +97,18 @@ export async function mainBoot() {
 			// ▼南半球
 			if (month === 7 || month === 8) {
 				const SnowfallEffect = (await import('@/scripts/snowfall-effect.js')).SnowfallEffect;
-				new SnowfallEffect().render();
+				new SnowfallEffect({}).render();
 			}
 		} else {
 			// ▼北半球
 			if (month === 12 || month === 1) {
 				const SnowfallEffect = (await import('@/scripts/snowfall-effect.js')).SnowfallEffect;
-				new SnowfallEffect().render();
+				new SnowfallEffect({}).render();
+			} else if (month === 3 || month === 4) {
+				const SakuraEffect = (await import('@/scripts/snowfall-effect.js')).SnowfallEffect;
+				new SakuraEffect({
+					sakura: true,
+				}).render();
 			}
 		}
 	}

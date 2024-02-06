@@ -2241,6 +2241,14 @@ export interface Locale extends ILocale {
      */
     "s3ForcePathStyleDesc": string;
     /**
+     * DeepLX-JS を使用する (認証キーなし)
+     */
+    "deeplFreeMode": string;
+    /**
+     * ヘルプが必要ですか? DeepLX-JSのセットアップ方法については、ドキュメントを参照してください。
+     */
+    "deeplFreeModeDescription": string;
+    /**
      * サーバーログ
      */
     "serverLogs": string;
@@ -4426,6 +4434,10 @@ export interface Locale extends ILocale {
      */
     "forceShowAds": string;
     /**
+     * 猫友達 :3
+     */
+    "oneko": string;
+    /**
      * メモを追加
      */
     "addMemo": string;
@@ -5067,7 +5079,7 @@ export interface Locale extends ILocale {
          */
         "readConfirmText": ParameterizedString<"title">;
         /**
-         * 特に新規ユーザーのUXを損ねる可能性が高いため、ストック情報ではなくフロー情報の掲示にお知らせを使用することを推奨します。
+         * 特に新規ユーザーのUXを損ねる可能性が高いため、常時掲示するための情報ではなく、即時性が求められる情報の掲示のためにお知らせを使用することを推奨します。
          */
         "shouldNotBeUsedToPresentPermanentInfo": string;
         /**

@@ -54,7 +54,7 @@ import MkGalleryPostPreview from '@/components/MkGalleryPostPreview.vue';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
-import { useRouter } from '@/global/router/supplier.js';
+import { useRouter } from '@/router/supplier.js';
 
 const router = useRouter();
 
@@ -116,7 +116,7 @@ const headerTabs = computed(() => [{
 }, {
 	key: 'my',
 	title: i18n.ts._gallery.my,
-	icon: 'ph-pencil-line ph-bold ph-lg',
+	icon: 'ph-pencil-simple-line ph-bold ph-lg',
 }]);
 
 definePageMetadata({

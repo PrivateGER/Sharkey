@@ -47,7 +47,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
 import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
-import { useRouter } from '@/global/router/supplier.js';
+import { useRouter } from '@/router/supplier.js';
 
 const router = useRouter();
 
@@ -83,7 +83,7 @@ const headerTabs = computed(() => [{
 }, {
 	key: 'my',
 	title: i18n.ts._play.my,
-	icon: 'ph-pencil-line ph-bold ph-lg',
+	icon: 'ph-pencil-simple-line ph-bold ph-lg',
 }, {
 	key: 'liked',
 	title: i18n.ts._play.liked,

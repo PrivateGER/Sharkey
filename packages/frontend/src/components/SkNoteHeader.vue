@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 			<div v-if="note.user.isBot" :class="$style.isBot">bot</div>
 			<div v-if="note.user.badgeRoles" :class="$style.badgeRoles">
-				<img v-for="role in note.user.badgeRoles" :key="role.id" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl"/>
+				<img v-for="(role, i) in note.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl!"/>
 			</div>
 		</div>
 		<div :class="$style.username"><MkAcct :user="note.user"/></div>
@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else-if="note.visibility === 'followers'" class="ph-lock ph-bold ph-lg"></i>
 				<i v-else-if="note.visibility === 'specified'" ref="specified" class="ph-envelope ph-bold ph-lg"></i>
 			</span>
-			<span v-if="note.updatedAt" ref="menuVersionsButton" style="margin-left: 0.5em; cursor: pointer;" title="Edited" @mousedown="menuVersions()"><i class="ph-pencil ph-bold ph-lg"></i></span>
+			<span v-if="note.updatedAt" ref="menuVersionsButton" style="margin-left: 0.5em; cursor: pointer;" title="Edited" @mousedown="menuVersions()"><i class="ph-pencil-simple ph-bold ph-lg"></i></span>
 			<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ph-rocket ph-bold ph-lg"></i></span>
 			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ph-television ph-bold ph-lg"></i></span>
 		</div>
@@ -65,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="note.visibility === 'followers'" class="ph-lock ph-bold ph-lg"></i>
 			<i v-else-if="note.visibility === 'specified'" ref="specified" class="ph-envelope ph-bold ph-lg"></i>
 		</span>
-		<span v-if="note.updatedAt" ref="menuVersionsButton" style="margin-left: 0.5em; cursor: pointer;" title="Edited" @mousedown="menuVersions()"><i class="ph-pencil ph-bold ph-lg"></i></span>
+		<span v-if="note.updatedAt" ref="menuVersionsButton" style="margin-left: 0.5em; cursor: pointer;" title="Edited" @mousedown="menuVersions()"><i class="ph-pencil-simple ph-bold ph-lg"></i></span>
 		<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ph-rocket ph-bold ph-lg"></i></span>
 		<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ph-television ph-bold ph-lg"></i></span>
 	</div>
@@ -82,7 +82,7 @@ import { getNoteVersionsMenu } from '@/scripts/get-note-versions-menu.js';
 import SkInstanceTicker from '@/components/SkInstanceTicker.vue';
 import { popupMenu } from '@/os.js';
 import { defaultStore } from '@/store.js';
-import { useRouter } from '@/global/router/supplier.js';
+import { useRouter } from '@/router/supplier.js';
 import { deviceKind } from '@/scripts/device-kind.js';
 
 const props = defineProps<{

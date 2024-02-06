@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkSpacer :contentMax="700">
 			<div class="_gaps">
 				<div class="_buttons">
-					<MkButton primary rounded @click="edit"><i class="ph-pencil ph-bold ph-lg"></i> {{ i18n.ts.edit }}</MkButton>
+					<MkButton primary rounded @click="edit"><i class="ph-pencil-simple ph-bold ph-lg"></i> {{ i18n.ts.edit }}</MkButton>
 					<MkButton danger rounded @click="del"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.delete }}</MkButton>
 				</div>
 				<MkFolder>
@@ -75,7 +75,7 @@ import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import { infoImageUrl } from '@/instance.js';
-import { useRouter } from '@/global/router/supplier.js';
+import { useRouter } from '@/router/supplier.js';
 
 const router = useRouter();
 
@@ -116,9 +116,7 @@ async function del() {
 }
 
 async function assign() {
-	const user = await os.selectUser({
-		includeSelf: true,
-	});
+	const user = await os.selectUser({ includeSelf: true });
 
 	const { canceled: canceled2, result: period } = await os.select({
 		title: i18n.ts.period,

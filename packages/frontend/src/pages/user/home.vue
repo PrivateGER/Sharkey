@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span v-if="user.isLocked" :title="i18n.ts.isLocked"><i class="ph-lock ph-bold ph-lg"></i></span>
 								<span v-if="user.isBot" :title="i18n.ts.isBot"><i class="ph-robot ph-bold ph-lg"></i></span>
 								<button v-if="$i && !isEditingMemo && !memoDraft" class="_button add-note-button" @click="showMemoTextarea">
-									<i class="ph-pencil-line ph-bold ph-lg"/> {{ i18n.ts.addMemo }}
+									<i class="ph-pencil-simple-line ph-bold ph-lg"/> {{ i18n.ts.addMemo }}
 								</button>
 							</div>
 						</div>
@@ -192,7 +192,7 @@ import { confetti } from '@/scripts/confetti.js';
 import { defaultStore } from '@/store.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/scripts/isFfVisibleForMe.js';
-import { useRouter } from '@/global/router/supplier.js';
+import { useRouter } from '@/router/supplier.js';
 
 function calcAge(birthdate: string): number {
 	const date = new Date(birthdate);

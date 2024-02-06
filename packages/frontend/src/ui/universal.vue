@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<XWidgets/>
 	</div>
 
-	<button v-if="(!isDesktop || pageMetadata?.needWideArea) && !isMobile" :class="$style.widgetButton" class="_button" @click="widgetsShowing = true"><i class="ph-squares-four ph-bold ph-lg"></i></button>
+	<button v-if="(!isDesktop || pageMetadata?.needWideArea) && !isMobile" :class="$style.widgetButton" class="_button" @click="widgetsShowing = true"><i class="ph-stack ph-bold ph-lg"></i></button>
 
 	<div v-if="isMobile" ref="navFooter" :class="$style.nav">
 		<button :class="$style.navButton" class="_button" @click="drawerMenuShowing = true"><i :class="$style.navButtonIcon" class="ph-list ph-bold ph-lg-2"></i><span v-if="menuIndicated" :class="$style.navButtonIndicator"><i class="_indicatorCircle"></i></span></button>
@@ -33,8 +33,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
 			</span>
 		</button>
-		<button :class="$style.navButton" class="_button" @click="widgetsShowing = true"><i :class="$style.navButtonIcon" class="ph-squares-four ph-bold ph-lg"></i></button>
-		<button :class="$style.postButton" class="_button" @click="os.post()"><i :class="$style.navButtonIcon" class="ph-pencil ph-bold ph-lg"></i></button>
+		<button :class="$style.navButton" class="_button" @click="widgetsShowing = true"><i :class="$style.navButtonIcon" class="ph-stack ph-bold ph-lg"></i></button>
+		<button :class="$style.postButton" class="_button" @click="os.post()"><i :class="$style.navButtonIcon" class="ph-pencil-simple ph-bold ph-lg"></i></button>
 	</div>
 
 	<Transition
@@ -110,7 +110,7 @@ import { deviceKind } from '@/scripts/device-kind.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { CURRENT_STICKY_BOTTOM } from '@/const.js';
 import { useScrollPositionManager } from '@/nirax.js';
-import { mainRouter } from '@/global/router/main.js';
+import { mainRouter } from '@/router/main.js';
 
 const XWidgets = defineAsyncComponent(() => import('./universal.widgets.vue'));
 const XSidebar = defineAsyncComponent(() => import('@/ui/_common_/navbar.vue'));
@@ -406,20 +406,20 @@ $widgets-hide-threshold: 1090px;
 .navButton {
 	position: relative;
 	padding: 0;
-	aspect-ratio: 1;
+	height: 32px;
 	width: 100%;
 	max-width: 60px;
 	margin: auto;
-	border-radius: var(--radius-full);
-	background: var(--panel);
+	border-radius: var(--radius-lg);
+	background: transparent;
 	color: var(--fg);
 
 	&:hover {
-		background: var(--panelHighlight);
+		color: var(--accent);
 	}
 
 	&:active {
-		background: var(--X2);
+		color: var(--accent);
 	}
 }
 
@@ -430,15 +430,17 @@ $widgets-hide-threshold: 1090px;
 
 	&:hover {
 		background: linear-gradient(90deg, var(--X8), var(--X8));
+		color: var(--fgOnAccent);
 	}
 
 	&:active {
 		background: linear-gradient(90deg, var(--X8), var(--X8));
+		color: var(--fgOnAccent);
 	}
 }
 
 .navButtonIcon {
-	font-size: 18px;
+	font-size: 16px;
 	vertical-align: middle;
 }
 

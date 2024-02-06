@@ -32,6 +32,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 		<div :class="[$style.controlsChild, $style.controlsRight]">
+			<a class="_button" :class="$style.controlButton" :href="audio.url" :download="audio.name" target="_blank">
+				<i class="ph-download ph-bold ph-lg"></i>
+			</a>
 			<button class="_button" :class="$style.controlButton" @click="showMenu">
 				<i class="ph-gear ph-bold ph-lg"></i>
 			</button>
@@ -273,7 +276,7 @@ onDeactivated(() => {
 
 .hidden {
 	width: 100%;
-	background: none;
+	background: #000;
 	border: none;
 	outline: none;
 	font: inherit;
@@ -283,7 +286,6 @@ onDeactivated(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #000;
 }
 
 .hiddenTextWrapper {
