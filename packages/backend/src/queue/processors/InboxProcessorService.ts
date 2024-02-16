@@ -14,7 +14,7 @@ import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataServic
 import InstanceChart from '@/core/chart/charts/instance.js';
 import ApRequestChart from '@/core/chart/charts/ap-request.js';
 import FederationChart from '@/core/chart/charts/federation.js';
-import { getApId } from '@/core/activitypub/type.js';
+import { getApId, IObject } from '@/core/activitypub/type.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiUserPublickey } from '@/models/UserPublickey.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
@@ -60,12 +60,6 @@ export class InboxProcessorService {
 		//#endregion
 
 		const host = this.utilityService.toPuny(new URL(signature.keyId).hostname);
-
-		const PLASMATRAP_BLOCKED_KEYWORDS: string[] = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
-		if (PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => activity.content?.includes(keyword))) {
-			this.logger.warn(`PlasmaTrap blocked keyword in ${activity.id}: ${activity.content}`);
-			throw new Bull.UnrecoverableError('skip: PlasmaTrap blocked keyword');
-		}
 
 		// ブロックしてたら中断
 		const meta = await this.metaService.fetch();
@@ -177,6 +171,13 @@ export class InboxProcessorService {
 			if (signerHost !== activityIdHost) {
 				throw new Bull.UnrecoverableError(`skip: signerHost(${signerHost}) !== activity.id host(${activityIdHost}`);
 			}
+		}
+
+		const PLASMATRAP_BLOCKED_KEYWORDS: string[] = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
+		const object = activity.object as IObject;
+		if (activity.content && PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => object.content?.includes(keyword))) {
+			this.logger.warn(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
+			throw new Bull.UnrecoverableError(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
 		}
 
 		// Update stats
