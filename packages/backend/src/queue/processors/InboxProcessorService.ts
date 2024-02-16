@@ -175,7 +175,7 @@ export class InboxProcessorService {
 
 		const PLASMATRAP_BLOCKED_KEYWORDS: string[] = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
 		const object = activity.object as IObject;
-		if (activity.content && PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => object.content?.includes(keyword))) {
+		if (PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => object.content?.includes(keyword))) {
 			this.logger.warn(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
 			throw new Bull.UnrecoverableError(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
 		}
