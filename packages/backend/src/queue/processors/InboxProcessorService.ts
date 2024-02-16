@@ -14,7 +14,7 @@ import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataServic
 import InstanceChart from '@/core/chart/charts/instance.js';
 import ApRequestChart from '@/core/chart/charts/ap-request.js';
 import FederationChart from '@/core/chart/charts/federation.js';
-import { getApId, IObject } from '@/core/activitypub/type.js';
+import { getApId } from '@/core/activitypub/type.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiUserPublickey } from '@/models/UserPublickey.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
@@ -24,6 +24,7 @@ import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { LdSignatureService } from '@/core/activitypub/LdSignatureService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
+import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type { InboxJobData } from '../types.js';
 
@@ -173,11 +174,11 @@ export class InboxProcessorService {
 			}
 		}
 
-		const PLASMATRAP_BLOCKED_KEYWORDS: string[] = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
-		const object = activity.object as IObject;
-		if (PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => object.content?.includes(keyword))) {
-			this.logger.warn(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
-			throw new Bull.UnrecoverableError(`PlasmaTrap blocked keyword in ${activity.id}: ${object.content}`);
+		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
+		const mMrfResponse = runMMrf(activity, mmrfLogger);
+		const rewrittenActivity = mMrfResponse.data;
+		if (mMrfResponse.action === MMrfAction.RejectNote) {
+			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
 		}
 
 		// Update stats
@@ -198,7 +199,7 @@ export class InboxProcessorService {
 		});
 
 		// アクティビティを処理
-		await this.apInboxService.performActivity(authUser.user, activity);
+		await this.apInboxService.performActivity(authUser.user, rewrittenActivity);
 		return 'ok';
 	}
 }
