@@ -77,7 +77,7 @@ function hellthreadPolicy(activity: IActivity, logger: Logger) : MMrfResponse {
 
 	const mentions = object.tag.filter(tag => tag.type === 'Mention');
 
-	if (mentions.length >= 5) {
+	if (mentions.length >= 10) {
 		logger.warn('Rewriting note due to hellthread, triggered by: ' + object.content);
 		object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 		activity.object = object;
