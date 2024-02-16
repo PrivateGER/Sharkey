@@ -61,6 +61,12 @@ export class InboxProcessorService {
 
 		const host = this.utilityService.toPuny(new URL(signature.keyId).hostname);
 
+		const PLASMATRAP_BLOCKED_KEYWORDS: string[] = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
+		if (PLASMATRAP_BLOCKED_KEYWORDS.some(keyword => activity.content?.includes(keyword))) {
+			this.logger.warn(`PlasmaTrap blocked keyword in ${activity.id}: ${activity.content}`);
+			throw new Bull.UnrecoverableError('skip: PlasmaTrap blocked keyword');
+		}
+
 		// ブロックしてたら中断
 		const meta = await this.metaService.fetch();
 		if (this.utilityService.isBlockedHost(meta.blockedHosts, host)) {
@@ -109,7 +115,7 @@ export class InboxProcessorService {
 		// また、signatureのsignerは、activity.actorと一致する必要がある
 		if (!httpSignatureValidated || authUser.user.uri !== activity.actor) {
 			let renewKeyFailed = true;
-			
+
 			if (!httpSignatureValidated) {
 				authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
 
