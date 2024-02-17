@@ -48,9 +48,6 @@ export class InboxProcessorService {
 		private apRequestChart: ApRequestChart,
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
-
-		private userEntityService: UserEntityService,
-		private usersRepository: UsersRepository,
 		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
