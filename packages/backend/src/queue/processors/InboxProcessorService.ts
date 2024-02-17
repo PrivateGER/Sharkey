@@ -25,6 +25,9 @@ import { LdSignatureService } from '@/core/activitypub/LdSignatureService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
 import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
+import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import type { UsersRepository } from '@/models/_.js';
+import { IdService } from '@/core/IdService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type { InboxJobData } from '../types.js';
 
@@ -45,6 +48,10 @@ export class InboxProcessorService {
 		private apRequestChart: ApRequestChart,
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
+
+		private userEntityService: UserEntityService,
+		private usersRepository: UsersRepository,
+		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
 	}
@@ -175,7 +182,7 @@ export class InboxProcessorService {
 		}
 
 		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
-		const mMrfResponse = runMMrf(activity, mmrfLogger);
+		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);
 		const rewrittenActivity = mMrfResponse.data;
 		if (mMrfResponse.action === MMrfAction.RejectNote) {
 			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
