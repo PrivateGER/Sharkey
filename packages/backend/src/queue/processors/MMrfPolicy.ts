@@ -108,22 +108,16 @@ function hellthreadPolicy(activity: IActivity, logger: Logger) : MMrfResponse {
 
 async function disarmNewMentions(activity: IActivity, logger: Logger, idService: IdService, apDbResolverService: ApDbResolverService): Promise<MMrfResponse> {
 	const object: IObject = activity.object as IObject;
-	if (object.tag === undefined || !(object.tag instanceof Array)) {
+	if (object.tag === undefined || !(object.tag instanceof Array) || object.inReplyTo != null) {
 		return {
 			action: MMrfAction.Neutral,
 			data: activity,
 		};
 	}
 
-	// Check for user age
+	// Get user reference from AP Actor
 	const actor = activity.actor as IObject;
-	if (actor.id === undefined) {
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-	const user = await apDbResolverService.getUserFromApId(actor.id);
+	const user = await apDbResolverService.getUserFromApId(actor);
 	if (user === null) {
 		return {
 			action: MMrfAction.Neutral,
