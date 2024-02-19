@@ -130,7 +130,7 @@ async function disarmNewMentions(activity: IActivity, logger: Logger, idService:
 	const now = new Date();
 
 	// If the user is less than a day old and not followed by anyone, rewrite to remove mentions
-	if (now.getTime() - createdAt.getTime() < 86400000 && user.followersCount < 5) {
+	if (now.getTime() - createdAt.getTime() < (86400000 * 3) && user.followersCount < 5) {
 		logger.warn('Rewriting note due to user age, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
 		object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 		activity.object = object;
