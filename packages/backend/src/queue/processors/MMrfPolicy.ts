@@ -20,6 +20,8 @@ export type MMrfResponse = {
 }
 
 export async function runMMrf(activity: IActivity, logger: Logger, idService: IdService, apDbResolverService: ApDbResolverService): Promise<MMrfResponse> {
+	let keywordFilterPolicy = new KeywordFilterPolicy(logger);
+
 	if (activity.type !== 'Create') {
 		return {
 			action: MMrfAction.Neutral,
@@ -75,6 +77,49 @@ function keywordFilterPolicy(activity: IActivity, logger: Logger) : MMrfResponse
 		action: MMrfAction.Neutral,
 		data: activity,
 	};
+}
+
+interface MMrfPolicy {
+	logger: Logger;
+	idService: IdService;
+	apDbResolverService: ApDbResolverService;
+
+	runPolicy(activity: IActivity): Promise<MMrfResponse>;
+}
+
+class KeywordFilterPolicy implements MMrfPolicy {
+	constructor(private readonly logger: Logger) {
+		this.logger = logger;
+	}
+
+	apDbResolverService: ApDbResolverService;
+	idService: IdService;
+
+	async runPolicy(activity: IActivity): Promise<MMrfResponse> {
+		const object: IObject = activity.object as IObject;
+		if (object.content === undefined) {
+			return {
+				action: MMrfAction.Neutral,
+				data: activity,
+			};
+		}
+
+		const keywords = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
+
+		if (keywords.some(keyword => object.content?.includes(keyword))) {
+			logger.warn('Rejected note due to keyword filter, triggered by: ' + object.content);
+
+			return {
+				action: MMrfAction.RejectNote,
+				data: activity,
+			};
+		}
+
+		return {
+			action: MMrfAction.Neutral,
+			data: activity,
+		};
+	}
 }
 
 // Removes mentions from notes if there are more than 5
@@ -134,6 +179,13 @@ async function disarmNewMentions(activity: IActivity, logger: Logger, idService:
 		logger.warn('Rewriting note due to user age, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
 		object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 		activity.object = object;
+
+		if (user.name?.length === 10 && !user.name.includes(' ')) {
+			return {
+				action: MMrfAction.RejectNote,
+				data: activity,
+			};
+		}
 
 		return {
 			action: MMrfAction.RewriteNote,

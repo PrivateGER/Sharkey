@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: syuilo and other misskey contributors
+SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -101,7 +101,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { inject, watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed } from 'vue';
+import { inject, watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed, toRaw } from 'vue';
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
@@ -715,6 +715,29 @@ async function post(ev?: MouseEvent) {
 
 	if (props.mock) return;
 
+	if (defaultStore.state.warnMissingAltText) {
+		const filesData = toRaw(files.value);
+
+		const isMissingAltText = filesData.some(file => !file.comment);
+
+		if (isMissingAltText) {
+			const { canceled, result } = await os.actions({
+				type: 'warning',
+				text: i18n.ts.thisPostIsMissingAltText,
+				actions: [{
+					value: 'cancel',
+					text: i18n.ts.thisPostIsMissingAltTextCancel,
+				}, {
+					value: 'ignore',
+					text: i18n.ts.thisPostIsMissingAltTextIgnore,
+				}],
+			});
+
+			if (canceled) return;
+			if (result === 'cancel') return;	
+		}
+	}
+    
 	let postData = {
 		text: text.value === '' ? null : text.value,
 		fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,

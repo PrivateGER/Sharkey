@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -263,6 +263,10 @@ export const defaultStore = markRaw(new Storage('base', {
 	loadRawImages: {
 		where: 'device',
 		default: false,
+	},
+	warnMissingAltText: {
+		where: 'device',
+		default: true,
 	},
 	imageNewTab: {
 		where: 'device',
