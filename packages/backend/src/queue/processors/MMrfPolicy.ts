@@ -1,12 +1,11 @@
-import { IActivity, IObject } from '@/core/activitypub/type.js';
+import { IActivity } from '@/core/activitypub/type.js';
 import Logger from '@/logger.js';
 
-// TypeORM models
-import { UserEntityService } from '@/core/entities/UserEntityService.js';
-import type { UsersRepository } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
-import { UserFollowingService } from '@/core/UserFollowingService.js';
+import { KeywordFilterPolicy } from '@/queue/processors/MMrfPolicies/KeywordFilterPolicy.js';
+import { NewUserSpamPolicy } from '@/queue/processors/MMrfPolicies/NewUserSpamPolicy.js';
+import { HellthreadPolicy } from '@/queue/processors/MMrfPolicies/HellthreadPolicy.js';
 
 export enum MMrfAction {
 	Neutral,
@@ -20,7 +19,9 @@ export type MMrfResponse = {
 }
 
 export async function runMMrf(activity: IActivity, logger: Logger, idService: IdService, apDbResolverService: ApDbResolverService): Promise<MMrfResponse> {
-	let keywordFilterPolicy = new KeywordFilterPolicy(logger);
+	const keywordFilterPolicy = new KeywordFilterPolicy(logger);
+	const newUserSpamPolicy = new NewUserSpamPolicy(apDbResolverService, idService, logger);
+	const hellthreadPolicy = new HellthreadPolicy(logger);
 
 	if (activity.type !== 'Create') {
 		return {
@@ -30,20 +31,23 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 	}
 
 	let mmrfActivity = activity;
-
-	const keywordFilter = keywordFilterPolicy(activity, logger);
-	if (keywordFilter.action === MMrfAction.RejectNote) {
-		return keywordFilter;
+	const keywordFilterPolicyResponse = await keywordFilterPolicy.runPolicy(mmrfActivity);
+	if (keywordFilterPolicyResponse.action === MMrfAction.RejectNote) {
+		return keywordFilterPolicyResponse;
+	} else if (keywordFilterPolicyResponse.action === MMrfAction.RewriteNote) {
+		mmrfActivity = keywordFilterPolicyResponse.data;
 	}
 
-	const hellthreadFilter = hellthreadPolicy(activity, logger);
-	if (hellthreadFilter.action === MMrfAction.RewriteNote) {
-		mmrfActivity = hellthreadFilter.data;
+	const newUserSpamPolicyResponse = await newUserSpamPolicy.runPolicy(mmrfActivity);
+	if (newUserSpamPolicyResponse.action === MMrfAction.RejectNote) {
+		return newUserSpamPolicyResponse;
+	} else if (newUserSpamPolicyResponse.action === MMrfAction.RewriteNote) {
+		mmrfActivity = newUserSpamPolicyResponse.data;
 	}
 
-	const disarmMentions = await disarmNewMentions(mmrfActivity, logger, idService, apDbResolverService);
-	if (disarmMentions.action === MMrfAction.RewriteNote) {
-		mmrfActivity = disarmMentions.data;
+	const hellthreadPolicyResponse = await hellthreadPolicy.runPolicy(mmrfActivity);
+	if (hellthreadPolicyResponse.action === MMrfAction.RewriteNote) {
+		mmrfActivity = hellthreadPolicyResponse.data;
 	}
 
 	return {
@@ -52,149 +56,6 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 	};
 }
 
-// Filters based on keywords
-function keywordFilterPolicy(activity: IActivity, logger: Logger) : MMrfResponse {
-	const object: IObject = activity.object as IObject;
-	if (object.content === undefined) {
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-
-	const keywords = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
-
-	if (keywords.some(keyword => object.content?.includes(keyword))) {
-		logger.warn('Rejected note due to keyword filter, triggered by: ' + object.content);
-
-		return {
-			action: MMrfAction.RejectNote,
-			data: activity,
-		};
-	}
-
-	return {
-		action: MMrfAction.Neutral,
-		data: activity,
-	};
-}
-
-interface MMrfPolicy {
-	logger: Logger;
-	idService: IdService;
-	apDbResolverService: ApDbResolverService;
-
+export interface MMrfPolicy {
 	runPolicy(activity: IActivity): Promise<MMrfResponse>;
-}
-
-class KeywordFilterPolicy implements MMrfPolicy {
-	constructor(private readonly logger: Logger) {
-		this.logger = logger;
-	}
-
-	apDbResolverService: ApDbResolverService;
-	idService: IdService;
-
-	async runPolicy(activity: IActivity): Promise<MMrfResponse> {
-		const object: IObject = activity.object as IObject;
-		if (object.content === undefined) {
-			return {
-				action: MMrfAction.Neutral,
-				data: activity,
-			};
-		}
-
-		const keywords = ['https://discord.gg/ctkpaarr', '@ap12@mastodon-japan.net'];
-
-		if (keywords.some(keyword => object.content?.includes(keyword))) {
-			logger.warn('Rejected note due to keyword filter, triggered by: ' + object.content);
-
-			return {
-				action: MMrfAction.RejectNote,
-				data: activity,
-			};
-		}
-
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-}
-
-// Removes mentions from notes if there are more than 5
-function hellthreadPolicy(activity: IActivity, logger: Logger) : MMrfResponse {
-	const object: IObject = activity.object as IObject;
-	if (object.tag === undefined || !(object.tag instanceof Array)) {
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-
-	const mentions = object.tag.filter(tag => tag.type === 'Mention');
-
-	if (mentions.length >= 15) {
-		logger.warn('Rewriting note due to hellthread, triggered by: ' + object.content);
-		object.tag = object.tag.filter(tag => tag.type !== 'Mention');
-		activity.object = object;
-
-		return {
-			action: MMrfAction.RewriteNote,
-			data: activity,
-		};
-	}
-
-	return {
-		action: MMrfAction.Neutral,
-		data: activity,
-	};
-}
-
-async function disarmNewMentions(activity: IActivity, logger: Logger, idService: IdService, apDbResolverService: ApDbResolverService): Promise<MMrfResponse> {
-	const object: IObject = activity.object as IObject;
-	if (object.tag === undefined || !(object.tag instanceof Array) || object.inReplyTo != null) {
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-
-	// Get user reference from AP Actor
-	const actor = activity.actor as IObject;
-	const user = await apDbResolverService.getUserFromApId(actor);
-	if (user === null) {
-		return {
-			action: MMrfAction.Neutral,
-			data: activity,
-		};
-	}
-
-	// Check for user age
-	const createdAt = idService.parse(user.id).date;
-	const now = new Date();
-
-	// If the user is less than a day old and not followed by anyone, rewrite to remove mentions
-	if (now.getTime() - createdAt.getTime() < (86400000 * 3) && user.followersCount < 5) {
-		logger.warn('Rewriting note due to user age, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
-		object.tag = object.tag.filter(tag => tag.type !== 'Mention');
-		activity.object = object;
-
-		if (user.name?.length === 10 && !user.name.includes(' ')) {
-			return {
-				action: MMrfAction.RejectNote,
-				data: activity,
-			};
-		}
-
-		return {
-			action: MMrfAction.RewriteNote,
-			data: activity,
-		};
-	}
-
-	return {
-		action: MMrfAction.Neutral,
-		data: activity,
-	};
 }

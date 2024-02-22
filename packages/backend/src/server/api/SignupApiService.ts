@@ -354,6 +354,13 @@ export class SignupApiService {
 				await this.userFollowingService.follow(account, adminUser);
 			}
 
+			if (this.config.ntfyURL) {
+				fetch(this.config.ntfyURL, {
+					method: 'POST',
+					body: 'New user signup: ' + account.username,
+				});
+			}
+
 			return this.signinService.signin(request, reply, account as MiLocalUser);
 		} catch (err) {
 			throw new FastifyReplyError(400, typeof err === 'string' ? err : (err as Error).toString());
