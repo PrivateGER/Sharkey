@@ -17,7 +17,7 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 
 	async runPolicy(activity: IActivity): Promise<MMrfResponse> {
 		const object: IObject = activity.object as IObject;
-		if (object.tag === undefined || !(object.tag instanceof Array) || object.inReplyTo != null) {
+		if (object.tag === undefined || !(object.tag instanceof Array) || object.inReplyTo != null || object.url === undefined) {
 			return {
 				action: MMrfAction.Neutral,
 				data: activity,
