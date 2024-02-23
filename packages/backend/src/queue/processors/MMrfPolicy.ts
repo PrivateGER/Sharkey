@@ -1,4 +1,4 @@
-import { IActivity } from '@/core/activitypub/type.js';
+import {IActivity, IObject} from '@/core/activitypub/type.js';
 import Logger from '@/logger.js';
 
 import { IdService } from '@/core/IdService.js';
@@ -24,6 +24,14 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 	const hellthreadPolicy = new HellthreadPolicy(logger);
 
 	if (activity.type !== 'Create') {
+		return {
+			action: MMrfAction.Neutral,
+			data: activity,
+		};
+	}
+	const object: IObject = activity.object as IObject;
+
+	if (object.type !== 'Note') {
 		return {
 			action: MMrfAction.Neutral,
 			data: activity,
