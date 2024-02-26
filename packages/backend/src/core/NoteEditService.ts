@@ -51,6 +51,7 @@ import { CacheService } from '@/core/CacheService.js';
 import { isReply } from '@/misc/is-reply.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention' | 'edited';
 
@@ -241,6 +242,13 @@ export class NoteEditService implements OnApplicationShutdown {
 			throw new Error('not the author');
 		}
 
+		// we never want to change the replyId, so fetch the original "parent"
+		if (oldnote.replyId) {
+			data.reply = await this.notesRepository.findOneBy({ id: oldnote.replyId });
+		} else {
+			data.reply = undefined;
+		}
+
 		// チャンネル外にリプライしたら対象のスコープに合わせる
 		// (クライアントサイドでやっても良い処理だと思うけどとりあえずサーバーサイドで)
 		if (data.reply && data.channel && data.reply.channelId !== data.channel.id) {
@@ -276,7 +284,7 @@ export class NoteEditService implements OnApplicationShutdown {
 		}
 
 		if (this.utilityService.isKeyWordIncluded(data.cw ?? data.text ?? '', meta.prohibitedWords)) {
-			throw new NoteEditService.ContainsProhibitedWordsError();
+			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', 'Note contains prohibited words');
 		}
 
 		const inSilencedInstance = this.utilityService.isSilencedHost((meta).silencedHosts, user.host);
@@ -435,7 +443,7 @@ export class NoteEditService implements OnApplicationShutdown {
 				id: oldnote.id,
 				updatedAt: data.updatedAt ? data.updatedAt : new Date(),
 				fileIds: data.files ? data.files.map(file => file.id) : [],
-				replyId: data.reply ? data.reply.id : null,
+				replyId: oldnote.replyId,
 				renoteId: data.renote ? data.renote.id : null,
 				channelId: data.channel ? data.channel.id : null,
 				threadId: data.reply
