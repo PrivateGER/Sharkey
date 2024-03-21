@@ -203,7 +203,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}));
 		}));
 
-		this.queryService.generateVisibilityQuery(query, me);
+		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateMutedUserQuery(query, me);
 		this.queryService.generateBlockedUserQuery(query, me);
 		this.queryService.generateMutedUserRenotesQueryForNotes(query, me);

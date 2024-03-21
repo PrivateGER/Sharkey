@@ -190,7 +190,7 @@ export class SearchService {
 			if (opts.filetype) {
 				if (opts.filetype === 'image') {
 					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'image/webp' }, 
+						{ op: '=', k: 'attachedFileTypes', v: 'image/webp' },
 						{ op: '=', k: 'attachedFileTypes', v: 'image/png' },
 						{ op: '=', k: 'attachedFileTypes', v: 'image/jpeg' },
 						{ op: '=', k: 'attachedFileTypes', v: 'image/avif' },
@@ -199,14 +199,14 @@ export class SearchService {
 					] });
 				} else if (opts.filetype === 'video') {
 					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'video/mp4' }, 
+						{ op: '=', k: 'attachedFileTypes', v: 'video/mp4' },
 						{ op: '=', k: 'attachedFileTypes', v: 'video/webm' },
 						{ op: '=', k: 'attachedFileTypes', v: 'video/mpeg' },
 						{ op: '=', k: 'attachedFileTypes', v: 'video/x-m4v' },
 					] });
 				} else if (opts.filetype === 'audio') {
 					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/mpeg' }, 
+						{ op: '=', k: 'attachedFileTypes', v: 'audio/mpeg' },
 						{ op: '=', k: 'attachedFileTypes', v: 'audio/flac' },
 						{ op: '=', k: 'attachedFileTypes', v: 'audio/wav' },
 						{ op: '=', k: 'attachedFileTypes', v: 'audio/aac' },
@@ -288,7 +288,7 @@ export class SearchService {
 				query.andWhere(`note."attachedFileTypes"::varchar ~* :type`, { type: `[{,]${opts.filetype}/` });
 			}
 
-			this.queryService.generateVisibilityQuery(query, me);
+			await this.queryService.generateVisibilityQuery(query, me);
 			if (me) this.queryService.generateMutedUserQuery(query, me);
 			if (me) this.queryService.generateBlockedUserQuery(query, me);
 

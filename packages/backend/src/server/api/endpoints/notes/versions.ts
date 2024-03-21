@@ -43,7 +43,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
-		
+
 		private getterService: GetterService,
 		private queryService: QueryService,
 	) {
@@ -52,8 +52,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.select('note.id')
 				.where('note.id = :noteId', { noteId: ps.noteId });
 
-			this.queryService.generateVisibilityQuery(query, me);
-			
+			await this.queryService.generateVisibilityQuery(query, me);
+
 			const note = await query.getOne();
 
 			if (note === null) {

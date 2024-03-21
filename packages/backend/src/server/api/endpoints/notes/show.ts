@@ -44,7 +44,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
-		
+
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
 	) {
@@ -52,11 +52,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const query = await this.notesRepository.createQueryBuilder('note')
 				.where('note.id = :noteId', { noteId: ps.noteId });
 
-			this.queryService.generateVisibilityQuery(query, me);
+			await this.queryService.generateVisibilityQuery(query, me);
 			if (me) {
 				this.queryService.generateBlockedUserQuery(query, me);
 			}
-			
+
 			const note = await query.getOne();
 
 			if (note === null) {
