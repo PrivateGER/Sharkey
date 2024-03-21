@@ -205,7 +205,6 @@ export class QueryService {
 			});
 
 			if (user !== null && user.user !== null && user.user.username === 'admin' && user.user.host === null) {
-				q.where('1 = 1');
 				return;
 			}
 
