@@ -117,7 +117,6 @@ export function getConfig(): UserConfig {
 					},
 					chunkFileNames: process.env.NODE_ENV === 'production' ? '[hash:8].js' : '[name]-[hash:8].js',
 					assetFileNames: process.env.NODE_ENV === 'production' ? '[hash:8][extname]' : '[name]-[hash:8][extname]',
-					sourcemap: true,
 				},
 			},
 			cssCodeSplit: true,

@@ -97,9 +97,7 @@ export class DriveFileEntityService {
 						},
 						enlarge: true,
 					};
-				}
-
-				if (mode === 'static') {
+				} else if (mode === 'static') {
 					options = {
 						width: 500,
 						height: 0,
@@ -108,6 +106,10 @@ export class DriveFileEntityService {
 						},
 						enlarge: true,
 						auto_rotate: true,
+					};
+				} else {
+					options = {
+						format: 'webp',
 					};
 				}
 
