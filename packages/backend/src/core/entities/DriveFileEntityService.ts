@@ -22,6 +22,7 @@ import { UtilityService } from '../UtilityService.js';
 import { VideoProcessingService } from '../VideoProcessingService.js';
 import { UserEntityService } from './UserEntityService.js';
 import { DriveFolderEntityService } from './DriveFolderEntityService.js';
+import { generateImageUrl } from '@imgproxy/imgproxy-node';
 
 type PackOptions = {
 	detail?: boolean,
@@ -76,6 +77,46 @@ export class DriveFileEntityService {
 
 	@bindThis
 	private getProxiedUrl(url: string, mode?: 'static' | 'avatar'): string {
+		if (this.config.imgproxyURL) {
+			// Check file type, imgproxy supports only images
+			let useImgProxy = false;
+
+			const ext = url.split('.').pop() ?? '';
+			if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'bmp', 'tiff'].includes(ext)) {
+				useImgProxy = true;
+			}
+
+			if (useImgProxy) {
+				let options = {};
+				if (mode === 'avatar') {
+					options = {
+						width: 320,
+						height: 320,
+						gravity: 'sm',
+						enlarge: true,
+					};
+				}
+
+				if (mode === 'static') {
+					options = {
+						width: 500,
+						height: 0,
+						gravity: 'sm',
+						enlarge: true,
+						auto_rotate: true,
+					};
+				}
+
+				return generateImageUrl({
+					endpoint: this.config.imgproxyURL,
+					key: this.config.imgproxyKey,
+					salt: this.config.imgproxySalt,
+					url: url,
+					options,
+				});
+			}
+		}
+
 		return appendQuery(
 			`${this.config.mediaProxy}/${mode ?? 'image'}.webp`,
 			query({

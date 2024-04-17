@@ -100,6 +100,10 @@ type Source = {
 	pidFile: string;
 
 	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 };
 
 export type Config = {
@@ -182,6 +186,10 @@ export type Config = {
 	pidFile: string;
 
 	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 };
 
 const _filename = fileURLToPath(import.meta.url);
@@ -288,6 +296,10 @@ export function loadConfig(): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		pidFile: config.pidFile,
 		ntfyURL: config.ntfyURL,
+
+		imgproxyURL: config.imgproxyURL,
+		imgproxySalt: config.imgproxySalt,
+		imgproxyKey: config.imgproxyKey,
 	};
 }
 

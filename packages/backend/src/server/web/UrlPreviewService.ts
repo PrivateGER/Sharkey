@@ -15,6 +15,7 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
 import { ApiError } from '@/server/api/error.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import {generateImageUrl} from "@imgproxy/imgproxy-node";
 
 @Injectable()
 export class UrlPreviewService {
@@ -33,6 +34,28 @@ export class UrlPreviewService {
 
 	@bindThis
 	private wrap(url?: string | null): string | null {
+
+		if (this.config.imgproxyURL) {
+			return url != null
+				? url.match(/^https?:\/\//)
+					? generateImageUrl({
+						endpoint: this.config.imgproxyURL,
+						key: this.config.imgproxyKey,
+						salt: this.config.imgproxySalt,
+						url: url,
+						options: {
+							format: 'webp',
+							height: 200,
+							width: 0,
+							enlarge: true,
+							gravity: 'sm',
+							auto_rotate: true,
+						},
+					})
+					: url
+				: null;
+		}
+
 		return url != null
 			? url.match(/^https?:\/\//)
 				? `${this.config.mediaProxy}/preview.webp?${query({
