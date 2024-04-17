@@ -92,7 +92,9 @@ export class DriveFileEntityService {
 					options = {
 						width: 320,
 						height: 320,
-						gravity: 'sm',
+						gravity: {
+							type: 'sm',
+						},
 						enlarge: true,
 					};
 				}
@@ -101,7 +103,9 @@ export class DriveFileEntityService {
 					options = {
 						width: 500,
 						height: 0,
-						gravity: 'sm',
+						gravity: {
+							type: 'sm',
+						},
 						enlarge: true,
 						auto_rotate: true,
 					};

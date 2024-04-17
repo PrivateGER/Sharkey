@@ -48,7 +48,9 @@ export class UrlPreviewService {
 							height: 200,
 							width: 0,
 							enlarge: true,
-							gravity: 'sm',
+							gravity: {
+								type: 'sm',
+							},
 							auto_rotate: true,
 						},
 					})
