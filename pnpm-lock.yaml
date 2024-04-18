@@ -107,8 +107,8 @@ importers:
         specifier: 8.2.0
         version: 8.2.0
       '@imgproxy/imgproxy-node':
-        specifier: git+https://github.com/PrivateGER/imgproxy-node.git
-        version: github.com/PrivateGER/imgproxy-node/50f367e4233e97b1de41660891cfa536301e2b49
+        specifier: github:PrivateGER/imgproxy-node
+        version: github.com/PrivateGER/imgproxy-node/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0
       '@misskey-dev/sharp-read-bmp':
         specifier: 1.2.0
         version: 1.2.0
@@ -20176,10 +20176,12 @@ packages:
       vscode-languageserver-textdocument: 1.0.11
     dev: false
 
-  github.com/PrivateGER/imgproxy-node/50f367e4233e97b1de41660891cfa536301e2b49:
-    resolution: {tarball: https://codeload.github.com/PrivateGER/imgproxy-node/tar.gz/50f367e4233e97b1de41660891cfa536301e2b49}
+  github.com/PrivateGER/imgproxy-node/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0:
+    resolution: {tarball: https://codeload.github.com/PrivateGER/imgproxy-node/tar.gz/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0}
     name: '@imgproxy/imgproxy-node'
     version: 1.0.5
+    prepare: true
+    requiresBuild: true
     dependencies:
       '@imgproxy/imgproxy-js-core': 1.0.8
     dev: false

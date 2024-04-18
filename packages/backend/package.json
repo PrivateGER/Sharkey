@@ -77,7 +77,7 @@
 		"@fastify/multipart": "8.1.0",
 		"@fastify/static": "6.12.0",
 		"@fastify/view": "8.2.0",
-		"@imgproxy/imgproxy-node": "git+https://github.com/PrivateGER/imgproxy-node.git",
+		"@imgproxy/imgproxy-node": "github:PrivateGER/imgproxy-node",
 		"@misskey-dev/sharp-read-bmp": "1.2.0",
 		"@misskey-dev/summaly": "5.0.3",
 		"@nestjs/common": "10.3.3",
