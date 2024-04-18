@@ -5,6 +5,7 @@
 
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
+import { generateImageUrl } from '@imgproxy/imgproxy-node';
 import { DI } from '@/di-symbols.js';
 import type { DriveFilesRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
@@ -22,7 +23,6 @@ import { UtilityService } from '../UtilityService.js';
 import { VideoProcessingService } from '../VideoProcessingService.js';
 import { UserEntityService } from './UserEntityService.js';
 import { DriveFolderEntityService } from './DriveFolderEntityService.js';
-import { generateImageUrl } from '@imgproxy/imgproxy-node';
 
 type PackOptions = {
 	detail?: boolean,
@@ -77,7 +77,7 @@ export class DriveFileEntityService {
 
 	@bindThis
 	private getProxiedUrl(url: string, mode?: 'static' | 'avatar'): string {
-		let defaultURL = appendQuery(
+		const defaultURL = appendQuery(
 			`${this.config.mediaProxy}/${mode ?? 'image'}.webp`,
 			query({
 				url,
@@ -93,6 +93,11 @@ export class DriveFileEntityService {
 			const ext = new URL(url).pathname.split('.').pop()?.toLowerCase() ?? '';
 			if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'bmp', 'tiff'].includes(ext)) {
 				supportedFiletype = true;
+			}
+
+			// Let default proxy handle files with video extensions
+			if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v', '3gp'].includes(ext)) {
+				return defaultURL;
 			}
 
 			let options = {};
