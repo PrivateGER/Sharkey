@@ -47,7 +47,7 @@ export class CleanRemoteFilesProcessorService {
 					isLink: false,
 					...(cursor ? { id: MoreThan(cursor) } : {}),
 				},
-				take: 16, // Adjust the batch size as needed
+				take: 256, // Adjust the batch size as needed
 				order: {
 					id: 1,
 				},
