@@ -36,13 +36,13 @@ export class CleanRemoteFilesProcessorService {
 		let errorCount = 0;
 
 		while (true) {
-			const files: MiDriveFile[] = await this.driveFilesRepository.find({
+			const files = await this.driveFilesRepository.find({
 				where: {
 					userHost: Not(IsNull()),
 					isLink: false,
 					...(cursor ? { id: MoreThan(cursor) } : {}),
 				},
-				take: 8,
+				take: 16, // Adjust the batch size as needed
 				order: {
 					id: 1,
 				},
@@ -55,15 +55,17 @@ export class CleanRemoteFilesProcessorService {
 
 			cursor = files.at(-1)?.id ?? null;
 
-			for (const file of files) {
-				try {
-					await this.driveService.deleteFileSync(file, true);
+			// Handle deletion in a batch
+			const results = await Promise.allSettled(files.map(file => this.driveService.deleteFileSync(file, true)));
+
+			results.forEach((result, index) => {
+				if (result.status === 'fulfilled') {
 					deletedCount++;
-				} catch (error) {
-					this.logger.error(`Failed to delete file ID ${file.id}: ${error.message}`);
+				} else {
+					this.logger.error(`Failed to delete file ID ${files[index].id}: ${result.reason}`);
 					errorCount++;
 				}
-			}
+			});
 
 			const total = await this.driveFilesRepository.countBy({
 				userHost: Not(IsNull()),
