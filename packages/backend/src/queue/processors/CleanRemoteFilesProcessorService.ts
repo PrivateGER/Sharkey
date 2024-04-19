@@ -35,6 +35,11 @@ export class CleanRemoteFilesProcessorService {
 		let cursor: MiDriveFile['id'] | null = null;
 		let errorCount = 0;
 
+		const total = await this.driveFilesRepository.countBy({
+			userHost: Not(IsNull()),
+			isLink: false,
+		});
+
 		while (true) {
 			const files = await this.driveFilesRepository.find({
 				where: {
@@ -67,10 +72,7 @@ export class CleanRemoteFilesProcessorService {
 				}
 			});
 
-			const total = await this.driveFilesRepository.countBy({
-				userHost: Not(IsNull()),
-				isLink: false,
-			});
+
 
 			job.updateProgress((deletedCount / total) * 100);
 		}
