@@ -189,7 +189,7 @@ export class DriveFileEntityService {
 		}
 
 		// Use external media proxy for remote files not linked directly
-		if (file.uri && file.userHost && this.config.externalMediaProxyEnabled && !file.isLink) {
+		if (file.uri && this.config.externalMediaProxyEnabled && !file.isLink) {
 			return this.getProxiedUrl(file.uri, mode, file.type);
 		}
 
