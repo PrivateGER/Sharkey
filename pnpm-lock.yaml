@@ -107,8 +107,8 @@ importers:
         specifier: 8.2.0
         version: 8.2.0
       '@imgproxy/imgproxy-node':
-        specifier: github:PrivateGER/imgproxy-node
-        version: github.com/PrivateGER/imgproxy-node/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0
+        specifier: 1.0.6
+        version: 1.0.6
       '@misskey-dev/sharp-read-bmp':
         specifier: 1.2.0
         version: 1.2.0
@@ -4430,6 +4430,12 @@ packages:
     resolution: {integrity: sha512-3oBneumj7b/YCeyLteKyKaidQSrDhEHnZMiVBHO0Hshju/YSplbzSeACZGwai7LyD3YMMpsK/kLIodXU6wbtMw==}
     dev: false
 
+  /@imgproxy/imgproxy-node@1.0.6:
+    resolution: {integrity: sha512-Evdg3Ywry4RzIKTtQnHO3KsSKHa000GcdY4nRM2JRNdAgATv7fBD82nj6qzTgcqxpqcywnT1Sd2XGxxVg7ZC+w==}
+    dependencies:
+      '@imgproxy/imgproxy-js-core': 1.0.8
+    dev: false
+
   /@ioredis/commands@1.2.0:
     resolution: {integrity: sha512-Sx1pU8EM64o2BrqNpEO1CNLtKQwyhuXuqyfH7oGKCk+1a33d2r5saW8zNwm3j6BTExtjrv2BxTgzzkMwts6vGg==}
     dev: false
@@ -6863,7 +6869,7 @@ packages:
       ts-dedent: 2.2.0
       type-fest: 2.19.0
       vue: 3.4.21(typescript@5.3.3)
-      vue-component-type-helpers: 2.0.13
+      vue-component-type-helpers: 2.0.14
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -17515,6 +17521,7 @@ packages:
     hasBin: true
     dependencies:
       glob: 10.3.10
+    dev: true
 
   /rollup@4.12.0:
     resolution: {integrity: sha512-wz66wn4t1OHIJw3+XU7mJJQV/2NAfw5OAk6G6Hoo3zcvz/XOfQ52Vgi+AN4Uxoxi0KBBwk2g8zPrTDA4btSB/Q==}
@@ -19641,8 +19648,8 @@ packages:
     resolution: {integrity: sha512-0vOfAtI67UjeO1G6UiX5Kd76CqaQ67wrRZiOe7UAb9Jm6GzlUr/fC7CV90XfwapJRjpCMaZFhv1V0ajWRmE9Dg==}
     dev: true
 
-  /vue-component-type-helpers@2.0.13:
-    resolution: {integrity: sha512-xNO5B7DstNWETnoYflLkVgh8dK8h2ZDgxY1M2O0zrqGeBNq5yAZ8a10yCS9+HnixouNGYNX+ggU9MQQq86HTpg==}
+  /vue-component-type-helpers@2.0.14:
+    resolution: {integrity: sha512-DInfgOyXlMyliyqAAD9frK28tTfch0+tMi4qoWJcZlRxUf+NFAtraJBnAsKLep+FOyLMiajkhfyEb3xLK08i7w==}
     dev: true
 
   /vue-demi@0.14.7(vue@3.4.21):
@@ -20180,16 +20187,6 @@ packages:
       uuid: 9.0.1
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.11
-    dev: false
-
-  github.com/PrivateGER/imgproxy-node/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0:
-    resolution: {tarball: https://codeload.github.com/PrivateGER/imgproxy-node/tar.gz/ce0369cbcfe8a9e52b60d9ac37f0857897724cd0}
-    name: '@imgproxy/imgproxy-node'
-    version: 1.0.5
-    prepare: true
-    requiresBuild: true
-    dependencies:
-      '@imgproxy/imgproxy-js-core': 1.0.8
     dev: false
 
   github.com/aiscript-dev/aiscript-vscode/793211d40243c8775f6b85f015c221c82cbffb07:
