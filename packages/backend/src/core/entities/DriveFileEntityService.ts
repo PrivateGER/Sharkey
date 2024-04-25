@@ -154,18 +154,9 @@ export class DriveFileEntityService {
 			return this.videoProcessingService.getExternalVideoThumbnailUrl(file.webpublicUrl ?? file.url);
 		}
 
-		// Use a media proxy for non-video remote files if the configuration allows
-		if (file.uri && file.userHost && this.config.externalMediaProxyEnabled) {
-			return this.getProxiedUrl(file.uri, 'static', file.type);
-		}
-
 		// Handle remote linked files with expired keys through a local proxy if allowed by the configuration
 		if (file.uri && file.isLink && this.config.proxyRemoteFiles) {
 			return this.getProxiedUrl(file.uri, 'static', file.type);
-		}
-
-		if (isMimeImage(file.type, 'sharp-convertible-image') && !file.isLink) {
-			return file.url;
 		}
 
 		// If none of the above conditions are met, we assume no valid thumbnail URL is available
@@ -186,10 +177,12 @@ export class DriveFileEntityService {
 		// Return the direct URL if it's secure and available
 		if (file.url && isSafeCDNUrl(file.url)) {
 			return file.url;
+		} else if (file.url && !isSafeCDNUrl(file.url) && this.config.externalMediaProxyEnabled) {
+			return this.getProxiedUrl(file.url, mode, file.type);
 		}
 
 		// Use external media proxy for remote files not linked directly
-		if (file.uri && this.config.externalMediaProxyEnabled && !file.isLink) {
+		if (file.uri && this.config.externalMediaProxyEnabled && file.isLink) {
 			return this.getProxiedUrl(file.uri, mode, file.type);
 		}
 
