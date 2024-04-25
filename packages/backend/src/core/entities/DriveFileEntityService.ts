@@ -144,25 +144,33 @@ export class DriveFileEntityService {
 
 	@bindThis
 	public getThumbnailUrl(file: MiDriveFile): string | null {
+		// Prioritize returning an existing thumbnail URL if it's available
+		if (file.thumbnailUrl) {
+			return file.thumbnailUrl;
+		}
+
+		// Handle video files separately
 		if (file.type.startsWith('video')) {
-			if (file.thumbnailUrl) return file.thumbnailUrl;
-
 			return this.videoProcessingService.getExternalVideoThumbnailUrl(file.webpublicUrl ?? file.url);
-		} else if (file.uri != null && file.userHost != null && this.config.externalMediaProxyEnabled) {
-			// 動画ではなくリモートかつメディアプロキシ
+		}
+
+		// Use a media proxy for non-video remote files if the configuration allows
+		if (file.uri && file.userHost && this.config.externalMediaProxyEnabled) {
 			return this.getProxiedUrl(file.uri, 'static', file.type);
 		}
 
-		if (file.uri != null && file.isLink && this.config.proxyRemoteFiles) {
-			// リモートかつ期限切れはローカルプロキシを試みる
-			// 従来は/files/${thumbnailAccessKey}にアクセスしていたが、
-			// /filesはメディアプロキシにリダイレクトするようにしたため直接メディアプロキシを指定する
+		// Handle remote linked files with expired keys through a local proxy if allowed by the configuration
+		if (file.uri && file.isLink && this.config.proxyRemoteFiles) {
 			return this.getProxiedUrl(file.uri, 'static', file.type);
 		}
 
-		const url = file.webpublicUrl ?? file.url;
+		// Return a public URL if the file type is an image and convertible using 'sharp'
+		if (isMimeImage(file.type, 'sharp-convertible-image')) {
+			return file.webpublicUrl ?? file.url;
+		}
 
-		return file.thumbnailUrl ?? (isMimeImage(file.type, 'sharp-convertible-image') ? url : null);
+		// If none of the above conditions are met, return null indicating no thumbnail URL is available
+		return null;
 	}
 
 	@bindThis
