@@ -166,29 +166,38 @@ export class DriveFileEntityService {
 	}
 
 	@bindThis
-	public getPublicUrl(file: MiDriveFile, mode?: 'avatar'): string { // static = thumbnail
-		// リモートかつメディアプロキシ
-		if (file.uri != null && file.userHost != null && this.config.externalMediaProxyEnabled) {
+	public getPublicUrl(file: MiDriveFile, mode?: 'avatar'): string {
+		// Handle the case where a specific avatar URL is requested
+		if (mode === 'avatar') {
+			const avatarUrl = file.webpublicUrl ?? file.url;
+			return this.getProxiedUrl(avatarUrl, 'avatar', file.type);
+		}
+
+		// Handle the general case where no specific mode is required
+		const isSafeCDNUrl = (url: string) => url.startsWith('https://s3.plasmatrap.com');
+
+		// Return the direct URL if it's secure and available
+		if (file.url && isSafeCDNUrl(file.url)) {
+			return file.url;
+		}
+
+		// Use external media proxy for remote files not linked directly
+		if (file.uri && file.userHost && this.config.externalMediaProxyEnabled && !file.isLink) {
 			return this.getProxiedUrl(file.uri, mode, file.type);
 		}
 
-		// リモートかつ期限切れはローカルプロキシを試みる
-		if (file.uri != null && file.isLink && this.config.proxyRemoteFiles) {
+		// Attempt to use a local proxy for remote files that are links
+		if (file.uri && file.isLink && this.config.proxyRemoteFiles) {
 			const key = file.webpublicAccessKey;
-
-			if (key && !key.match('/')) {	// 古いものはここにオブジェクトストレージキーが入ってるので除外
-				const url = `${this.config.url}/files/${key}`;
-				if (mode === 'avatar') return this.getProxiedUrl(file.uri, 'avatar', file.type);
-				return url;
+			// Ensure the key does not contain '/' indicating it's not an old storage key
+			if (key && !key.includes('/')) {
+				const proxiedUrl = `${this.config.url}/files/${key}`;
+				return proxiedUrl;
 			}
 		}
 
-		const url = file.webpublicUrl ?? file.url;
-
-		if (mode === 'avatar') {
-			return this.getProxiedUrl(url, 'avatar', file.type);
-		}
-		return url;
+		// Fallback to the public URL if available
+		return file.webpublicUrl ?? file.url;
 	}
 
 	@bindThis
