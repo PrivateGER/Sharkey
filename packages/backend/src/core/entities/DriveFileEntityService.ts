@@ -164,12 +164,11 @@ export class DriveFileEntityService {
 			return this.getProxiedUrl(file.uri, 'static', file.type);
 		}
 
-		// Return a public URL if the file type is an image and convertible using 'sharp'
-		if (isMimeImage(file.type, 'sharp-convertible-image')) {
-			return file.webpublicUrl ?? file.url;
+		if (isMimeImage(file.type, 'sharp-convertible-image') && !file.isLink) {
+			return file.url;
 		}
 
-		// If none of the above conditions are met, return null indicating no thumbnail URL is available
+		// If none of the above conditions are met, we assume no valid thumbnail URL is available
 		return null;
 	}
 
