@@ -91,19 +91,14 @@ export class DriveFileEntityService {
 
 			// If mimeType is provided, use it to determine if the file is an image
 			if (mimeType) {
-				if (isMimeImage(mimeType, 'sharp-convertible-image')) {
+				if (isMimeImage(mimeType, 'sharp-convertible-image') && mimeType !== 'image/gif') {
 					supportedFiletype = true;
 				}
 			} else {
 				// Parse URL and get extension
 				const ext = new URL(url).pathname.split('.').pop()?.toLowerCase() ?? '';
-				if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'bmp', 'tiff'].includes(ext)) {
+				if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'bmp', 'tiff', 'webp'].includes(ext)) {
 					supportedFiletype = true;
-				}
-
-				// Let default proxy handle files with video extensions
-				if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v', '3gp'].includes(ext)) {
-					return defaultURL;
 				}
 			}
 
