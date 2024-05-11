@@ -25,7 +25,6 @@
 		"@rollup/plugin-json": "6.1.0",
 		"@rollup/plugin-replace": "5.0.5",
 		"@rollup/pluginutils": "5.1.0",
-		"@transfem-org/sfm-js": "0.24.4",
 		"@sentry/vue": "^7.81.1",
 		"@syuilo/aiscript": "0.17.0",
 		"@transfem-org/sfm-js": "0.24.5",
