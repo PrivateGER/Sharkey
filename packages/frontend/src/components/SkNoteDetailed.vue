@@ -348,7 +348,16 @@ if ($i) {
 const keymap = {
 	'r': () => reply(true),
 	'e|a|plus': () => react(true),
-	'q': () => renote(appearNote.value.visibility),
+	'q': async () => {
+		const confirm = await os.confirm({
+			type: 'question',
+			title: 'Confirm renote',
+			text: 'Are you sure you want to renote this post?',
+		});
+		if (confirm.canceled) return;
+
+		renote(appearNote.value.visibility);
+	},
 	'esc': blur,
 	'm|o': () => showMenu(true),
 	's': () => showContent.value !== showContent.value,

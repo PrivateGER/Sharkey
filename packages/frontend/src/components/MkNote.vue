@@ -331,7 +331,16 @@ function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string 
 const keymap = {
 	'r': () => reply(true),
 	'e|a|plus': () => react(true),
-	'q': () => renote(appearNote.value.visibility),
+	'q': async () => {
+		const confirm = await os.confirm({
+			type: 'question',
+			title: 'Confirm renote',
+			text: 'Are you sure you want to renote this post?',
+		});
+		if (confirm.canceled) return;
+
+		renote(appearNote.value.visibility);
+	},
 	'up|k|shift+tab': focusBefore,
 	'down|j|tab': focusAfter,
 	'esc': blur,
