@@ -6,6 +6,7 @@
 import { VNode, h, defineAsyncComponent, SetupContext } from 'vue';
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
+import CkFollowMouse from '../CkFollowMouse.vue';
 import MkUrl from '@/components/global/MkUrl.vue';
 import MkTime from '@/components/global/MkTime.vue';
 import MkLink from '@/components/MkLink.vue';
@@ -227,16 +228,70 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 						}
 						return h(MkSparkle, {}, genEl(token.children, scale));
 					}
+					case 'fade': {
+						// Dont run with reduced motion on
+						if (!defaultStore.state.animation) {
+							style = '';
+							break;
+						}
+			
+						const direction = token.props.args.out
+							? 'alternate-reverse'
+							: 'alternate';
+						const speed = validTime(token.props.args.speed) ?? '1.5s';
+						const delay = validTime(token.props.args.delay) ?? '0s';
+						const loop = safeParseFloat(token.props.args.loop) ?? 'infinite';
+						style = `animation: mfm-fade ${speed} ${delay} linear ${loop}; animation-direction: ${direction};`;
+						break;
+					}
 					case 'rotate': {
 						const degrees = safeParseFloat(token.props.args.deg) ?? 90;
 						style = `transform: rotate(${degrees}deg); transform-origin: center center;`;
 						break;
+					}
+					case 'followmouse': {
+						// Make sure advanced MFM is on and that reduced motion is off
+						if (!useAnim) {
+							style = '';
+							break;
+						}
+
+						let x = (!!token.props.args.x);
+						let y = (!!token.props.args.y);
+
+						if (!x && !y) {
+							x = true;
+							y = true;
+						}
+
+						return h(CkFollowMouse, {
+							x: x,
+							y: y,
+							speed: validTime(token.props.args.speed) ?? '0.1s',
+							rotateByVelocity: !!token.props.args.rotateByVelocity,
+						}, genEl(token.children, scale));
 					}
 					case 'position': {
 						if (!defaultStore.state.advancedMfm) break;
 						const x = safeParseFloat(token.props.args.x) ?? 0;
 						const y = safeParseFloat(token.props.args.y) ?? 0;
 						style = `transform: translateX(${x}em) translateY(${y}em);`;
+						break;
+					}
+					case 'crop': {
+						const top = Number.parseFloat(
+							(token.props.args.top ?? '0').toString(),
+						);
+						const right = Number.parseFloat(
+							(token.props.args.right ?? '0').toString(),
+						);
+						const bottom = Number.parseFloat(
+							(token.props.args.bottom ?? '0').toString(),
+						);
+						const left = Number.parseFloat(
+							(token.props.args.left ?? '0').toString(),
+						);
+						style = `clip-path: inset(${top}% ${right}% ${bottom}% ${left}%);`;
 						break;
 					}
 					case 'scale': {
@@ -335,67 +390,67 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 			}
 
 			case 'center': {
-				return [h('div', {
+				return [h('bdi',h('div', {
 					style: 'text-align:center;',
-				}, genEl(token.children, scale))];
+				}, genEl(token.children, scale)))];
 			}
 
 			case 'url': {
-				return [h(MkUrl, {
+				return [h('bdi',h(MkUrl, {
 					key: Math.random(),
 					url: token.props.url,
 					rel: 'nofollow noopener',
-				})];
+				}))];
 			}
 
 			case 'link': {
-				return [h(MkLink, {
+				return [h('bdi',h(MkLink, {
 					key: Math.random(),
 					url: token.props.url,
 					rel: 'nofollow noopener',
-				}, genEl(token.children, scale, true))];
+				}, genEl(token.children, scale, true)))];
 			}
 
 			case 'mention': {
-				return [h(MkMention, {
+				return [h('bdi',h(MkMention, {
 					key: Math.random(),
 					host: (token.props.host == null && props.author && props.author.host != null ? props.author.host : token.props.host) ?? host,
 					username: token.props.username,
-				})];
+				}))];
 			}
 
 			case 'hashtag': {
-				return [h(MkA, {
+				return [h('bdi',h(MkA, {
 					key: Math.random(),
 					to: isNote ? `/tags/${encodeURIComponent(token.props.hashtag)}` : `/user-tags/${encodeURIComponent(token.props.hashtag)}`,
 					style: 'color:var(--hashtag);',
-				}, `#${token.props.hashtag}`)];
+				}, `#${token.props.hashtag}`))];
 			}
 
 			case 'blockCode': {
-				return [h(MkCode, {
+				return [h('bdi',h(MkCode, {
 					key: Math.random(),
 					code: token.props.code,
 					lang: token.props.lang ?? undefined,
-				})];
+				}))];
 			}
 
 			case 'inlineCode': {
-				return [h(MkCodeInline, {
+				return [h('bdi',h(MkCodeInline, {
 					key: Math.random(),
 					code: token.props.code,
-				})];
+				}))];
 			}
 
 			case 'quote': {
 				if (!props.nowrap) {
-					return [h('div', {
+					return [h('bdi',h('div', {
 						style: QUOTE_STYLE,
-					}, genEl(token.children, scale, true))];
+					}, genEl(token.children, scale, true)))];
 				} else {
-					return [h('span', {
+					return [h('bdi',h('span', {
 						style: QUOTE_STYLE,
-					}, genEl(token.children, scale, true))];
+					}, genEl(token.children, scale, true)))];
 				}
 			}
 
@@ -439,17 +494,17 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 			}
 
 			case 'mathInline': {
-				return [h(MkFormula, {
+				return [h('bdi',h(MkFormula, {
 					formula: token.props.formula,
 					block: false,
-				})];
+				}))];
 			}
 
 			case 'mathBlock': {
-				return [h(MkFormula, {
+				return [h('bdi',h(MkFormula, {
 					formula: token.props.formula,
 					block: true,
-				})];
+				}))];
 			}
 
 			case 'search': {
@@ -472,8 +527,8 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 		}
 	}).flat(Infinity) as (VNode | string)[];
 
-	return h('span', {
+	return h('bdi', h('span', {
 		// https://codeday.me/jp/qa/20190424/690106.html
 		style: props.nowrap ? 'white-space: pre; word-wrap: normal; overflow: hidden; text-overflow: ellipsis;' : 'white-space: pre-wrap;',
-	}, genEl(rootAst, props.rootScale ?? 1));
+	}, genEl(rootAst, props.rootScale ?? 1)));
 }

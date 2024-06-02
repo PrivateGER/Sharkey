@@ -557,6 +557,8 @@ rt {
 
 // MFM -----------------------------
 
+div > bdi, p > bdi { display: block }
+
 ._mfm_blur_ {
 	filter: blur(6px);
 	transition: filter 0.3s;
@@ -697,4 +699,13 @@ rt {
 @keyframes mfm-rainbow {
 	0% { filter: hue-rotate(0deg) contrast(150%) saturate(150%); }
 	100% { filter: hue-rotate(360deg) contrast(150%) saturate(150%); }
+}
+
+@keyframes mfm-fade {
+	0% {
+	  opacity: 0;
+	}
+	100% {
+	  opacity: 1;
+	}
 }
