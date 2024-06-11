@@ -68,7 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</header>
 		<div :class="$style.noteContent">
 			<p v-if="appearNote.cw != null" :class="$style.cw">
-				<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :author="appearNote.user" :nyaize="'respect'"/>
+				<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :isBlock="true" :author="appearNote.user" :nyaize="'respect'"/>
 				<MkCwButton v-model="showContent" :text="appearNote.text" :files="appearNote.files" :poll="appearNote.poll"/>
 			</p>
 			<div v-show="appearNote.cw == null || showContent">
@@ -84,13 +84,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:enableEmojiMenu="true"
 					:enableEmojiMenuReaction="true"
 					:isAnim="allowAnim"
+					:isBlock="true"
 				/>
 				<a v-if="appearNote.renote != null" :class="$style.rn">RN:</a>
 				<div v-if="translating || translation" :class="$style.translation">
 					<MkLoading v-if="translating" mini/>
 					<div v-else-if="translation">
 						<b>{{ i18n.tsx.translatedFrom({ x: translation.sourceLang }) }}: </b>
-						<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis"/>
+						<Mfm :text="translation.text" :isBlock="true" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis"/>
 					</div>
 				</div>
 				<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
@@ -336,19 +337,12 @@ if ($i) {
 	});
 }
 
+let renoting = false;
+
 const keymap = {
 	'r': () => reply(true),
 	'e|a|plus': () => react(true),
-	'q': async () => {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: 'Confirm renote',
-			text: 'Are you sure you want to renote this post?',
-		});
-		if (confirm.canceled) return;
-
-		renote(appearNote.value.visibility);
-	},
+	'(q)': () => { if (canRenote && !renoted.value && !renoting) { renoting = true; renote(appearNote.value.visibility) } },
 	'esc': blur,
 	'm|o': () => showMenu(true),
 	's': () => showContent.value !== showContent.value,
@@ -447,7 +441,7 @@ function boostVisibility() {
 	}
 }
 
-function renote(visibility: Visibility, localOnly = false) {
+function renote(visibility: Visibility, localOnly: boolean = false) {
 	pleaseLogin();
 	showMovedDialog();
 
@@ -466,7 +460,7 @@ function renote(visibility: Visibility, localOnly = false) {
 		}).then(() => {
 			os.toast(i18n.ts.renoted);
 			renoted.value = true;
-		});
+		}).finally(() => { renoting = false });
 	} else if (!appearNote.value.channel || appearNote.value.channel.allowRenoteToExternal) {
 		const el = renoteButton.value as HTMLElement | null | undefined;
 		if (el) {
@@ -483,7 +477,7 @@ function renote(visibility: Visibility, localOnly = false) {
 		}).then(() => {
 			os.toast(i18n.ts.renoted);
 			renoted.value = true;
-		});
+		}).finally(() => { renoting = false });
 	}
 }
 

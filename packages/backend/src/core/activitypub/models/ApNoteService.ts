@@ -255,7 +255,7 @@ export class ApNoteService {
 			> => {
 				if (typeof uri !== 'string' || !/^https?:/.test(uri)) return { status: 'permerror' };
 				try {
-					const res = await this.resolveNote(uri);
+					const res = await this.resolveNote(uri, { resolver });
 					if (res == null) return { status: 'permerror' };
 					return { status: 'ok', res };
 				} catch (e) {
@@ -482,7 +482,7 @@ export class ApNoteService {
 			> => {
 				if (!/^https?:/.test(uri)) return { status: 'permerror' };
 				try {
-					const res = await this.resolveNote(uri);
+					const res = await this.resolveNote(uri, { resolver });
 					if (res == null) return { status: 'permerror' };
 					return { status: 'ok', res };
 				} catch (e) {

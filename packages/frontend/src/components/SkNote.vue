@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div v-if="renoteCollapsed" :class="$style.collapsedRenoteTarget">
 		<MkAvatar :class="$style.collapsedRenoteTargetAvatar" :user="appearNote.user" link preview/>
-		<Mfm :text="getNoteSummary(appearNote)" :plain="true" :nowrap="true" :author="appearNote.user" :nyaize="'respect'" :class="$style.collapsedRenoteTargetText" @click="renoteCollapsed = false"/>
+		<Mfm :text="getNoteSummary(appearNote)" :isBlock="true" :plain="true" :nowrap="true" :author="appearNote.user" :nyaize="'respect'" :class="$style.collapsedRenoteTargetText" @click="renoteCollapsed = false"/>
 	</div>
 	<article v-else :class="$style.article" @contextmenu.stop="onContextmenu">
 		<div style="display: flex; padding-bottom: 10px;">
@@ -57,7 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="[{ [$style.clickToOpen]: defaultStore.state.clickToOpen }]" @click.stop="defaultStore.state.clickToOpen ? noteclick(appearNote.id) : undefined">
 			<div style="container-type: inline-size;">
 				<p v-if="appearNote.cw != null" :class="$style.cw">
-					<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :author="appearNote.user" :nyaize="'respect'"/>
+					<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :isBlock="true" :author="appearNote.user" :nyaize="'respect'"/>
 					<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll" style="margin: 4px 0;" @click.stop/>
 				</p>
 				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
@@ -73,12 +73,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 							:enableEmojiMenu="true"
 							:enableEmojiMenuReaction="true"
 							:isAnim="allowAnim"
+							:isBlock="true"
 						/>
 						<div v-if="translating || translation" :class="$style.translation">
 							<MkLoading v-if="translating" mini/>
 							<div v-else-if="translation">
 								<b>{{ i18n.tsx.translatedFrom({ x: translation.sourceLang }) }}: </b>
-								<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis"/>
+								<Mfm :text="translation.text" :isBlock="true" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis"/>
 							</div>
 						</div>
 						<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
@@ -329,19 +330,12 @@ function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string 
 	return false;
 }
 
+let renoting = false;
+
 const keymap = {
 	'r': () => reply(true),
 	'e|a|plus': () => react(true),
-	'q': async () => {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: 'Confirm renote',
-			text: 'Are you sure you want to renote this post?',
-		});
-		if (confirm.canceled) return;
-
-		renote(appearNote.value.visibility);
-	},
+	'(q)': () => { if (canRenote && !renoted.value && !renoting) { renoting = true; renote(appearNote.value.visibility) } },
 	'up|k|shift+tab': focusBefore,
 	'down|j|tab': focusAfter,
 	'esc': blur,
@@ -446,7 +440,7 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 			}).then(() => {
 				os.toast(i18n.ts.renoted);
 				renoted.value = true;
-			});
+			}).finally(() => { renoting = false });
 		}
 	} else if (!appearNote.value.channel || appearNote.value.channel.allowRenoteToExternal) {
 		const el = renoteButton.value as HTMLElement | null | undefined;
@@ -465,7 +459,7 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 			}).then(() => {
 				os.toast(i18n.ts.renoted);
 				renoted.value = true;
-			});
+			}).finally(() => { renoting = false });
 		}
 	}
 }
