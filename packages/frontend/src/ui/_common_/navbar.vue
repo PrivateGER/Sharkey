@@ -169,8 +169,8 @@ function more(ev: MouseEvent) {
 
 	.instanceIcon {
 		display: inline-block;
-		width: 38px;
-		aspect-ratio: 1;
+		width: 180px;
+		content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp");
 	}
 
 	.bottom {
