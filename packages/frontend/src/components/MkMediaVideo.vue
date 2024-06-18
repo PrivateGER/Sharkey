@@ -77,7 +77,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</button>
 			</div>
 			<div :class="[$style.controlsChild, $style.controlsRight]">
-				<a class="_button" :class="$style.controlButton" :href="video.url" :download="video.name" target="_blank">
+				<a class="_button" :class="$style.controlButton" :href="downloadURL" :download="video.name" target="_blank">
 					<i class="ph-download ph-bold ph-lg"></i>
 				</a>
 				<button class="_button" :class="$style.controlButton" @click="showMenu">
@@ -284,6 +284,13 @@ const bufferedEnd = ref(0);
 const bufferedDataRatio = computed(() => {
 	if (!videoEl.value) return 0;
 	return bufferedEnd.value / videoEl.value.duration;
+});
+const downloadURL = computed(() => {
+	if (!props.video.url) return '';
+	// Add ?dl=1 to the URL to force download
+	let url = new URL(props.video.url);
+	url.searchParams.set('dl', '1');
+	return url.toString();
 });
 
 // MediaControl Events
