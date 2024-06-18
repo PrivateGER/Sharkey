@@ -21,33 +21,16 @@ import { initializeSw } from '@/scripts/initialize-sw.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
 import { emojiPicker } from '@/scripts/emoji-picker.js';
 import { mainRouter } from '@/router/main.js';
-import * as Sentry from '@sentry/vue';
+import { setFavIconDot } from '@/scripts/favicon-dot.js';
 
 export async function mainBoot() {
-	const app = createApp(
+	const { isClientUpdated } = await common(() => createApp(
 		new URLSearchParams(window.location.search).has('zen') || (ui === 'deck' && deckStore.state.useSimpleUiForNonRootPages && location.pathname !== '/') ? defineAsyncComponent(() => import('@/ui/zen.vue')) :
-			!$i ? defineAsyncComponent(() => import('@/ui/visitor.vue')) :
-				ui === 'deck' ? defineAsyncComponent(() => import('@/ui/deck.vue')) :
-					ui === 'classic' ? defineAsyncComponent(() => import('@/ui/classic.vue')) :
-						defineAsyncComponent(() => import('@/ui/universal.vue')),
-	);
-
-	Sentry.init({
-		app,
-		dsn: "https://e01987edb77d63017714bf1c934e8fc4@sentry.plasmatrap.com/3",
-		tracesSampleRate: 1.0,
-		tracePropagationTargets: ["localhost", "https://plasmatrap.com/api"],
-		integrations: [
-			// eslint-disable-next-line import/namespace
-			new Sentry.BrowserTracing(),
-			// eslint-disable-next-line import/namespace
-			new Sentry.Replay(),
-		],
-		replaysSessionSampleRate: 0.1,
-		replaysOnErrorSampleRate: 1.0,
-	});
-
-	const { isClientUpdated } = await common(() => app);
+		!$i ? defineAsyncComponent(() => import('@/ui/visitor.vue')) :
+		ui === 'deck' ? defineAsyncComponent(() => import('@/ui/deck.vue')) :
+		ui === 'classic' ? defineAsyncComponent(() => import('@/ui/classic.vue')) :
+		defineAsyncComponent(() => import('@/ui/universal.vue')),
+	));
 
 	reactionPicker.init();
 	emojiPicker.init();
@@ -207,14 +190,26 @@ export async function mainBoot() {
 		if ($i.followersCount >= 500) claimAchievement('followers500');
 		if ($i.followersCount >= 1000) claimAchievement('followers1000');
 
-		if (Date.now() - new Date($i.createdAt).getTime() > 1000 * 60 * 60 * 24 * 365) {
-			claimAchievement('passedSinceAccountCreated1');
-		}
-		if (Date.now() - new Date($i.createdAt).getTime() > 1000 * 60 * 60 * 24 * 365 * 2) {
-			claimAchievement('passedSinceAccountCreated2');
-		}
-		if (Date.now() - new Date($i.createdAt).getTime() > 1000 * 60 * 60 * 24 * 365 * 3) {
+		const createdAt = new Date($i.createdAt);
+		const createdAtThreeYearsLater = new Date($i.createdAt);
+		createdAtThreeYearsLater.setFullYear(createdAtThreeYearsLater.getFullYear() + 3);
+		if (now >= createdAtThreeYearsLater) {
 			claimAchievement('passedSinceAccountCreated3');
+			claimAchievement('passedSinceAccountCreated2');
+			claimAchievement('passedSinceAccountCreated1');
+		} else {
+			const createdAtTwoYearsLater = new Date($i.createdAt);
+			createdAtTwoYearsLater.setFullYear(createdAtTwoYearsLater.getFullYear() + 2);
+			if (now >= createdAtTwoYearsLater) {
+				claimAchievement('passedSinceAccountCreated2');
+				claimAchievement('passedSinceAccountCreated1');
+			} else {
+				const createdAtOneYearLater = new Date($i.createdAt);
+				createdAtOneYearLater.setFullYear(createdAtOneYearLater.getFullYear() + 1);
+				if (now >= createdAtOneYearLater) {
+					claimAchievement('passedSinceAccountCreated1');
+				}
+			}
 		}
 
 		if (claimedAchievements.length >= 30) {
@@ -249,10 +244,15 @@ export async function mainBoot() {
 
 		const latestDonationInfoShownAt = miLocalStorage.getItem('latestDonationInfoShownAt');
 		const neverShowDonationInfo = miLocalStorage.getItem('neverShowDonationInfo');
-		if (neverShowDonationInfo !== 'true' && (new Date($i.createdAt).getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 3))) && !location.pathname.startsWith('/miauth')) {
+		if (neverShowDonationInfo !== 'true' && (createdAt.getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 3))) && !location.pathname.startsWith('/miauth')) {
 			if (latestDonationInfoShownAt == null || (new Date(latestDonationInfoShownAt).getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 30)))) {
 				popup(defineAsyncComponent(() => import('@/components/MkDonation.vue')), {}, {}, 'closed');
 			}
+		}
+
+		const modifiedVersionMustProminentlyOfferInAgplV3Section13Read = miLocalStorage.getItem('modifiedVersionMustProminentlyOfferInAgplV3Section13Read');
+		if (modifiedVersionMustProminentlyOfferInAgplV3Section13Read !== 'true' && instance.repositoryUrl !== 'https://activitypub.software/TransFem-org/Sharkey/') {
+			popup(defineAsyncComponent(() => import('@/components/MkSourceCodeAvailablePopup.vue')), {}, {}, 'closed');
 		}
 
 		if ('Notification' in window) {
@@ -262,6 +262,14 @@ export async function mainBoot() {
 			}
 		}
 
+		function attemptShowNotificationDot() {
+			if (defaultStore.state.enableFaviconNotificationDot) {
+				setFavIconDot(true);
+			}
+		}
+
+		if ($i.hasUnreadNotification) attemptShowNotificationDot();
+
 		const main = markRaw(stream.useChannel('main', null, 'System'));
 
 		// 自分の情報が更新されたとき
@@ -270,6 +278,8 @@ export async function mainBoot() {
 		});
 
 		main.on('readAllNotifications', () => {
+			setFavIconDot(false);
+
 			updateAccount({
 				hasUnreadNotification: false,
 				unreadNotificationsCount: 0,
@@ -277,6 +287,8 @@ export async function mainBoot() {
 		});
 
 		main.on('unreadNotification', () => {
+			attemptShowNotificationDot();
+
 			const unreadNotificationsCount = ($i?.unreadNotificationsCount ?? 0) + 1;
 			updateAccount({
 				hasUnreadNotification: true,
