@@ -33,29 +33,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							{{ i18n.tsx._aboutMisskey.thisIsModifiedVersion({ name: instance.name }) }}
 						</MkInfo>
 						<FormLink v-if="instance.repositoryUrl" :to="instance.repositoryUrl" external>
-							<template #icon><i class="ph-code ph-bold ph-lg"></i></template>
-							{{ i18n.ts._aboutMisskey.source }} ({{ i18n.ts._aboutMisskey.original }})
-							<template #suffix>GitHub</template>
-						</FormLink>
-						<FormLink to="https://www.patreon.com/syuilo" external>
-							<template #icon><i class="ph-piggy-bank ph-bold ph-lg"></i></template>
-							{{ i18n.ts._aboutMisskey.donate }}
-							<template #suffix>Patreon</template>
-						</FormLink>
-					</div>
-				</FormSection>
-				<FormSection v-if="instance.repositoryUrl !== 'https://github.com/misskey-dev/misskey'">
-					<div class="_gaps_s">
-						<MkInfo>
-							{{ i18n.tsx._aboutMisskey.thisIsModifiedVersion({ name: instance.name }) }}
-						</MkInfo>
-						<FormLink v-if="instance.repositoryUrl" :to="instance.repositoryUrl" external>
-							<template #icon><i class="ph-code ph-bold ph-lg"></i></template>
+							<template #icon><i class="ti ti-code"></i></template>
 							{{ i18n.ts._aboutMisskey.source }}
-							<template #suffix>Github</template>
 						</FormLink>
 						<FormLink v-if="instance.providesTarball" :to="`/tarball/sharkey-${version}.tar.gz`" external>
-							<template #icon><i class="ph-download ph-bold ph-lg"></i></template>
+							<template #icon><i class="ti ti-download"></i></template>
 							{{ i18n.ts._aboutMisskey.source }}
 							<template #suffix>Tarball</template>
 						</FormLink>
@@ -76,20 +58,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 							{{ i18n.ts._aboutMisskey.donate_sharkey }}
 							<template #suffix>Ko-Fi</template>
 						</FormLink>
-						<FormLink v-if="instance.providesTarball" :to="`/tarball/sharkey-${version}.tar.gz`" external>
-							<template #icon><i class="ph-download ph-bold ph-lg"></i></template>
-							{{ i18n.ts._aboutMisskey.source }}
-							<template #suffix>Tarball</template>
-						</FormLink>
-						<MkInfo v-if="!instance.repositoryUrl && !instance.providesTarball" warn>
-							{{ i18n.ts.sourceCodeIsNotYetProvided }}
-						</MkInfo>
 					</div>
 				</FormSection>
 				<FormSection>
 					<div class="_gaps_s">
 						<FormLink to="https://github.com/misskey-dev/misskey" external>
-							<template #icon><i class="ph-code ph-bold ph-lg"></i></template>
+							<template #icon><i class="ti ti-code"></i></template>
 							{{ i18n.ts._aboutMisskey.source }} ({{ i18n.ts._aboutMisskey.original }})
 							<template #suffix>GitHub</template>
 						</FormLink>

@@ -223,6 +223,9 @@ importers:
       deep-email-validator:
         specifier: 0.1.21
         version: 0.1.21
+      fast-xml-parser:
+        specifier: ^4.4.0
+        version: 4.4.0
       fastify:
         specifier: 4.26.2
         version: 4.26.2
@@ -6858,8 +6861,8 @@ packages:
     resolution: {integrity: sha512-B9/wizE4WngqQftFPmdaMYlXoJlJOYxGQOanC77fq9k8+Z0v5dDSVh+3glErdIROP//s/jgb7ZuxKfB8nVyo0g==}
     hasBin: true
 
-  fast-xml-parser@4.3.2:
-    resolution: {integrity: sha512-rmrXUXwbJedoXkStenj1kkljNF7ugn5ZjR9FJcwmCfcCbtOMDghPajbc+Tck6vE6F5XsDmx+Pr2le9fw8+pXBg==}
+  fast-xml-parser@4.4.0:
+    resolution: {integrity: sha512-kLY3jFlwIYwBNDojclKsNAC12sfD6NwW74QB2CoNGPvtVxjliYehVunB3HYyNi+n4Tt1dAcgwYvmKF/Z18flqg==}
     hasBin: true
 
   fastify-multer@2.0.3:
@@ -11193,6 +11196,9 @@ packages:
 
   vue-component-type-helpers@2.0.21:
     resolution: {integrity: sha512-3NaicyZ7N4B6cft4bfb7dOnPbE9CjLcx+6wZWAg5zwszfO4qXRh+U52dN5r5ZZfc6iMaxKCEcoH9CmxxoFZHLg==}
+
+  vue-component-type-helpers@2.0.26:
+    resolution: {integrity: sha512-sO9qQ8oC520SW6kqlls0iqDak53gsTVSrYylajgjmkt1c0vcgjsGSy1KzlDrbEx8pm02IEYhlUkU5hCYf8rwtg==}
 
   vue-demi@0.14.7:
     resolution: {integrity: sha512-EOG8KXDQNwkJILkx/gPcoL/7vH+hORoBaKgGe+6W7VFMvCYJfmF2dGbvgDroVnI8LU7/kTu8mbjRZGBU1z9NTA==}
@@ -15559,7 +15565,7 @@ snapshots:
       ts-dedent: 2.2.0
       type-fest: 2.19.0
       vue: 3.4.26(typescript@5.4.5)
-      vue-component-type-helpers: 2.0.21
+      vue-component-type-helpers: 2.0.26
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -19001,7 +19007,7 @@ snapshots:
     dependencies:
       strnum: 1.0.5
 
-  fast-xml-parser@4.3.2:
+  fast-xml-parser@4.4.0:
     dependencies:
       strnum: 1.0.5
 
@@ -19895,7 +19901,7 @@ snapshots:
 
   is-svg@5.0.0:
     dependencies:
-      fast-xml-parser: 4.3.2
+      fast-xml-parser: 4.4.0
 
   is-symbol@1.0.4:
     dependencies:
@@ -23846,6 +23852,8 @@ snapshots:
   vue-component-type-helpers@2.0.16: {}
 
   vue-component-type-helpers@2.0.21: {}
+
+  vue-component-type-helpers@2.0.26: {}
 
   vue-demi@0.14.7(vue@3.4.26(typescript@5.4.5)):
     dependencies:
