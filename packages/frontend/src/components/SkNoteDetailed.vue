@@ -165,7 +165,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="defaultStore.state.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @mousedown="clip()">
 				<i class="ti ti-paperclip"></i>
 			</button>
-			<button ref="backfillButton" :class="$style.noteFooterButton" class="_button" @mousedown="backfill()">
+			<button ref="backfillButton" :class="$style.noteFooterButton" v-if="isRemoteNote" class="_button" @mousedown="backfill()">
 				<i class="ph-lg ph-bold ph-cloud-arrow-down"></i>
 			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @mousedown="showMenu()">
