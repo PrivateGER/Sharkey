@@ -517,7 +517,7 @@ async function backfill() {
 				os.toast('Backfilled successfully.');
 			}
 		} else {
-			os.toast('Failed to backfill post.');
+			os.toast('Failed to backfill post. Remote instance may be incompatible.');
 		}
 	}
 }
