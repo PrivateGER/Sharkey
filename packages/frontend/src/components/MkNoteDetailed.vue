@@ -157,6 +157,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="defaultStore.state.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @mousedown="clip()">
 				<i class="ti ti-paperclip"></i>
 			</button>
+			<button v-if="isRemoteNote" ref="backfillButton" :class="$style.noteFooterButton" class="_button" @mousedown="backfill()">
+				<i class="ph-lg ph-bold ph-cloud-arrow-down"></i>
+			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @mousedown="showMenu()">
 				<i class="ti ti-dots"></i>
 			</button>
@@ -276,6 +279,7 @@ const props = withDefaults(defineProps<{
 const inChannel = inject('inChannel', null);
 
 const note = ref(deepClone(props.note));
+const isRemoteNote = computed(() => note.value.user.host !== null);
 
 // plugin
 if (noteViewInterruptors.length > 0) {
@@ -514,6 +518,39 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 			os.toast(i18n.ts.renoted);
 			renoted.value = true;
 		}).finally(() => { renoting = false; });
+	}
+}
+
+async function backfill() {
+	if (!$i) {
+		pleaseLogin();
+		return;
+	}
+	if ($i) {
+		os.toast("Backfilling post. **This may take a few seconds to complete.**", true);
+		let token = $i.token;
+		let noteURL = note.value.url || note.value.uri;
+		let res = await fetch('https://backfiller.plasmatrap.com/fetch_replies', {
+			method: 'POST',
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				token: token,
+				post_url: noteURL,
+			}),
+		});
+
+		if (res.ok) {
+			let parsed = await res.json();
+			if (parsed.message === 'Debounced') {
+				os.toast('This post is on backfilling cooldown.');
+			} else {
+				os.toast('Backfilled successfully.');
+			}
+		} else {
+			os.toast('Failed to backfill post. Remote instance may be incompatible.');
+		}
 	}
 }
 
