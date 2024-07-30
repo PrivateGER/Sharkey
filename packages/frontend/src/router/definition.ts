@@ -560,6 +560,10 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/reversi/game.vue')),
 	loginRequired: false,
 }, {
+	path: '/doom',
+	component: page(() => import('@/pages/dos/doom/game.vue')),
+	loginRequired: false,
+}, {
 	path: '/timeline',
 	component: page(() => import('@/pages/timeline.vue')),
 }, {
