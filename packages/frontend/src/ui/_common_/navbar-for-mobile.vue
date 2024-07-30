@@ -29,6 +29,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkA v-if="$i.isAdmin || $i.isModerator" :class="$style.item" :activeClass="$style.active" to="/admin">
 			<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 		</MkA>
+		<MkA :class="$style.item" :activeClass="$style.active" to="/services">
+			<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Services</span>
+		</MkA>
 		<button :class="$style.item" class="_button" @click="more">
 			<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
 			<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator"><i class="_indicatorCircle"></i></span>

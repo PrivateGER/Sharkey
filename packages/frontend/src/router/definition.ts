@@ -572,6 +572,11 @@ const routes: RouteDef[] = [{
 	path: '/redirect-test',
 	redirect: $i ? `@${$i.username}` : '/',
 	loginRequired: true,
+},
+{
+	path: '/services',
+	component: page(() => import('@/pages/services.vue')),
+	loginRequired: true,
 }, {
 	path: '/:(*)',
 	component: page(() => import('@/pages/not-found.vue')),
