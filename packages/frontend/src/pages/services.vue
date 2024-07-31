@@ -10,6 +10,7 @@ import torlogo from '/client-assets/tor.svg';
 import cobaltlogo from '/client-assets/cobalt.png';
 import excalidrawlogo from '/client-assets/excalidraw.svg';
 import pipedlogo from '/client-assets/piped.svg';
+import uptimekumalogo from '/client-assets/uptimekuma.svg';
 
 definePageMetadata(() => ({
 	title: "PlasmaTrap Services",
@@ -24,6 +25,17 @@ definePageMetadata(() => ({
 	<MkSpacer :contentMax="800">
 		<h1>PlasmaTrap-owned services</h1>
 		<p>There are several more things being hosted by PlasmaTrap, we aren't just a Sharkey server!</p>
+
+		<a href="https://status.plasmatrap.com/status/plasmatrap" target="_blank">
+			<div class="serviceHeaderBox">
+				<img :src="uptimekumalogo" alt="Uptime Kuma logo" style="width: 50px; height: 50px;"/>
+				<p class="header">Uptime Kuma</p>
+			</div>
+		</a>
+
+		<p>Uptime Kuma is used for the status page for PlasmaTrap. It shows the current status of all services, as well as historical data.</p>
+
+		<div class="spacer"></div>
 
 		<a href="https://piped.plasmatrap.com" target="_blank">
 			<div class="serviceHeaderBox">
