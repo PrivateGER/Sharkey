@@ -77,7 +77,7 @@ export class CustomEmojiService implements OnApplicationShutdown {
 		localOnly: boolean;
 		roleIdsThatCanBeUsedThisEmojiAsReaction: MiRole['id'][];
 	}, moderator?: MiUser): Promise<MiEmoji> {
-		const emoji = await this.emojisRepository.insert({
+		const emoji = await this.emojisRepository.insertOne({
 			id: this.idService.gen(),
 			updatedAt: new Date(),
 			name: data.name,
@@ -91,7 +91,7 @@ export class CustomEmojiService implements OnApplicationShutdown {
 			isSensitive: data.isSensitive,
 			localOnly: data.localOnly,
 			roleIdsThatCanBeUsedThisEmojiAsReaction: data.roleIdsThatCanBeUsedThisEmojiAsReaction,
-		}).then(x => this.emojisRepository.findOneByOrFail(x.identifiers[0]));
+		});
 
 		if (data.host == null) {
 			this.localEmojisCache.refresh();
@@ -144,7 +144,7 @@ export class CustomEmojiService implements OnApplicationShutdown {
 
 		if (data.driveFile != null) {
 			const file = await this.driveFilesRepository.findOneBy({ url: emoji.originalUrl, userHost: emoji.host ? emoji.host : IsNull() });
-			if (file && file.id != data.driveFile.id) {
+			if (file && file.id !== data.driveFile.id) {
 				await this.driveService.deleteFile(file, false, moderator ? moderator : undefined);
 			}
 		}
