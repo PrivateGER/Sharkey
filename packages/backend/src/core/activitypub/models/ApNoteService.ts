@@ -153,6 +153,12 @@ export class ApNoteService {
 			throw new Error('unexpected schema of note url: ' + url);
 		}
 
+		if (url) {
+			if (url.includes("relay.fedi.buzz") || url.includes("relay.kitsu.life") || url.includes("relay.publicsquare.global")) {
+				silent = true;
+			}
+		}
+
 		this.logger.info(`Creating the Note: ${note.id}`);
 
 		// 投稿者をフェッチ
