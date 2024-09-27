@@ -6,10 +6,10 @@
 import cluster from 'node:cluster';
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { collectDefaultMetrics, AggregatorRegistry } from 'prom-client';
 import { envOption } from '@/env.js';
 import { loadConfig } from '@/config.js';
 import { jobQueue, server } from './common.js';
-
 /**
  * Init worker process
  */
@@ -33,6 +33,10 @@ export async function workerMain() {
 			...config.sentryForBackend.options,
 		});
 	}
+
+	// initialize prom-client in the worker
+	const aggregatorRegistry = new AggregatorRegistry();
+	collectDefaultMetrics();
 
 	if (envOption.onlyServer) {
 		await server();
