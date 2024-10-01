@@ -213,6 +213,7 @@ export function createPostgresDataSource(config: Config) {
 		username: config.db.user,
 		password: config.db.pass,
 		database: config.db.db,
+		poolSize: config.db.poolSize ?? 10,
 		extra: {
 			statement_timeout: 1000 * 10,
 			...config.db.extra,

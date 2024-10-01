@@ -44,6 +44,7 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
+		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -130,6 +131,7 @@ export type Config = {
 		user: string;
 		pass: string;
 		disableCache?: boolean;
+		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
