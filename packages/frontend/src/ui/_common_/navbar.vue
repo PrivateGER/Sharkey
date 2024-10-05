@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.top">
 			<div :class="$style.banner" :style="{ backgroundImage: `url(${ instance.bannerUrl })` }"></div>
 			<button v-tooltip.noDelay.right="instance.name ?? i18n.ts.instance" class="_button" :class="$style.instance" @click="openInstanceMenu">
-				<img :src="instance.iconUrl || instance.faviconUrl || '/favicon.ico'" alt="" :class="$style.instanceIcon"/>
+				<img :src="instance.sidebarLogoUrl && !iconOnly ? instance.sidebarLogoUrl : instance.iconUrl || '/apple-touch-icon.png'" alt="" :class="instance.sidebarLogoUrl && !iconOnly ? $style.wideInstanceIcon : $style.instanceIcon"/>
 			</button>
 		</div>
 		<div :class="$style.middle">
@@ -184,6 +184,13 @@ function more(ev: MouseEvent) {
 		display: inline-block;
 		width: 180px;
 		content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp");
+	}
+
+	.wideInstanceIcon {
+		display: inline-block;
+		min-width: 38px;
+		max-width: 100%;
+		max-height: 80px;
 	}
 
 	.bottom {

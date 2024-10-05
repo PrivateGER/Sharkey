@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="instance" :class="$style.root">
 	<div :class="[$style.main, $style.panel]">
-		<img :src="instance.iconUrl || '/apple-touch-icon.png'" alt="" :class="$style.mainIcon"/>
+		<img :src="instance.sidebarLogoUrl || instance.iconUrl || '/apple-touch-icon.png'" alt="" :class="instance.sidebarLogoUrl ? $style.wideIcon : $style.mainIcon"/>
 		<button class="_button _acrylic" :class="$style.mainMenu" @click="showMenu"><i class="ti ti-dots"></i></button>
 		<div :class="$style.mainFg">
 			<h1 :class="$style.mainTitle">
@@ -125,6 +125,14 @@ function showMenu(ev: MouseEvent) {
 	vertical-align: bottom;
 	filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
 	content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp");
+}
+
+.wideIcon {
+	min-width: 85px;
+	max-width: 60%;
+	margin-top: -47px;
+	vertical-align: bottom;
+	filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
 }
 
 .mainMenu {

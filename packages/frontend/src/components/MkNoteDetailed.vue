@@ -587,7 +587,8 @@ function quote() {
 		os.post({
 			renote: appearNote.value,
 			channel: appearNote.value.channel,
-		}).then(() => {
+		}).then((cancelled) => {
+			if (cancelled) return;
 			misskeyApi('notes/renotes', {
 				noteId: appearNote.value.id,
 				userId: $i?.id,
@@ -611,7 +612,8 @@ function quote() {
 	} else {
 		os.post({
 			renote: appearNote.value,
-		}).then(() => {
+		}).then((cancelled) => {
+			if (cancelled) return;
 			misskeyApi('notes/renotes', {
 				noteId: appearNote.value.id,
 				userId: $i?.id,
