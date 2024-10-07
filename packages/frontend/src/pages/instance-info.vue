@@ -48,11 +48,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkButton inline :disabled="!instance" danger @click="severAllFollowRelations">{{ i18n.ts.severAllFollowRelations }}</MkButton>
 							<MkButton v-if="suspensionState === 'none'" inline :disabled="!instance" danger @click="stopDelivery">{{ i18n.ts._delivery.stop }}</MkButton>
 						</div>
-						<MkButton v-if="suspensionState !== 'none'" :disabled="!instance" @click="resumeDelivery">{{ i18n.ts._delivery.resume }}</MkButton>
-						<MkSwitch v-model="isBlocked" :disabled="!meta || !instance" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
-						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
-						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">Mark as NSFW</MkSwitch>
-						<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
+							<MkButton v-if="suspensionState !== 'none'" inline :disabled="!instance" @click="resumeDelivery">{{ i18n.ts._delivery.resume }}</MkButton>
+						</div>
+						<MkInfo v-if="isBaseBlocked" warn>{{ i18n.ts.blockedByBase }}</MkInfo>
+						<MkSwitch v-model="isBlocked" :disabled="!meta || !instance || isBaseBlocked" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
+						<MkInfo v-if="isBaseSilenced" warn>{{ i18n.ts.silencedByBase }}</MkInfo>
+						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance || isBaseSilenced" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
+						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">{{ i18n.ts.markInstanceAsNSFW }}</MkSwitch>
+						<MkSwitch v-model="rejectReports" :disabled="!instance" @update:modelValue="toggleRejectReports">{{ i18n.ts.rejectReports }}</MkSwitch>
+						<MkInfo v-if="isBaseMediaSilenced" warn>{{ i18n.ts.mediaSilencedByBase }}</MkInfo>
+						<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance || isBaseMediaSilenced" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
 						<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
 						<MkTextarea v-model="moderationNote" manualSave>
 							<template #label>{{ i18n.ts.moderationNote }}</template>
@@ -190,6 +195,7 @@ import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
 import { getProxiedImageUrlNullable } from '@/scripts/media-proxy.js';
 import { dateString } from '@/filters/date.js';
 import MkTextarea from '@/components/MkTextarea.vue';
+import MkInfo from '@/components/MkInfo.vue';
 
 const props = defineProps<{
 	host: string;
@@ -204,9 +210,25 @@ const suspensionState = ref<'none' | 'manuallySuspended' | 'goneSuspended' | 'au
 const isBlocked = ref(false);
 const isSilenced = ref(false);
 const isNSFW = ref(false);
+const rejectReports = ref(false);
 const isMediaSilenced = ref(false);
 const faviconUrl = ref<string | null>(null);
 const moderationNote = ref('');
+
+const baseDomains = computed(() => {
+	const domains: string[] = [];
+
+	const parts = props.host.toLowerCase().split('.');
+	for (let s = 1; s < parts.length; s++) {
+		const domain = parts.slice(s).join('.');
+		domains.push(domain);
+	}
+
+	return domains;
+});
+const isBaseBlocked = computed(() => meta.value && baseDomains.value.some(d => meta.value?.blockedHosts.includes(d)));
+const isBaseSilenced = computed(() => meta.value && baseDomains.value.some(d => meta.value?.silencedHosts.includes(d)));
+const isBaseMediaSilenced = computed(() => meta.value && baseDomains.value.some(d => meta.value?.mediaSilencedHosts.includes(d)));
 
 const usersPagination = {
 	endpoint: iAmModerator ? 'admin/show-users' : 'users' as const,
@@ -254,6 +276,7 @@ async function fetch(): Promise<void> {
 	isBlocked.value = instance.value?.isBlocked ?? false;
 	isSilenced.value = instance.value?.isSilenced ?? false;
 	isNSFW.value = instance.value?.isNSFW ?? false;
+	rejectReports.value = instance.value?.rejectReports ?? false;
 	isMediaSilenced.value = instance.value?.isMediaSilenced ?? false;
 	faviconUrl.value = getProxiedImageUrlNullable(instance.value?.faviconUrl, 'preview') ?? getProxiedImageUrlNullable(instance.value?.iconUrl, 'preview');
 	moderationNote.value = instance.value?.moderationNote ?? '';
@@ -314,6 +337,14 @@ async function toggleNSFW(): Promise<void> {
 	});
 }
 
+async function toggleRejectReports(): Promise<void> {
+	if (!instance.value) throw new Error('No instance?');
+	await misskeyApi('admin/federation/update-instance', {
+		host: instance.value.host,
+		rejectReports: rejectReports.value,
+	});
+}
+
 function refreshMetadata(): void {
 	if (!instance.value) throw new Error('No instance?');
 	misskeyApi('admin/federation/refresh-remote-instance-metadata', {
@@ -336,7 +367,7 @@ async function deleteAllFiles(): void {
 		host: instance.value.host,
 	});
 	await os.alert({
-		text: 'Deletion of all files queued',
+		text: i18n.ts.deleteAllFilesQueued,
 	});
 }
 
@@ -345,7 +376,11 @@ async function severAllFollowRelations(): void {
 
 	const confirm = await os.confirm({
 		type: 'danger',
-		text: `${i18n.ts.severAllFollowRelationsConfirm} This will break ${instance.value.followingCount} following and ${instance.value.followersCount} follower relations on ${meta.value.name}.`,
+		text: i18n.tsx.severAllFollowRelationsConfirm({
+			instanceName: meta.value.shortName ?? meta.value.name,
+			followingCount: instance.value.followingCount,
+			followersCount: instance.value.followersCount,
+		}),
 	});
 	if (confirm.canceled) return;
 
@@ -353,7 +388,7 @@ async function severAllFollowRelations(): void {
 		host: instance.value.host,
 	});
 	await os.alert({
-		text: 'Severing all follow relations queued',
+		text: i18n.tsx.severAllFollowRelationsQueued({ host: instance.value.host }),
 	});
 }
 
