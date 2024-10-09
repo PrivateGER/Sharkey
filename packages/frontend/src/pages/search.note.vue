@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #prefix><i class="ti ti-server"></i></template>
 				</MkInput>
 				<MkSwitch v-model="order">Sort by newest to oldest</MkSwitch>
+				<MkSwitch v-model="similarSearch">Search for similar posts (disable for exact matching)</MkSwitch>
 				<MkSelect v-model="filetype" small>
 					<template #label>File Type</template>
 					<option :value="null">None</option>
@@ -98,6 +99,7 @@ const user = ref<UserDetailed | null>(null);
 const hostInput = ref(toRef(props, 'host').value);
 const order = ref(false);
 const filetype = ref(null);
+const similarSearch = ref(true);
 
 const noteSearchableScope = instance.noteSearchableScope ?? 'local';
 
@@ -213,6 +215,7 @@ async function search() {
 			...(searchHost.value ? { host: searchHost.value } : {}),
 			order: order.value ? 'desc' : 'asc',
 			filetype: filetype.value,
+			similarSearch: similarSearch.value,
 		},
 	};
 

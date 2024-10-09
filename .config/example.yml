@@ -105,6 +105,8 @@ db:
   user: example-misskey-user
   pass: example-misskey-pass
 
+  pgroongaSearch: true
+
   # Whether disable Caching queries
   #disableCache: true
 
