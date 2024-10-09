@@ -37,6 +37,7 @@ type Source = {
 		user?: string;
 		pass?: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
 		extra?: { [x: string]: string };
 	};
 	dbReplications?: boolean;
@@ -131,6 +132,7 @@ export type Config = {
 		user: string;
 		pass: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
 		poolSize?: number;
 		extra?: { [x: string]: string };
 	};

@@ -257,8 +257,15 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
+			if (this.config.db.pgroongaSearch && !q.includes('"')) {
+				query
+					.andWhere('note.text &@* :q', { q: `%${ sqlLikeEscape(q) }%` });
+			} else {
+				query
+					.andWhere('note.text ILIKE :q', { q: `%${ sqlLikeEscape(q) }%` });
+			}
+
 			query
-				.andWhere('note.text ILIKE :q', { q: `%${ sqlLikeEscape(q) }%` })
 				.innerJoinAndSelect('note.user', 'user')
 				.leftJoinAndSelect('note.reply', 'reply')
 				.leftJoinAndSelect('note.renote', 'renote')
