@@ -160,6 +160,10 @@ export const packedMetaLiteSchema = {
 			type: 'string',
 			optional: false, nullable: true,
 		},
+		sidebarLogoUrl: {
+			type: 'string',
+			optional: false, nullable: true,
+		},
 		maxNoteTextLength: {
 			type: 'number',
 			optional: false, nullable: false,
@@ -268,6 +272,14 @@ export const packedMetaLiteSchema = {
 			enum: ['local', 'global'],
 			optional: false, nullable: false,
 			default: 'local',
+		},
+		trustedLinkUrlPatterns: {
+			type: 'array',
+			optional: false, nullable: false,
+			items: {
+				type: 'string',
+				optional: false, nullable: false,
+			},
 		},
 	},
 } as const;

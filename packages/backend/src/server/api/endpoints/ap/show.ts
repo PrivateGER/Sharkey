@@ -29,7 +29,7 @@ export const meta = {
 
 	limit: {
 		duration: ms('1minute'),
-		max: 30,
+		max: 120,
 	},
 
 	errors: {
@@ -143,7 +143,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		return await this.mergePack(
 			me,
 			isActor(object) ? await this.apPersonService.createPerson(getApId(object)) : null,
-			isPost(object) ? await this.apNoteService.createNote(getApId(object), undefined, true) : null,
+			isPost(object) ? await this.apNoteService.createNote(getApId(object), undefined, false) : null,
 		);
 	}
 

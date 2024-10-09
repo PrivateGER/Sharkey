@@ -1,6 +1,6 @@
 {
 	"name": "sharkey",
-	"version": "2024.8.2",
+	"version": "2024.9.1-dev",
 	"codename": "shonk",
 	"repository": {
 		"type": "git",
@@ -67,7 +67,6 @@
 		"@typescript-eslint/parser": "7.17.0",
 		"cross-env": "7.0.3",
 		"cypress": "13.13.1",
-		"eslint": "9.8.0",
 		"globals": "15.8.0",
 		"ncp": "2.0.0",
 		"start-server-and-test": "2.0.4"

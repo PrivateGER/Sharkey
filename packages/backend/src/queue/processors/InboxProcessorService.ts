@@ -25,6 +25,10 @@ import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { JsonLdService } from '@/core/activitypub/JsonLdService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
+import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
+import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import type { UsersRepository } from '@/models/_.js';
+import { IdService } from '@/core/IdService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type { InboxJobData } from '../types.js';
@@ -46,6 +50,7 @@ export class InboxProcessorService {
 		private apRequestChart: ApRequestChart,
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
+		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
 	}
@@ -188,6 +193,13 @@ export class InboxProcessorService {
 			}
 		}
 
+		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
+		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);
+		const rewrittenActivity = mMrfResponse.data;
+		if (mMrfResponse.action === MMrfAction.RejectNote) {
+			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
+		}
+
 		// Update stats
 		this.federatedInstanceService.fetch(authUser.user.host).then(i => {
 			this.federatedInstanceService.update(i.id, {
@@ -209,7 +221,7 @@ export class InboxProcessorService {
 
 		// アクティビティを処理
 		try {
-			const result = await this.apInboxService.performActivity(authUser.user, activity);
+			const result = await this.apInboxService.performActivity(authUser.user, rewrittenActivity);
 			if (result && !result.startsWith('ok')) {
 				this.logger.warn(`inbox activity ignored (maybe): id=${activity.id} reason=${result}`);
 				return result;

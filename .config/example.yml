@@ -316,3 +316,7 @@ checkActivityPubGetSignature: false
 
 # PID File of master process
 #pidFile: /tmp/misskey.pid
+
+imgproxyURL: https://imgproxy.example.com/
+imgproxySalt: 'example-salt'
+imgproxyKey: 'example'

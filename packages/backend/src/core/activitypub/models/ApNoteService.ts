@@ -128,11 +128,14 @@ export class ApNoteService {
 		const entryUri = getApId(value);
 		const err = this.validateNote(object, entryUri);
 		if (err) {
-			this.logger.error(err.message, {
-				resolver: { history: resolver.getHistory() },
-				value,
-				object,
-			});
+			// Avoid extreme error spam caused by Lemmy
+			if (object.type !== 'Announce' && object.type !== 'Like' && object.type === 'Dislike') {
+				this.logger.error(err.message, {
+					resolver: { history: resolver.getHistory() },
+					value,
+					object,
+				});
+			}
 			throw err;
 		}
 
@@ -148,6 +151,12 @@ export class ApNoteService {
 
 		if (url && !checkHttps(url)) {
 			throw new Error('unexpected schema of note url: ' + url);
+		}
+
+		if (url) {
+			if (url.includes("relay.fedi.buzz") || url.includes("relay.kitsu.life") || url.includes("relay.publicsquare.global")) {
+				silent = true;
+			}
 		}
 
 		this.logger.info(`Creating the Note: ${note.id}`);
@@ -587,7 +596,7 @@ export class ApNoteService {
 			// ここでuriの代わりに添付されてきたNote Objectが指定されていると、サーバーフェッチを経ずにノートが生成されるが
 			// 添付されてきたNote Objectは偽装されている可能性があるため、常にuriを指定してサーバーフェッチを行う。
 			const createFrom = options.sentFrom?.origin === new URL(uri).origin ? value : uri;
-			return await this.createNote(createFrom, options.resolver, true);
+			return await this.createNote(createFrom, options.resolver, false);
 		} finally {
 			unlock();
 		}

@@ -1,0 +1,58 @@
+name: Sentry Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  submit_sentry:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [21.6.0]
+
+    steps:
+      - uses: actions/checkout@v4.1.1
+        with:
+          submodules: true
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3.8.1
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - run: corepack enable
+      - run: pnpm i --frozen-lockfile
+      - name: Check pnpm-lock.yaml
+        run: git diff --exit-code pnpm-lock.yaml
+      - name: Build
+        run: pnpm build
+      - name: Create Sentry Backend release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_URL: https://sentry.plasmatrap.com/
+        with:
+          environment: production
+          sourcemaps: ./packages/backend/built/ ./built/_vite_/
+          ignore_empty: true
+          ignore_missing: true
+      - name: Create Sentry Frontend release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+          SENTRY_ORG: plasmatrap
+          SENTRY_PROJECT: plasmatrap-fe
+          SENTRY_URL: https://sentry.plasmatrap.com/
+        with:
+          environment: production
+          sourcemaps: ./built/_vite_/
+          ignore_empty: true
+          ignore_missing: true

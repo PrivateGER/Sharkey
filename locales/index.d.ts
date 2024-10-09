@@ -261,6 +261,18 @@ export interface Locale extends ILocale {
      */
     "copyProfileUrl": string;
     /**
+     * 外部サイトへのリンク警告 除外リスト
+     */
+    "trustedLinkUrlPatterns": string;
+    /**
+     * スペースで区切るとAND指定になり、改行で区切るとOR指定になります。スラッシュで囲むと正規表現になります。ドメイン名だけ書くと後方一致になります。
+     */
+    "trustedLinkUrlPatternsDescription": string;
+    /**
+     * 開く
+     */
+    "open": string;
+    /**
      * ユーザーを検索
      */
     "searchUser": string;
@@ -368,6 +380,10 @@ export interface Locale extends ILocale {
      * フォロワー
      */
     "followers": string;
+    /**
+     * Mutuals
+     */
+    "mutuals": string;
     /**
      * フォローされています
      */
@@ -589,6 +605,10 @@ export interface Locale extends ILocale {
      */
     "mute": string;
     /**
+     * Muted
+     */
+    "muted": string;
+    /**
      * ミュート解除
      */
     "unmute": string;
@@ -596,6 +616,10 @@ export interface Locale extends ILocale {
      * ブーストをミュート
      */
     "renoteMute": string;
+    /**
+     * Boosts muted
+     */
+    "renoteMuted": string;
     /**
      * ブーストのミュートを解除
      */
@@ -612,6 +636,10 @@ export interface Locale extends ILocale {
      * ユーザーのすべてのメディアをNSFWとしてマークする
      */
     "markAsNSFW": string;
+    /**
+     * Mark as NSFW
+     */
+    "markInstanceAsNSFW": string;
     /**
      * 凍結
      */
@@ -909,6 +937,10 @@ export interface Locale extends ILocale {
      */
     "mediaSilenceThisInstance": string;
     /**
+     * Reject reports from this instance
+     */
+    "rejectReports": string;
+    /**
      * 操作
      */
     "operations": string;
@@ -1068,6 +1100,18 @@ export interface Locale extends ILocale {
      * ブロック中
      */
     "blocked": string;
+    /**
+     * This host is blocked implicitly because a base domain is blocked. To unblock this host, first unblock the base domain(s).
+     */
+    "blockedByBase": string;
+    /**
+     * This host is silenced implicitly because a base domain is silenced. To un-silence this host, first un-silence the base domain(s).
+     */
+    "silencedByBase": string;
+    /**
+     * This host's media is silenced implicitly because a base domain's media is silenced. To un-silence this host, first un-silence the base domain(s).
+     */
+    "mediaSilencedByBase": string;
     /**
      * 配信停止
      */
@@ -2497,6 +2541,10 @@ export interface Locale extends ILocale {
      */
     "deleteAllFilesConfirm": string;
     /**
+     * キューに入れられたすべてのファイルの削除
+     */
+    "deleteAllFilesQueued": string;
+    /**
      * フォローを全解除
      */
     "removeAllFollowing": string;
@@ -2796,6 +2844,10 @@ export interface Locale extends ILocale {
      * {name}が何かを言いました
      */
     "userSaysSomething": ParameterizedString<"name">;
+    /**
+     * post is hidden by a filter
+     */
+    "postFiltered": string;
     /**
      * アクティブにする
      */
@@ -3124,6 +3176,10 @@ export interface Locale extends ILocale {
      * 返信にサーバー情報を表示する
      */
     "showTickerOnReplies": string;
+    /**
+     * 猫の話し方を無効にする
+     */
+    "disableCatSpeak": string;
     /**
      * 検索MFMの検索エンジン
      */
@@ -5126,6 +5182,10 @@ export interface Locale extends ILocale {
      */
     "flip": string;
     /**
+     * アイコンの後ろに表示
+     */
+    "showBelowAvatar": string;
+    /**
      * アイコンのデコレーションを表示
      */
     "showAvatarDecorations": string;
@@ -5325,6 +5385,18 @@ export interface Locale extends ILocale {
      * 作成したアンテナ
      */
     "createdAntennas": string;
+    /**
+     * 以下の関係をすべて断ち切る
+     */
+    "severAllFollowRelations": string;
+    /**
+     * すべての人間関係を壊す？これは不可逆です！これは{instanceName}の{followingCount}フォローと{followersCount}フォロワーの関係を壊す！
+     */
+    "severAllFollowRelationsConfirm": ParameterizedString<"instanceName" | "followingCount" | "followersCount">;
+    /**
+     * キューに入れられた{host}とのすべてのフォロー関係を切断する。
+     */
+    "severAllFollowRelationsQueued": ParameterizedString<"host">;
     "_delivery": {
         /**
          * 配信状態
@@ -5628,6 +5700,10 @@ export interface Locale extends ILocale {
              */
             "global": string;
             /**
+             * 管理者が選択した他の接続サーバーの投稿を見ることができます。
+             */
+            "bubble": string;
+            /**
              * それぞれのタイムラインは、画面上部でいつでも切り替えられます。
              */
             "description2": string;
@@ -5761,6 +5837,10 @@ export interface Locale extends ILocale {
          */
         "social": string;
         /**
+         * バブルタイムラインでは、管理者が選択した接続サーバーからの投稿を表示できます。
+         */
+        "bubble": string;
+        /**
          * グローバルタイムラインでは、接続している他のすべてのサーバーからの投稿を見られます。
          */
         "global": string;
@@ -5792,6 +5872,18 @@ export interface Locale extends ILocale {
          * 解像度は必ず{resolution}である必要があります。
          */
         "appIconResolutionMustBe": ParameterizedString<"resolution">;
+        /**
+         * ロゴURL
+         */
+        "sidebarLogoUrl": string;
+        /**
+         * 高精細、ダイナミック幅のシナリオで通常のアイコンの代わりに使用するロゴを指定します。
+         */
+        "sidebarLogoDescription": string;
+        /**
+         * 例：サイドバー、訪問者用、「情報」ページ
+         */
+        "sidebarLogoUsageExample": string;
         /**
          * manifest.jsonのオーバーライド
          */
@@ -9107,7 +9199,7 @@ export interface Locale extends ILocale {
          */
         "global": string;
         /**
-         * バッッブル
+         * バブル
          */
         "bubble": string;
     };
@@ -9940,6 +10032,22 @@ export interface Locale extends ILocale {
          * リモートサーバーを再開
          */
         "unsuspendRemoteInstance": string;
+        /**
+         * Set remote instance as NSFW
+         */
+        "setRemoteInstanceNSFW": string;
+        /**
+         * Set remote instance as NSFW
+         */
+        "unsetRemoteInstanceNSFW": string;
+        /**
+         * Rejected reports from remote instance
+         */
+        "rejectRemoteInstanceReports": string;
+        /**
+         * Accepted reports from remote instance
+         */
+        "acceptRemoteInstanceReports": string;
         /**
          * リモートサーバーのモデレーションノート更新
          */
@@ -10880,6 +10988,20 @@ export interface Locale extends ILocale {
          * ブラウザのUI
          */
         "native": string;
+    };
+    "_externalNavigationWarning": {
+        /**
+         * 外部サイトに移動します
+         */
+        "title": string;
+        /**
+         * {host}を離れて外部サイトに移動します
+         */
+        "description": ParameterizedString<"host">;
+        /**
+         * このデバイスで今後このドメインを信頼する
+         */
+        "trustThisDomain": string;
     };
 }
 declare const locales: {

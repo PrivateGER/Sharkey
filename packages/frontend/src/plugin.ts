@@ -6,8 +6,10 @@
 import { ref } from 'vue';
 import { Interpreter, Parser, utils, values } from '@syuilo/aiscript';
 import { aiScriptReadline, createAiScriptEnv } from '@/scripts/aiscript/api.js';
-import { inputText } from '@/os.js';
+import * as os from '@/os.js';
+import { i18n } from '@/i18n.js';
 import { Plugin, noteActions, notePostInterruptors, noteViewInterruptors, postFormActions, userActions, pageViewInterruptors } from '@/store.js';
+import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
 
 const parser = new Parser();
 const pluginContexts = new Map<string, Interpreter>();
@@ -92,7 +94,7 @@ function createPluginEnv(opts: { plugin: Plugin; storageKey: string }): Record<s
 		}),
 		'Plugin:open_url': values.FN_NATIVE(([url]) => {
 			utils.assertString(url);
-			window.open(url.value, '_blank', 'noopener');
+			warningExternalWebsite(url.value);
 		}),
 		'Plugin:config': values.OBJ(config),
 	};

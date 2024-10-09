@@ -110,6 +110,10 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			sidebarLogoUrl: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
 			enableEmail: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -124,7 +128,7 @@ export const meta = {
 			},
 			silencedHosts: {
 				type: 'array',
-				optional: true,
+				optional: false,
 				nullable: false,
 				items: {
 					type: 'string',
@@ -522,6 +526,14 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			trustedLinkUrlPatterns: {
+				type: 'array',
+				optional: false, nullable: false,
+				items: {
+					type: 'string',
+					optional: false, nullable: false,
+				},
+			},
 		},
 	},
 } as const;
@@ -582,6 +594,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				iconUrl: instance.iconUrl,
 				app192IconUrl: instance.app192IconUrl,
 				app512IconUrl: instance.app512IconUrl,
+				sidebarLogoUrl: instance.sidebarLogoUrl,
 				backgroundImageUrl: instance.backgroundImageUrl,
 				logoImageUrl: instance.logoImageUrl,
 				defaultLightTheme: instance.defaultLightTheme,
@@ -664,6 +677,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				urlPreviewRequireContentLength: instance.urlPreviewRequireContentLength,
 				urlPreviewUserAgent: instance.urlPreviewUserAgent,
 				urlPreviewSummaryProxyUrl: instance.urlPreviewSummaryProxyUrl,
+				trustedLinkUrlPatterns: instance.trustedLinkUrlPatterns,
 			};
 		});
 	}

@@ -45,6 +45,7 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
+		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -110,6 +111,12 @@ type Source = {
 	};
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 };
 
 export type Config = {
@@ -126,6 +133,7 @@ export type Config = {
 		pass: string;
 		disableCache?: boolean;
 		pgroongaSearch?: boolean;
+		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
@@ -200,6 +208,12 @@ export type Config = {
 	} | undefined;
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 };
 
 const _filename = fileURLToPath(import.meta.url);
@@ -322,6 +336,11 @@ export function loadConfig(): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		import: config.import,
 		pidFile: config.pidFile,
+		ntfyURL: config.ntfyURL,
+
+		imgproxyURL: config.imgproxyURL,
+		imgproxySalt: config.imgproxySalt,
+		imgproxyKey: config.imgproxyKey,
 	};
 }
 

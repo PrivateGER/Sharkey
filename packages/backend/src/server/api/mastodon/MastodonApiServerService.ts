@@ -114,7 +114,7 @@ export class MastodonApiServerService {
 				const contact = admin == null ? null : await this.mastoConverter.convertAccount((await client.getAccount(admin.id)).data);
 				reply.send(await getInstance(data.data, contact as Entity.Account, this.config, await this.metaService.fetch()));
 			} catch (e: any) {
-				/* console.error(e); */
+				console.error(e);
 				reply.code(401).send(e.response.data);
 			}
 		});

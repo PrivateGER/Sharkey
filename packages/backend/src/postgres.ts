@@ -83,6 +83,7 @@ import { MiReversiGame } from '@/models/ReversiGame.js';
 import { Config } from '@/config.js';
 import MisskeyLogger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
+import { LatestNote } from '@/models/LatestNote.js';
 
 pg.types.setTypeParser(20, Number);
 
@@ -130,6 +131,7 @@ class MyCustomLogger implements Logger {
 }
 
 export const entities = [
+	LatestNote,
 	MiAnnouncement,
 	MiAnnouncementRead,
 	MiMeta,
@@ -213,6 +215,7 @@ export function createPostgresDataSource(config: Config) {
 		username: config.db.user,
 		password: config.db.pass,
 		database: config.db.db,
+		poolSize: config.db.poolSize ?? 10,
 		extra: {
 			statement_timeout: 1000 * 10,
 			...config.db.extra,
