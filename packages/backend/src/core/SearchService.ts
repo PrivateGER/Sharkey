@@ -166,6 +166,7 @@ export class SearchService {
 		filetype?: string | null;
 		order?: string | null;
 		disableMeili?: boolean | null;
+		similarSearch?: boolean | null;
 	}, pagination: {
 		untilId?: MiNote['id'];
 		sinceId?: MiNote['id'];
@@ -257,7 +258,7 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
-			if (this.config.db.pgroongaSearch && !q.includes('"')) {
+			if (this.config.db.pgroongaSearch && opts.similarSearch) {
 				query
 					.andWhere('note.text &@* :q', { q: `%${ sqlLikeEscape(q) }%` });
 			} else {
