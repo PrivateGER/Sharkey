@@ -3689,7 +3689,7 @@ export type paths = {
   '/sponsors': {
     /**
      * sponsors
-     * @description Get Sharkey Sponsors
+     * @description Get Sharkey Sponsors or Instance Sponsors
      *
      * **Credential required**: *No*
      */
@@ -3836,6 +3836,8 @@ export type components = {
       isAdmin?: boolean;
       /** @default false */
       isModerator?: boolean;
+      /** @default false */
+      isSystem?: boolean;
       isSilenced: boolean;
       noindex: boolean;
       isBot?: boolean;
@@ -9077,6 +9079,7 @@ export type operations = {
           'application/json': {
             email: string | null;
             emailVerified: boolean;
+            approved: boolean;
             autoAcceptFollowed: boolean;
             noCrawle: boolean;
             preventAiLearning: boolean;
@@ -9216,6 +9219,7 @@ export type operations = {
               }]>;
             };
             isModerator: boolean;
+            isSystem: boolean;
             isSilenced: boolean;
             isSuspended: boolean;
             isHibernated: boolean;
@@ -28075,7 +28079,7 @@ export type operations = {
   };
   /**
    * sponsors
-   * @description Get Sharkey Sponsors
+   * @description Get Sharkey Sponsors or Instance Sponsors
    *
    * **Credential required**: *No*
    */
@@ -28085,6 +28089,8 @@ export type operations = {
         'application/json': {
           /** @default false */
           forceUpdate?: boolean;
+          /** @default false */
+          instance?: boolean;
         };
       };
     };
