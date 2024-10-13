@@ -521,6 +521,10 @@ export interface Locale extends ILocale {
      */
     "pinnedNote": string;
     /**
+     * Pinned
+     */
+    "pinnedOnly": string;
+    /**
      * ピン留め
      */
     "pinned": string;
@@ -1096,6 +1100,10 @@ export interface Locale extends ILocale {
      * 連合中
      */
     "federating": string;
+    /**
+     * Blocking you
+     */
+    "blockingYou": string;
     /**
      * ブロック中
      */
@@ -5385,6 +5393,10 @@ export interface Locale extends ILocale {
      * センシティブなメディアです。表示しますか？
      */
     "sensitiveMediaRevealConfirm": string;
+    /**
+     * 外部URLを開く際に警告を表示する
+     */
+    "warnExternalUrl": string;
     /**
      * 作成したリスト
      */

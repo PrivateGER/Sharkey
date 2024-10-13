@@ -30,12 +30,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</button>
 							</div>
 						</div>
-						<div v-if="$i && $i.id != user.id" class="info-badges">
-							<span v-if="user.isFollowed">{{ i18n.ts.followsYou }}</span>
-							<span v-if="user.isMuted">{{ i18n.ts.muted }}</span>
-							<span v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</span>
-							<span v-if="user.isBlocking">{{ i18n.ts.blocked }}</span>
-						</div>
+						<ul v-if="$i && $i.id != user.id" class="info-badges">
+							<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
+							<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
+							<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
+							<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
+							<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
+							<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
+							<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
+						</ul>
 						<div class="actions">
 							<button class="menu _button" @click="menu"><i class="ti ti-dots"></i></button>
 							<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" :inline="true" :transparent="false" :full="true" class="koudoku"/>
@@ -125,10 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div class="contents _gaps">
-				<div v-if="user.pinnedNotes.length > 0" class="_gaps">
-					<MkNote v-for="note in user.pinnedNotes" :key="note.id" class="note _panel" :note="note" :pinned="true"/>
-				</div>
-				<MkInfo v-else-if="$i && $i.id === user.id">{{ i18n.ts.userPagePinTip }}</MkInfo>
+				<MkInfo v-if="user.pinnedNotes.length === 0 && $i?.id === user.id">{{ i18n.ts.userPagePinTip }}</MkInfo>
 				<template v-if="narrow">
 					<MkLazy>
 						<XFiles :key="user.id" :user="user"/>
@@ -147,14 +147,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div> -->
 				<MkStickyContainer>
 					<template #header>
+						<!-- You can't use v-if on these, as MkTab first *deletes* and replaces all children with native HTML elements. -->
+						<!-- Instead, we add a "no notes" placeholder and default to null (all notes) if there's nothing pinned. -->
+						<!-- It also converts all comments into text! -->
 						<MkTab v-model="noteview" :class="$style.tab">
+							<option value="pinned">{{ i18n.ts.pinnedOnly }}</option>
 							<option :value="null">{{ i18n.ts.notes }}</option>
 							<option value="all">{{ i18n.ts.all }}</option>
 							<option value="files">{{ i18n.ts.withFiles }}</option>
 						</MkTab>
 					</template>
 					<MkLazy>
-						<MkNotes :class="$style.tl" :noGap="true" :pagination="AllPagination"/>
+						<div v-if="noteview === 'pinned'" class="_gaps">
+							<div v-if="user.pinnedNotes.length < 1" class="_fullinfo">
+								<img :src="infoImageUrl" class="_ghost" aria-hidden="true" :alt="i18n.ts.noNotes"/>
+								<div>{{ i18n.ts.noNotes }}</div>
+							</div>
+							<div v-else class="_panel">
+								<MkNote v-for="note of user.pinnedNotes" :key="note.id" class="note" :class="$style.pinnedNote" :note="note" :pinned="true"/>
+							</div>
+						</div>
+						<MkNotes v-else :class="$style.tl" :noGap="true" :pagination="AllPagination"/>
 					</MkLazy>
 				</MkStickyContainer>
 			</div>
@@ -194,6 +207,7 @@ import { misskeyApi } from '@/scripts/misskey-api.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/scripts/isFfVisibleForMe.js';
 import { useRouter } from '@/router/supplier.js';
 import { getStaticImageUrl } from '@/scripts/media-proxy.js';
+import { infoImageUrl } from '@/instance.js';
 
 const MkNote = defineAsyncComponent(() =>
 	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNote.vue') :
@@ -458,12 +472,17 @@ onUnmounted(() => {
 						display: flex;
 						flex-direction: row;
 
+						padding: 0;
+						margin: 0;
+
 						> * {
 							padding: 4px 8px;
 							color: #fff;
 							background: rgba(0, 0, 0, 0.7);
 							font-size: 0.7em;
 							border-radius: var(--radius-sm);
+							list-style-type: none;
+							margin-left: 0;
 						}
 
 						> :not(:first-child) {
@@ -795,7 +814,7 @@ onUnmounted(() => {
 }
 
 .tab {
-	margin: calc(var(--margin) / 2) 0;
+	margin-bottom: calc(var(--margin) / 2);
 	padding: calc(var(--margin) / 2) 0;
 	background: color-mix(in srgb, var(--bg) 65%, transparent);
 	backdrop-filter: var(--blur, blur(15px));
@@ -811,5 +830,9 @@ onUnmounted(() => {
 .verifiedLink {
 	margin-left: 4px;
 	color: var(--success);
+}
+
+.pinnedNote:not(:last-child) {
+	border-bottom: solid 0.5px var(--divider);
 }
 </style>

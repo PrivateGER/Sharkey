@@ -46,22 +46,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_buttons">
 							<MkButton inline :disabled="!instance" danger @click="deleteAllFiles">{{ i18n.ts.deleteAllFiles }}</MkButton>
 							<MkButton inline :disabled="!instance" danger @click="severAllFollowRelations">{{ i18n.ts.severAllFollowRelations }}</MkButton>
-							<MkButton v-if="suspensionState === 'none'" inline :disabled="!instance" danger @click="stopDelivery">{{ i18n.ts._delivery.stop }}</MkButton>
 						</div>
-						<MkButton v-if="suspensionState !== 'none'" inline :disabled="!instance" @click="resumeDelivery">{{ i18n.ts._delivery.resume }}</MkButton>
+						<MkSwitch v-model="isSuspended" :disabled="!instance" @update:modelValue="toggleSuspended">{{ i18n.ts._delivery.stop }}</MkSwitch>
+						<MkInfo v-if="isBaseBlocked" warn>{{ i18n.ts.blockedByBase }}</MkInfo>
+						<MkSwitch v-model="isBlocked" :disabled="!meta || !instance || isBaseBlocked" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
+						<MkInfo v-if="isBaseSilenced" warn>{{ i18n.ts.silencedByBase }}</MkInfo>
+						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance || isBaseSilenced" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
+						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">{{ i18n.ts.markInstanceAsNSFW }}</MkSwitch>
+						<MkSwitch v-model="rejectReports" :disabled="!instance" @update:modelValue="toggleRejectReports">{{ i18n.ts.rejectReports }}</MkSwitch>
+						<MkInfo v-if="isBaseMediaSilenced" warn>{{ i18n.ts.mediaSilencedByBase }}</MkInfo>
+						<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance || isBaseMediaSilenced" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
+						<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
+						<MkTextarea v-model="moderationNote" manualSave>
+							<template #label>{{ i18n.ts.moderationNote }}</template>
+						</MkTextarea>
 					</div>
-					<MkInfo v-if="isBaseBlocked" warn>{{ i18n.ts.blockedByBase }}</MkInfo>
-					<MkSwitch v-model="isBlocked" :disabled="!meta || !instance || isBaseBlocked" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
-					<MkInfo v-if="isBaseSilenced" warn>{{ i18n.ts.silencedByBase }}</MkInfo>
-					<MkSwitch v-model="isSilenced" :disabled="!meta || !instance || isBaseSilenced" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
-					<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">{{ i18n.ts.markInstanceAsNSFW }}</MkSwitch>
-					<MkSwitch v-model="rejectReports" :disabled="!instance" @update:modelValue="toggleRejectReports">{{ i18n.ts.rejectReports }}</MkSwitch>
-					<MkInfo v-if="isBaseMediaSilenced" warn>{{ i18n.ts.mediaSilencedByBase }}</MkInfo>
-					<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance || isBaseMediaSilenced" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
-					<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
-					<MkTextarea v-model="moderationNote" manualSave>
-						<template #label>{{ i18n.ts.moderationNote }}</template>
-					</MkTextarea>
 				</FormSection>
 
 				<FormSection>
@@ -206,6 +205,7 @@ const chartSrc = ref('instance-requests');
 const meta = ref<Misskey.entities.AdminMetaResponse | null>(null);
 const instance = ref<Misskey.entities.FederationInstance | null>(null);
 const suspensionState = ref<'none' | 'manuallySuspended' | 'goneSuspended' | 'autoSuspendedForNotResponding'>('none');
+const isSuspended = ref(false);
 const isBlocked = ref(false);
 const isSilenced = ref(false);
 const isNSFW = ref(false);
@@ -272,6 +272,7 @@ async function fetch(): Promise<void> {
 		host: props.host,
 	});
 	suspensionState.value = instance.value?.suspensionState ?? 'none';
+	isSuspended.value = instance.value?.suspensionState !== 'none';
 	isBlocked.value = instance.value?.isBlocked ?? false;
 	isSilenced.value = instance.value?.isSilenced ?? false;
 	isNSFW.value = instance.value?.isNSFW ?? false;
@@ -310,21 +311,12 @@ async function toggleMediaSilenced(): Promise<void> {
 	});
 }
 
-async function stopDelivery(): Promise<void> {
+async function toggleSuspended(): Promise<void> {
 	if (!instance.value) throw new Error('No instance?');
-	suspensionState.value = 'manuallySuspended';
+	suspensionState.value = isSuspended.value ? 'manuallySuspended' : 'none';
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
-		isSuspended: true,
-	});
-}
-
-async function resumeDelivery(): Promise<void> {
-	if (!instance.value) throw new Error('No instance?');
-	suspensionState.value = 'none';
-	await misskeyApi('admin/federation/update-instance', {
-		host: instance.value.host,
-		isSuspended: false,
+		isSuspended: isSuspended.value,
 	});
 }
 
