@@ -4,6 +4,7 @@
  */
 
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { URL } from 'url';
 import { In } from 'typeorm';
 import { generateImageUrl } from '@imgproxy/imgproxy-node';
 import { DI } from '@/di-symbols.js';
@@ -171,7 +172,15 @@ export class DriveFileEntityService {
 		}
 
 		// Handle the general case where no specific mode is required
-		const isSafeCDNUrl = (url: string) => url.startsWith('https://s3.plasmatrap.com');
+		const isSafeCDNUrl = (url: string) => {
+			try {
+				const parsedUrl = new URL(url);
+				const allowedHosts = ['s3.plasmatrap.com'];
+				return allowedHosts.includes(parsedUrl.host);
+			} catch (e) {
+				return false;
+			}
+		};
 
 		// Return the direct URL if it's secure and available
 		if (file.url && isSafeCDNUrl(file.url)) {
