@@ -375,6 +375,13 @@ export class UserEntityService implements OnModuleInit {
 	}
 
 	@bindThis
+	public async getHasPendingSentFollowRequest(userId: MiUser['id']): Promise<boolean> {
+		return this.followRequestsRepository.existsBy({
+			followerId: userId,
+		});
+	}
+
+	@bindThis
 	public getOnlineStatus(user: MiUser): 'unknown' | 'online' | 'active' | 'offline' {
 		if (user.hideOnlineStatus) return 'unknown';
 		if (user.lastActiveDate == null) return 'unknown';
@@ -556,7 +563,7 @@ export class UserEntityService implements OnModuleInit {
 					name: r.name,
 					iconUrl: r.iconUrl,
 					displayOrder: r.displayOrder,
-				}))
+				})),
 			) : undefined,
 
 			...(isDetailed ? {
@@ -613,12 +620,14 @@ export class UserEntityService implements OnModuleInit {
 				avatarId: user.avatarId,
 				bannerId: user.bannerId,
 				backgroundId: user.backgroundId,
+				followedMessage: profile!.followedMessage,
 				isModerator: isModerator,
 				isAdmin: isAdmin,
 				isSystem: isSystemAccount(user),
 				injectFeaturedNote: profile!.injectFeaturedNote,
 				receiveAnnouncementEmail: profile!.receiveAnnouncementEmail,
 				alwaysMarkNsfw: profile!.alwaysMarkNsfw,
+				defaultSensitive: profile!.defaultSensitive,
 				autoSensitive: profile!.autoSensitive,
 				carefulBot: profile!.carefulBot,
 				autoAcceptFollowed: profile!.autoAcceptFollowed,
@@ -642,6 +651,7 @@ export class UserEntityService implements OnModuleInit {
 				hasUnreadChannel: false, // 後方互換性のため
 				hasUnreadNotification: notificationsInfo?.hasUnread, // 後方互換性のため
 				hasPendingReceivedFollowRequest: this.getHasPendingReceivedFollowRequest(user.id),
+				hasPendingSentFollowRequest: this.getHasPendingSentFollowRequest(user.id),
 				unreadNotificationsCount: notificationsInfo?.unreadCount,
 				mutedWords: profile!.mutedWords,
 				hardMutedWords: profile!.hardMutedWords,
@@ -683,6 +693,7 @@ export class UserEntityService implements OnModuleInit {
 				isRenoteMuted: relation.isRenoteMuted,
 				notify: relation.following?.notify ?? 'none',
 				withReplies: relation.following?.withReplies ?? false,
+				followedMessage: relation.isFollowing ? profile!.followedMessage : undefined,
 			} : {}),
 		} as Promiseable<Packed<S>>;
 

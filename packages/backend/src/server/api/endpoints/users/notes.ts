@@ -5,18 +5,18 @@
 
 import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
-import type { NotesRepository, UsersRepository } from '@/models/_.js';
+import type { MiMeta, NotesRepository, UsersRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
 import { IdService } from '@/core/IdService.js';
 import { QueryService } from '@/core/QueryService.js';
-import { MetaService } from '@/core/MetaService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { FanoutTimelineName } from '@/core/FanoutTimelineService.js';
 import { ApiError } from '@/server/api/error.js';
+import { isQuote, isRenote } from '@/misc/is-renote.js';
 
 export const meta = {
 	tags: ['users', 'notes'],
@@ -51,7 +51,11 @@ export const paramDef = {
 	properties: {
 		userId: { type: 'string', format: 'misskey:id' },
 		withReplies: { type: 'boolean', default: false },
+		withRepliesToSelf: { type: 'boolean', default: true },
+		withQuotes: { type: 'boolean', default: true },
 		withRenotes: { type: 'boolean', default: true },
+		withBots: { type: 'boolean', default: true },
+		withNonPublic: { type: 'boolean', default: true },
 		withChannelNotes: { type: 'boolean', default: false },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
 		sinceId: { type: 'string', format: 'misskey:id' },
@@ -67,6 +71,9 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.meta)
+		private serverSettings: MiMeta,
+
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
@@ -75,17 +82,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private cacheService: CacheService,
 		private idService: IdService,
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
-		private metaService: MetaService,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
-		) {
+	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
 			const sinceId = ps.sinceId ?? (ps.sinceDate ? this.idService.gen(ps.sinceDate!) : null);
 			const isSelf = me && (me.id === ps.userId);
-
-			const serverSettings = await this.metaService.fetch();
 
 			if (ps.withReplies && ps.withFiles) throw new ApiError(meta.errors.bothWithRepliesAndWithFiles);
 
@@ -97,7 +101,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			if (!serverSettings.enableFanoutTimeline) {
+			if (!this.serverSettings.enableFanoutTimeline) {
 				const timeline = await this.getFromDb({
 					untilId,
 					sinceId,
@@ -106,6 +110,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					withChannelNotes: ps.withChannelNotes,
 					withFiles: ps.withFiles,
 					withRenotes: ps.withRenotes,
+					withQuotes: ps.withQuotes,
+					withBots: ps.withBots,
+					withNonPublic: ps.withNonPublic,
+					withRepliesToOthers: ps.withReplies,
+					withRepliesToSelf: ps.withRepliesToSelf,
 				}, me);
 
 				return await this.noteEntityService.packMany(timeline, me);
@@ -141,12 +150,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				excludeReplies: ps.withChannelNotes && !ps.withReplies, // userTimelineWithChannel may include replies
 				excludeNoFiles: ps.withChannelNotes && ps.withFiles, // userTimelineWithChannel may include notes without files
 				excludePureRenotes: !ps.withRenotes,
+				excludeBots: !ps.withBots,
 				noteFilter: note => {
 					if (isAdmin) return true;
 
 					if (note.channel?.isSensitive && !isSelf) return false;
 					if (note.visibility === 'specified' && (!me || (me.id !== note.userId && !note.visibleUserIds.some(v => v === me.id)))) return false;
 					if (note.visibility === 'followers' && !isFollowing && !isSelf) return false;
+
+					// These are handled by DB fallback, but we duplicate them here in case a timeline was already populated with notes
+					if (!ps.withRepliesToSelf && note.reply?.userId === note.userId) return false;
+					if (!ps.withQuotes && isRenote(note) && isQuote(note)) return false;
+					if (!ps.withNonPublic && note.visibility !== 'public') return false;
 
 					return true;
 				},
@@ -158,6 +173,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					withChannelNotes: ps.withChannelNotes,
 					withFiles: ps.withFiles,
 					withRenotes: ps.withRenotes,
+					withQuotes: ps.withQuotes,
+					withBots: ps.withBots,
+					withNonPublic: ps.withNonPublic,
+					withRepliesToOthers: ps.withReplies,
+					withRepliesToSelf: ps.withRepliesToSelf,
 				}, me),
 			});
 
@@ -173,6 +193,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		withChannelNotes: boolean,
 		withFiles: boolean,
 		withRenotes: boolean,
+		withQuotes: boolean,
+		withBots: boolean,
+		withNonPublic: boolean,
+		withRepliesToOthers: boolean,
+		withRepliesToSelf: boolean,
 	}, me: MiLocalUser | null) {
 		const isSelf = me && (me.id === ps.userId);
 
@@ -204,7 +229,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			query.andWhere('note.fileIds != \'{}\'');
 		}
 
-		if (ps.withRenotes === false) {
+		if (!ps.withRenotes && !ps.withQuotes) {
+			query.andWhere('note.renoteId IS NULL');
+		} else if (!ps.withRenotes) {
 			query.andWhere(new Brackets(qb => {
 				qb.orWhere('note.userId != :userId', { userId: ps.userId });
 				qb.orWhere('note.renoteId IS NULL');
@@ -212,6 +239,35 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				qb.orWhere('note.fileIds != \'{}\'');
 				qb.orWhere('0 < (SELECT COUNT(*) FROM poll WHERE poll."noteId" = note.id)');
 			}));
+		} else if (!ps.withQuotes) {
+			query.andWhere(`
+				(
+					note."renoteId" IS NULL
+					OR (
+						note.text IS NULL
+						AND note.cw IS NULL
+						AND note."replyId" IS NULL
+						AND note."hasPoll" IS FALSE
+						AND note."fileIds" = '{}'
+					)
+				)
+			`);
+		}
+
+		if (!ps.withRepliesToOthers && !ps.withRepliesToSelf) {
+			query.andWhere('reply.id IS NULL');
+		} else if (!ps.withRepliesToOthers) {
+			query.andWhere('(reply.id IS NULL OR reply."userId" = note."userId")');
+		} else if (!ps.withRepliesToSelf) {
+			query.andWhere('(reply.id IS NULL OR reply."userId" != note."userId")');
+		}
+
+		if (!ps.withNonPublic) {
+			query.andWhere('note.visibility = \'public\'');
+		}
+
+		if (!ps.withBots) {
+			query.andWhere('"user"."isBot" = false');
 		}
 
 		return await query.limit(ps.limit).getMany();

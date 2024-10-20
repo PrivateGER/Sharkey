@@ -7,9 +7,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as Bull from 'bullmq';
 import { Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { InstancesRepository } from '@/models/_.js';
+import type { InstancesRepository, MiMeta } from '@/models/_.js';
 import type Logger from '@/logger.js';
-import { MetaService } from '@/core/MetaService.js';
 import { ApRequestService } from '@/core/activitypub/ApRequestService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataService.js';
@@ -33,10 +32,12 @@ export class DeliverProcessorService {
 	private latest: string | null;
 
 	constructor(
+		@Inject(DI.meta)
+		private meta: MiMeta,
+
 		@Inject(DI.instancesRepository)
 		private instancesRepository: InstancesRepository,
 
-		private metaService: MetaService,
 		private utilityService: UtilityService,
 		private federatedInstanceService: FederatedInstanceService,
 		private fetchInstanceMetadataService: FetchInstanceMetadataService,
@@ -54,9 +55,7 @@ export class DeliverProcessorService {
 	public async process(job: Bull.Job<DeliverJobData>): Promise<string> {
 		const { host } = new URL(job.data.to);
 
-		// ブロックしてたら中断
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, this.utilityService.toPuny(host))) {
+		if (!this.utilityService.isFederationAllowedUri(job.data.to)) {
 			jobs_metrics.inc({ job: 'delivery', status: 'skipped', reason: 'blocked' });
 			return 'skip (blocked)';
 		}
@@ -92,7 +91,7 @@ export class DeliverProcessorService {
 				this.apRequestChart.deliverSucc();
 				this.federationChart.deliverd(i.host, true);
 
-				if (meta.enableChartsForFederatedInstances) {
+				if (this.meta.enableChartsForFederatedInstances) {
 					this.instanceChart.requestSent(i.host, true);
 				}
 			});
@@ -124,7 +123,7 @@ export class DeliverProcessorService {
 				this.apRequestChart.deliverFail();
 				this.federationChart.deliverd(i.host, false);
 
-				if (meta.enableChartsForFederatedInstances) {
+				if (this.meta.enableChartsForFederatedInstances) {
 					this.instanceChart.requestSent(i.host, false);
 				}
 			});

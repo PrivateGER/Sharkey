@@ -2,13 +2,13 @@ import path from 'path';
 import pluginReplace from '@rollup/plugin-replace';
 import pluginVue from '@vitejs/plugin-vue';
 import { type UserConfig, defineConfig } from 'vite';
-
+import { localesVersion } from '../../locales/version.js';
 import locales from '../../locales/index.js';
 import meta from '../../package.json';
 import packageInfo from './package.json' with { type: 'json' };
 import pluginUnwindCssModuleClassName from './lib/rollup-plugin-unwind-css-module-class-name.js';
 import pluginJson5 from './vite.json5.js';
-import { pluginReplaceIcons } from './vite.replaceIcons.ts';
+import { pluginReplaceIcons } from './vite.replaceIcons.js';
 
 const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json', '.json5', '.svg', '.sass', '.scss', '.css', '.vue', '.wasm'];
 
@@ -66,6 +66,9 @@ export function getConfig(): UserConfig {
 
 		server: {
 			port: 5173,
+			headers: { // なんか効かない
+				'X-Frame-Options': 'DENY',
+			},
 		},
 
 		plugins: [
@@ -89,6 +92,7 @@ export function getConfig(): UserConfig {
 			extensions,
 			alias: {
 				'@/': __dirname + '/src/',
+				'@@/': __dirname + '/../frontend-shared/',
 				'/client-assets/': __dirname + '/assets/',
 				'/static-assets/': __dirname + '/../backend/assets/',
 				'/fluent-emojis/': __dirname + '/../../fluent-emojis/dist/',
@@ -110,6 +114,7 @@ export function getConfig(): UserConfig {
 		define: {
 			_VERSION_: JSON.stringify(meta.version),
 			_LANGS_: JSON.stringify(Object.entries(locales).map(([k, v]) => [k, v._lang_])),
+			_LANGS_VERSION_: JSON.stringify(localesVersion),
 			_ENV_: JSON.stringify(process.env.NODE_ENV),
 			_DEV_: process.env.NODE_ENV !== 'production',
 			_PERF_PREFIX_: JSON.stringify('Misskey:'),
@@ -151,7 +156,7 @@ export function getConfig(): UserConfig {
 				},
 			},
 			cssCodeSplit: true,
-			outDir: __dirname + '/../../built/_vite_',
+			outDir: __dirname + '/../../built/_frontend_vite_',
 			assetsDir: '.',
 			emptyOutDir: false,
 			sourcemap: true,

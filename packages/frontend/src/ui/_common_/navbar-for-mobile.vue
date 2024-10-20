@@ -85,6 +85,8 @@ function more() {
 
 <style lang="scss" module>
 .root {
+	--nav-bg-transparent: color(from var(--navBg) srgb r g b / 0.5);
+
 	display: flex;
 	flex-direction: column;
 }
@@ -94,7 +96,7 @@ function more() {
 	top: 0;
 	z-index: 1;
 	padding: 20px 0;
-	background: var(--X14);
+	background: var(--nav-bg-transparent);
 	-webkit-backdrop-filter: var(--blur, blur(8px));
 	backdrop-filter: var(--blur, blur(8px));
 }
@@ -135,7 +137,7 @@ function more() {
 	position: sticky;
 	bottom: 0;
 	padding: 20px 0;
-	background: var(--X14);
+	background: var(--nav-bg-transparent);
 	-webkit-backdrop-filter: var(--blur, blur(8px));
 	backdrop-filter: var(--blur, blur(8px));
 }

@@ -675,6 +675,15 @@ export type paths = {
      */
     post: operations['admin___approve-user'];
   };
+  '/admin/decline-user': {
+    /**
+     * admin/decline-user
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:decline-user*
+     */
+    post: operations['admin___decline-user'];
+  };
   '/admin/unsuspend-user': {
     /**
      * admin/unsuspend-user
@@ -841,6 +850,16 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
      */
     post: operations['admin___system-webhook___update'];
+  };
+  '/admin/system-webhook/test': {
+    /**
+     * admin/system-webhook/test
+     * @description No description provided.
+     *
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:admin:system-webhook*
+     */
+    post: operations['admin___system-webhook___test'];
   };
   '/announcements': {
     /**
@@ -1770,6 +1789,15 @@ export type paths = {
      */
     post: operations['following___requests___list'];
   };
+  '/following/requests/sent': {
+    /**
+     * following/requests/sent
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:following*
+     */
+    post: operations['following___requests___sent'];
+  };
   '/following/requests/reject': {
     /**
      * following/requests/reject
@@ -2510,6 +2538,16 @@ export type paths = {
      */
     post: operations['i___webhooks___delete'];
   };
+  '/i/webhooks/test': {
+    /**
+     * i/webhooks/test
+     * @description No description provided.
+     *
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    post: operations['i___webhooks___test'];
+  };
   '/invite/create': {
     /**
      * invite/create
@@ -2826,6 +2864,15 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:votes*
      */
     post: operations['notes___polls___vote'];
+  };
+  '/notes/polls/refresh': {
+    /**
+     * notes/polls/refresh
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:federation*
+     */
+    post: operations['notes___polls___refresh'];
   };
   '/notes/reactions': {
     /**
@@ -3838,11 +3885,11 @@ export type components = {
       isModerator?: boolean;
       /** @default false */
       isSystem?: boolean;
-      isSilenced: boolean;
       noindex: boolean;
       isBot?: boolean;
       isCat?: boolean;
       speakAsCat?: boolean;
+      isSilenced: boolean;
       instance?: {
         name: string | null;
         softwareName: string | null;
@@ -3883,6 +3930,7 @@ export type components = {
       backgroundUrl: string | null;
       backgroundBlurhash: string | null;
       isLocked: boolean;
+      isSilenced: boolean;
       /** @example false */
       isSuspended: boolean;
       /** @example Hi masters, I am Ai! */
@@ -3918,6 +3966,7 @@ export type components = {
       /** @default false */
       securityKeys: boolean;
       roles: components['schemas']['RoleLite'][];
+      followedMessage?: string | null;
       memo: string | null;
       moderationNote?: string;
       isFollowing?: boolean;
@@ -3939,11 +3988,13 @@ export type components = {
       bannerId: string | null;
       /** Format: id */
       backgroundId: string | null;
+      followedMessage: string | null;
       isModerator: boolean | null;
       isAdmin: boolean | null;
       injectFeaturedNote: boolean;
       receiveAnnouncementEmail: boolean;
       alwaysMarkNsfw: boolean;
+      defaultSensitive: boolean;
       autoSensitive: boolean;
       carefulBot: boolean;
       autoAcceptFollowed: boolean;
@@ -3962,6 +4013,7 @@ export type components = {
       hasUnreadChannel: boolean;
       hasUnreadNotification: boolean;
       hasPendingReceivedFollowRequest: boolean;
+      hasPendingSentFollowRequest: boolean;
       unreadNotificationsCount: number;
       mutedWords: string[][];
       hardMutedWords: string[][];
@@ -4378,7 +4430,7 @@ export type components = {
       user: components['schemas']['UserLite'];
       /** Format: id */
       userId: string;
-    } | {
+    } | ({
       /** Format: id */
       id: string;
       /** Format: date-time */
@@ -4388,7 +4440,8 @@ export type components = {
       user: components['schemas']['UserLite'];
       /** Format: id */
       userId: string;
-    } | {
+      message: string | null;
+    }) | {
       /** Format: id */
       id: string;
       /** Format: date-time */
@@ -4396,15 +4449,27 @@ export type components = {
       /** @enum {string} */
       type: 'roleAssigned';
       role: components['schemas']['Role'];
-    } | {
+    } | ({
       /** Format: id */
       id: string;
       /** Format: date-time */
       createdAt: string;
       /** @enum {string} */
       type: 'achievementEarned';
-      achievement: string;
-    } | {
+      /** @enum {string} */
+      achievement: 'notes1' | 'notes10' | 'notes100' | 'notes500' | 'notes1000' | 'notes5000' | 'notes10000' | 'notes20000' | 'notes30000' | 'notes40000' | 'notes50000' | 'notes60000' | 'notes70000' | 'notes80000' | 'notes90000' | 'notes100000' | 'login3' | 'login7' | 'login15' | 'login30' | 'login60' | 'login100' | 'login200' | 'login300' | 'login400' | 'login500' | 'login600' | 'login700' | 'login800' | 'login900' | 'login1000' | 'passedSinceAccountCreated1' | 'passedSinceAccountCreated2' | 'passedSinceAccountCreated3' | 'loggedInOnBirthday' | 'loggedInOnNewYearsDay' | 'noteClipped1' | 'noteFavorited1' | 'myNoteFavorited1' | 'profileFilled' | 'markedAsCat' | 'following1' | 'following10' | 'following50' | 'following100' | 'following300' | 'followers1' | 'followers10' | 'followers50' | 'followers100' | 'followers300' | 'followers500' | 'followers1000' | 'collectAchievements30' | 'viewAchievements3min' | 'iLoveMisskey' | 'foundTreasure' | 'client30min' | 'client60min' | 'noteDeletedWithin1min' | 'postedAtLateNight' | 'postedAt0min0sec' | 'selfQuote' | 'htl20npm' | 'viewInstanceChart' | 'outputHelloWorldOnScratchpad' | 'open3windows' | 'driveFolderCircularReference' | 'reactWithoutRead' | 'clickedClickHere' | 'justPlainLucky' | 'setNameToSyuilo' | 'cookieClicked' | 'brainDiver' | 'smashTestNotificationButton' | 'tutorialCompleted' | 'bubbleGameExplodingHead' | 'bubbleGameDoubleExplodingHead';
+    }) | ({
+      /** Format: id */
+      id: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** @enum {string} */
+      type: 'exportCompleted';
+      /** @enum {string} */
+      exportedEntity: 'antenna' | 'blocking' | 'clip' | 'customEmoji' | 'favorite' | 'following' | 'muting' | 'note' | 'userList';
+      /** Format: id */
+      fileId: string;
+    }) | ({
       /** Format: id */
       id: string;
       /** Format: date-time */
@@ -4412,9 +4477,9 @@ export type components = {
       /** @enum {string} */
       type: 'app';
       body: string;
-      header: string;
-      icon: string;
-    } | {
+      header: string | null;
+      icon: string | null;
+    }) | {
       /** Format: id */
       id: string;
       /** Format: date-time */
@@ -4966,6 +5031,11 @@ export type components = {
       userEachUserListsLimit: number;
       rateLimitFactor: number;
       avatarDecorationLimit: number;
+      canImportAntennas: boolean;
+      canImportBlocking: boolean;
+      canImportFollowing: boolean;
+      canImportMuting: boolean;
+      canImportUserLists: boolean;
     };
     ReversiGameLite: {
       /** Format: id */
@@ -5118,6 +5188,7 @@ export type components = {
        */
       noteSearchableScope: 'local' | 'global';
       trustedLinkUrlPatterns: string[];
+      maxFileSize: number;
     };
     MetaDetailedOnly: {
       features?: {
@@ -5279,6 +5350,7 @@ export type operations = {
             perRemoteUserUserTimelineCacheMax: number;
             perUserHomeTimelineCacheMax: number;
             perUserListTimelineCacheMax: number;
+            enableReactionsBuffering: boolean;
             notesPerOneAd: number;
             backgroundImageUrl: string | null;
             deeplAuthKey: string | null;
@@ -5315,6 +5387,8 @@ export type operations = {
             urlPreviewUserAgent: string | null;
             urlPreviewSummaryProxyUrl: string | null;
             trustedLinkUrlPatterns: string[];
+            federation: string;
+            federationHosts: string[];
           };
         };
       };
@@ -8400,7 +8474,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': ((string | number)[])[];
+          'application/json': [string, number][];
         };
       };
       /** @description Client error */
@@ -8446,7 +8520,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': ((string | number)[])[];
+          'application/json': [string, number][];
         };
       };
       /** @description Client error */
@@ -9081,6 +9155,7 @@ export type operations = {
             email: string | null;
             emailVerified: boolean;
             approved: boolean;
+            followedMessage: string | null;
             autoAcceptFollowed: boolean;
             noCrawle: boolean;
             preventAiLearning: boolean;
@@ -9657,6 +9732,58 @@ export type operations = {
     };
   };
   /**
+   * admin/decline-user
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:decline-user*
+   */
+  'admin___decline-user': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          userId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/unsuspend-user
    * @description No description provided.
    *
@@ -9828,6 +9955,7 @@ export type operations = {
           perRemoteUserUserTimelineCacheMax?: number;
           perUserHomeTimelineCacheMax?: number;
           perUserListTimelineCacheMax?: number;
+          enableReactionsBuffering?: boolean;
           notesPerOneAd?: number;
           silencedHosts?: string[] | null;
           mediaSilencedHosts?: string[] | null;
@@ -9840,6 +9968,9 @@ export type operations = {
           urlPreviewUserAgent?: string | null;
           urlPreviewSummaryProxyUrl?: string | null;
           trustedLinkUrlPatterns?: string[] | null;
+          /** @enum {string} */
+          federation?: 'all' | 'none' | 'specified';
+          federationHosts?: string[];
         };
       };
     };
@@ -10769,6 +10900,71 @@ export type operations = {
       };
       /** @description I'm Ai */
       418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/system-webhook/test
+   * @description No description provided.
+   *
+   * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+   * **Credential required**: *Yes* / **Permission**: *read:admin:system-webhook*
+   */
+  'admin___system-webhook___test': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          webhookId: string;
+          /** @enum {string} */
+          type: 'abuseReport' | 'abuseReportResolved' | 'userCreated';
+          override?: {
+            url?: string;
+            secret?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description To many requests */
+      429: {
         content: {
           'application/json': components['schemas']['Error'];
         };
@@ -16245,6 +16441,69 @@ export type operations = {
     };
   };
   /**
+   * following/requests/sent
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:following*
+   */
+  following___requests___sent: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          sinceId?: string;
+          /** Format: misskey:id */
+          untilId?: string;
+          /** @default 10 */
+          limit?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+              /** Format: id */
+              id: string;
+              follower: components['schemas']['UserLite'];
+              followee: components['schemas']['UserLite'];
+            }[];
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * following/requests/reject
    * @description No description provided.
    *
@@ -19066,8 +19325,8 @@ export type operations = {
           untilId?: string;
           /** @default true */
           markAsRead?: boolean;
-          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
-          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'exportCompleted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'exportCompleted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
         };
       };
     };
@@ -19134,8 +19393,8 @@ export type operations = {
           untilId?: string;
           /** @default true */
           markAsRead?: boolean;
-          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'app' | 'test' | 'reaction:grouped' | 'renote:grouped' | 'pollVote' | 'groupInvited')[];
-          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'app' | 'test' | 'reaction:grouped' | 'renote:grouped' | 'pollVote' | 'groupInvited')[];
+          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'exportCompleted' | 'app' | 'test' | 'reaction:grouped' | 'renote:grouped' | 'pollVote' | 'groupInvited')[];
+          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'achievementEarned' | 'exportCompleted' | 'app' | 'test' | 'reaction:grouped' | 'renote:grouped' | 'pollVote' | 'groupInvited')[];
         };
       };
     };
@@ -20247,6 +20506,7 @@ export type operations = {
         'application/json': {
           name?: string | null;
           description?: string | null;
+          followedMessage?: string | null;
           location?: string | null;
           birthday?: string | null;
           listenbrainz?: string | null;
@@ -20286,6 +20546,7 @@ export type operations = {
           injectFeaturedNote?: boolean;
           receiveAnnouncementEmail?: boolean;
           alwaysMarkNsfw?: boolean;
+          defaultSensitive?: boolean;
           autoSensitive?: boolean;
           /** @enum {string} */
           followingVisibility?: 'public' | 'followers' | 'private';
@@ -20827,6 +21088,71 @@ export type operations = {
       };
       /** @description I'm Ai */
       418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * i/webhooks/test
+   * @description No description provided.
+   *
+   * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+   * **Credential required**: *Yes* / **Permission**: *read:account*
+   */
+  i___webhooks___test: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          webhookId: string;
+          /** @enum {string} */
+          type: 'mention' | 'unfollow' | 'follow' | 'followed' | 'note' | 'reply' | 'renote' | 'reaction' | 'edited';
+          override?: {
+            url?: string;
+            secret?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description To many requests */
+      429: {
         content: {
           'application/json': components['schemas']['Error'];
         };
@@ -22223,6 +22549,16 @@ export type operations = {
         'application/json': {
           /** @default false */
           mutualsOnly?: boolean;
+          /** @default false */
+          filesOnly?: boolean;
+          /** @default false */
+          includeNonPublic?: boolean;
+          /** @default false */
+          includeReplies?: boolean;
+          /** @default false */
+          includeQuotes?: boolean;
+          /** @default true */
+          includeBots?: boolean;
           /** @default 10 */
           limit?: number;
           /** Format: misskey:id */
@@ -22683,6 +23019,58 @@ export type operations = {
           /** Format: misskey:id */
           noteId: string;
           choice: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * notes/polls/refresh
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:federation*
+   */
+  notes___polls___refresh: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          noteId: string;
         };
       };
     };
@@ -27155,7 +27543,15 @@ export type operations = {
           /** @default false */
           withReplies?: boolean;
           /** @default true */
+          withRepliesToSelf?: boolean;
+          /** @default true */
+          withQuotes?: boolean;
+          /** @default true */
           withRenotes?: boolean;
+          /** @default true */
+          withBots?: boolean;
+          /** @default true */
+          withNonPublic?: boolean;
           /** @default false */
           withChannelNotes?: boolean;
           /** @default 10 */

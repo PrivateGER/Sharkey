@@ -5,10 +5,10 @@
 
 import { computed, watch, version as vueVersion, App } from 'vue';
 import { compareVersions } from 'compare-versions';
+import { version, lang, langsVersion, updateLocale, locale } from '@@/js/config.js';
 import widgets from '@/widgets/index.js';
 import directives from '@/directives/index.js';
 import components from '@/components/index.js';
-import { version, lang, updateLocale, locale } from '@/config.js';
 import { applyTheme } from '@/scripts/theme.js';
 import { isDeviceDarkmode } from '@/scripts/is-device-darkmode.js';
 import { updateI18n } from '@/i18n.js';
@@ -22,7 +22,8 @@ import { getAccountFromId } from '@/scripts/get-account-from-id.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { fetchCustomEmojis } from '@/custom-emojis.js';
-import { setupRouter } from '@/router/definition.js';
+import { setupRouter } from '@/router/main.js';
+import { createMainRouter } from '@/router/definition.js';
 
 export async function common(createVue: () => App<Element>) {
 	console.info(`Sharkey v${version}`);
@@ -80,14 +81,15 @@ export async function common(createVue: () => App<Element>) {
 
 	//#region Detect language & fetch translations
 	const localeVersion = miLocalStorage.getItem('localeVersion');
-	const localeOutdated = (localeVersion == null || localeVersion !== version || locale == null);
+	const localeOutdated = (localeVersion == null || localeVersion !== langsVersion || locale == null);
 	if (localeOutdated) {
-		const res = await window.fetch(`/assets/locales/${lang}.${version}.json`);
+		console.info(`Updating locales from version ${localeVersion ?? 'N/A'} to ${langsVersion}`);
+		const res = await window.fetch(`/assets/locales/${lang}.${langsVersion}.json`);
 		if (res.status === 200) {
 			const newLocale = await res.text();
 			const parsedNewLocale = JSON.parse(newLocale);
 			miLocalStorage.setItem('locale', newLocale);
-			miLocalStorage.setItem('localeVersion', version);
+			miLocalStorage.setItem('localeVersion', langsVersion);
 			updateLocale(parsedNewLocale);
 			updateI18n(parsedNewLocale);
 		}
@@ -145,10 +147,9 @@ export async function common(createVue: () => App<Element>) {
 	// NOTE: この処理は必ずクライアント更新チェック処理より後に来ること(テーマ再構築のため)
 	watch(defaultStore.reactiveState.darkMode, (darkMode) => {
 		applyTheme(darkMode ? ColdDeviceStorage.get('darkTheme') : ColdDeviceStorage.get('lightTheme'));
-		document.documentElement.dataset.colorMode = darkMode ? 'dark' : 'light';
 	}, { immediate: miLocalStorage.getItem('theme') == null });
 
-	document.documentElement.dataset.colorMode = defaultStore.state.darkMode ? 'dark' : 'light';
+	document.documentElement.dataset.colorScheme = defaultStore.state.darkMode ? 'dark' : 'light';
 
 	const darkTheme = computed(ColdDeviceStorage.makeGetterSetter('darkTheme'));
 	const lightTheme = computed(ColdDeviceStorage.makeGetterSetter('lightTheme'));
@@ -243,7 +244,7 @@ export async function common(createVue: () => App<Element>) {
 
 	const app = createVue();
 
-	setupRouter(app);
+	setupRouter(app, createMainRouter);
 
 	if (_DEV_) {
 		app.config.performance = true;

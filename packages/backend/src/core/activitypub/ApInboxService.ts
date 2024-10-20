@@ -18,14 +18,13 @@ import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { concat, toArray, toSingle, unique } from '@/misc/prelude/array.js';
 import { AppLockService } from '@/core/AppLockService.js';
 import type Logger from '@/logger.js';
-import { MetaService } from '@/core/MetaService.js';
 import { IdService } from '@/core/IdService.js';
 import { StatusError } from '@/misc/status-error.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { QueueService } from '@/core/QueueService.js';
-import type { UsersRepository, NotesRepository, FollowingsRepository, AbuseUserReportsRepository, FollowRequestsRepository } from '@/models/_.js';
+import type { UsersRepository, NotesRepository, FollowingsRepository, AbuseUserReportsRepository, FollowRequestsRepository, MiMeta } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -41,6 +40,7 @@ import { ApPersonService } from './models/ApPersonService.js';
 import { ApQuestionService } from './models/ApQuestionService.js';
 import type { Resolver } from './ApResolverService.js';
 import type { IAccept, IAdd, IAnnounce, IBlock, ICreate, IDelete, IFlag, IFollow, ILike, IObject, IReject, IRemove, IUndo, IUpdate, IMove, IPost } from './type.js';
+import { fromTuple } from '@/misc/from-tuple.js';
 
 @Injectable()
 export class ApInboxService {
@@ -49,6 +49,9 @@ export class ApInboxService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
@@ -66,7 +69,6 @@ export class ApInboxService {
 		private noteEntityService: NoteEntityService,
 		private utilityService: UtilityService,
 		private idService: IdService,
-		private metaService: MetaService,
 		private abuseReportService: AbuseReportService,
 		private userFollowingService: UserFollowingService,
 		private apAudienceService: ApAudienceService,
@@ -253,7 +255,8 @@ export class ApInboxService {
 		}
 
 		if (activity.target === actor.featured) {
-			const note = await this.apNoteService.resolveNote(activity.object);
+			const object = fromTuple(activity.object);
+			const note = await this.apNoteService.resolveNote(object);
 			if (note == null) return 'note not found';
 			await this.notePiningService.addPinned(actor, note.id);
 			return;
@@ -270,11 +273,12 @@ export class ApInboxService {
 
 		const resolver = this.apResolverService.createResolver();
 
-		if (!activity.object) return 'skip: activity has no object property';
-		const targetUri = getApId(activity.object);
+		const activityObject = fromTuple(activity.object);
+		if (!activityObject) return 'skip: activity has no object property';
+		const targetUri = getApId(activityObject);
 		if (targetUri.startsWith('bear:')) return 'skip: bearcaps url not supported.';
 
-		const target = await resolver.resolve(activity.object).catch(e => {
+		const target = await resolver.resolve(activityObject).catch(e => {
 			this.logger.error(`Resolution failed: ${e}`);
 			return e;
 		});
@@ -292,9 +296,8 @@ export class ApInboxService {
 			return;
 		}
 
-		// アナウンス先をブロックしてたら中断
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, this.utilityService.extractDbHost(uri))) return;
+		// アナウンス先が許可されているかチェック
+		if (!this.utilityService.isFederationAllowedUri(uri)) return;
 
 		const unlock = await this.appLockService.getApLock(uri);
 
@@ -370,29 +373,30 @@ export class ApInboxService {
 
 		this.logger.info(`Create: ${uri}`);
 
-		if (!activity.object) return 'skip: activity has no object property';
-		const targetUri = getApId(activity.object);
+		const activityObject = fromTuple(activity.object);
+		if (!activityObject) return 'skip: activity has no object property';
+		const targetUri = getApId(activityObject);
 		if (targetUri.startsWith('bear:')) return 'skip: bearcaps url not supported.';
 
 		// copy audiences between activity <=> object.
-		if (typeof activity.object === 'object') {
-			const to = unique(concat([toArray(activity.to), toArray(activity.object.to)]));
-			const cc = unique(concat([toArray(activity.cc), toArray(activity.object.cc)]));
+		if (typeof activityObject === 'object') {
+			const to = unique(concat([toArray(activity.to), toArray(activityObject.to)]));
+			const cc = unique(concat([toArray(activity.cc), toArray(activityObject.cc)]));
 
 			activity.to = to;
 			activity.cc = cc;
-			activity.object.to = to;
-			activity.object.cc = cc;
+			activityObject.to = to;
+			activityObject.cc = cc;
 		}
 
 		// If there is no attributedTo, use Activity actor.
-		if (typeof activity.object === 'object' && !activity.object.attributedTo) {
-			activity.object.attributedTo = activity.actor;
+		if (typeof activityObject === 'object' && !activityObject.attributedTo) {
+			activityObject.attributedTo = activity.actor;
 		}
 
 		const resolver = this.apResolverService.createResolver();
 
-		const object = await resolver.resolve(activity.object).catch(e => {
+		const object = await resolver.resolve(activityObject).catch(e => {
 			this.logger.error(`Resolution failed: ${e}`);
 			throw e;
 		});
@@ -448,15 +452,15 @@ export class ApInboxService {
 		// 削除対象objectのtype
 		let formerType: string | undefined;
 
-		if (typeof activity.object === 'string') {
+		const activityObject = fromTuple(activity.object);
+		if (typeof activityObject === 'string') {
 			// typeが不明だけど、どうせ消えてるのでremote resolveしない
 			formerType = undefined;
 		} else {
-			const object = activity.object;
-			if (isTombstone(object)) {
-				formerType = toSingle(object.formerType);
+			if (isTombstone(activityObject)) {
+				formerType = toSingle(activityObject.formerType);
 			} else {
-				formerType = toSingle(object.type);
+				formerType = toSingle(activityObject.type);
 			}
 		}
 
@@ -616,7 +620,8 @@ export class ApInboxService {
 		}
 
 		if (activity.target === actor.featured) {
-			const note = await this.apNoteService.resolveNote(activity.object);
+			const activityObject = fromTuple(activity.object);
+			const note = await this.apNoteService.resolveNote(activityObject);
 			if (note == null) return 'note not found';
 			await this.notePiningService.removePinned(actor, note.id);
 			return;
