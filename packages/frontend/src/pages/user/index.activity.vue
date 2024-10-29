@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkContainer>
+<MkContainer :foldable="true" :expanded="!collapsed">
 	<template #icon><i class="ti ti-chart-line"></i></template>
 	<template #header>{{ i18n.ts.activity }}</template>
 	<template #func="{ buttonStyleClass }">
@@ -30,8 +30,10 @@ import { i18n } from '@/i18n.js';
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.User;
 	limit?: number;
+	collapsed?: boolean;
 }>(), {
 	limit: 50,
+	collapsed: false,
 });
 
 const chartSrc = ref('per-user-notes');

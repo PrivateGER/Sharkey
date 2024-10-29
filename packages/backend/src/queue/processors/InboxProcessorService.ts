@@ -123,19 +123,16 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		// HTTP-Signatureの検証
 		let httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 
-		// また、signatureのsignerは、activity.actorと一致する必要がある
-		if (!httpSignatureValidated || authUser.user.uri !== activity.actor) {
-			let renewKeyFailed = true;
-
-			if (!httpSignatureValidated) {
-				authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
-
-				if (authUser.key != null) {
-					httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
-					renewKeyFailed = false;
-				}
+		// maybe they changed their key? refetch it
+		if (!httpSignatureValidated) {
+			authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
+			if (authUser.key != null) {
+				httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 			}
+		}
 
+		// また、signatureのsignerは、activity.actorと一致する必要がある
+		if (!httpSignatureValidated || authUser.user.uri !== getApId(activity.actor)) {
 			// 一致しなくても、でもLD-Signatureがありそうならそっちも見る
 			const ldSignature = activity.signature;
 			if (ldSignature) {

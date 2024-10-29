@@ -4,7 +4,6 @@
  */
 
 import { PrimaryColumn, Entity, Index, JoinColumn, Column, ManyToOne } from 'typeorm';
-import { DB_MAX_IMAGE_COMMENT_LENGTH } from '@/const.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 import { MiDriveFolder } from './DriveFolder.js';
@@ -61,8 +60,7 @@ export class MiDriveFile {
 	})
 	public size: number;
 
-	@Column('varchar', {
-		length: DB_MAX_IMAGE_COMMENT_LENGTH,
+	@Column('text', {
 		nullable: true,
 		comment: 'The comment of the DriveFile.',
 	})

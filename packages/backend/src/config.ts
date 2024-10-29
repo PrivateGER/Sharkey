@@ -75,6 +75,11 @@ type Source = {
 
 	maxFileSize?: number;
 	maxNoteLength?: number;
+	maxCwLength?: number;
+	maxRemoteCwLength?: number;
+	maxRemoteNoteLength?: number;
+	maxAltTextLength?: number;
+	maxRemoteAltTextLength?: number;
 
 	clusterLimit?: number;
 
@@ -159,6 +164,11 @@ export type Config = {
 	allowedPrivateNetworks: string[] | undefined;
 	maxFileSize: number;
 	maxNoteLength: number;
+	maxRemoteNoteLength: number;
+	maxCwLength: number;
+	maxRemoteCwLength: number;
+	maxAltTextLength: number;
+	maxRemoteAltTextLength: number;
 	clusterLimit: number | undefined;
 	id: string;
 	outgoingAddress: string | undefined;
@@ -317,6 +327,11 @@ export function loadConfig(): Config {
 		allowedPrivateNetworks: config.allowedPrivateNetworks,
 		maxFileSize: config.maxFileSize ?? 262144000,
 		maxNoteLength: config.maxNoteLength ?? 3000,
+		maxRemoteNoteLength: config.maxRemoteNoteLength ?? 100000,
+		maxCwLength: config.maxCwLength ?? 500,
+		maxRemoteCwLength: config.maxRemoteCwLength ?? 5000,
+		maxAltTextLength: config.maxAltTextLength ?? 20000,
+		maxRemoteAltTextLength: config.maxRemoteAltTextLength ?? 100000,
 		clusterLimit: config.clusterLimit,
 		outgoingAddress: config.outgoingAddress,
 		outgoingAddressFamily: config.outgoingAddressFamily,
@@ -496,7 +511,7 @@ function applyEnvOverrides(config: Source) {
 	_apply_top(['sentryForBackend', 'enableNodeProfiling']);
 	_apply_top([['clusterLimit', 'deliverJobConcurrency', 'inboxJobConcurrency', 'relashionshipJobConcurrency', 'deliverJobPerSec', 'inboxJobPerSec', 'relashionshipJobPerSec', 'deliverJobMaxAttempts', 'inboxJobMaxAttempts']]);
 	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator']]);
-	_apply_top([['maxFileSize', 'maxNoteLength', 'pidFile']]);
+	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'pidFile']]);
 	_apply_top(['import', ['downloadTimeout', 'maxFileSize']]);
 	_apply_top([['signToActivityPubGet', 'checkActivityPubGetSignature']]);
 }

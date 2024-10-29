@@ -54,7 +54,7 @@ export async function getInstance(
 			},
 			polls: {
 				max_options: 10,
-				max_characters_per_option: 50,
+				max_characters_per_option: 150,
 				min_expiration: 50,
 				max_expiration: 2629746,
 			},

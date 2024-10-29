@@ -503,10 +503,6 @@ export interface Locale extends ILocale {
      */
     "pinnedNote": string;
     /**
-     * Pinned
-     */
-    "pinnedOnly": string;
-    /**
      * ピン留め
      */
     "pinned": string;
@@ -1050,10 +1046,6 @@ export interface Locale extends ILocale {
      * 連合中
      */
     "federating": string;
-    /**
-     * Blocking you
-     */
-    "blockingYou": string;
     /**
      * ブロック中
      */
@@ -4376,6 +4368,10 @@ export interface Locale extends ILocale {
      */
     "enableChartsForFederatedInstances": string;
     /**
+     * リモートサーバーの情報を取得
+     */
+    "enableStatsForFederatedInstances": string;
+    /**
      * ノートのアクションにクリップを追加
      */
     "showClipButtonInNoteFooter": string;
@@ -4944,10 +4940,6 @@ export interface Locale extends ILocale {
      */
     "useGroupedNotifications": string;
     /**
-     * ポップアップ通知のクリックを許可する
-     */
-    "allowClickingNotifications": string;
-    /**
      * メールアドレスの確認中に問題が発生しました。リンクの有効期限が切れている可能性があります。
      */
     "signupPendingError": string;
@@ -5116,10 +5108,6 @@ export interface Locale extends ILocale {
      */
     "sensitiveMediaRevealConfirm": string;
     /**
-     * 外部URLを開く際に警告を表示する
-     */
-    "warnExternalUrl": string;
-    /**
      * 作成したリスト
      */
     "createdLists": string;
@@ -5183,6 +5171,26 @@ export interface Locale extends ILocale {
      * 対象
      */
     "target": string;
+    /**
+     * CAPTCHAのテストを目的とした機能です。<strong>本番環境で使用しないでください。</strong>
+     */
+    "testCaptchaWarning": string;
+    /**
+     * 禁止ワード（ユーザーの名前）
+     */
+    "prohibitedWordsForNameOfUser": string;
+    /**
+     * このリストに含まれる文字列がユーザーの名前に含まれる場合、ユーザーの名前の変更を拒否します。モデレーター権限を持つユーザーはこの制限の影響を受けません。
+     */
+    "prohibitedWordsForNameOfUserDescription": string;
+    /**
+     * 変更しようとした名前に禁止された文字列が含まれています
+     */
+    "yourNameContainsProhibitedWords": string;
+    /**
+     * 名前に禁止されている文字列が含まれています。この名前を使用したい場合は、サーバー管理者にお問い合わせください。
+     */
+    "yourNameContainsProhibitedWordsDescription": string;
     "_abuseUserReport": {
         /**
          * 転送
@@ -5345,6 +5353,10 @@ export interface Locale extends ILocale {
          * オンにすると、このお知らせは通知されず、既読にする必要もなくなります。
          */
         "silenceDescription": string;
+        /**
+         * New
+         */
+        "new": string;
     };
     "_initialAccountSetting": {
         /**
@@ -5721,6 +5733,10 @@ export interface Locale extends ILocale {
          * Specify the URL of a web page that contains a contact form or the instance operators' contact information.
          */
         "inquiryUrlDescription": string;
+        /**
+         * 一定期間モデレーターのアクティビティが検出されなかった場合、スパム防止のためこの設定は自動でオフになります。
+         */
+        "thisSettingWillAutomaticallyOffWhenModeratorsInactive": string;
         /**
          * Logo URL
          */
@@ -7774,10 +7790,6 @@ export interface Locale extends ILocale {
              */
             "inputBorder": string;
             /**
-             * リスト項目の背景 (ホバー)
-             */
-            "listItemHoverBg": string;
-            /**
              * ドライブフォルダーの背景
              */
             "driveFolderBg": string;
@@ -8434,6 +8446,10 @@ export interface Locale extends ILocale {
          * アプリケーションにアクセス許可を与えるには、ログインが必要です。
          */
         "pleaseLogin": string;
+        /**
+         * Allowed
+         */
+        "allowed": string;
     };
     "_antennaSources": {
         /**
@@ -9745,6 +9761,14 @@ export interface Locale extends ILocale {
              * ユーザーが作成されたとき
              */
             "userCreated": string;
+            /**
+             * モデレーターが一定期間非アクティブになったとき
+             */
+            "inactiveModeratorsWarning": string;
+            /**
+             * モデレーターが一定期間非アクティブだったため、システムにより招待制へと変更されたとき
+             */
+            "inactiveModeratorsInvitationOnlyChanged": string;
         };
         /**
          * Webhookを削除しますか？
@@ -10588,6 +10612,30 @@ export interface Locale extends ILocale {
      */
     "mutuals": string;
     /**
+     * Private account
+     */
+    "isLocked": string;
+    /**
+     * Administrator
+     */
+    "isAdmin": string;
+    /**
+     * Bot user
+     */
+    "isBot": string;
+    /**
+     * Open
+     */
+    "open": string;
+    /**
+     * Destination address
+     */
+    "emailDestination": string;
+    /**
+     * Date
+     */
+    "date": string;
+    /**
      * Quoted.
      */
     "quoted": string;
@@ -10936,6 +10984,22 @@ export interface Locale extends ILocale {
      * Show non-public
      */
     "showNonPublicNotes": string;
+    /**
+     * Allow clicking on pop-up notifications
+     */
+    "allowClickingNotifications": string;
+    /**
+     * Pinned
+     */
+    "pinnedOnly": string;
+    /**
+     * Blocking you
+     */
+    "blockingYou": string;
+    /**
+     * Show warning when opening external URLs
+     */
+    "warnExternalUrl": string;
     "_mfm": {
         /**
          * This is not a widespread feature, it may not display properly on most other fedi software, including other Misskey forks
@@ -11306,6 +11370,10 @@ export interface Locale extends ILocale {
          */
         "trustThisDomain": string;
     };
+    /**
+     * Remote followers may have incomplete or outdated activity
+     */
+    "remoteFollowersWarning": string;
 }
 declare const locales: {
     [lang: string]: Locale;

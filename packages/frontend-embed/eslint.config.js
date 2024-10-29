@@ -4,6 +4,8 @@ import parser from 'vue-eslint-parser';
 import pluginVue from 'eslint-plugin-vue';
 import pluginMisskey from '@misskey-dev/eslint-plugin';
 import sharedConfig from '../shared/eslint.config.js';
+import localeRule from '../../eslint/locale.js';
+import { build as buildLocales } from '../../locales/index.js';
 
 export default [
 	...sharedConfig,
@@ -14,6 +16,7 @@ export default [
 	...pluginVue.configs['flat/recommended'],
 	{
 		files: ['{src,test,js,@types}/**/*.{ts,vue}'],
+		plugins: { sharkey: { rules: { locale: localeRule } } },
 		languageOptions: {
 			globals: {
 				...Object.fromEntries(Object.entries(globals.node).map(([key]) => [key, 'off'])),
@@ -44,6 +47,8 @@ export default [
 			},
 		},
 		rules: {
+			'sharkey/locale': ['error', buildLocales()['en-US']],
+
 			'@typescript-eslint/no-empty-interface': ['error', {
 				allowSingleExtends: true,
 			}],

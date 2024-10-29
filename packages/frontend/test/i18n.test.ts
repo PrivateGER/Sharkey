@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { I18n } from '../../frontend-shared/js/i18n.js'; // @@で参照できなかったので
 import { ParameterizedString } from '../../../locales/index.js';
 
+/* eslint "sharkey/locale":"off" */
+
 // TODO: このテストはfrontend-sharedに移動する
 
 describe('i18n', () => {

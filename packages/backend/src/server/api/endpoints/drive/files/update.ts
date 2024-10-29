@@ -9,8 +9,8 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { DriveService } from '@/core/DriveService.js';
+import type { Config } from '@/config.js';
 import { ApiError } from '../../../error.js';
-import { DB_MAX_IMAGE_COMMENT_LENGTH } from '@/const.js';
 
 export const meta = {
 	tags: ['drive'],
@@ -51,6 +51,12 @@ export const meta = {
 			code: 'RESTRICTED_BY_ROLE',
 			id: '7f59dccb-f465-75ab-5cf4-3ce44e3282f7',
 		},
+
+		commentTooLong: {
+			message: 'Cannot upload the file because the comment exceeds the instance limit.',
+			code: 'COMMENT_TOO_LONG',
+			id: '333652d9-0826-40f5-a2c3-e2bedcbb9fe5',
+		},
 	},
 	res: {
 		type: 'object',
@@ -66,7 +72,7 @@ export const paramDef = {
 		folderId: { type: 'string', format: 'misskey:id', nullable: true },
 		name: { type: 'string' },
 		isSensitive: { type: 'boolean' },
-		comment: { type: 'string', nullable: true, maxLength: DB_MAX_IMAGE_COMMENT_LENGTH },
+		comment: { type: 'string', nullable: true },
 	},
 	required: ['fileId'],
 } as const;
@@ -76,6 +82,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
+		@Inject(DI.config)
+		private config: Config,
 
 		private driveService: DriveService,
 		private roleService: RoleService,
@@ -88,6 +96,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (!await this.roleService.isModerator(me) && (file.userId !== me.id)) {
 				throw new ApiError(meta.errors.accessDenied);
+			}
+
+			if (ps.comment && ps.comment.length > this.config.maxAltTextLength) {
+				throw new ApiError(meta.errors.commentTooLong);
 			}
 
 			let packedFile;

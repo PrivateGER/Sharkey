@@ -3939,7 +3939,7 @@ export type components = {
       /** @example 2018-03-12 */
       birthday: string | null;
       /** @example Steve */
-      ListenBrainz: string | null;
+      listenbrainz: string | null;
       /** @example ja-JP */
       lang: string | null;
       fields: {
@@ -5153,6 +5153,11 @@ export type components = {
       iconUrl: string | null;
       sidebarLogoUrl: string | null;
       maxNoteTextLength: number;
+      maxRemoteNoteTextLength: number;
+      maxCwLength: number;
+      maxRemoteCwLength: number;
+      maxAltTextLength: number;
+      maxRemoteAltTextLength: number;
       ads: {
           /**
            * Format: id
@@ -22547,8 +22552,11 @@ export type operations = {
     requestBody: {
       content: {
         'application/json': {
-          /** @default false */
-          mutualsOnly?: boolean;
+          /**
+           * @default following
+           * @enum {string}
+           */
+          list?: 'following' | 'followers' | 'mutuals';
           /** @default false */
           filesOnly?: boolean;
           /** @default false */

@@ -266,7 +266,7 @@ function showMenu(ev: MouseEvent) {
 	if ($i && $i.id === page.value.userId) {
 		menuItems.push({
 			icon: 'ti ti-pencil',
-			text: i18n.ts.editThisPage,
+			text: i18n.ts._pages.editThisPage,
 			action: () => router.push(`/pages/edit/${page.value.id}`),
 		});
 

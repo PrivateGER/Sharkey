@@ -9,9 +9,11 @@ process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
 import { MiNote } from '@/models/Note.js';
-import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { api, castAsError, initTestDb, post, role, signup, uploadFile, uploadUrl } from '../utils.js';
 import type * as misskey from 'misskey-js';
+
+// Important: this must match the value of maxNoteLength in .config/ci.yml!
+const MAX_NOTE_TEXT_LENGTH = 3000;
 
 describe('Note', () => {
 	let Notes: Repository<MiNote>;

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkContainer :max-height="300" :foldable="true">
+<MkContainer :max-height="300" :foldable="true" :expanded="!collapsed">
 	<template #icon><i class="ti ti-photo"></i></template>
 	<template #header>{{ i18n.ts.files }}</template>
 	<div :class="$style.root">
@@ -43,9 +43,12 @@ import ImgWithBlurhash from '@/components/MkImgWithBlurhash.vue';
 import { defaultStore } from '@/store.js';
 import { i18n } from '@/i18n.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
-}>();
+	collapsed?: boolean;
+}>(), {
+	collapsed: false,
+});
 
 const fetching = ref(true);
 const files = ref<{

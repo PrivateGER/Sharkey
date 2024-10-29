@@ -100,7 +100,7 @@ async function init() {
 
 async function testEmail() {
 	const { canceled, result: destination } = await os.inputText({
-		title: i18n.ts.destination,
+		title: i18n.ts.emailDestination,
 		type: 'email',
 		default: instance.maintainerEmail ?? '',
 		placeholder: 'test@example.com',

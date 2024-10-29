@@ -5,15 +5,12 @@
 
 process.env.NODE_ENV = 'test';
 
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import { describe, test, expect } from '@jest/globals';
+import { loadConfig } from '@/config.js';
 import { getValidator } from '../../../../../test/prelude/get-api-validator.js';
 import { paramDef } from './create.js';
 
-const _filename = fileURLToPath(import.meta.url);
-const _dirname = dirname(_filename);
+const config = loadConfig();
 
 const VALID = true;
 const INVALID = false;
@@ -21,7 +18,12 @@ const INVALID = false;
 describe('api:notes/create', () => {
 	describe('validation', () => {
 		const v = getValidator(paramDef);
-		const tooLong = readFile(_dirname + '/../../../../../test/resources/misskey.svg', 'utf-8');
+		const tooLong = (limit: number) => {
+			const arr: string[] = [''];
+			arr.length = limit + 1;
+			arr.fill('a');
+			return arr.join('');
+		};
 
 		test('reject empty', () => {
 			const valid = v({ });
@@ -71,8 +73,8 @@ describe('api:notes/create', () => {
 					.toBe(INVALID);
 			});
 
-			test('over 500 characters cw', async () => {
-				expect(v({ text: 'Body', cw: await tooLong }))
+			test('over max characters cw', async () => {
+				expect(v({ text: '', cw: tooLong(config.maxNoteLength) }))
 					.toBe(INVALID);
 			});
 		});
@@ -220,7 +222,7 @@ describe('api:notes/create', () => {
 			});
 
 			test('reject poll with too long choice', async () => {
-				expect(v({ poll: { choices: [await tooLong, '2'] } }))
+				expect(v({ poll: { choices: [tooLong(config.maxNoteLength), '2'] } }))
 					.toBe(INVALID);
 			});
 

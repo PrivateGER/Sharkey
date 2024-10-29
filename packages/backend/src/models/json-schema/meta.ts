@@ -168,6 +168,26 @@ export const packedMetaLiteSchema = {
 			type: 'number',
 			optional: false, nullable: false,
 		},
+		maxRemoteNoteTextLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
+		maxCwLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
+		maxRemoteCwLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
+		maxAltTextLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
+		maxRemoteAltTextLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
 		ads: {
 			type: 'array',
 			optional: false, nullable: false,

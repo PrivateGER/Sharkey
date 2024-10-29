@@ -9,12 +9,12 @@ import type { DriveFilesRepository, MiMeta } from '@/models/_.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import { truncate } from '@/misc/truncate.js';
-import { DB_MAX_IMAGE_COMMENT_LENGTH } from '@/const.js';
 import { DriveService } from '@/core/DriveService.js';
 import type Logger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
 import { checkHttps } from '@/misc/check-https.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
+import type { Config } from '@/config.js';
 import { ApResolverService } from '../ApResolverService.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { isDocument, type IObject } from '../type.js';
@@ -29,6 +29,8 @@ export class ApImageService {
 
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
+		@Inject(DI.config)
+		private config: Config,
 
 		private apResolverService: ApResolverService,
 		private driveService: DriveService,
@@ -83,7 +85,7 @@ export class ApImageService {
 			uri: image.url,
 			sensitive: !!(image.sensitive),
 			isLink: !shouldBeCached,
-			comment: truncate(image.name ?? undefined, DB_MAX_IMAGE_COMMENT_LENGTH),
+			comment: truncate(image.name ?? undefined, this.config.maxRemoteAltTextLength),
 		});
 		if (!file.isLink || file.url === image.url) return file;
 

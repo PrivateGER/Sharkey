@@ -254,7 +254,7 @@ function toPackedUserDetailedNotMe(user: MiUser, override?: Packed<'UserDetailed
 		isRenoteMuted: false,
 		notify: 'none',
 		withReplies: true,
-		ListenBrainz: null,
+		listenbrainz: null,
 		...override,
 	};
 }

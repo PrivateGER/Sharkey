@@ -45,7 +45,6 @@ import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerServ
 import { NoteReadService } from '@/core/NoteReadService.js';
 import { RemoteUserResolveService } from '@/core/RemoteUserResolveService.js';
 import { bindThis } from '@/decorators.js';
-import { DB_MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { RoleService } from '@/core/RoleService.js';
 import { SearchService } from '@/core/SearchService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
@@ -335,9 +334,13 @@ export class NoteCreateService implements OnApplicationShutdown {
 			data.localOnly = true;
 		}
 
+		const maxTextLength = user.host == null
+			? this.config.maxNoteLength
+			: this.config.maxRemoteNoteLength;
+
 		if (data.text) {
-			if (data.text.length > DB_MAX_NOTE_TEXT_LENGTH) {
-				data.text = data.text.slice(0, DB_MAX_NOTE_TEXT_LENGTH);
+			if (data.text.length > maxTextLength) {
+				data.text = data.text.slice(0, maxTextLength);
 			}
 			data.text = data.text.trim();
 			if (data.text === '') {
@@ -347,9 +350,13 @@ export class NoteCreateService implements OnApplicationShutdown {
 			data.text = null;
 		}
 
+		const maxCwLength = user.host == null
+			? this.config.maxCwLength
+			: this.config.maxRemoteCwLength;
+
 		if (data.cw) {
-			if (data.cw.length > DB_MAX_NOTE_TEXT_LENGTH) {
-				data.cw = data.cw.slice(0, DB_MAX_NOTE_TEXT_LENGTH);
+			if (data.cw.length > maxCwLength) {
+				data.cw = data.cw.slice(0, maxCwLength);
 			}
 			data.cw = data.cw.trim();
 			if (data.cw === '') {

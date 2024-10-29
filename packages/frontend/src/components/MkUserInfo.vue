@@ -11,7 +11,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkA :class="$style.name" :to="userPage(user)"><MkUserName :user="user" :nowrap="false"/></MkA>
 		<p :class="$style.username"><MkAcct :user="user"/></p>
 	</div>
-	<span v-if="$i && $i.id !== user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
+	<ul v-if="$i && $i.id != user.id" :class="$style.infoBadges">
+		<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
+		<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
+		<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
+		<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
+		<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
+		<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
+		<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
+	</ul>
 	<div :class="$style.description">
 		<div v-if="user.description" :class="$style.mfm">
 			<Mfm :text="user.description" :isBlock="true" :author="user"/>
@@ -143,5 +151,31 @@ defineProps<{
 	position: absolute !important;
 	top: 8px;
 	right: 8px;
+}
+
+.infoBadges {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+
+	display: flex;
+	flex-direction: row;
+
+	padding: 0;
+	margin: 0;
+
+	> * {
+		padding: 4px 8px;
+		color: #fff;
+		background: rgba(0, 0, 0, 0.7);
+		font-size: 0.7em;
+		border-radius: var(--radius-sm);
+		list-style-type: none;
+		margin-left: 0;
+	}
+
+	> :not(:first-child) {
+		margin-left: 8px;
+	}
 }
 </style>
