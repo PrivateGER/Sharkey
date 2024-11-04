@@ -55,7 +55,7 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 		}
 
 		// Disallow mentions out of the blue by accounts followed by no one and with no avatar
-		if (user.followersCount === 0 && user.avatar === null && mentionCount >= 2 && object.inReplyTo === null) {
+		if (user.followersCount === 0 && user.avatarUrl?.includes('identicon') && mentionCount >= 2 && object.inReplyTo === null) {
 			this.logger.warn('Rewriting note mentions, triggered by remote actor ' + user.uri + ' and note: ' + object.id);
 			object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 			activity.object = object;
