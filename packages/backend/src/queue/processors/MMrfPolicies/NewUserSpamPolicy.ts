@@ -37,6 +37,7 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 		const actor = activity.actor as IObject;
 		const user = await this.apDbResolverService.getUserFromApId(actor);
 		if (user === null) {
+			this.logger.warn('User not found for remote actor ' + actor.url);
 			return {
 				action: MMrfAction.Neutral,
 				data: activity,
