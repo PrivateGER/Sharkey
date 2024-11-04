@@ -17,6 +17,10 @@ export type MMrfResponse = {
 	data: IActivity;
 }
 
+export interface MMrfPolicy {
+	runPolicy(activity: IActivity): Promise<MMrfResponse>;
+}
+
 async function applyPolicy(policy: any, activity: IActivity): Promise<MMrfResponse> {
 	let response = await policy.runPolicy(activity);
 	while (response.action === MMrfAction.RewriteNote) {
@@ -54,3 +58,4 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 
 	return { action: MMrfAction.Neutral, data: mmrfActivity };
 }
+

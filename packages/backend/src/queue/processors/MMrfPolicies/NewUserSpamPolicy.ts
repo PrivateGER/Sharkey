@@ -24,9 +24,19 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 				data: activity,
 			};
 		}
-		const mentionCount = object.tag.filter(tag => tag.type === 'Mention').length;
+		const objectMentions = object.tag.filter(tag => tag.type === 'Mention');
+		const mentionCount = objectMentions.length;
 		// Single mentions are allowed for DM purposes / new accounts, spam typically uses more
 		if (mentionCount <= 1) {
+			return {
+				action: MMrfAction.Neutral,
+				data: activity,
+			};
+		}
+
+		// Verify that the mention contains at least one local user mention
+		const localMention = objectMentions.some(tag => tag.href?.startsWith('https://plasmatrap.com'));
+		if (!localMention) {
 			return {
 				action: MMrfAction.Neutral,
 				data: activity,
@@ -44,8 +54,8 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 			};
 		}
 
-		// Disallow mentions out of the blue by accounts followed by no one
-		if (user.followersCount === 0) {
+		// Disallow mentions out of the blue by accounts followed by no one and with no avatar
+		if (user.followersCount === 0 && user.avatar === null && mentionCount >= 2 && object.inReplyTo === null) {
 			this.logger.warn('Rewriting note mentions, triggered by remote actor ' + user.uri + ' and note: ' + object.id);
 			object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 			activity.object = object;
@@ -62,3 +72,5 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 		};
 	}
 }
+
+
