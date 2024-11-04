@@ -25,7 +25,8 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 			};
 		}
 		const mentionCount = object.tag.filter(tag => tag.type === 'Mention').length;
-		if (mentionCount === 0) {
+		// Single mentions are allowed for DM purposes / new accounts, spam typically uses more
+		if (mentionCount <= 1) {
 			return {
 				action: MMrfAction.Neutral,
 				data: activity,
@@ -42,24 +43,11 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 			};
 		}
 
-		// Check for user age
-		const createdAt = this.idService.parse(user.id).date;
-		const now = new Date();
-
-		// If the user is less than 3 days old (exception: username = 10 characters) and not followed by min 3 people, rewrite to remove mentions
-		if ((now.getTime() - createdAt.getTime() < (86400000 * 3) || user.username.length === 10) && user.followersCount < 3) {
-			this.logger.warn('Rewriting note due to user age, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
+		// Disallow mentions out of the blue by accounts followed by no one
+		if (user.followersCount === 0) {
+			this.logger.warn('Rewriting note mentions, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
 			object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 			activity.object = object;
-
-			if (user.username.length === 10 && !user.username.includes(' ')) {
-				this.logger.warn('Hard rejecting note due to user length matching spambots');
-
-				return {
-					action: MMrfAction.RejectNote,
-					data: activity,
-				};
-			}
 
 			return {
 				action: MMrfAction.RewriteNote,
