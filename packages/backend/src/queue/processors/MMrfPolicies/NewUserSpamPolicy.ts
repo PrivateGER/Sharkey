@@ -18,7 +18,7 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 	async runPolicy(activity: IActivity): Promise<MMrfResponse> {
 		const object: IObject = activity.object as IObject;
 
-		if (object.tag === undefined || !(object.tag instanceof Array) || object.inReplyTo != null || object.url === undefined) {
+		if (object.tag === undefined || !(object.tag instanceof Array)) {
 			return {
 				action: MMrfAction.Neutral,
 				data: activity,
@@ -46,7 +46,7 @@ export class NewUserSpamPolicy implements MMrfPolicy {
 
 		// Disallow mentions out of the blue by accounts followed by no one
 		if (user.followersCount === 0) {
-			this.logger.warn('Rewriting note mentions, triggered by remote actor ' + user.uri + ' and note: ' + object.url);
+			this.logger.warn('Rewriting note mentions, triggered by remote actor ' + user.uri + ' and note: ' + object.id);
 			object.tag = object.tag.filter(tag => tag.type !== 'Mention');
 			activity.object = object;
 
