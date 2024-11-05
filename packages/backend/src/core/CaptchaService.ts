@@ -10,6 +10,7 @@ import { bindThis } from '@/decorators.js';
 type CaptchaResponse = {
 	success: boolean;
 	'error-codes'?: string[];
+	'errors'?: string[];
 };
 
 @Injectable()
@@ -70,6 +71,35 @@ export class CaptchaService {
 		if (result.success !== true) {
 			const errorCodes = result['error-codes'] ? result['error-codes'].join(', ') : '';
 			throw new Error(`hcaptcha-failed: ${errorCodes}`);
+		}
+	}
+
+	@bindThis
+	public async verifyFriendlyCaptcha(secret: string, response: string | null | undefined): Promise<void> {
+		if (response == null) {
+			throw new Error('frc-failed: no response provided');
+		}
+
+		const result = await this.httpRequestService.send('https://api.friendlycaptcha.com/api/v1/siteverify', {
+			method: 'POST',
+			body: JSON.stringify({
+				secret: secret,
+				solution: response,
+			}),
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
+
+		if (result.status !== 200) {
+			throw new Error('frc-failed: frc didn\'t return 200 OK');
+		}
+
+		const resp = await result.json() as CaptchaResponse;
+
+		if (resp.success !== true) {
+			const errorCodes = resp['errors'] ? resp['errors'].join(', ') : '';
+			throw new Error(`frc-failed: ${errorCodes}`);
 		}
 	}
 

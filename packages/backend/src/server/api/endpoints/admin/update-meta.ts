@@ -81,6 +81,9 @@ export const paramDef = {
 		enableTurnstile: { type: 'boolean' },
 		turnstileSiteKey: { type: 'string', nullable: true },
 		turnstileSecretKey: { type: 'string', nullable: true },
+		enableFC: { type: 'boolean' },
+		fcSiteKey: { type: 'string', nullable: true },
+		fcSecretKey: { type: 'string', nullable: true },
 		sensitiveMediaDetection: { type: 'string', enum: ['none', 'all', 'local', 'remote'] },
 		sensitiveMediaDetectionSensitivity: { type: 'string', enum: ['medium', 'low', 'high', 'veryLow', 'veryHigh'] },
 		setSensitiveFlagAutomatically: { type: 'boolean' },
@@ -381,6 +384,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.turnstileSecretKey !== undefined) {
 				set.turnstileSecretKey = ps.turnstileSecretKey;
+			}
+
+			if (ps.enableFC !== undefined) {
+				set.enableFC = ps.enableFC;
+			}
+
+			if (ps.fcSiteKey !== undefined) {
+				set.fcSiteKey = ps.fcSiteKey;
+			}
+
+			if (ps.fcSecretKey !== undefined) {
+				set.fcSecretKey = ps.fcSecretKey;
 			}
 
 			if (ps.enableBotTrending !== undefined) {

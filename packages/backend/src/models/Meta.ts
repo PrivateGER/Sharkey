@@ -269,6 +269,23 @@ export class MiMeta {
 	})
 	public turnstileSecretKey: string | null;
 
+	@Column('boolean', {
+		default: false,
+	})
+	public enableFC: boolean;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public fcSiteKey: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public fcSecretKey: string | null;
+
 	// chaptcha系を追加した際にはnodeinfoのレスポンスに追加するのを忘れないようにすること
 
 	@Column('enum', {

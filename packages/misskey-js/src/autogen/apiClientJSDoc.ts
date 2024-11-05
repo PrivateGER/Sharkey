@@ -1890,7 +1890,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'federation/followers', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -1901,7 +1901,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'federation/following', P extends Endpoints[E]['req']>(
       endpoint: E,

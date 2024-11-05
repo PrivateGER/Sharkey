@@ -194,6 +194,7 @@ import { getProxiedImageUrlNullable } from '@/scripts/media-proxy.js';
 import { dateString } from '@/filters/date.js';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkInfo from '@/components/MkInfo.vue';
+import { $i } from '@/account.js';
 
 const props = defineProps<{
 	host: string;
@@ -422,19 +423,27 @@ const headerTabs = computed(() => [{
 	key: 'users',
 	title: i18n.ts.users,
 	icon: 'ti ti-users',
-}, {
-	key: 'following',
-	title: i18n.ts.following,
-	icon: 'ti ti-arrow-right',
-}, {
-	key: 'followers',
-	title: i18n.ts.followers,
-	icon: 'ti ti-arrow-left',
-}, {
+}, ...getFollowingTabs(), {
 	key: 'raw',
 	title: 'Raw',
 	icon: 'ti ti-code',
 }]);
+
+function getFollowingTabs() {
+	if (!$i) return [];
+	return [
+		{
+			key: 'following',
+			title: i18n.ts.following,
+			icon: 'ti ti-arrow-right',
+		},
+		{
+			key: 'followers',
+			title: i18n.ts.followers,
+			icon: 'ti ti-arrow-left',
+		},
+	];
+}
 
 definePageMetadata(() => ({
 	title: props.host,

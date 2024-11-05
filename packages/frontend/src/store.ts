@@ -11,7 +11,7 @@ import darkTheme from '@@/themes/d-ice.json5';
 import { miLocalStorage } from './local-storage.js';
 import { searchEngineMap } from './scripts/search-engine-map.js';
 import type { SoundType } from '@/scripts/sound.js';
-import type { FollowingFeedTab } from '@/pages/following-feed.vue';
+import type { FollowingFeedTab } from '@/scripts/following-feed-utils.js';
 import { Storage } from '@/pizzax.js';
 
 interface PostFormAction {

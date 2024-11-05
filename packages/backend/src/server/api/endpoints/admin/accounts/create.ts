@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
-import { IsNull } from 'typeorm';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { UsersRepository } from '@/models/_.js';
+import { MiAccessToken, MiUser } from '@/models/_.js';
 import { SignupService } from '@/core/SignupService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { InstanceActorService } from '@/core/InstanceActorService.js';
 import { localUsernameSchema, passwordSchema } from '@/models/User.js';
-import { DI } from '@/di-symbols.js';
 import { Packed } from '@/misc/json-schema.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -28,6 +28,35 @@ export const meta = {
 			},
 		},
 	},
+
+	errors: {
+		// From ApiCallService.ts
+		noCredential: {
+			message: 'Credential required.',
+			code: 'CREDENTIAL_REQUIRED',
+			id: '1384574d-a912-4b81-8601-c7b1c4085df1',
+			httpStatusCode: 401,
+		},
+		noAdmin: {
+			message: 'You are not assigned to an administrator role.',
+			code: 'ROLE_PERMISSION_DENIED',
+			kind: 'permission',
+			id: 'c3d38592-54c0-429d-be96-5636b0431a61',
+		},
+		noPermission: {
+			message: 'Your app does not have the necessary permissions to use this endpoint.',
+			code: 'PERMISSION_DENIED',
+			kind: 'permission',
+			id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+		},
+	},
+
+	// Required token permissions, but we need to check them manually.
+	// ApiCallService checks access in a way that would prevent creating the first account.
+	softPermissions: [
+		'write:admin:account',
+		'write:admin:approve-user',
+	],
 } as const;
 
 export const paramDef = {
@@ -42,22 +71,19 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
-		@Inject(DI.usersRepository)
-		private usersRepository: UsersRepository,
-
+		private roleService: RoleService,
 		private userEntityService: UserEntityService,
 		private signupService: SignupService,
 		private instanceActorService: InstanceActorService,
 	) {
 		super(meta, paramDef, async (ps, _me, token) => {
-			const me = _me ? await this.usersRepository.findOneByOrFail({ id: _me.id }) : null;
-			const realUsers = await this.instanceActorService.realLocalUsersPresent();
-			if ((realUsers && !me?.isRoot) || token !== null) throw new Error('access denied');
+			await this.ensurePermissions(_me, token);
 
 			const { account, secret } = await this.signupService.signup({
 				username: ps.username,
 				password: ps.password,
 				ignorePreservedUsernames: true,
+				approved: true,
 			});
 
 			const res = await this.userEntityService.pack(account, account, {
@@ -69,5 +95,22 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			return res;
 		});
+	}
+
+	private async ensurePermissions(me: MiUser | null, token: MiAccessToken | null): Promise<void> {
+		// Tokens have scoped permissions which may be *less* than the user's official role, so we need to check.
+		if (token && !meta.softPermissions.every(p => token.permission.includes(p))) {
+			throw new ApiError(meta.errors.noPermission);
+		}
+
+		// Only administrators (including root) can create users.
+		if (me && !await this.roleService.isAdministrator(me)) {
+			throw new ApiError(meta.errors.noAdmin);
+		}
+
+		// Anonymous access is only allowed for initial instance setup.
+		if (!me && await this.instanceActorService.realLocalUsersPresent()) {
+			throw new ApiError(meta.errors.noCredential);
+		}
 	}
 }

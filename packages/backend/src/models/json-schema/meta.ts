@@ -127,6 +127,14 @@ export const packedMetaLiteSchema = {
 			type: 'string',
 			optional: false, nullable: true,
 		},
+		enableFC: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
+		fcSiteKey: {
+			type: 'string',
+			optional: false, nullable: true,
+		},
 		enableAchievements: {
 			type: 'boolean',
 			optional: false, nullable: true,

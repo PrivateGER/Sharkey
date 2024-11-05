@@ -39,13 +39,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </div>
 </template>
 
-<script lang="ts">
-export const followingTab = 'following' as const;
-export const mutualsTab = 'mutuals' as const;
-export const followersTab = 'followers' as const;
-export type FollowingFeedTab = typeof followingTab | typeof mutualsTab | typeof followersTab;
-</script>
-
 <script lang="ts" setup>
 import { computed, Ref, ref, shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
@@ -60,54 +53,24 @@ import { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import { PageHeaderItem } from '@/types/page-header.js';
 import SkFollowingFeedEntry from '@/components/SkFollowingFeedEntry.vue';
 import { useRouter } from '@/router/supplier.js';
-import * as os from '@/os.js';
 import MkPageHeader from '@/components/global/MkPageHeader.vue';
 import { $i } from '@/account.js';
 import { checkWordMute } from '@/scripts/check-word-mute.js';
 import SkUserRecentNotes from '@/components/SkUserRecentNotes.vue';
 import { useScrollPositionManager } from '@/nirax.js';
-import { defaultStore } from '@/store.js';
-import { deepMerge } from '@/scripts/merge.js';
 import MkPagination, { Paging } from '@/components/MkPagination.vue';
 import MkInfo from '@/components/MkInfo.vue';
+import { createModel, createOptions, followersTab, followingTab, mutualsTab } from '@/scripts/following-feed-utils.js';
 
-const withNonPublic = computed({
-	get: () => {
-		if (userList.value === 'followers') return false;
-		return defaultStore.reactiveState.followingFeed.value.withNonPublic;
-	},
-	set: value => saveFollowingFilter('withNonPublic', value),
-});
-const withQuotes = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.withQuotes,
-	set: value => saveFollowingFilter('withQuotes', value),
-});
-const withBots = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.withBots,
-	set: value => saveFollowingFilter('withBots', value),
-});
-const withReplies = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.withReplies,
-	set: value => saveFollowingFilter('withReplies', value),
-});
-const onlyFiles = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.onlyFiles,
-	set: value => saveFollowingFilter('onlyFiles', value),
-});
-const userList = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.userList,
-	set: value => saveFollowingFilter('userList', value),
-});
-const remoteWarningDismissed = computed({
-	get: () => defaultStore.reactiveState.followingFeed.value.remoteWarningDismissed,
-	set: value => saveFollowingFilter('remoteWarningDismissed', value),
-});
-
-// Based on timeline.saveTlFilter()
-function saveFollowingFilter<Key extends keyof typeof defaultStore.state.followingFeed>(key: Key, value: (typeof defaultStore.state.followingFeed)[Key]) {
-	const out = deepMerge({ [key]: value }, defaultStore.state.followingFeed);
-	defaultStore.set('followingFeed', out);
-}
+const {
+	userList,
+	withNonPublic,
+	withQuotes,
+	withBots,
+	withReplies,
+	onlyFiles,
+	remoteWarningDismissed,
+} = createModel();
 
 const router = useRouter();
 
@@ -215,45 +178,7 @@ const headerActions: PageHeaderItem[] = [
 		text: i18n.ts.reload,
 		handler: () => reload(),
 	},
-	{
-		icon: 'ti ti-dots',
-		text: i18n.ts.options,
-		handler: (ev) => {
-			os.popupMenu([
-				{
-					type: 'switch',
-					text: i18n.ts.showNonPublicNotes,
-					ref: withNonPublic,
-					disabled: userList.value === 'followers',
-				},
-				{
-					type: 'switch',
-					text: i18n.ts.showQuotes,
-					ref: withQuotes,
-				},
-				{
-					type: 'switch',
-					text: i18n.ts.showBots,
-					ref: withBots,
-				},
-				{
-					type: 'switch',
-					text: i18n.ts.showReplies,
-					ref: withReplies,
-					disabled: onlyFiles,
-				},
-				{
-					type: 'divider',
-				},
-				{
-					type: 'switch',
-					text: i18n.ts.fileAttachedOnly,
-					ref: onlyFiles,
-					disabled: withReplies,
-				},
-			], ev.currentTarget ?? ev.target);
-		},
-	},
+	createOptions(),
 ];
 
 const headerTabs = computed(() => [

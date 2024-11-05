@@ -55,6 +55,7 @@ export class SignupService {
 		host?: string | null;
 		reason?: string | null;
 		ignorePreservedUsernames?: boolean;
+		approved?: boolean;
 	}) {
 		const { username, password, passwordHash, host, reason } = opts;
 		let hash = passwordHash;
@@ -115,9 +116,6 @@ export class SignupService {
 			));
 
 		let account!: MiUser;
-		let defaultApproval = false;
-
-		if (!this.meta.approvalRequiredForSignup) defaultApproval = true;
 
 		// Start transaction
 		await this.db.transaction(async transactionalEntityManager => {
@@ -135,7 +133,7 @@ export class SignupService {
 				host: this.utilityService.toPunyNullable(host),
 				token: secret,
 				isRoot: isTheFirstUser,
-				approved: defaultApproval,
+				approved: isTheFirstUser || (opts.approved ?? !this.meta.approvalRequiredForSignup),
 				signupReason: reason,
 			}));
 

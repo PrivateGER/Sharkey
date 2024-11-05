@@ -229,10 +229,11 @@ const routes: RouteDef[] = [{
 }, {
 	path: '/following-feed',
 	component: page(() => import('@/pages/following-feed.vue')),
-	hash: 'initialTab',
+	loginRequired: true,
 }, {
 	path: '/following-feed/:userId',
 	component: page(() => import('@/pages/user/recent-notes.vue')),
+	loginRequired: true,
 }, {
 	path: '/search',
 	component: page(() => import('@/pages/search.vue')),

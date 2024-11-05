@@ -118,6 +118,7 @@ export class ApiServerService {
 				'hcaptcha-response'?: string;
 				'g-recaptcha-response'?: string;
 				'turnstile-response'?: string;
+				'frc-captcha-solution'?: string;
 			}
 		}>('/signup', (request, reply) => this.signupApiService.signup(request, reply));
 

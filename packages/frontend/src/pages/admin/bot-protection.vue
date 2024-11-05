@@ -11,6 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-else-if="botProtectionForm.savedState.provider === 'mcaptcha'" #suffix>mCaptcha</template>
 	<template v-else-if="botProtectionForm.savedState.provider === 'recaptcha'" #suffix>reCAPTCHA</template>
 	<template v-else-if="botProtectionForm.savedState.provider === 'turnstile'" #suffix>Turnstile</template>
+	<template v-else-if="botProtectionForm.savedState.provider === 'fc'" #suffix>FriendlyCaptcha</template>
 	<template v-else #suffix>{{ i18n.ts.none }} ({{ i18n.ts.notRecommended }})</template>
 	<template v-if="botProtectionForm.modified.value" #footer>
 		<MkFormFooter :form="botProtectionForm"/>
@@ -23,6 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<option value="mcaptcha">mCaptcha</option>
 			<option value="recaptcha">reCAPTCHA</option>
 			<option value="turnstile">Turnstile</option>
+			<option value="fc">FriendlyCaptcha</option>
 		</MkRadios>
 
 		<template v-if="botProtectionForm.state.provider === 'hcaptcha'">
@@ -85,6 +87,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkCaptcha provider="turnstile" :sitekey="botProtectionForm.state.turnstileSiteKey || '1x00000000000000000000AA'"/>
 			</FormSlot>
 		</template>
+		<template v-else-if="botProtectionForm.state.provider === 'fc'">
+			<MkInput v-model="botProtectionForm.state.fcSiteKey">
+				<template #prefix><i class="ti ti-key"></i></template>
+				<template #label>{{ i18n.ts.hcaptchaSiteKey }}</template>
+			</MkInput>
+			<MkInput v-model="botProtectionForm.state.fcSecretKey">
+				<template #prefix><i class="ti ti-key"></i></template>
+				<template #label>{{ i18n.ts.hcaptchaSecretKey }}</template>
+			</MkInput>
+			<FormSlot>
+				<template #label>{{ i18n.ts.preview }}</template>
+				<MkCaptcha provider="fc" :sitekey="botProtectionForm.state.fcSiteKey"/>
+			</FormSlot>
+		</template>
 	</div>
 </MkFolder>
 </template>
@@ -115,7 +131,9 @@ const botProtectionForm = useForm({
 				? 'turnstile'
 				: meta.enableMcaptcha
 					? 'mcaptcha'
-					: null,
+					: meta.enableFC
+						? 'fc'
+						: null,
 	hcaptchaSiteKey: meta.hcaptchaSiteKey,
 	hcaptchaSecretKey: meta.hcaptchaSecretKey,
 	mcaptchaSiteKey: meta.mcaptchaSiteKey,
@@ -125,6 +143,8 @@ const botProtectionForm = useForm({
 	recaptchaSecretKey: meta.recaptchaSecretKey,
 	turnstileSiteKey: meta.turnstileSiteKey,
 	turnstileSecretKey: meta.turnstileSecretKey,
+	fcSiteKey: meta.fcSiteKey,
+	fcSecretKey: meta.fcSecretKey,
 }, async (state) => {
 	await os.apiWithDialog('admin/update-meta', {
 		enableHcaptcha: state.provider === 'hcaptcha',
@@ -140,6 +160,9 @@ const botProtectionForm = useForm({
 		enableTurnstile: state.provider === 'turnstile',
 		turnstileSiteKey: state.turnstileSiteKey,
 		turnstileSecretKey: state.turnstileSecretKey,
+		enableFC: state.provider === 'fc',
+		fcSiteKey: state.fcSiteKey,
+		fcSecretKey: state.fcSecretKey,
 	});
 	fetchInstance(true);
 });
