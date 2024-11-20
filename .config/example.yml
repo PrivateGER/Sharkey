@@ -99,10 +99,10 @@ db:
   port: 5432
 
   # Database name
-  db: misskey
+  db: sharkey
 
   # Auth
-  user: example-misskey-user
+  user: sharkey
   pass: example-misskey-pass
 
   pgroongaSearch: true

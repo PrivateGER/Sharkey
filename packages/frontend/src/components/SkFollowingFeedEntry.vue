@@ -54,6 +54,7 @@ defineEmits<{
 	overflow-wrap: break-word;
 	display: flex;
 	contain: content;
+	cursor: pointer;
 }
 
 .avatar {

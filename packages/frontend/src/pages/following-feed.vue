@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<template #default="{ items: notes }">
 						<MkDateSeparatedList v-slot="{ item: note }" :items="notes" :class="$style.panel" :noGap="true">
-							<SkFollowingFeedEntry v-if="!isHardMuted(note)" :isMuted="isSoftMuted(note)" :note="note" @select="userSelected"/>
+							<SkFollowingFeedEntry v-if="!isHardMuted(note)" :isMuted="isSoftMuted(note)" :note="note" :class="selectedUserId == note.userId && $style.selected" @select="userSelected"/>
 						</MkDateSeparatedList>
 					</template>
 				</MkPagination>
@@ -255,6 +255,21 @@ definePageMetadata(() => ({
 
 .userInfo {
 	margin-bottom: 12px;
+}
+
+@keyframes border {
+	from {border-left: 0px solid var(--accent);}
+	to {border-left: 6px solid var(--accent);}
+}
+
+.selected {
+	animation: border 0.2s ease-out 0s 1 forwards;
+	&:first-child {
+		border-top-left-radius: 5px;
+	}
+	&:last-child {
+		border-bottom-left-radius: 5px;
+	}
 }
 
 @media (min-width: 750px) {

@@ -28,7 +28,11 @@ import { bindThis } from '@/decorators.js';
 import { isMimeImage } from '@/misc/is-mime-image.js';
 import { correctFilename } from '@/misc/correct-filename.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
+import { RateLimiterService } from '@/server/api/RateLimiterService.js';
+import { getIpHash } from '@/misc/get-ip-hash.js';
+import { AuthenticateService } from '@/server/api/AuthenticateService.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions } from 'fastify';
+import type Limiter from 'ratelimiter';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -52,6 +56,8 @@ export class FileServerService {
 		private videoProcessingService: VideoProcessingService,
 		private internalStorageService: InternalStorageService,
 		private loggerService: LoggerService,
+		private authenticateService: AuthenticateService,
+		private rateLimiterService: RateLimiterService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 
@@ -76,6 +82,8 @@ export class FileServerService {
 			});
 
 			fastify.get<{ Params: { key: string; } }>('/files/:key', async (request, reply) => {
+				if (!await this.checkRateLimit(request, reply, `/files/${request.params.key}`)) return;
+
 				return await this.sendDriveFile(request, reply)
 					.catch(err => this.errorHandler(request, reply, err));
 			});
@@ -89,6 +97,20 @@ export class FileServerService {
 			Params: { url: string; };
 			Querystring: { url?: string; };
 		}>('/proxy/:url*', async (request, reply) => {
+			const url = 'url' in request.query ? request.query.url : 'https://' + request.params.url;
+			if (!url || !URL.canParse(url)) {
+				reply.code(400);
+				return;
+			}
+
+			const keyUrl = new URL(url);
+			keyUrl.searchParams.forEach(k => keyUrl.searchParams.delete(k));
+			keyUrl.hash = '';
+			keyUrl.username = '';
+			keyUrl.password = '';
+
+			if (!await this.checkRateLimit(request, reply, `/proxy/${keyUrl}`)) return;
+
 			return await this.proxyHandler(request, reply)
 				.catch(err => this.errorHandler(request, reply, err));
 		});
@@ -572,4 +594,71 @@ export class FileServerService {
 			path,
 		};
 	}
+
+	// Based on ApiCallService
+	private async checkRateLimit(
+		request: FastifyRequest<{
+			Body?: Record<string, unknown> | undefined,
+			Querystring?: Record<string, unknown> | undefined,
+			Params?: Record<string, unknown> | unknown,
+		}>,
+		reply: FastifyReply,
+		rateLimitKey: string,
+	): Promise<boolean> {
+		const body = request.method === 'GET'
+			? request.query
+			: request.body;
+
+		// https://datatracker.ietf.org/doc/html/rfc6750.html#section-2.1 (case sensitive)
+		const token = request.headers.authorization?.startsWith('Bearer ')
+			? request.headers.authorization.slice(7)
+			: body?.['i'];
+		if (token != null && typeof token !== 'string') {
+			reply.code(400);
+			return false;
+		}
+
+		// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
+		const [user] = await this.authenticateService.authenticate(token);
+		const actor = user?.id ?? getIpHash(request.ip);
+
+		const limit = {
+			// Group by resource
+			key: rateLimitKey,
+
+			// Maximum of 10 requests / 10 minutes
+			max: 10,
+			duration: 1000 * 60 * 10,
+
+			// Minimum of 250 ms between each request
+			minInterval: 250,
+		};
+
+		// Rate limit proxy requests
+		try {
+			await this.rateLimiterService.limit(limit, actor);
+			return true;
+		} catch (err) {
+			// errはLimiter.LimiterInfoであることが期待される
+			reply.code(429);
+
+			if (hasRateLimitInfo(err)) {
+				const cooldownInSeconds = Math.ceil((err.info.resetMs - Date.now()) / 1000);
+				// もしかするとマイナスになる可能性がなくはないのでマイナスだったら0にしておく
+				reply.header('Retry-After', Math.max(cooldownInSeconds, 0).toString(10));
+			}
+
+			reply.send({
+				message: 'Rate limit exceeded. Please try again later.',
+				code: 'RATE_LIMIT_EXCEEDED',
+				id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
+			});
+
+			return false;
+		}
+	}
+}
+
+function hasRateLimitInfo(err: unknown): err is { info: Limiter.LimiterInfo } {
+	return err != null && typeof(err) === 'object' && 'info' in err;
 }

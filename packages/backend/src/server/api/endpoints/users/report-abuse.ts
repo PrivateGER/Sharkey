@@ -66,10 +66,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.cannotReportYourself);
 			}
 
-			if (await this.roleService.isAdministrator(targetUser)) {
-				throw new ApiError(meta.errors.cannotReportAdmin);
-			}
-
 			await this.abuseReportService.report([{
 				targetUserId: targetUser.id,
 				targetUserHost: targetUser.host,
