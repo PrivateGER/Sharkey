@@ -18,6 +18,7 @@ import type Logger from '@/logger.js';
 import type { IObject } from './type.js';
 import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/validator.js';
 import { assertActivityMatchesUrls } from '@/core/activitypub/misc/check-against-url.js';
+import { UtilityService } from "@/core/UtilityService.js";
 
 type Request = {
 	url: string;
@@ -147,6 +148,7 @@ export class ApRequestService {
 		private userKeypairService: UserKeypairService,
 		private httpRequestService: HttpRequestService,
 		private loggerService: LoggerService,
+		private utilityService: UtilityService,
 	) {
 		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		this.logger = this.loggerService?.getLogger('ap-request'); // なぜか TypeError: Cannot read properties of undefined (reading 'getLogger') と言われる
@@ -241,7 +243,9 @@ export class ApRequestService {
 				if (alternate) {
 					const href = alternate.getAttribute('href');
 					if (href) {
-						return await this.signedGet(href, user, false);
+						if (this.utilityService.punyHost(url) === this.utilityService.punyHost(href)) {
+							return await this.signedGet(href, user, false);
+						}
 					}
 				}
 			} catch (e) {
@@ -257,7 +261,7 @@ export class ApRequestService {
 		const finalUrl = res.url; // redirects may have been involved
 		const activity = await res.json() as IObject;
 
-		assertActivityMatchesUrls(activity, [url, finalUrl]);
+		assertActivityMatchesUrls(activity, [finalUrl]);
 
 		return activity;
 	}

@@ -198,6 +198,9 @@ export class InboxProcessorService implements OnApplicationShutdown {
 				throw new Bull.UnrecoverableError(`skip: signerHost(${signerHost}) !== activity.id host(${activityIdHost}`);
 			}
 		}
+		else {
+			throw new Bull.UnrecoverableError('skip: activity id is not a string');
+		}
 
 		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
 		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);

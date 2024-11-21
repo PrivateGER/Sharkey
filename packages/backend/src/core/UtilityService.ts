@@ -35,6 +35,11 @@ export class UtilityService {
 	}
 
 	@bindThis
+	public isUriLocal(uri: string): boolean {
+		return this.punyHost(uri) === this.toPuny(this.config.host);
+	}
+
+	@bindThis
 	public isBlockedHost(blockedHosts: string[], host: string | null): boolean {
 		if (host == null) return false;
 		return blockedHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));

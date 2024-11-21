@@ -6,7 +6,7 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { PollsRepository, EmojisRepository, NotesRepository, MiMeta } from '@/models/_.js';
+import type { UsersRepository, PollsRepository, EmojisRepository, NotesRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
@@ -49,6 +49,9 @@ export class ApNoteService {
 		@Inject(DI.meta)
 		private meta: MiMeta,
 
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
+
 		@Inject(DI.pollsRepository)
 		private pollsRepository: PollsRepository,
 
@@ -82,7 +85,13 @@ export class ApNoteService {
 	}
 
 	@bindThis
-	public validateNote(object: IObject, uri: string): Error | null {
+	public validateNote(
+		object: IObject,
+		uri: string,
+		actor?: MiRemoteUser,
+		user?: MiRemoteUser,
+		note?: MiNote,
+	): Error | null {
 		const expectHost = this.utilityService.extractDbHost(uri);
 		const apType = getApType(object);
 
@@ -99,8 +108,25 @@ export class ApNoteService {
 			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: attributedTo has different host. expected: ${expectHost}, actual: ${actualHost}`);
 		}
 
+		if (actor) {
+			const attribution = (object.attributedTo) ? getOneApId(object.attributedTo) : actor.uri;
+			if (attribution !== actor.uri) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: attribution does not match the actor that send it. attribution: ${attribution}, actor: ${actor.uri}`);
+			}
+			if (user && attribution !== user.uri) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: updated attribution does not match original attribution. updated attribution: ${user.uri}, original attribution: ${attribution}`);
+			}
+		}
+
 		if (object.published && !this.idService.isSafeT(new Date(object.published).valueOf())) {
 			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', 'invalid Note: published timestamp is malformed');
+		}
+
+		if (note) {
+			const url = (object.url) ? getOneApId(object.url) : note.url;
+			if (url && url !== note.url) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: updated url does not match original url. updated url: ${url}, original url: ${note.url}`);
+			}
 		}
 
 		return null;
@@ -120,14 +146,14 @@ export class ApNoteService {
 	 * Noteを作成します。
 	 */
 	@bindThis
-	public async createNote(value: string | IObject, resolver?: Resolver, silent = false): Promise<MiNote | null> {
+	public async createNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
 
 		const object = await resolver.resolve(value);
 
 		const entryUri = getApId(value);
-		const err = this.validateNote(object, entryUri);
+		const err = this.validateNote(object, entryUri, actor);
 		if (err) {
 			// Avoid extreme error spam caused by Lemmy
 			if (object.type !== 'Announce' && object.type !== 'Like' && object.type === 'Dislike') {
@@ -144,14 +170,24 @@ export class ApNoteService {
 
 		this.logger.debug(`Note fetched: ${JSON.stringify(note, null, 2)}`);
 
-		if (note.id && !checkHttps(note.id)) {
+		if (note.id == null) {
+			throw new Error('Refusing to create note without id');
+		}
+
+		if (!checkHttps(note.id)) {
 			throw new Error('unexpected schema of note.id: ' + note.id);
 		}
 
 		const url = getOneApHrefNullable(note.url);
 
-		if (url && !checkHttps(url)) {
-			throw new Error('unexpected schema of note url: ' + url);
+		if (url != null) {
+			if (!checkHttps(url)) {
+				throw new Error('unexpected schema of note url: ' + url);
+			}
+
+			if (this.utilityService.punyHost(url) !== this.utilityService.punyHost(note.id)) {
+				throw new Error(`note url <> uri host mismatch: ${url} <> ${note.id}`);
+			}
 		}
 
 		if (url) {
@@ -170,8 +206,9 @@ export class ApNoteService {
 		const uri = getOneApId(note.attributedTo);
 
 		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
-		const cachedActor = await this.apPersonService.fetchPerson(uri) as MiRemoteUser;
-		if (cachedActor && cachedActor.isSuspended) {
+		// eslint-disable-next-line no-param-reassign
+		actor ??= await this.apPersonService.fetchPerson(uri) as MiRemoteUser | undefined;
+		if (actor && actor.isSuspended) {
 			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
 		}
 
@@ -203,7 +240,8 @@ export class ApNoteService {
 		}
 		//#endregion
 
-		const actor = cachedActor ?? await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
+		// eslint-disable-next-line no-param-reassign
+		actor ??= await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
 
 		// 解決した投稿者が凍結されていたらスキップ
 		if (actor.isSuspended) {
@@ -344,7 +382,7 @@ export class ApNoteService {
 	 * Noteを作成します。
 	 */
 	@bindThis
-	public async updateNote(value: string | IObject, resolver?: Resolver, silent = false): Promise<MiNote | null> {
+	public async updateNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
 		const noteUri = typeof value === 'string' ? value : value.id;
 		if (noteUri == null) throw new Error('uri is null');
 
@@ -354,6 +392,9 @@ export class ApNoteService {
 		//#region このサーバーに既に登録されているか
 		const UpdatedNote = await this.notesRepository.findOneBy({ uri: noteUri });
 		if (UpdatedNote == null) throw new Error('Note is not registered');
+
+		const user = await this.usersRepository.findOneBy({ id: UpdatedNote.userId }) as MiRemoteUser | null;
+		if (user == null) throw new Error('Note is not registered');
 
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
@@ -371,11 +412,19 @@ export class ApNoteService {
 			throw err;
 		}
 
+		// `validateNote` checks that the actor and user are one and the same
+		// eslint-disable-next-line no-param-reassign
+		actor ??= user;
+
 		const note = object as IPost;
 
 		this.logger.debug(`Note fetched: ${JSON.stringify(note, null, 2)}`);
 
-		if (note.id && !checkHttps(note.id)) {
+		if (note.id == null) {
+			throw new Error('Refusing to update note without id');
+		}
+
+		if (!checkHttps(note.id)) {
 			throw new Error('unexpected schema of note.id: ' + note.id);
 		}
 
@@ -385,18 +434,19 @@ export class ApNoteService {
 			throw new Error('unexpected schema of note url: ' + url);
 		}
 
-		this.logger.info(`Creating the Note: ${note.id}`);
+		if (url != null) {
+			if (!checkHttps(url)) {
+				throw new Error('unexpected schema of note url: ' + url);
+			}
 
-		// 投稿者をフェッチ
-		if (note.attributedTo == null) {
-			throw new Error('invalid note.attributedTo: ' + note.attributedTo);
+			if (this.utilityService.punyHost(url) !== this.utilityService.punyHost(note.id)) {
+				throw new Error(`note url <> id host mismatch: ${url} <> ${note.id}`);
+			}
 		}
 
-		const uri = getOneApId(note.attributedTo);
+		this.logger.info(`Creating the Note: ${note.id}`);
 
-		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
-		const cachedActor = await this.apPersonService.fetchPerson(uri) as MiRemoteUser;
-		if (cachedActor && cachedActor.isSuspended) {
+		if (actor.isSuspended) {
 			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
 		}
 
@@ -427,13 +477,6 @@ export class ApNoteService {
 			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', 'Note contains prohibited words');
 		}
 		//#endregion
-
-		const actor = cachedActor ?? await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
-
-		// 投稿者が凍結されていたらスキップ
-		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
-		}
 
 		const noteAudience = await this.apAudienceService.parseAudience(actor, note.to, note.cc, resolver);
 		let visibility = noteAudience.visibility;
@@ -587,7 +630,7 @@ export class ApNoteService {
 			if (exist) return exist;
 			//#endregion
 
-			if (uri.startsWith(this.config.url)) {
+			if (this.utilityService.isUriLocal(uri)) {
 				throw new StatusError('cannot resolve local note', 400, 'cannot resolve local note');
 			}
 
@@ -595,7 +638,7 @@ export class ApNoteService {
 			// ここでuriの代わりに添付されてきたNote Objectが指定されていると、サーバーフェッチを経ずにノートが生成されるが
 			// 添付されてきたNote Objectは偽装されている可能性があるため、常にuriを指定してサーバーフェッチを行う。
 			const createFrom = options.sentFrom?.origin === new URL(uri).origin ? value : uri;
-			return await this.createNote(createFrom, options.resolver, true);
+			return await this.createNote(createFrom, undefined, options.resolver, true);
 		} finally {
 			unlock();
 		}
