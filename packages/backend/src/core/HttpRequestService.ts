@@ -54,7 +54,7 @@ class HttpRequestServiceAgent extends http.Agent {
 				}
 			});
 		return socket;
-	};
+	}
 
 	@bindThis
 	private isPrivateIp(ip: string): boolean {
