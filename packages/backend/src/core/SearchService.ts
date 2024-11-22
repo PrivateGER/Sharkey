@@ -260,14 +260,15 @@ export class SearchService {
 
 			if (this.config.db.pgroongaSearch && opts.similarSearch) {
 				query
-					.andWhere('note.text &@* :q', { q: `%${ sqlLikeEscape(q) }%` });
+					.andWhere('note.text &@* :q', { q: q });
 			} else {
 				query
-					.addSelect('pgroonga_score(note.tableoid, note.ctid)', 'score')
-					.andWhere('note.text &@~ (:q, ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')::pgroonga_full_text_search_condition_with_scorers', { q: `%${ sqlLikeEscape(q) }%` });
+					.andWhere('note.text &@~ (:q, ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')::pgroonga_full_text_search_condition_with_scorers', { q });
 
-				if (opts.order === 'asc' ) {
-					query.orderBy('score', 'DESC');
+				if (opts.order === 'asc') {
+					query
+						.addSelect('pgroonga_score(note.tableoid, note.ctid)', 'pgroonga_score')
+						.orderBy('pgroonga_score', 'DESC');
 				} else {
 					query.orderBy('note.created_at', 'DESC');
 				}
