@@ -264,7 +264,7 @@ export class SearchService {
 			} else {
 				query
 					.addSelect('pgroonga_score(tableoid, ctid)', 'score')
-					.andWhere('note.text &@~ (:q, , ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')', { q: `%${ sqlLikeEscape(q) }%` });
+					.andWhere('note.text &@~ (:q, ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')', { q: `%${ sqlLikeEscape(q) }%` });
 
 				if (opts.order === 'asc' ) {
 					query.orderBy('score', 'DESC');
