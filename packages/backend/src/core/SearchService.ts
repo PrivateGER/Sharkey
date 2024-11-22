@@ -263,13 +263,13 @@ export class SearchService {
 					.andWhere('note.text &@* :q', { q: `%${ sqlLikeEscape(q) }%` });
 			} else {
 				query
-					.addSelect('pgroonga_score(tableoid, ctid)', 'score')
+					.addSelect('pgroonga_score(note.tableoid, note.ctid)', 'score')
 					.andWhere('note.text &@~ (:q, ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')::pgroonga_full_text_search_condition_with_scorers', { q: `%${ sqlLikeEscape(q) }%` });
 
 				if (opts.order === 'asc' ) {
 					query.orderBy('score', 'DESC');
 				} else {
-					query.orderBy('created_at', 'DESC');
+					query.orderBy('note.created_at', 'DESC');
 				}
 			}
 
