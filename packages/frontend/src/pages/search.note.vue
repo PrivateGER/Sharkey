@@ -97,9 +97,9 @@ const searchQuery = ref(toRef(props, 'query').value);
 const notePagination = ref<Paging>();
 const user = ref<UserDetailed | null>(null);
 const hostInput = ref(toRef(props, 'host').value);
-const order = ref(false);
+const order = ref(true);
 const filetype = ref(null);
-const similarSearch = ref(true);
+const similarSearch = ref(false);
 
 const noteSearchableScope = instance.noteSearchableScope ?? 'local';
 

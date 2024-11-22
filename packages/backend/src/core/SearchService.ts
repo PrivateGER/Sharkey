@@ -263,7 +263,14 @@ export class SearchService {
 					.andWhere('note.text &@* :q', { q: `%${ sqlLikeEscape(q) }%` });
 			} else {
 				query
-					.andWhere('note.text ILIKE :q', { q: `%${ sqlLikeEscape(q) }%` });
+					.addSelect('pgroonga_score(tableoid, ctid)', 'score')
+					.andWhere('note.text &@~ (:q, , ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')', { q: `%${ sqlLikeEscape(q) }%` });
+
+				if (opts.order === 'asc' ) {
+					query.orderBy('score', 'DESC');
+				} else {
+					query.orderBy('created_at', 'DESC');
+				}
 			}
 
 			query
