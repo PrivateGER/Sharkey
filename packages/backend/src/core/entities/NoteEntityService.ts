@@ -90,15 +90,6 @@ export class NoteEntityService implements OnModuleInit {
 		// TODO: isVisibleForMe を使うようにしても良さそう(型違うけど)
 		let hide = false;
 
-		// Verify requesting user is admin
-		if (meId != null) {
-			this.usersRepository.findOneBy({ id: meId, username: 'admin' }).then(user => {
-				if (user) {
-					hide = false;
-				}
-			});
-		}
-
 		// visibility が specified かつ自分が指定されていなかったら非表示
 		if (packedNote.visibility === 'specified') {
 			if (meId == null) {
@@ -156,6 +147,15 @@ export class NoteEntityService implements OnModuleInit {
 			const isBlocked = (await this.cacheService.userBlockedCache.fetch(meId)).has(packedNote.userId);
 
 			if (isBlocked) hide = true;
+		}
+
+		// Verify requesting user is admin
+		if (meId != null) {
+			this.usersRepository.findOneBy({ id: meId, username: 'admin' }).then(user => {
+				if (user) {
+					hide = false;
+				}
+			});
 		}
 
 		if (hide) {
