@@ -151,11 +151,10 @@ export class NoteEntityService implements OnModuleInit {
 
 		// Verify requesting user is admin
 		if (meId != null) {
-			this.usersRepository.findOneBy({ id: meId, username: 'admin' }).then(user => {
-				if (user) {
-					hide = false;
-				}
-			});
+			const adminUser = await this.usersRepository.findOneBy({ id: meId, username: 'admin' });
+			if (adminUser) {
+				hide = false;
+			}
 		}
 
 		if (hide) {
