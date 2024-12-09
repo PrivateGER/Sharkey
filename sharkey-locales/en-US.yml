@@ -156,6 +156,16 @@ allowClickingNotifications: "Allow clicking on pop-up notifications"
 pinnedOnly: "Pinned"
 blockingYou: "Blocking you"
 warnExternalUrl: "Show warning when opening external URLs"
+flash: "Flash"
+_flash:
+  contentHidden: "Flash Content Hidden"
+  poweredByRuffle: "Powered by Ruffle."
+  arbitraryCodeExecutionWarning: "Always be wary of arbitrary code execution!"
+  failedToLoad: "Flash Content Failed To Load:"
+  isLoading: "Flash Content Is Loading"
+  loadingRufflePlayer: "Loading Ruffle player"
+  loadingFlashFile: "Loading Flash file"
+  cspError: "raw.esm.sh could not be accessed, meaning this instance's Content Security Policy is likely out of date. Please contact your instance administrators."
 _delivery:
   stop: "Suspend delivery"
   resume: "Resume delivery"
@@ -231,6 +241,8 @@ _aboutMisskey:
   translation: "Translate Sharkey"
   donate_sharkey: "Donate to Sharkey"
   testers: "Testers"
+  misskeyContributors: "Misskey Contributors"
+  ourLovelySponsors: "Our lovely Sponsors"
 _serverDisconnectedBehavior:
   disabled: "Disable warning"
 _channel:
@@ -397,3 +409,8 @@ _auth:
   allowed: "Allowed"
 _announcement:
   new: "New"
+_deck:
+  _columns:
+    following: "Following"
+
+selectFollowRelationship: "Select a follow relationship..."

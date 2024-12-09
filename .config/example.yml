@@ -337,6 +337,11 @@ checkActivityPubGetSignature: false
 # PID File of master process
 #pidFile: /tmp/misskey.pid
 
+# CHMod-style permission bits to apply to uploaded files.
+# Permission bits are specified as a base-8 string representing User/Group/Other permissions.
+# This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
+#filePermissionBits: '644'
+
 imgproxyURL: https://imgproxy.example.com/
 imgproxySalt: 'example-salt'
 imgproxyKey: 'example'

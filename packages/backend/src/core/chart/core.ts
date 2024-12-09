@@ -368,7 +368,7 @@ export default abstract class Chart<T extends Schema> {
 			// 初期ログデータを作成
 			data = this.getNewLog(null);
 
-			this.logger.info(`${this.name + (group ? `:${group}` : '')}(${span}): Initial commit created`);
+			this.logger.debug(`${this.name + (group ? `:${group}` : '')}(${span}): Initial commit created`);
 		}
 
 		const date = Chart.dateToTimestamp(current);
@@ -398,7 +398,7 @@ export default abstract class Chart<T extends Schema> {
 				...columns,
 			}) as RawRecord<T>;
 
-			this.logger.info(`${this.name + (group ? `:${group}` : '')}(${span}): New commit created`);
+			this.logger.debug(`${this.name + (group ? `:${group}` : '')}(${span}): New commit created`);
 
 			return log;
 		} finally {
@@ -418,7 +418,7 @@ export default abstract class Chart<T extends Schema> {
 	@bindThis
 	public async save(): Promise<void> {
 		if (this.buffer.length === 0) {
-			this.logger.info(`${this.name}: Write skipped`);
+			this.logger.debug(`${this.name}: Write skipped`);
 			return;
 		}
 
@@ -519,7 +519,7 @@ export default abstract class Chart<T extends Schema> {
 					.execute(),
 			]);
 
-			this.logger.info(`${this.name + (logHour.group ? `:${logHour.group}` : '')}: Updated`);
+			this.logger.debug(`${this.name + (logHour.group ? `:${logHour.group}` : '')}: Updated`);
 
 			// TODO: この一連の処理が始まった後に新たにbufferに入ったものは消さないようにする
 			this.buffer = this.buffer.filter(q => q.group != null && (q.group !== logHour.group));

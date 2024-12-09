@@ -7,61 +7,41 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.root">
 	<div :class="$style.header">
 		<MkPageHeader v-model:tab="userList" :tabs="headerTabs" :actions="headerActions" :displayBackButton="true" @update:tab="onChangeTab"/>
-		<MkInfo v-if="showRemoteWarning" :class="$style.remoteWarning" warn closable @close="remoteWarningDismissed = true">{{ i18n.ts.remoteFollowersWarning }}</MkInfo>
+		<SkRemoteFollowersWarning :class="$style.remoteWarning" :model="model"/>
 	</div>
 
 	<div ref="noteScroll" :class="$style.notes">
 		<MkHorizontalSwipe v-model:tab="userList" :tabs="headerTabs">
-			<MkPullToRefresh :refresher="() => reloadLatestNotes()">
-				<MkPagination ref="latestNotesPaging" :pagination="latestNotesPagination" @init="onListReady">
-					<template #empty>
-						<div class="_fullinfo">
-							<img :src="infoImageUrl" class="_ghost" :alt="i18n.ts.noNotes" aria-hidden="true"/>
-							<div>{{ i18n.ts.noNotes }}</div>
-						</div>
-					</template>
-
-					<template #default="{ items: notes }">
-						<MkDateSeparatedList v-slot="{ item: note }" :items="notes" :class="$style.panel" :noGap="true">
-							<SkFollowingFeedEntry v-if="!isHardMuted(note)" :isMuted="isSoftMuted(note)" :note="note" :class="selectedUserId == note.userId && $style.selected" @select="userSelected"/>
-						</MkDateSeparatedList>
-					</template>
-				</MkPagination>
-			</MkPullToRefresh>
+			<SkFollowingRecentNotes ref="followingRecentNotes" :selectedUserId="selectedUserId" :userList="userList" :withNonPublic="withNonPublic" :withQuotes="withQuotes" :withBots="withBots" :withReplies="withReplies" :onlyFiles="onlyFiles" @userSelected="userSelected" @loaded="listReady"/>
 		</MkHorizontalSwipe>
 	</div>
 
-	<div v-if="isWideViewport" ref="userScroll" :class="$style.user">
+	<SkLazy ref="userScroll" :class="$style.user">
 		<MkHorizontalSwipe v-if="selectedUserId" v-model:tab="userList" :tabs="headerTabs">
 			<SkUserRecentNotes ref="userRecentNotes" :userId="selectedUserId" :withNonPublic="withNonPublic" :withQuotes="withQuotes" :withBots="withBots" :withReplies="withReplies" :onlyFiles="onlyFiles"/>
 		</MkHorizontalSwipe>
-	</div>
+	</SkLazy>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, Ref, ref, shallowRef } from 'vue';
-import * as Misskey from 'misskey-js';
+import { computed, ComputedRef, Ref, ref, shallowRef } from 'vue';
 import { getScrollContainer } from '@@/js/scroll.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
-import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
-import { infoImageUrl } from '@/instance.js';
-import MkDateSeparatedList from '@/components/MkDateSeparatedList.vue';
 import { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import { PageHeaderItem } from '@/types/page-header.js';
-import SkFollowingFeedEntry from '@/components/SkFollowingFeedEntry.vue';
 import { useRouter } from '@/router/supplier.js';
 import MkPageHeader from '@/components/global/MkPageHeader.vue';
-import { $i } from '@/account.js';
-import { checkWordMute } from '@/scripts/check-word-mute.js';
 import SkUserRecentNotes from '@/components/SkUserRecentNotes.vue';
 import { useScrollPositionManager } from '@/nirax.js';
-import MkPagination, { Paging } from '@/components/MkPagination.vue';
-import MkInfo from '@/components/MkInfo.vue';
-import { createModel, createOptions, followersTab, followingTab, mutualsTab } from '@/scripts/following-feed-utils.js';
+import { createModel, createHeaderItem, followingFeedTabs, followingTabIcon, followingTabName, followingTab } from '@/scripts/following-feed-utils.js';
+import SkLazy from '@/components/global/SkLazy.vue';
+import SkFollowingRecentNotes from '@/components/SkFollowingRecentNotes.vue';
+import SkRemoteFollowersWarning from '@/components/SkRemoteFollowersWarning.vue';
 
+const model = createModel();
 const {
 	userList,
 	withNonPublic,
@@ -69,108 +49,41 @@ const {
 	withBots,
 	withReplies,
 	onlyFiles,
-	remoteWarningDismissed,
-} = createModel();
+} = model;
 
 const router = useRouter();
 
 const userRecentNotes = shallowRef<InstanceType<typeof SkUserRecentNotes>>();
-const userScroll = shallowRef<HTMLElement>();
+const followingRecentNotes = shallowRef<InstanceType<typeof SkFollowingRecentNotes>>();
+const userScroll = shallowRef<InstanceType<typeof SkLazy>>();
 const noteScroll = shallowRef<HTMLElement>();
-
-const showRemoteWarning = computed(() => userList.value === 'followers' && !remoteWarningDismissed.value);
-
-// We have to disable the per-user feed on small displays, and it must be done through JS instead of CSS.
-// Otherwise, the second column will waste resources in the background.
-const wideViewportQuery = window.matchMedia('(min-width: 750px)');
-const isWideViewport: Ref<boolean> = ref(wideViewportQuery.matches);
-wideViewportQuery.addEventListener('change', () => isWideViewport.value = wideViewportQuery.matches);
 
 const selectedUserId: Ref<string | null> = ref(null);
 
-function userSelected(user: Misskey.entities.UserLite): void {
-	if (isWideViewport.value) {
-		selectedUserId.value = user.id;
-	} else {
-		router.push(`/following-feed/${user.id}`);
+function listReady(initialUserId?: string): void {
+	if (initialUserId && !selectedUserId.value) {
+		selectedUserId.value = initialUserId;
 	}
 }
 
-async function reloadLatestNotes() {
-	await latestNotesPaging.value?.reload();
-}
+function userSelected(userId: string): void {
+	selectedUserId.value = userId;
 
-async function reloadUserNotes() {
-	await userRecentNotes.value?.reload();
+	if (!userScroll.value?.showing) {
+		router.push(`/following-feed/${userId}`);
+	}
 }
 
 async function reload() {
 	await Promise.all([
-		reloadLatestNotes(),
-		reloadUserNotes(),
+		followingRecentNotes.value?.reload(),
+		userRecentNotes.value?.reload(),
 	]);
-}
-
-async function onListReady(): Promise<void> {
-	if (!selectedUserId.value && latestNotesPaging.value?.items.size) {
-		// This looks messy, but actually just gets the first user ID.
-		const selectedNote = latestNotesPaging.value.items.values().next().value;
-
-		// We know this to be non-null because of the size check above.
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		selectedUserId.value = selectedNote!.userId;
-	}
 }
 
 async function onChangeTab(): Promise<void> {
 	selectedUserId.value = null;
 }
-
-function isSoftMuted(note: Misskey.entities.Note): boolean {
-	return isMuted(note, $i?.mutedWords);
-}
-
-function isHardMuted(note: Misskey.entities.Note): boolean {
-	return isMuted(note, $i?.hardMutedWords);
-}
-
-// Match the typing used by Misskey
-type Mutes = (string | string[])[] | null | undefined;
-
-// Adapted from MkNote.ts
-function isMuted(note: Misskey.entities.Note, mutes: Mutes): boolean {
-	return checkMute(note, mutes)
-		|| checkMute(note.reply, mutes)
-		|| checkMute(note.renote, mutes);
-}
-
-// Adapted from check-word-mute.ts
-function checkMute(note: Misskey.entities.Note | undefined | null, mutes: Mutes): boolean {
-	if (!note) {
-		return false;
-	}
-
-	if (!mutes || mutes.length < 1) {
-		return false;
-	}
-
-	return checkWordMute(note, $i, mutes);
-}
-
-const latestNotesPaging = shallowRef<InstanceType<typeof MkPagination>>();
-
-const latestNotesPagination: Paging<'notes/following'> = {
-	endpoint: 'notes/following' as const,
-	limit: 20,
-	params: computed(() => ({
-		list: userList.value,
-		filesOnly: onlyFiles.value,
-		includeNonPublic: withNonPublic.value,
-		includeReplies: withReplies.value,
-		includeQuotes: withQuotes.value,
-		includeBots: withBots.value,
-	})),
-};
 
 const headerActions: PageHeaderItem[] = [
 	{
@@ -178,32 +91,20 @@ const headerActions: PageHeaderItem[] = [
 		text: i18n.ts.reload,
 		handler: () => reload(),
 	},
-	createOptions(),
+	createHeaderItem(),
 ];
 
-const headerTabs = computed(() => [
-	{
-		key: followingTab,
-		icon: 'ph-user-check ph-bold ph-lg',
-		title: i18n.ts.following,
-	} satisfies Tab,
-	{
-		key: mutualsTab,
-		icon: 'ph-user-switch ph-bold ph-lg',
-		title: i18n.ts.mutuals,
-	} satisfies Tab,
-	{
-		key: followersTab,
-		icon: 'ph-user ph-bold ph-lg',
-		title: i18n.ts.followers,
-	} satisfies Tab,
-]);
+const headerTabs: ComputedRef<Tab[]> = computed(() => followingFeedTabs.map(t => ({
+	key: t,
+	icon: followingTabIcon(t),
+	title: followingTabName(t),
+})));
 
-useScrollPositionManager(() => getScrollContainer(userScroll.value ?? null), router);
+useScrollPositionManager(() => getScrollContainer(userScroll.value?.rootEl ?? null), router);
 useScrollPositionManager(() => getScrollContainer(noteScroll.value ?? null), router);
 definePageMetadata(() => ({
 	title: i18n.ts.following,
-	icon: 'ph-user-check ph-bold ph-lg',
+	icon: followingTabIcon(followingTab),
 }));
 
 </script>
@@ -257,22 +158,13 @@ definePageMetadata(() => ({
 	margin-bottom: 12px;
 }
 
-@keyframes border {
-	from {border-left: 0px solid var(--accent);}
-	to {border-left: 6px solid var(--accent);}
-}
-
-.selected {
-	animation: border 0.2s ease-out 0s 1 forwards;
-	&:first-child {
-		border-top-left-radius: 5px;
-	}
-	&:last-child {
-		border-bottom-left-radius: 5px;
+@container (max-width: 749px) {
+	.user {
+		display: none;
 	}
 }
 
-@media (min-width: 750px) {
+@container (min-width: 750px) {
 	.root {
 		grid-template-columns: min-content 4fr 6fr min-content;
 		grid-template-rows: min-content 1fr;
@@ -289,9 +181,5 @@ definePageMetadata(() => ({
 	.userInfo {
 		margin-bottom: 24px;
 	}
-}
-
-.panel {
-	background: var(--panel);
 }
 </style>

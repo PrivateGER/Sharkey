@@ -10,6 +10,7 @@ import { DI } from '@/di-symbols.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['gallery'],
@@ -30,6 +31,11 @@ export const meta = {
 			code: 'ACCESS_DENIED',
 			id: 'c86e09de-1c48-43ac-a435-1c7e42ed4496',
 		},
+	},
+
+	limit: {
+		duration: ms('1hour'),
+		max: 300,
 	},
 } as const;
 

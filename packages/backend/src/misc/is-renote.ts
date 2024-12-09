@@ -69,6 +69,14 @@ type PackedQuote =
 		fileIds: NonNullable<Packed<'Note'>['fileIds']>
 	});
 
+type PackedPureRenote = PackedRenote & {
+	text: NonNullable<Packed<'Note'>['text']>;
+	cw: NonNullable<Packed<'Note'>['cw']>;
+	replyId: NonNullable<Packed<'Note'>['replyId']>;
+	poll: NonNullable<Packed<'Note'>['poll']>;
+	fileIds: NonNullable<Packed<'Note'>['fileIds']>;
+}
+
 export function isRenotePacked(note: Packed<'Note'>): note is PackedRenote {
 	return note.renoteId != null;
 }
@@ -79,4 +87,8 @@ export function isQuotePacked(note: PackedRenote): note is PackedQuote {
 		note.replyId != null ||
 		note.poll != null ||
 		(note.fileIds != null && note.fileIds.length > 0);
+}
+
+export function isPackedPureRenote(note: Packed<'Note'>): note is PackedPureRenote {
+	return isRenotePacked(note) && !isQuotePacked(note);
 }

@@ -4,9 +4,10 @@
  */
 
 import { URL } from 'node:url';
-import { toASCII } from 'punycode';
+import punycode from 'punycode/punycode.js';
 import { Inject, Injectable } from '@nestjs/common';
 import RE2 from 're2';
+import psl from 'psl';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -106,19 +107,39 @@ export class UtilityService {
 
 	@bindThis
 	public toPuny(host: string): string {
-		return toASCII(host.toLowerCase());
+		return punycode.toASCII(host.toLowerCase());
 	}
 
 	@bindThis
 	public toPunyNullable(host: string | null | undefined): string | null {
 		if (host == null) return null;
-		return toASCII(host.toLowerCase());
+		return punycode.toASCII(host.toLowerCase());
 	}
 
 	@bindThis
 	public punyHost(url: string): string {
 		const urlObj = new URL(url);
 		const host = `${this.toPuny(urlObj.hostname)}${urlObj.port.length > 0 ? ':' + urlObj.port : ''}`;
+		return host;
+	}
+
+	private specialSuffix(hostname: string): string | null {
+		// masto.host provides domain names for its clients, we have to
+		// treat it as if it were a public suffix
+		const mastoHost = hostname.match(/\.?([a-zA-Z0-9-]+\.masto\.host)$/i);
+		if (mastoHost) {
+			return mastoHost[1];
+		}
+
+		return null;
+	}
+
+	@bindThis
+	public punyHostPSLDomain(url: string): string {
+		const urlObj = new URL(url);
+		const hostname = urlObj.hostname;
+		const domain = this.specialSuffix(hostname) ?? psl.get(hostname) ?? hostname;
+		const host = `${this.toPuny(domain)}${urlObj.port.length > 0 ? ':' + urlObj.port : ''}`;
 		return host;
 	}
 

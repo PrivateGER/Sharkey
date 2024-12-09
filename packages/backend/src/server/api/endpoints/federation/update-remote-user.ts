@@ -12,6 +12,12 @@ export const meta = {
 	tags: ['federation'],
 
 	requireCredential: false,
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

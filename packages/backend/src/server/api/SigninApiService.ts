@@ -21,12 +21,13 @@ import { IdService } from '@/core/IdService.js';
 import { bindThis } from '@/decorators.js';
 import { WebAuthnService } from '@/core/WebAuthnService.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
-import { RateLimiterService } from './RateLimiterService.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
+import type { MiMeta } from '@/models/_.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { isSystemAccount } from '@/misc/is-system-account.js';
-import type { MiMeta } from '@/models/_.js';
 
 @Injectable()
 export class SigninApiService {
@@ -47,7 +48,7 @@ export class SigninApiService {
 		private signinsRepository: SigninsRepository,
 
 		private idService: IdService,
-		private rateLimiterService: RateLimiterService,
+		private rateLimiterService: SkRateLimiterService,
 		private signinService: SigninService,
 		private userAuthService: UserAuthService,
 		private webAuthnService: WebAuthnService,
@@ -79,10 +80,12 @@ export class SigninApiService {
 			return { error };
 		}
 
-		try {
 		// not more than 1 attempt per second and not more than 10 attempts per hour
-			await this.rateLimiterService.limit({ key: 'signin', duration: 60 * 60 * 1000, max: 10, minInterval: 1000 }, getIpHash(request.ip));
-		} catch (err) {
+		const rateLimit = await this.rateLimiterService.limit({ key: 'signin', duration: 60 * 60 * 1000, max: 10, minInterval: 1000 }, getIpHash(request.ip));
+
+		sendRateLimitHeaders(reply, rateLimit);
+
+		if (rateLimit.blocked) {
 			reply.code(429);
 			return {
 				error: {

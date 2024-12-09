@@ -6,6 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { summaly } from '@misskey-dev/summaly';
 import { SummalyResult } from '@misskey-dev/summaly/built/summary.js';
+import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
@@ -15,10 +16,10 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
 import { ApiError } from '@/server/api/error.js';
 import { MiMeta } from '@/models/Meta.js';
-import type { FastifyRequest, FastifyReply } from 'fastify';
-import * as Redis from 'ioredis';
 import { RedisKVCache } from '@/misc/cache.js';
 import {generateImageUrl} from "@imgproxy/imgproxy-node";
+import { UtilityService } from '@/core/UtilityService.js';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 
 @Injectable()
 export class UrlPreviewService {
@@ -37,12 +38,13 @@ export class UrlPreviewService {
 
 		private httpRequestService: HttpRequestService,
 		private loggerService: LoggerService,
+		private utilityService: UtilityService,
 	) {
 		this.logger = this.loggerService.getLogger('url-preview');
 		this.previewCache = new RedisKVCache<SummalyResult>(this.redisClient, 'summaly', {
 			lifetime: 1000 * 60 * 60 * 24, // 1d
 			memoryCacheLifetime: 1000 * 60 * 10, // 10m
-			fetcher: (key: string) => { throw new Error('the UrlPreview cache should never fetch'); },
+			fetcher: () => { throw new Error('the UrlPreview cache should never fetch'); },
 			toRedisConverter: (value) => JSON.stringify(value),
 			fromRedisConverter: (value) => JSON.parse(value),
 		});
@@ -90,7 +92,7 @@ export class UrlPreviewService {
 		reply: FastifyReply,
 	): Promise<object | undefined> {
 		const url = request.query.url;
-		if (typeof url !== 'string') {
+		if (typeof url !== 'string' || !URL.canParse(url)) {
 			reply.code(400);
 			return;
 		}
@@ -108,6 +110,18 @@ export class UrlPreviewService {
 					message: 'URL preview is disabled',
 					code: 'URL_PREVIEW_DISABLED',
 					id: '58b36e13-d2f5-0323-b0c6-76aa9dabefb8',
+				}),
+			};
+		}
+
+		const host = new URL(url).host;
+		if (this.utilityService.isBlockedHost(this.meta.blockedHosts, host)) {
+			reply.code(403);
+			return {
+				error: new ApiError({
+					message: 'URL is blocked',
+					code: 'URL_PREVIEW_BLOCKED',
+					id: '50294652-857b-4b13-9700-8e5c7a8deae8',
 				}),
 			};
 		}

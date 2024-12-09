@@ -24,13 +24,14 @@ block og
 			meta(property='og:video:url'        content= video.url)
 			meta(property='og:video:secure_url' content= video.url)
 			meta(property='og:video:type'       content= video.type)
+			meta(property='og:image'            content= video.thumbnailUrl)
 			// FIXME: add width and height
 			// FIXME: add embed player for Twitter
 	if images.length
 		meta(property='twitter:card' content='summary_large_image')
 		each image in images
 			meta(property='og:image'     content= image.url)
-	else
+	else if !videos.length
 		meta(property='twitter:card' content='summary')
 		meta(property='og:image'     content= avatarUrl)
 

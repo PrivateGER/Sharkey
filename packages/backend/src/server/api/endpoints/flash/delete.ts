@@ -10,6 +10,7 @@ import { DI } from '@/di-symbols.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['flashs'],
@@ -30,6 +31,11 @@ export const meta = {
 			code: 'ACCESS_DENIED',
 			id: '1036ad7b-9f92-4fff-89c3-0e50dc941704',
 		},
+	},
+
+	limit: {
+		duration: ms('1hour'),
+		max: 10,
 	},
 } as const;
 

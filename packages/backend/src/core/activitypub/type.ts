@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { UnrecoverableError } from 'bullmq';
 import { fromTuple } from '@/misc/from-tuple.js';
 
 export type Obj = { [x: string]: any };
@@ -61,7 +62,19 @@ export function getApId(value: string | IObject | [string | IObject]): string {
 
 	if (typeof value === 'string') return value;
 	if (typeof value.id === 'string') return value.id;
-	throw new Error('cannot determine id');
+	throw new UnrecoverableError('cannot determine id');
+}
+
+/**
+ * Get ActivityStreams Object id, or null if not present
+ */
+export function getNullableApId(value: string | IObject | [string | IObject]): string | null {
+	// eslint-disable-next-line no-param-reassign
+	value = fromTuple(value);
+
+	if (typeof value === 'string') return value;
+	if (typeof value.id === 'string') return value.id;
+	return null;
 }
 
 /**
@@ -323,6 +336,10 @@ export interface ILike extends IActivity {
 	_misskey_reaction?: string;
 }
 
+export interface IDislike extends IActivity {
+	type: 'Dislike';
+}
+
 export interface IAnnounce extends IActivity {
 	type: 'Announce';
 }
@@ -340,6 +357,7 @@ export interface IMove extends IActivity {
 	target: IObject | string;
 }
 
+export const isApObject = (object: string | IObject): object is IObject => typeof(object) === 'object';
 export const isCreate = (object: IObject): object is ICreate => getApType(object) === 'Create';
 export const isDelete = (object: IObject): object is IDelete => getApType(object) === 'Delete';
 export const isUpdate = (object: IObject): object is IUpdate => getApType(object) === 'Update';
@@ -354,6 +372,7 @@ export const isLike = (object: IObject): object is ILike => {
 	const type = getApType(object);
 	return type != null && ['Like', 'EmojiReaction', 'EmojiReact'].includes(type);
 };
+export const isDislike = (object: IObject): object is IDislike => getApType(object) === 'Dislike';
 export const isAnnounce = (object: IObject): object is IAnnounce => getApType(object) === 'Announce';
 export const isBlock = (object: IObject): object is IBlock => getApType(object) === 'Block';
 export const isFlag = (object: IObject): object is IFlag => getApType(object) === 'Flag';

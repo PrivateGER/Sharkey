@@ -9,6 +9,7 @@ import type { DriveFoldersRepository, DriveFilesRepository } from '@/models/_.js
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],
@@ -29,6 +30,12 @@ export const meta = {
 			code: 'HAS_CHILD_FILES_OR_FOLDERS',
 			id: 'b0fc8a17-963c-405d-bfbc-859a487295e1',
 		},
+	},
+
+	// 100 calls per minute
+	limit: {
+		duration: 1000 * 60,
+		max: 100,
 	},
 } as const;
 

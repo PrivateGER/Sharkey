@@ -11,7 +11,7 @@ import darkTheme from '@@/themes/d-ice.json5';
 import { miLocalStorage } from './local-storage.js';
 import { searchEngineMap } from './scripts/search-engine-map.js';
 import type { SoundType } from '@/scripts/sound.js';
-import type { FollowingFeedTab } from '@/scripts/following-feed-utils.js';
+import { defaultFollowingFeedState } from '@/scripts/following-feed-utils.js';
 import { Storage } from '@/pizzax.js';
 
 interface PostFormAction {
@@ -244,15 +244,7 @@ export const defaultStore = markRaw(new Storage('base', {
 	},
 	followingFeed: {
 		where: 'account',
-		default: {
-			withNonPublic: false,
-			withQuotes: false,
-			withBots: true,
-			withReplies: false,
-			onlyFiles: false,
-			userList: 'following' as FollowingFeedTab,
-			remoteWarningDismissed: false,
-		},
+		default: defaultFollowingFeedState,
 	},
 
 	overridedDeviceKind: {

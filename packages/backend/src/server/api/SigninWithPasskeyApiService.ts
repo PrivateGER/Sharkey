@@ -21,7 +21,8 @@ import { WebAuthnService } from '@/core/WebAuthnService.js';
 import Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type { IdentifiableError } from '@/misc/identifiable-error.js';
-import { RateLimiterService } from './RateLimiterService.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -43,7 +44,7 @@ export class SigninWithPasskeyApiService {
 		private signinsRepository: SigninsRepository,
 
 		private idService: IdService,
-		private rateLimiterService: RateLimiterService,
+		private rateLimiterService: SkRateLimiterService,
 		private signinService: SigninService,
 		private webAuthnService: WebAuthnService,
 		private loggerService: LoggerService,
@@ -84,11 +85,13 @@ export class SigninWithPasskeyApiService {
 			return error(status ?? 500, failure ?? { id: '4e30e80c-e338-45a0-8c8f-44455efa3b76' });
 		};
 
-		try {
-			// Not more than 1 API call per 250ms and not more than 100 attempts per 30min
-			// NOTE: 1 Sign-in require 2 API calls
-			await this.rateLimiterService.limit({ key: 'signin-with-passkey', duration: 60 * 30 * 1000, max: 200, minInterval: 250 }, getIpHash(request.ip));
-		} catch (err) {
+		// Not more than 1 API call per 250ms and not more than 100 attempts per 30min
+		// NOTE: 1 Sign-in require 2 API calls
+		const rateLimit = await this.rateLimiterService.limit({ key: 'signin-with-passkey', duration: 60 * 30 * 1000, max: 200, minInterval: 250 }, getIpHash(request.ip));
+
+		sendRateLimitHeaders(reply, rateLimit);
+
+		if (rateLimit.blocked) {
 			reply.code(429);
 			return {
 				error: {

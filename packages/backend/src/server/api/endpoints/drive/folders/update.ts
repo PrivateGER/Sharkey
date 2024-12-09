@@ -10,6 +10,7 @@ import { DriveFolderEntityService } from '@/core/entities/DriveFolderEntityServi
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],
@@ -42,6 +43,12 @@ export const meta = {
 		type: 'object',
 		optional: false, nullable: false,
 		ref: 'DriveFolder',
+	},
+
+	// 100 calls per minute
+	limit: {
+		duration: 1000 * 60,
+		max: 100,
 	},
 } as const;
 

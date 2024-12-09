@@ -108,6 +108,12 @@ export const meta = {
 			},
 		],
 	},
+
+	// 10 calls per 2 seconds
+	limit: {
+		duration: 1000 * 2,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {

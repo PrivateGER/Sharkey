@@ -28,6 +28,12 @@ export const meta = {
 			id: '24fcbfc6-2e37-42b6-8388-c29b3861a08d',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -53,7 +59,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.where('note.id = :noteId', { noteId: ps.noteId });
 
 			await this.queryService.generateVisibilityQuery(query, me);
-
 			const note = await query.getOne();
 
 			if (note === null) {

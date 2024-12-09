@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <a :href="href" target="_blank" :class="$style.root">
 	<div :class="$style.label">
 		<template v-if="media.type.startsWith('audio')"><i class="ti ti-music"></i> {{ i18n.ts.audio }}</template>
+		<template v-else-if="media.type.startsWith('application') && media.type.includes('flash')"><i class="ti ti-bolt"></i> {{ i18n.ts.flash }}</template>
 		<template v-else><i class="ti ti-file"></i> {{ i18n.ts.file }}</template>
 	</div>
 	<div :class="$style.go">

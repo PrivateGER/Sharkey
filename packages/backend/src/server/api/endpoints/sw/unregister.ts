@@ -15,6 +15,12 @@ export const meta = {
 	requireCredential: false,
 
 	description: 'Unregister from receiving push notifications.',
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

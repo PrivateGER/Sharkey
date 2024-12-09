@@ -5,6 +5,7 @@
 
 import { permissions } from 'misskey-js';
 import type { KeyOf, Schema } from '@/misc/json-schema.js';
+import type { RateLimit } from '@/misc/rate-limit-utils.js';
 
 import * as ep___admin_abuseReport_notificationRecipient_list
 	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/list.js';
@@ -855,30 +856,7 @@ interface IEndpointMetaBase {
 	 * エンドポイントのリミテーションに関するやつ
 	 * 省略した場合はリミテーションは無いものとして解釈されます。
 	 */
-	readonly limit?: {
-
-		/**
-		 * 複数のエンドポイントでリミットを共有したい場合に指定するキー
-		 */
-		readonly key?: string;
-
-		/**
-		 * リミットを適用する期間(ms)
-		 * このプロパティを設定する場合、max プロパティも設定する必要があります。
-		 */
-		readonly duration?: number;
-
-		/**
-		 * durationで指定した期間内にいくつまでリクエストできるのか
-		 * このプロパティを設定する場合、duration プロパティも設定する必要があります。
-		 */
-		readonly max?: number;
-
-		/**
-		 * 最低でもどれくらいの間隔を開けてリクエストしなければならないか(ms)
-		 */
-		readonly minInterval?: number;
-	};
+	readonly limit?: Readonly<RateLimit>;
 
 	/**
 	 * ファイルの添付を必要とするか否か

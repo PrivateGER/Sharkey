@@ -19,6 +19,12 @@ export const meta = {
 			{ type: 'object', ref: 'MetaDetailed' },
 		],
 	},
+
+	// 3 calls per second
+	limit: {
+		duration: 1000,
+		max: 3,
+	},
 } as const;
 
 export const paramDef = {

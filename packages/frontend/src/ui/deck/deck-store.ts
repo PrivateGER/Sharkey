@@ -4,7 +4,7 @@
  */
 
 import { throttle } from 'throttle-debounce';
-import { markRaw } from 'vue';
+import { computed, markRaw, Ref } from 'vue';
 import { notificationTypes } from 'misskey-js';
 import type { BasicTimelineType } from '@/timelines.js';
 import { Storage } from '@/pizzax.js';
@@ -29,6 +29,7 @@ export const columnTypes = [
 	'mentions',
 	'direct',
 	'roleTimeline',
+	'following',
 ] as const;
 
 export type ColumnType = typeof columnTypes[number];
@@ -112,8 +113,8 @@ export const loadDeck = async () => {
 };
 
 // TODO: deckがloadされていない状態でsaveすると意図せず上書きが発生するので対策する
-export const saveDeck = throttle(1000, () => {
-	misskeyApi('i/registry/set', {
+export const saveDeck = throttle(1000, async () => {
+	await misskeyApi('i/registry/set', {
 		scope: ['client', 'deck', 'profiles'],
 		key: deckStore.state.profile,
 		value: {
@@ -313,7 +314,7 @@ export function updateColumnWidget(id: Column['id'], widgetId: string, widgetDat
 	saveDeck();
 }
 
-export function updateColumn(id: Column['id'], column: Partial<Column>) {
+export async function updateColumn<TColumn>(id: Column['id'], column: Partial<TColumn>) {
 	const columns = deepClone(deckStore.state.columns);
 	const columnIndex = deckStore.state.columns.findIndex(c => c.id === id);
 	const currentColumn = deepClone(deckStore.state.columns[columnIndex]);
@@ -322,6 +323,18 @@ export function updateColumn(id: Column['id'], column: Partial<Column>) {
 		currentColumn[k] = v;
 	}
 	columns[columnIndex] = currentColumn;
-	deckStore.set('columns', columns);
-	saveDeck();
+	await Promise.all([
+		deckStore.set('columns', columns),
+		saveDeck(),
+	]);
+}
+
+export function getColumn<TColumn extends Column>(id: Column['id']): TColumn {
+	return deckStore.state.columns.find(c => c.id === id) as TColumn;
+}
+
+export function getReactiveColumn<TColumn extends Column>(id: Column['id']): Ref<TColumn> {
+	return computed(() => {
+		return deckStore.reactiveState.columns.value.find(c => c.id === id) as TColumn;
+	});
 }

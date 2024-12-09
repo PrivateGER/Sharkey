@@ -260,7 +260,7 @@ const memoDraft = ref(props.user.memo);
 const isEditingMemo = ref(false);
 const moderationNote = ref(props.user.moderationNote);
 const editModerationNote = ref(false);
-const noteview = ref<string | null>(null);
+const noteview = ref<string | null>('pinned');
 
 const listenbrainzdata = ref(false);
 if (props.user.listenbrainz) {

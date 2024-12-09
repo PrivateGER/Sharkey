@@ -442,7 +442,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		if (user.host && !data.cw) {
 			await this.federatedInstanceService.fetch(user.host).then(async i => {
-				if (i.isNSFW) {
+				if (i.isNSFW && !this.noteCreateService.isPureRenote(data)) {
 					data.cw = 'Instance is marked as NSFW';
 				}
 			});
@@ -471,8 +471,9 @@ export class NoteEditService implements OnApplicationShutdown {
 		const poll = await this.pollsRepository.findOneBy({ noteId: oldnote.id });
 
 		const oldPoll = poll ? { choices: poll.choices, multiple: poll.multiple, expiresAt: poll.expiresAt } : null;
+		const pollChanged = data.poll != null && JSON.stringify(data.poll) !== JSON.stringify(oldPoll);
 
-		if (Object.keys(update).length > 0 || filesChanged) {
+		if (Object.keys(update).length > 0 || filesChanged || pollChanged) {
 			const exists = await this.noteEditRepository.findOneBy({ noteId: oldnote.id });
 
 			await this.noteEditRepository.insert({
@@ -544,7 +545,7 @@ export class NoteEditService implements OnApplicationShutdown {
 				}));
 			}
 
-			if (data.poll != null && JSON.stringify(data.poll) !== JSON.stringify(oldPoll)) {
+			if (pollChanged) {
 				// Start transaction
 				await this.db.transaction(async transactionalEntityManager => {
 					await transactionalEntityManager.update(MiNote, oldnote.id, note);
@@ -605,10 +606,11 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		if (data.poll && data.poll.expiresAt) {
 			const delay = data.poll.expiresAt.getTime() - Date.now();
-			this.queueService.endedPollNotificationQueue.remove(note.id);
+			this.queueService.endedPollNotificationQueue.remove(`pollEnd:${note.id}`);
 			this.queueService.endedPollNotificationQueue.add(note.id, {
 				noteId: note.id,
 			}, {
+				jobId: `pollEnd:${note.id}`,
 				delay,
 				removeOnComplete: true,
 			});

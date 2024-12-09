@@ -18,8 +18,9 @@ import { createTemp } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import type { Config } from '@/config.js';
+import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
 import { ApiError } from './error.js';
-import { RateLimiterService } from './RateLimiterService.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
@@ -49,7 +50,7 @@ export class ApiCallService implements OnApplicationShutdown {
 		private userIpsRepository: UserIpsRepository,
 
 		private authenticateService: AuthenticateService,
-		private rateLimiterService: RateLimiterService,
+		private rateLimiterService: SkRateLimiterService,
 		private roleService: RoleService,
 		private apiLoggerService: ApiLoggerService,
 	) {
@@ -65,16 +66,6 @@ export class ApiCallService implements OnApplicationShutdown {
 		let statusCode = err.httpStatusCode;
 		if (err.httpStatusCode === 401) {
 			reply.header('WWW-Authenticate', 'Bearer realm="Misskey"');
-		} else if (err.code === 'RATE_LIMIT_EXCEEDED') {
-			const info: unknown = err.info;
-			const unixEpochInSeconds = Date.now();
-			if (typeof(info) === 'object' && info && 'resetMs' in info && typeof(info.resetMs) === 'number') {
-				const cooldownInSeconds = Math.ceil((info.resetMs - unixEpochInSeconds) / 1000);
-				// もしかするとマイナスになる可能性がなくはないのでマイナスだったら0にしておく
-				reply.header('Retry-After', Math.max(cooldownInSeconds, 0).toString(10));
-			} else {
-				this.logger.warn(`rate limit information has unexpected type ${typeof(err.info?.reset)}`);
-			}
 		} else if (err.kind === 'client') {
 			reply.header('WWW-Authenticate', `Bearer realm="Misskey", error="invalid_request", error_description="${err.message}"`);
 			statusCode = statusCode ?? 400;
@@ -168,7 +159,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			return;
 		}
 		this.authenticateService.authenticate(token).then(([user, app]) => {
-			this.call(endpoint, user, app, body, null, request).then((res) => {
+			this.call(endpoint, user, app, body, null, request, reply).then((res) => {
 				if (request.method === 'GET' && endpoint.meta.cacheSec && !token && !user) {
 					reply.header('Cache-Control', `public, max-age=${endpoint.meta.cacheSec}`);
 				}
@@ -229,7 +220,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			this.call(endpoint, user, app, fields, {
 				name: multipartData.filename,
 				path: path,
-			}, request).then((res) => {
+			}, request, reply).then((res) => {
 				this.send(reply, res);
 			}).catch((err: ApiError) => {
 				this.#sendApiError(reply, err);
@@ -304,6 +295,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			path: string;
 		} | null,
 		request: FastifyRequest<{ Body: Record<string, unknown> | undefined, Querystring: Record<string, unknown> }>,
+		reply: FastifyReply,
 	) {
 		const isSecure = user != null && token == null;
 
@@ -311,7 +303,15 @@ export class ApiCallService implements OnApplicationShutdown {
 			throw new ApiError(accessDenied);
 		}
 
-		if (ep.meta.limit) {
+		// For endpoints without a limit, the default is 10 calls per second
+		const endpointLimit = ep.meta.limit ?? {
+			duration: 1000,
+			max: 10,
+		};
+
+		// We don't need this check, but removing it would cause a big merge conflict.
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+		if (endpointLimit) {
 			// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
 			let limitActor: string;
 			if (user) {
@@ -320,30 +320,28 @@ export class ApiCallService implements OnApplicationShutdown {
 				limitActor = getIpHash(request.ip);
 			}
 
-			const limit = Object.assign({}, ep.meta.limit);
-
-			if (limit.key == null) {
-				(limit as any).key = ep.name;
-			}
-
 			// TODO: 毎リクエスト計算するのもあれだしキャッシュしたい
 			const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
 
 			if (factor > 0) {
+				const limit = {
+					key: ep.name,
+					...endpointLimit,
+				};
+
 				// Rate limit
-				await this.rateLimiterService.limit(limit as IEndpointMeta['limit'] & { key: NonNullable<string> }, limitActor, factor).catch(err => {
-					if ('info' in err) {
-						// errはLimiter.LimiterInfoであることが期待される
-						throw new ApiError({
-							message: 'Rate limit exceeded. Please try again later.',
-							code: 'RATE_LIMIT_EXCEEDED',
-							id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
-							httpStatusCode: 429,
-						}, err.info);
-					} else {
-						throw new TypeError('information must be a rate-limiter information.');
-					}
-				});
+				const info = await this.rateLimiterService.limit(limit, limitActor, factor);
+
+				sendRateLimitHeaders(reply, info);
+
+				if (info.blocked) {
+					throw new ApiError({
+						message: 'Rate limit exceeded. Please try again later.',
+						code: 'RATE_LIMIT_EXCEEDED',
+						id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
+						httpStatusCode: 429,
+					});
+				}
 			}
 		}
 

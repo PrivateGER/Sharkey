@@ -539,7 +539,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// フォロワーにUpdateを配信
-			this.accountUpdateService.publishToFollowers(user.id);
+			if (this.userNeedsPublishing(user, updates) || this.profileNeedsPublishing(profile, updatedProfile)) {
+				this.accountUpdateService.publishToFollowers(user.id);
+			}
 
 			const urls = updatedProfile.fields.filter(x => x.value.startsWith('https://'));
 			for (const url of urls) {
@@ -580,5 +582,53 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		} catch (err) {
 			// なにもしない
 		}
+	}
+
+	// these two methods need to be kept in sync with
+	// `ApRendererService.renderPerson`
+	private userNeedsPublishing(oldUser: MiLocalUser, newUser: Partial<MiUser>): boolean {
+		for (const field of ['avatarId', 'bannerId', 'backgroundId', 'isBot', 'username', 'name', 'isLocked', 'isExplorable', 'isCat', 'noindex', 'speakAsCat', 'movedToUri', 'alsoKnownAs'] as (keyof MiUser)[]) {
+			if ((field in newUser) && oldUser[field] !== newUser[field]) {
+				return true;
+			}
+		}
+		for (const arrayField of ['emojis', 'tags'] as (keyof MiUser)[]) {
+			if ((arrayField in newUser) !== (arrayField in oldUser)) {
+				return true;
+			}
+
+			const oldArray = oldUser[arrayField] ?? [];
+			const newArray = newUser[arrayField] ?? [];
+			if (!Array.isArray(oldArray) || !Array.isArray(newArray)) {
+				return true;
+			}
+			if (oldArray.join("\0") !== newArray.join("\0")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private profileNeedsPublishing(oldProfile: MiUserProfile, newProfile: Partial<MiUserProfile>): boolean {
+		for (const field of ['description', 'followedMessage', 'birthday', 'location', 'listenbrainz'] as (keyof MiUserProfile)[]) {
+			if ((field in newProfile) && oldProfile[field] !== newProfile[field]) {
+				return true;
+			}
+		}
+		for (const arrayField of ['fields'] as (keyof MiUserProfile)[]) {
+			if ((arrayField in newProfile) !== (arrayField in oldProfile)) {
+				return true;
+			}
+
+			const oldArray = oldProfile[arrayField] ?? [];
+			const newArray = newProfile[arrayField] ?? [];
+			if (!Array.isArray(oldArray) || !Array.isArray(newArray)) {
+				return true;
+			}
+			if (oldArray.join("\0") !== newArray.join("\0")) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

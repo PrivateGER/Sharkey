@@ -35,6 +35,12 @@ export const meta = {
 			id: '0332fc13-6ab2-4427-ae80-a9fadffd1a6b',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -98,7 +104,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			if (!ps.withBots) query.andWhere('user.isBot = FALSE');
-			
+
 			if (ps.withRenotes === false) {
 				query.andWhere(new Brackets(qb => {
 					qb.where('note.renoteId IS NULL');

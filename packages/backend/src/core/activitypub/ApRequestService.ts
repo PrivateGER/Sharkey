@@ -243,7 +243,7 @@ export class ApRequestService {
 				if (alternate) {
 					const href = alternate.getAttribute('href');
 					if (href) {
-						if (this.utilityService.punyHost(url) === this.utilityService.punyHost(href)) {
+						if (this.utilityService.punyHostPSLDomain(url) === this.utilityService.punyHostPSLDomain(href)) {
 							return await this.signedGet(href, user, false);
 						}
 					}

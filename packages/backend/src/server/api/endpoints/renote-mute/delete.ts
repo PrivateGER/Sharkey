@@ -37,6 +37,12 @@ export const meta = {
 			id: '2e4ef874-8bf0-4b4b-b069-4598f6d05817',
 		},
 	},
+
+	// 20 calls per hour (match create)
+	limit: {
+		duration: 1000 * 60 * 60,
+		max: 20,
+	},
 } as const;
 
 export const paramDef = {

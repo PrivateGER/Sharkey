@@ -1,5 +1,38 @@
 # Upgrade Notes
 
+## 2024.10.0
+
+### Hellspawns
+
+Sharkey versions before 2024.10 suffered from a bug in the "Mark instance as NSFW" feature.
+When a user from such an instance boosted a note, the boost would be converted to a hellspawn (pure renote with Content Warning).
+Hellspawns are buggy and do not properly federate, so it may be desirable to correct any that already exist in the database.
+The following script will correct any local or remote hellspawns in the database.
+
+```postgresql
+/* Remove "instance is marked as NSFW" hellspawns */
+UPDATE "note"
+SET "cw" = null
+WHERE
+	"renoteId" IS NOT NULL
+	AND "text" IS NULL
+	AND "cw" = 'Instance is marked as NSFW'
+	AND "replyId" IS NULL
+	AND "hasPoll" = false
+	AND "fileIds" = '{}';
+
+/* Fix legacy / user-created hellspawns */
+UPDATE "note"
+SET "text" = '.'
+WHERE
+	"renoteId" IS NOT NULL
+	AND "text" IS NULL
+	AND "cw" IS NOT NULL
+	AND "replyId" IS NULL
+	AND "hasPoll" = false
+	AND "fileIds" = '{}';
+```
+
 ## 2024.9.0
 
 ### Following Feed

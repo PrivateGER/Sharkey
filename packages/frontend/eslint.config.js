@@ -36,6 +36,7 @@ export default [
 				_DATA_TRANSFER_DRIVE_FILE_: false,
 				_DATA_TRANSFER_DRIVE_FOLDER_: false,
 				_DATA_TRANSFER_DECK_COLUMN_: false,
+				_RUFFLE_VERSION_: false,
 			},
 			parser,
 			parserOptions: {

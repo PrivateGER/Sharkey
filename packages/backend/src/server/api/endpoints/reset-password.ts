@@ -21,6 +21,12 @@ export const meta = {
 	errors: {
 
 	},
+
+	// 2 calls per 30 minutes
+	limit: {
+		duration: 1000 * 60 * 30,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

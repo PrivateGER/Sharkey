@@ -4,44 +4,44 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="hide" class="mod-player-disabled" @click="toggleVisible()">
+<div v-if="hide" :class="$style.mod_player_disabled" @click="toggleVisible()">
 	<div>
 		<b><i class="ph-eye ph-bold ph-lg"></i> {{ i18n.ts.sensitive }}</b>
 		<span>{{ i18n.ts.clickToShow }}</span>
 	</div>
 </div>
 
-<div v-else class="mod-player-enabled">
-	<div class="pattern-display" @click="togglePattern()" @scroll="scrollHandler" @scrollend="scrollEndHandle">
-		<div v-if="patternHide" class="pattern-hide">
+<div v-else :class="$style.mod_player_enabled">
+	<div :class="$style.pattern_display" @click="togglePattern()" @scroll="scrollHandler" @scrollend="scrollEndHandle">
+		<div v-if="patternHide" :class="$style.pattern_hide">
 			<b><i class="ph-eye ph-bold ph-lg"></i> Pattern Hidden</b>
 			<span>{{ i18n.ts.clickToShow }}</span>
 		</div>
-		<span class="patternShadowTop"></span>
-		<span class="patternShadowBottom"></span>
-		<canvas ref="displayCanvas" class="pattern-canvas"></canvas>
+		<span :class="$style.patternShadowTop"></span>
+		<span :class="$style.patternShadowBottom"></span>
+		<canvas ref="displayCanvas" :class="$style.pattern_canvas"></canvas>
 	</div>
-	<div class="controls">
-		<input v-if="patternScrollSliderShow" ref="patternScrollSlider" v-model="patternScrollSliderPos" class="pattern-slider" type="range" min="0" max="100" step="0.01" style=""/>
-		<button class="play" @click="playPause()">
+	<div :class="$style.controls">
+		<input v-if="patternScrollSliderShow" ref="patternScrollSlider" v-model="patternScrollSliderPos" :class="$style.pattern_slider" type="range" min="0" max="100" step="0.01" style=""/>
+		<button :class="$style.play" @click="playPause()">
 			<i v-if="playing" class="ph-pause ph-bold ph-lg"></i>
 			<i v-else class="ph-play ph-bold ph-lg"></i>
 		</button>
-		<button class="stop" @click="stop()">
+		<button :class="$style.stop" @click="stop()">
 			<i class="ph-stop ph-bold ph-lg"></i>
 		</button>
-		<input ref="progress" v-model="position" class="progress" type="range" min="0" max="1" step="0.1" @mousedown="initSeek()" @mouseup="performSeek()"/>
+		<input ref="progress" v-model="position" :class="$style.progress" type="range" min="0" max="1" step="0.1" @mousedown="initSeek()" @mouseup="performSeek()"/>
 		<input v-model="player.context.gain.value" type="range" min="0" max="1" step="0.1"/>
-		<a class="download" :title="i18n.ts.download" :href="module.url" target="_blank">
+		<a :class="$style.download" :title="i18n.ts.download" :href="module.url" :download="module.name" target="_blank">
 			<i class="ph-download ph-bold ph-lg"></i>
 		</a>
 	</div>
-	<i class="hide ph-eye-slash ph-bold ph-lg" @click="toggleVisible()"></i>
+	<i :class="$style.hide" class="ph-eye-slash ph-bold ph-lg" @click="toggleVisible()"></i>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, nextTick, computed, watch, onDeactivated, onMounted } from 'vue';
+import { ref, nextTick, watch, onDeactivated, onMounted } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { defaultStore } from '@/store.js';
@@ -70,9 +70,9 @@ const props = defineProps<{
 	module: Misskey.entities.DriveFile
 }>();
 
-const isSensitive = computed(() => { return props.module.isSensitive; });
-const url = computed(() => { return props.module.url; });
-let hide = ref((defaultStore.state.nsfw === 'force') ? true : isSensitive.value && (defaultStore.state.nsfw !== 'ignore'));
+const isSensitive = props.module.isSensitive;
+const url = props.module.url;
+let hide = ref((defaultStore.state.nsfw === 'force') ? true : isSensitive && (defaultStore.state.nsfw !== 'ignore'));
 let patternHide = ref(false);
 let playing = ref(false);
 let displayCanvas = ref<HTMLCanvasElement>();
@@ -111,7 +111,7 @@ function bakeNumberRow() {
 }
 
 onMounted(() => {
-	player.value.load(url.value).then((result) => {
+	player.value.load(url).then((result) => {
 		buffer = result;
 		try {
 			player.value.play(buffer);
@@ -437,27 +437,28 @@ onDeactivated(() => {
 
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" module>
 
 .hide {
-	border-radius: var(--radius-sm) !important;
+	border-radius: var(--MI-radius-sm) !important;
 	background-color: black !important;
-	color: var(--accentLighten) !important;
+	color: var(--MI_THEME-accentLighten) !important;
 	font-size: 12px !important;
 }
 
-.mod-player-enabled {
+.mod_player_enabled {
 	position: relative;
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
+	justify-content: center;
 
 	> i {
 		display: block;
 		position: absolute;
-		border-radius: var(--radius-sm);
-		background-color: var(--fg);
-		color: var(--accentLighten);
+		border-radius: var(--MI-radius-sm);
+		background-color: var(--MI_THEME-fg);
+		color: var(--MI_THEME-accentLighten);
 		font-size: 14px;
 		opacity: .5;
 		padding: 3px 6px;
@@ -468,7 +469,7 @@ onDeactivated(() => {
 		z-index: 4;
 	}
 
-	> .pattern-display {
+	> .pattern_display {
 		width: 100%;
 		height: 100%;
 		overflow-x: scroll;
@@ -483,7 +484,7 @@ onDeactivated(() => {
 			display: none;
 		}
 
-		.pattern-canvas {
+		.pattern_canvas {
 			position: relative;
 			background-color: black;
 			image-rendering: pixelated;
@@ -512,13 +513,13 @@ onDeactivated(() => {
 			z-index: 2;
 		}
 
-		.pattern-hide {
+		.pattern_hide {
 			display: flex;
 			flex-direction: column;
 			justify-content: center;
 			align-items: center;
 			background: rgba(64, 64, 64, 0.3);
-			backdrop-filter: var(--modalBgFilter);
+			backdrop-filter: var(--MI-modalBgFilter);
 			color: #fff;
 			font-size: 12px;
 
@@ -536,7 +537,7 @@ onDeactivated(() => {
 	> .controls {
 		display: flex;
 		width: 100%;
-		background-color: var(--bg);
+		background-color: var(--MI_THEME-bg);
 		z-index: 5;
 
 		> * {
@@ -546,11 +547,11 @@ onDeactivated(() => {
 		> button, a {
 			border: none;
 			background-color: transparent;
-			color: var(--accent);
+			color: var(--MI_THEME-accent);
 			cursor: pointer;
 
 			&:hover {
-				background-color: var(--fg);
+				background-color: var(--MI_THEME-fg);
 			}
 		}
 
@@ -562,7 +563,7 @@ onDeactivated(() => {
 			margin: 4px 8px;
 			overflow-x: hidden;
 
-			&.pattern-slider {
+			&.pattern_slider {
 				position: absolute;
 				width: calc( 100% - 8px * 2 );
 				top: calc( 100% - 21px * 3 );
@@ -578,11 +579,11 @@ onDeactivated(() => {
 				outline: none;
 
 				&::-webkit-slider-runnable-track {
-					background: var(--bg);
+					background: var(--MI_THEME-bg);
 				}
 
 				&::-ms-fill-lower, &::-ms-fill-upper {
-					background: var(--bg);
+					background: var(--MI_THEME-bg);
 				}
 			}
 
@@ -592,8 +593,8 @@ onDeactivated(() => {
 				cursor: pointer;
 				border-radius: 0;
 				animate: 0.2s;
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 				overflow-x: hidden;
 			}
 
@@ -602,10 +603,10 @@ onDeactivated(() => {
 				height: 100%;
 				width: 14px;
 				border-radius: 0;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 				cursor: pointer;
 				-webkit-appearance: none;
-				box-shadow: calc(-100vw - 14px) 0 0 100vw var(--accent);
+				box-shadow: calc(-100vw - 14px) 0 0 100vw var(--MI_THEME-accent);
 				clip-path: polygon(1px 0, 100% 0, 100% 100%, 1px 100%, 1px calc(50% + 10.5px), -100vw calc(50% + 10.5px), -100vw calc(50% - 10.5px), 0 calc(50% - 10.5px));
 				z-index: 1;
 			}
@@ -616,14 +617,14 @@ onDeactivated(() => {
 				cursor: pointer;
 				border-radius: 0;
 				animate: 0.2s;
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 			}
 
 			&::-moz-range-progress {
 				cursor: pointer;
 				height: 100%;
-				background: var(--accent);
+				background: var(--MI_THEME-accent);
 			}
 
 			&::-moz-range-thumb {
@@ -631,7 +632,7 @@ onDeactivated(() => {
 				height: 100%;
 				border-radius: 0;
 				width: 14px;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 				cursor: pointer;
 			}
 
@@ -647,14 +648,14 @@ onDeactivated(() => {
 			}
 
 			&::-ms-fill-lower {
-				background: var(--accent);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-accent);
+				border: 1px solid var(--MI_THEME-fg);
 				border-radius: 0;
 			}
 
 			&::-ms-fill-upper {
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 				border-radius: 0;
 			}
 
@@ -664,7 +665,7 @@ onDeactivated(() => {
 				height: 100%;
 				width: 14px;
 				border-radius: 0;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 				cursor: pointer;
 			}
 
@@ -676,7 +677,7 @@ onDeactivated(() => {
 	}
 }
 
-.mod-player-disabled {
+.mod_player_disabled {
 	display: flex;
 	justify-content: center;
 	align-items: center;

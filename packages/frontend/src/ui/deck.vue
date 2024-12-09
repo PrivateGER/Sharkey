@@ -18,16 +18,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:style="columns.filter(c => ids.includes(c.id)).some(c => c.flexible) ? { flex: 1, minWidth: '350px' } : { width: Math.max(...columns.filter(c => ids.includes(c.id)).map(c => c.width)) + 'px' }"
 				@wheel.self="onWheel"
 			>
-				<component
-					:is="columnComponents[columns.find(c => c.id === id)!.type] ?? XTlColumn"
-					v-for="id in ids"
-					:ref="id"
-					:key="id"
-					:class="$style.column"
-					:column="columns.find(c => c.id === id)!"
-					:isStacked="ids.length > 1"
-					@headerWheel="onWheel"
-				/>
+				<Suspense>
+					<component
+						:is="columnComponents[columns.find(c => c.id === id)!.type] ?? XTlColumn"
+						v-for="id in ids"
+						:ref="id"
+						:key="id"
+						:class="$style.column"
+						:column="columns.find(c => c.id === id)!"
+						:isStacked="ids.length > 1"
+						@headerWheel="onWheel"
+					/>
+					<template #fallback>
+						<MkLoading/>
+					</template>
+				</Suspense>
 			</section>
 			<div v-if="layout.length === 0" class="_panel" :class="$style.onboarding">
 				<div>{{ i18n.ts._deck.introduction }}</div>
@@ -117,6 +122,7 @@ import XWidgetsColumn from '@/ui/deck/widgets-column.vue';
 import XMentionsColumn from '@/ui/deck/mentions-column.vue';
 import XDirectColumn from '@/ui/deck/direct-column.vue';
 import XRoleTimelineColumn from '@/ui/deck/role-timeline-column.vue';
+import XFollowingColumn from '@/ui/deck/following-column.vue';
 import { mainRouter } from '@/router/main.js';
 import type { MenuItem } from '@/types/menu.js';
 const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.vue'));
@@ -133,6 +139,7 @@ const columnComponents = {
 	mentions: XMentionsColumn,
 	direct: XDirectColumn,
 	roleTimeline: XRoleTimelineColumn,
+	following: XFollowingColumn,
 };
 
 mainRouter.navHook = (path, flag): boolean => {

@@ -56,6 +56,12 @@ export const meta = {
 			httpStatusCode: 404,
 		},
 	},
+
+	// 5 calls per 2 seconds
+	limit: {
+		duration: 1000 * 2,
+		max: 5,
+	},
 } as const;
 
 export const paramDef = {

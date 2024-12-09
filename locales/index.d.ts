@@ -7396,6 +7396,14 @@ export interface Locale extends ILocale {
          * Testers
          */
         "testers": string;
+        /**
+         * Misskey Contributors
+         */
+        "misskeyContributors": string;
+        /**
+         * Our lovely Sponsors
+         */
+        "ourLovelySponsors": string;
     };
     "_displayOfSensitiveMedia": {
         /**
@@ -9661,6 +9669,10 @@ export interface Locale extends ILocale {
              * ロールタイムライン
              */
             "roleTimeline": string;
+            /**
+             * Following
+             */
+            "following": string;
         };
     };
     "_dialog": {
@@ -11000,6 +11012,44 @@ export interface Locale extends ILocale {
      * Show warning when opening external URLs
      */
     "warnExternalUrl": string;
+    /**
+     * Flash
+     */
+    "flash": string;
+    "_flash": {
+        /**
+         * Flash Content Hidden
+         */
+        "contentHidden": string;
+        /**
+         * Powered by Ruffle.
+         */
+        "poweredByRuffle": string;
+        /**
+         * Always be wary of arbitrary code execution!
+         */
+        "arbitraryCodeExecutionWarning": string;
+        /**
+         * Flash Content Failed To Load:
+         */
+        "failedToLoad": string;
+        /**
+         * Flash Content Is Loading
+         */
+        "isLoading": string;
+        /**
+         * Loading Ruffle player
+         */
+        "loadingRufflePlayer": string;
+        /**
+         * Loading Flash file
+         */
+        "loadingFlashFile": string;
+        /**
+         * raw.esm.sh could not be accessed, meaning this instance's Content Security Policy is likely out of date. Please contact your instance administrators.
+         */
+        "cspError": string;
+    };
     "_mfm": {
         /**
          * This is not a widespread feature, it may not display properly on most other fedi software, including other Misskey forks
@@ -11374,6 +11424,10 @@ export interface Locale extends ILocale {
      * Remote followers may have incomplete or outdated activity
      */
     "remoteFollowersWarning": string;
+    /**
+     * Select a follow relationship...
+     */
+    "selectFollowRelationship": string;
 }
 declare const locales: {
     [lang: string]: Locale;

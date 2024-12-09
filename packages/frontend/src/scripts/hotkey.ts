@@ -42,7 +42,7 @@ const KEY_ALIASES = {
 
 const MODIFIER_KEYS = ['ctrl', 'alt', 'shift'];
 
-const IGNORE_ELEMENTS = ['input', 'textarea'];
+const IGNORE_ELEMENTS = ['input', 'textarea', 'ruffle-player'];
 //#endregion
 
 //#region store

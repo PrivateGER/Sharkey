@@ -10,6 +10,7 @@ import { ChannelEntityService } from '@/core/entities/ChannelEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['channels'],
@@ -42,6 +43,11 @@ export const meta = {
 			code: 'NO_SUCH_FILE',
 			id: 'e86c14a4-0da2-4032-8df3-e737a04c7f3b',
 		},
+	},
+
+	limit: {
+		duration: ms('1hour'),
+		max: 10,
 	},
 } as const;
 

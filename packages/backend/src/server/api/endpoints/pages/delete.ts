@@ -10,6 +10,7 @@ import { DI } from '@/di-symbols.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['pages'],
@@ -30,6 +31,12 @@ export const meta = {
 			code: 'ACCESS_DENIED',
 			id: '8b741b3e-2c22-44b3-a15f-29949aa1601e',
 		},
+	},
+
+	// 300 calls per hour (match update)
+	limit: {
+		duration: ms('1hour'),
+		max: 300,
 	},
 } as const;
 

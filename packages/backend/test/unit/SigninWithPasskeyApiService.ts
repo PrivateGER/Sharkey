@@ -17,16 +17,24 @@ import { GlobalModule } from '@/GlobalModule.js';
 import { DI } from '@/di-symbols.js';
 import { CoreModule } from '@/core/CoreModule.js';
 import { SigninWithPasskeyApiService } from '@/server/api/SigninWithPasskeyApiService.js';
-import { RateLimiterService } from '@/server/api/RateLimiterService.js';
 import { WebAuthnService } from '@/core/WebAuthnService.js';
 import { SigninService } from '@/server/api/SigninService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { LimitInfo } from '@/misc/rate-limit-utils.js';
 
 const moduleMocker = new ModuleMocker(global);
 
 class FakeLimiter {
-	public async limit() {
-		return;
+	public async limit(): Promise<LimitInfo> {
+		return {
+			blocked: false,
+			remaining: Number.MAX_SAFE_INTEGER,
+			resetMs: 0,
+			resetSec: 0,
+			fullResetMs: 0,
+			fullResetSec: 0,
+		};
 	}
 }
 
@@ -90,7 +98,7 @@ describe('SigninWithPasskeyApiService', () => {
 			imports: [GlobalModule, CoreModule],
 			providers: [
 				SigninWithPasskeyApiService,
-				{ provide: RateLimiterService, useClass: FakeLimiter },
+				{ provide: SkRateLimiterService, useClass: FakeLimiter },
 				{ provide: SigninService, useClass: FakeSigninService },
 			],
 		}).useMocker((token) => {

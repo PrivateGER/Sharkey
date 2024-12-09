@@ -2,26 +2,30 @@
  * SPDX-FileCopyrightText: dakkar and sharkey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
+
+import { UnrecoverableError } from 'bullmq';
 import type { IObject } from '../type.js';
 
-function getHrefFrom(one: IObject|string): string | undefined {
-	if (typeof(one) === 'string') return one;
-	return one.href;
+function getHrefsFrom(one: IObject | string | undefined | (IObject | string | undefined)[]): (string | undefined)[] {
+	if (Array.isArray(one)) {
+		return one.flatMap(h => getHrefsFrom(h));
+	}
+	return [
+		typeof(one) === 'object' ? one.href : one,
+	];
 }
 
 export function assertActivityMatchesUrls(activity: IObject, urls: string[]) {
-	const idOk = activity.id !== undefined && urls.includes(activity.id);
-	if (idOk) return;
+	const expectedUrls = new Set(urls
+		.filter(u => URL.canParse(u))
+		.map(u => new URL(u).href),
+	);
 
-	const url = activity.url;
-	if (url) {
-		// `activity.url` can be an `ApObject = IObject | string | (IObject
-		// | string)[]`, we have to look inside it
-		const activityUrls = Array.isArray(url) ? url.map(getHrefFrom) : [getHrefFrom(url)];
-		const goodUrl = activityUrls.find(u => u && urls.includes(u));
+	const actualUrls = [activity.id, ...getHrefsFrom(activity.url)]
+		.filter(u => u && URL.canParse(u))
+		.map(u => new URL(u as string).href);
 
-		if (goodUrl) return;
+	if (!actualUrls.some(u => expectedUrls.has(u))) {
+		throw new UnrecoverableError(`bad Activity: neither id(${activity.id}) nor url(${JSON.stringify(activity.url)}) match location(${urls})`);
 	}
-
-	throw new Error(`bad Activity: neither id(${activity?.id}) nor url(${JSON.stringify(activity?.url)}) match location(${urls})`);
 }

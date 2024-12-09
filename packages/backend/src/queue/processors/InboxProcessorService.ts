@@ -7,6 +7,7 @@ import { URL } from 'node:url';
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import httpSignature from '@peertube/http-signature';
 import * as Bull from 'bullmq';
+import { AbortError } from 'node-fetch';
 import type Logger from '@/logger.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataService.js';
@@ -198,7 +199,8 @@ export class InboxProcessorService implements OnApplicationShutdown {
 				throw new Bull.UnrecoverableError(`skip: signerHost(${signerHost}) !== activity.id host(${activityIdHost}`);
 			}
 		} else {
-			throw new Bull.UnrecoverableError('skip: activity id is not a string');
+			// Activity ID should only be string or undefined.
+			delete activity.id;
 		}
 
 		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
@@ -229,7 +231,11 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		try {
 			const result = await this.apInboxService.performActivity(authUser.user, rewrittenActivity);
 			if (result && !result.startsWith('ok')) {
-				this.logger.warn(`inbox activity ignored (maybe): id=${activity.id} reason=${result}`);
+				if (result.startsWith('skip:')) {
+					this.logger.info(`inbox activity ignored: id=${activity.id} reason=${result}`);
+				} else {
+					this.logger.warn(`inbox activity failed: id=${activity.id} reason=${result}`);
+				}
 				return result;
 			}
 		} catch (e) {
@@ -244,6 +250,19 @@ export class InboxProcessorService implements OnApplicationShutdown {
 					return e.message;
 				}
 			}
+
+			if (e instanceof StatusError) {
+				if (e.isRetryable) {
+					return `temporary error ${e.statusCode}`;
+				} else {
+					return `skip: permanent error ${e.statusCode}`;
+				}
+			}
+
+			if (e instanceof AbortError) {
+				return 'request aborted';
+			}
+
 			throw e;
 		}
 		return 'ok';

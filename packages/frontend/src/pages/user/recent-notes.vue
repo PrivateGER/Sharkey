@@ -4,16 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkStickyContainer ref="userScroll">
+<MkStickyContainer>
 	<template #header>
 		<MkPageHeader :actions="headerActions" :displayBackButton="true"/>
 	</template>
-	<SkUserRecentNotes ref="userRecentNotes" :userId="userId" :withNonPublic="withNonPublic" :withQuotes="withQuotes" :withBots="withBots" :withReplies="withReplies" :onlyFiles="onlyFiles"/>
+	<SkUserRecentNotes ref="userRecentNotes" :class="$style.notes" :userId="userId" :withNonPublic="withNonPublic" :withQuotes="withQuotes" :withBots="withBots" :withReplies="withReplies" :onlyFiles="onlyFiles"/>
 </MkStickyContainer>
 </template>
 
 <script setup lang="ts">
-
 import { computed, shallowRef } from 'vue';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
@@ -21,7 +20,7 @@ import { PageHeaderItem } from '@/types/page-header.js';
 import MkPageHeader from '@/components/global/MkPageHeader.vue';
 import SkUserRecentNotes from '@/components/SkUserRecentNotes.vue';
 import { acct } from '@/filters/user.js';
-import { createModel, createOptions } from '@/scripts/following-feed-utils.js';
+import { createModel, createHeaderItem } from '@/scripts/following-feed-utils.js';
 import MkStickyContainer from '@/components/global/MkStickyContainer.vue';
 
 defineProps<{
@@ -45,7 +44,7 @@ const headerActions: PageHeaderItem[] = [
 		text: i18n.ts.reload,
 		handler: () => userRecentNotes.value?.reload(),
 	},
-	createOptions(),
+	createHeaderItem(),
 ];
 
 // Based on user/index.vue
@@ -64,3 +63,17 @@ definePageMetadata(() => ({
 	} : {},
 }));
 </script>
+
+<style lang="scss" module>
+@container (min-width: 451px) {
+	.notes {
+		padding: 12px;
+	}
+}
+
+@container (min-width: 750px) {
+	.notes {
+		padding: 24px;
+	}
+}
+</style>

@@ -4,7 +4,7 @@
  */
 
 import * as fs from 'node:fs';
-import { copyFile, mkdir, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, unlink, writeFile, chmod } from 'node:fs/promises';
 import * as Path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -41,12 +41,20 @@ export class InternalStorageService {
 	@bindThis
 	public async saveFromPath(key: string, srcPath: string): Promise<string> {
 		await copyFile(srcPath, this.resolvePath(key));
-		return `${this.config.url}/files/${key}`;
+		return await this.finalizeSavedFile(key);
 	}
 
 	@bindThis
 	public async saveFromBuffer(key: string, data: Buffer): Promise<string> {
 		await writeFile(this.resolvePath(key), data);
+		return await this.finalizeSavedFile(key);
+	}
+
+	private async finalizeSavedFile(key: string): Promise<string> {
+		if (this.config.filePermissionBits) {
+			const path = this.resolvePath(key);
+			await chmod(path, this.config.filePermissionBits);
+		}
 		return `${this.config.url}/files/${key}`;
 	}
 

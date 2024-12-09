@@ -34,6 +34,13 @@ export const meta = {
 			id: '12908022-2e21-46cd-ba6a-3edaf6093f46',
 		},
 	},
+
+	// 100 calls per 10 seconds.
+	// This is high because the frontend calls this in a tight loop while loading timelines.
+	limit: {
+		duration: 1000 * 10,
+		max: 100,
+	},
 } as const;
 
 export const paramDef = {
