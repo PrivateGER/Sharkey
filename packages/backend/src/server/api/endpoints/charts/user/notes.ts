@@ -17,10 +17,11 @@ export const meta = {
 	allowGet: true,
 	cacheSec: 60 * 60,
 
-	// 10 calls per 5 seconds
+	// Burst up to 100, then 2/sec average
 	limit: {
-		duration: 1000 * 5,
-		max: 10,
+		type: 'bucket',
+		size: 100,
+		dripRate: 500,
 	},
 } as const;
 

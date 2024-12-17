@@ -98,7 +98,7 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		width: 100vw;
 		height: 100vh;
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		clip-path: polygon(0% 0%, 45% 0%, 20% 100%, 0% 100%);
 	}
 	> .shape2 {
@@ -107,7 +107,7 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		width: 100vw;
 		height: 100vh;
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		clip-path: polygon(0% 0%, 25% 0%, 35% 100%, 0% 100%);
 		opacity: 0.5;
 	}
@@ -164,10 +164,10 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		right: 0;
 		margin: auto;
-		background: var(--acrylicPanel);
-		-webkit-backdrop-filter: var(--blur, blur(15px));
-		backdrop-filter: var(--blur, blur(15px));
-		border-radius: var(--radius-ellipse);
+		background: var(--MI_THEME-acrylicPanel);
+		-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+		backdrop-filter: var(--MI-blur, blur(15px));
+		border-radius: var(--MI-radius-ellipse);
 		overflow: clip;
 		width: 800px;
 		padding: 8px 0;
@@ -186,15 +186,15 @@ misskeyApiGet('federation/instances', {
 	vertical-align: bottom;
 	padding: 6px 12px 6px 6px;
 	margin: 0 10px 0 0;
-	background: var(--panel);
-	border-radius: var(--radius-ellipse);
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-ellipse);
 
 	> :global(.icon) {
 		display: inline-block;
 		width: 20px;
 		height: 20px;
 		margin-right: 5px;
-		border-radius: var(--radius-ellipse);
+		border-radius: var(--MI-radius-ellipse);
 	}
 }
 </style>

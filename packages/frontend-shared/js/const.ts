@@ -128,9 +128,12 @@ export const notificationTypes = [
 	'roleAssigned',
 	'achievementEarned',
 	'exportCompleted',
+	'login',
 	'test',
 	'app',
 	'edited',
+	'scheduledNoteFailed',
+	'scheduledNotePosted',
 ] as const;
 export const obsoleteNotificationTypes = ['pollVote', 'groupInvited'] as const;
 
@@ -140,6 +143,7 @@ export const ROLE_POLICIES = [
 	'btlAvailable',
 	'canPublicNote',
 	'canImportNotes',
+	'scheduleNoteMax',
 	'mentionLimit',
 	'canInvite',
 	'inviteLimit',

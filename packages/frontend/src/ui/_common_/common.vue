@@ -129,26 +129,26 @@ function getPointerEvents() {
 .notifications {
 	position: fixed;
 	z-index: 3900000;
-	padding: 0 var(--margin);
+	padding: 0 var(--MI-margin);
 	display: flex;
 
 	&.notificationsPosition_leftTop {
-		top: var(--margin);
+		top: var(--MI-margin);
 		left: 0;
 	}
 
 	&.notificationsPosition_rightTop {
-		top: var(--margin);
+		top: var(--MI-margin);
 		right: 0;
 	}
 
 	&.notificationsPosition_leftBottom {
-		bottom: calc(var(--minBottomSpacing) + var(--margin));
+		bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
 		left: 0;
 	}
 
 	&.notificationsPosition_rightBottom {
-		bottom: calc(var(--minBottomSpacing) + var(--margin));
+		bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
 		right: 0;
 	}
 
@@ -246,8 +246,8 @@ function getPointerEvents() {
 		height: 18px;
 		box-sizing: border-box;
 		border: solid 2px transparent;
-		border-top-color: var(--accent);
-		border-left-color: var(--accent);
+		border-top-color: var(--MI_THEME-accent);
+		border-left-color: var(--MI_THEME-accent);
 		border-radius: 50%;
 		animation: progress-spinner 400ms linear infinite;
 	}

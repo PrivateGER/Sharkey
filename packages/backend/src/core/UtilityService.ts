@@ -123,6 +123,7 @@ export class UtilityService {
 		return host;
 	}
 
+	@bindThis
 	private specialSuffix(hostname: string): string | null {
 		// masto.host provides domain names for its clients, we have to
 		// treat it as if it were a public suffix
@@ -143,6 +144,7 @@ export class UtilityService {
 		return host;
 	}
 
+	@bindThis
 	public isFederationAllowedHost(host: string): boolean {
 		if (this.meta.federation === 'none') return false;
 		if (this.meta.federation === 'specified' && !this.meta.federationHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`))) return false;

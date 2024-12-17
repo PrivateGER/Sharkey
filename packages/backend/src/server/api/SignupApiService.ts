@@ -75,6 +75,7 @@ export class SignupApiService {
 				'turnstile-response'?: string;
 				'm-captcha-response'?: string;
 				'frc-captcha-solution'?: string;
+				'testcaptcha-response'?: string;
 			}
 		}>,
 		reply: FastifyReply,
@@ -110,6 +111,12 @@ export class SignupApiService {
 
 			if (this.meta.enableFC && this.meta.fcSecretKey) {
 				await this.captchaService.verifyFriendlyCaptcha(this.meta.fcSecretKey, body['frc-captcha-solution']).catch(err => {
+					throw new FastifyReplyError(400, err);
+				});
+			}
+
+			if (this.meta.enableTestcaptcha) {
+				await this.captchaService.verifyTestcaptcha(body['testcaptcha-response']).catch(err => {
 					throw new FastifyReplyError(400, err);
 				});
 			}

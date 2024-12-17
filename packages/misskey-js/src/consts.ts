@@ -16,7 +16,7 @@ import type {
 	UserLite,
 } from './autogen/models.js';
 
-export const notificationTypes = ['note', 'follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'pollVote', 'pollEnded', 'receiveFollowRequest', 'followRequestAccepted', 'groupInvited', 'app', 'roleAssigned', 'achievementEarned', 'edited'] as const;
+export const notificationTypes = ['note', 'follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'pollVote', 'pollEnded', 'receiveFollowRequest', 'followRequestAccepted', 'groupInvited', 'app', 'roleAssigned', 'achievementEarned', 'edited', 'scheduledNoteFailed', 'scheduledNotePosted'] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
 
@@ -42,6 +42,8 @@ export const permissions = [
 	'read:mutes',
 	'write:mutes',
 	'write:notes',
+	'read:notes-schedule',
+	'write:notes-schedule',
 	'read:notifications',
 	'write:notifications',
 	'read:reactions',
@@ -149,6 +151,8 @@ export const moderationLogTypes = [
 	'markSensitiveDriveFile',
 	'unmarkSensitiveDriveFile',
 	'resolveAbuseReport',
+	'forwardAbuseReport',
+	'updateAbuseReportNote',
 	'createInvitation',
 	'createAd',
 	'updateAd',
@@ -347,7 +351,18 @@ export type ModerationLogPayloads = {
 	resolveAbuseReport: {
 		reportId: string;
 		report: ReceivedAbuseReport;
-		forwarded: boolean;
+		forwarded?: boolean;
+		resolvedAs?: string | null;
+	};
+	forwardAbuseReport: {
+		reportId: string;
+		report: ReceivedAbuseReport;
+	};
+	updateAbuseReportNote: {
+		reportId: string;
+		report: ReceivedAbuseReport;
+		before: string;
+		after: string;
 	};
 	createInvitation: {
 		invitations: InviteCode[];

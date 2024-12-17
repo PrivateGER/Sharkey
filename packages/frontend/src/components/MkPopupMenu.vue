@@ -19,7 +19,7 @@ defineProps<{
 	items: MenuItem[];
 	align?: 'center' | string;
 	width?: number;
-	src?: any;
+	src?: HTMLElement | null;
 	returnFocusTo?: HTMLElement | null;
 }>();
 
@@ -73,7 +73,7 @@ function close() {
 
 <style lang="scss" module>
 .drawer {
-	border-radius: var(--radius-lg);
+	border-radius: var(--MI-radius-lg);
 	border-bottom-right-radius: 0;
 	border-bottom-left-radius: 0;
 }

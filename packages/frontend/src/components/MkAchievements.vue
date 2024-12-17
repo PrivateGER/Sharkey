@@ -121,10 +121,10 @@ onMounted(() => {
 
 .iconFrame {
 	position: relative;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 	padding: 6px;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 	box-sizing: border-box;
 	pointer-events: none;
 	user-select: none;
@@ -191,7 +191,7 @@ onMounted(() => {
 	position: relative;
 	width: 100%;
 	height: 100%;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 	box-shadow: 0 1px 0px #ffffff88 inset;
 }
 

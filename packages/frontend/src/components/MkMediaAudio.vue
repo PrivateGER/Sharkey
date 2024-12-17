@@ -394,8 +394,8 @@ onDeactivated(() => {
 .audioContainer {
 	container-type: inline-size;
 	position: relative;
-	border: .5px solid var(--divider);
-	border-radius: var(--radius);
+	border: .5px solid var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	overflow: clip;
 
 	&:focus-visible {
@@ -415,7 +415,7 @@ onDeactivated(() => {
 		height: 100%;
 		pointer-events: none;
 		border-radius: inherit;
-		box-shadow: inset 0 0 0 4px var(--warn);
+		box-shadow: inset 0 0 0 4px var(--MI_THEME-warn);
 	}
 }
 
@@ -457,12 +457,12 @@ onDeactivated(() => {
 
 	.controlButton {
 		padding: 6px;
-		border-radius: calc(var(--radius) / 2);
+		border-radius: calc(var(--MI-radius) / 2);
 		font-size: 1.05rem;
 
 		&:hover {
-			color: var(--accent);
-			background-color: var(--accentedBg);
+			color: var(--MI_THEME-accent);
+			background-color: var(--MI_THEME-accentedBg);
 		}
 
 		&:focus-visible {

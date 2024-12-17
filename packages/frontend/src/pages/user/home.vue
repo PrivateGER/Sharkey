@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkUserName class="name" :user="user" :nowrap="true"/>
 							<div class="bottom">
 								<span class="username"><MkAcct :user="user" :detail="true"/></span>
-								<span v-if="user.isAdmin" :title="i18n.ts.isAdmin" style="color: var(--badge);"><i class="ti ti-shield"></i></span>
+								<span v-if="user.isAdmin" :title="i18n.ts.isAdmin" style="color: var(--MI_THEME-badge);"><i class="ti ti-shield"></i></span>
 								<span v-if="user.isLocked" :title="i18n.ts.isLocked"><i class="ti ti-lock"></i></span>
 								<span v-if="user.isBot" :title="i18n.ts.isBot"><i class="ti ti-robot"></i></span>
 								<button v-if="$i && !isEditingMemo && !memoDraft" class="_button add-note-button" @click="showMemoTextarea">
@@ -49,15 +49,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkUserName :user="user" :nowrap="false" class="name"/>
 						<div class="bottom">
 							<span class="username"><MkAcct :user="user" :detail="true"/></span>
-							<span v-if="user.isAdmin" :title="i18n.ts.isAdmin" style="color: var(--badge);"><i class="ti ti-shield"></i></span>
+							<span v-if="user.isAdmin" :title="i18n.ts.isAdmin" style="color: var(--MI_THEME-badge);"><i class="ti ti-shield"></i></span>
 							<span v-if="user.isLocked" :title="i18n.ts.isLocked"><i class="ti ti-lock"></i></span>
 							<span v-if="user.isBot" :title="i18n.ts.isBot"><i class="ti ti-robot"></i></span>
 						</div>
 					</div>
 					<div v-if="user.followedMessage != null" class="followedMessage">
-						<div style="border: solid 1px var(--love); border-radius: 6px; background: color-mix(in srgb, var(--love), transparent 90%); padding: 6px 8px;">
-							<Mfm :text="user.followedMessage" :author="user"/>
-						</div>
+						<MkFukidashi class="fukidashi" :tail="narrow ? 'none' : 'left'" negativeMargin shadow>
+							<div class="messageHeader">{{ i18n.ts.messageToFollower }}</div>
+							<div><MkSparkle><Mfm :plain="true" :text="user.followedMessage" :author="user"/></MkSparkle></div>
+						</MkFukidashi>
 					</div>
 					<div v-if="user.roles.length > 0" class="roles">
 						<span v-for="role in user.roles" :key="role.id" v-tooltip="role.description" class="role" :style="{ '--color': role.color }">
@@ -70,6 +71,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="iAmModerator" class="moderationNote">
 						<MkTextarea v-if="editModerationNote || (moderationNote != null && moderationNote !== '')" v-model="moderationNote" manualSave>
 							<template #label>{{ i18n.ts.moderationNote }}</template>
+							<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
 						</MkTextarea>
 						<div v-else>
 							<MkButton small @click="editModerationNote = true">{{ i18n.ts.addModerationNote }}</MkButton>
@@ -190,15 +192,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { defineAsyncComponent, computed, onMounted, onUnmounted, nextTick, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { getScrollPosition } from '@@/js/scroll.js';
 import MkTab from '@/components/MkTab.vue';
 import MkNotes from '@/components/MkNotes.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import MkAccountMoved from '@/components/MkAccountMoved.vue';
+import MkFukidashi from '@/components/MkFukidashi.vue';
 import MkRemoteCaution from '@/components/MkRemoteCaution.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkButton from '@/components/MkButton.vue';
-import { getScrollPosition } from '@@/js/scroll.js';
 import { getUserMenu } from '@/scripts/get-user-menu.js';
 import number from '@/filters/number.js';
 import { userPage } from '@/filters/user.js';
@@ -213,11 +216,12 @@ import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/scripts/isFf
 import { useRouter } from '@/router/supplier.js';
 import { getStaticImageUrl } from '@/scripts/media-proxy.js';
 import { infoImageUrl } from '@/instance.js';
+import MkSparkle from '@/components/MkSparkle.vue';
 
 const MkNote = defineAsyncComponent(() =>
 	defaultStore.state.noteDesign === 'sharkey'
-		? import('@/components/SkNote.vue')
-		: import('@/components/MkNote.vue'),
+	? import('@/components/SkNote.vue')
+	: import('@/components/MkNote.vue'),
 );
 
 function calcAge(birthdate: string): number {
@@ -347,7 +351,7 @@ function parallaxLoop() {
 }
 
 function parallax() {
-	const banner = bannerEl.value as any;
+	const banner = bannerEl.value;
 	if (banner == null) return;
 
 	const top = getScrollPosition(rootEl.value);
@@ -419,7 +423,7 @@ onUnmounted(() => {
 	background-size: cover;
 	background-position: center;
 	pointer-events: none;
-	filter: var(--blur, blur(10px)) opacity(0.6);
+	filter: var(--MI-blur, blur(10px)) opacity(0.6);
 	// Funny CSS schenanigans to make background escape container
 	left: -100%;
 	top: -5%;
@@ -442,7 +446,7 @@ onUnmounted(() => {
 			> .main {
 				position: relative;
 				overflow: clip;
-				background: color-mix(in srgb, var(--panel) 65%, transparent);
+				background: color-mix(in srgb, var(--MI_THEME-panel) 65%, transparent);
 
 				> .banner-container {
 					position: relative;
@@ -473,11 +477,11 @@ onUnmounted(() => {
 						position: absolute;
 						top: 12px;
 						right: 12px;
-						-webkit-backdrop-filter: var(--blur, blur(8px));
-						backdrop-filter: var(--blur, blur(8px));
+						-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+						backdrop-filter: var(--MI-blur, blur(8px));
 						background: rgba(0, 0, 0, 0.2);
 						padding: 8px;
-						border-radius: var(--radius-lg);
+						border-radius: var(--MI-radius-lg);
 
 						> .menu {
 							vertical-align: bottom;
@@ -528,9 +532,9 @@ onUnmounted(() => {
 							> .add-note-button {
 								background: rgba(0, 0, 0, 0.2);
 								color: #fff;
-								-webkit-backdrop-filter: var(--blur, blur(8px));
-								backdrop-filter: var(--blur, blur(8px));
-								border-radius: var(--radius-lg);
+								-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+								backdrop-filter: var(--MI-blur, blur(8px));
+								border-radius: var(--MI-radius-lg);
 								padding: 4px 8px;
 								font-size: 80%;
 							}
@@ -543,7 +547,7 @@ onUnmounted(() => {
 					text-align: center;
 					padding: 50px 8px 16px 8px;
 					font-weight: bold;
-					border-bottom: solid 0.5px var(--divider);
+					border-bottom: solid 0.5px var(--MI_THEME-divider);
 
 					> .bottom {
 						> * {
@@ -567,7 +571,18 @@ onUnmounted(() => {
 
 				> .followedMessage {
 					padding: 24px 24px 0 154px;
-					font-size: 0.9em;
+
+					> .fukidashi {
+						display: block;
+						--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-accent), var(--MI_THEME-panel) 85%);
+						--fukidashi-radius: 16px;
+						font-size: 0.9em;
+
+						.messageHeader {
+							opacity: 0.7;
+							font-size: 0.85em;
+						}
+					}
 				}
 
 				> .roles {
@@ -578,8 +593,8 @@ onUnmounted(() => {
 					gap: 8px;
 
 					> .role {
-						border: solid 1px var(--color, var(--divider));
-						border-radius: var(--radius-ellipse);
+						border: solid 1px var(--color, var(--MI_THEME-divider));
+						border-radius: var(--MI-radius-ellipse);
 						margin-right: 4px;
 						padding: 3px 8px;
 					}
@@ -592,15 +607,15 @@ onUnmounted(() => {
 				> .memo {
 					margin: 12px 24px 0 154px;
 					background: transparent;
-					color: var(--fg);
-					border: 1px solid var(--divider);
-					border-radius: var(--radius-sm);
+					color: var(--MI_THEME-fg);
+					border: 1px solid var(--MI_THEME-divider);
+					border-radius: var(--MI-radius-sm);
 					padding: 8px;
 					line-height: 0;
 
 					> .heading {
 						text-align: left;
-						color: var(--fgTransparent);
+						color: var(--MI_THEME-fgTransparent);
 						line-height: 1.5;
 						font-size: 85%;
 					}
@@ -615,7 +630,7 @@ onUnmounted(() => {
 						height: auto;
 						min-height: 0;
 						line-height: 1.5;
-						color: var(--fg);
+						color: var(--MI_THEME-fg);
 						overflow: hidden;
 						background: transparent;
 						font-family: inherit;
@@ -635,7 +650,7 @@ onUnmounted(() => {
 				> .fields {
 					padding: 24px;
 					font-size: 0.9em;
-					border-top: solid 0.5px var(--divider);
+					border-top: solid 0.5px var(--MI_THEME-divider);
 
 					> .field {
 						display: flex;
@@ -672,14 +687,14 @@ onUnmounted(() => {
 				> .status {
 					display: flex;
 					padding: 24px;
-					border-top: solid 0.5px var(--divider);
+					border-top: solid 0.5px var(--MI_THEME-divider);
 
 					> a {
 						flex: 1;
 						text-align: center;
 
 						&.active {
-							color: var(--accent);
+							color: var(--MI_THEME-accent);
 						}
 
 						&:hover {
@@ -701,7 +716,7 @@ onUnmounted(() => {
 
 		> .contents {
 			> .content {
-				margin-bottom: var(--margin);
+				margin-bottom: var(--MI-margin);
 			}
 		}
 	}
@@ -718,7 +733,7 @@ onUnmounted(() => {
 		> .sub {
 			max-width: 350px;
 			min-width: 350px;
-			margin-left: var(--margin);
+			margin-left: var(--MI-margin);
 		}
 	}
 }
@@ -796,7 +811,7 @@ onUnmounted(() => {
 <style lang="scss" module>
 .tl {
 	background-color: rgba(0, 0, 0, 0);
-	border-radius: var(--radius);
+	border-radius: var(--MI-radius);
 	overflow: clip;
 	z-index: 0;
 }
@@ -804,12 +819,12 @@ onUnmounted(() => {
 .tab {
 	margin-bottom: calc(var(--margin) / 2);
 	padding: calc(var(--margin) / 2) 0;
-	background: color-mix(in srgb, var(--bg) 65%, transparent);
-	backdrop-filter: var(--blur, blur(15px));
-	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--MI_THEME-bg) 65%, transparent);
+	backdrop-filter: var(--MI-blur, blur(15px));
+	border-radius: var(--MI-radius-sm);
 
 	> button {
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 		margin-left: 0.4rem;
 		margin-right: 0.4rem;
 	}
@@ -817,7 +832,7 @@ onUnmounted(() => {
 
 .verifiedLink {
 	margin-left: 4px;
-	color: var(--success);
+	color: var(--MI_THEME-success);
 }
 
 .infoBadges {
@@ -836,7 +851,7 @@ onUnmounted(() => {
 		color: #fff;
 		background: rgba(0, 0, 0, 0.7);
 		font-size: 0.7em;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 		list-style-type: none;
 		margin-left: 0;
 	}

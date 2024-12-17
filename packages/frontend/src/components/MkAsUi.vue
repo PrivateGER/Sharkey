@@ -106,7 +106,7 @@ const containerStyle = computed(() => {
 
 	const border = isBordered ? {
 		borderWidth: c.borderWidth ?? '1px',
-		borderColor: c.borderColor ?? 'var(--divider)',
+		borderColor: c.borderColor ?? 'var(--MI_THEME-divider)',
 		borderStyle: c.borderStyle ?? 'solid',
 	} : undefined;
 
@@ -165,7 +165,7 @@ function openPostForm() {
 }
 
 .postForm {
-	background: var(--bg);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-radius-sm);
 }
 </style>

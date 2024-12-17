@@ -127,7 +127,7 @@ definePageMetadata(() => ({
 
 	// The universal layout inserts a "spacer" thing that causes a stray scroll bar.
 	// We have to create fake "space" for it to "roll up" and back into the viewport, which removes the scrollbar.
-	margin-bottom: calc(-1 * var(--minBottomSpacing));
+	margin-bottom: calc(-1 * var(--MI-minBottomSpacing));
 
 	// Some "just in case" backup properties.
 	// These should not be needed, but help to maintain the layout if the above trick ever stops working.

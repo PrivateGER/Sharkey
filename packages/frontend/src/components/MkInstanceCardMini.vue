@@ -46,15 +46,15 @@ function getInstanceIcon(instance): string {
 	display: flex;
 	align-items: center;
 	padding: 16px;
-	background: var(--panel);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-sm);
 
 	> :global(.icon) {
 		display: block;
 		width: ($bodyTitleHieght + $bodyInfoHieght);
 		height: ($bodyTitleHieght + $bodyInfoHieght);
 		object-fit: cover;
-		border-radius: var(--radius-xs);
+		border-radius: var(--MI-radius-xs);
 		margin-right: 10px;
 	}
 
@@ -62,7 +62,7 @@ function getInstanceIcon(instance): string {
 		flex: 1;
 		overflow: hidden;
 		font-size: 0.9em;
-		color: var(--fg);
+		color: var(--MI_THEME-fg);
 		padding-right: 8px;
 
 		> :global(.host) {
@@ -109,7 +109,7 @@ function getInstanceIcon(instance): string {
 	}
 
 	&:global(.gray) {
-		--c: var(--bg);
+		--c: var(--MI_THEME-bg);
 		background-image: linear-gradient(45deg, var(--c) 16.67%, transparent 16.67%, transparent 50%, var(--c) 50%, var(--c) 66.67%, transparent 66.67%, transparent 100%);
 		background-size: 16px 16px;
 	}

@@ -118,15 +118,15 @@ function checkMute(note: Misskey.entities.Note | undefined | null, mutes: Mutes)
 
 <style module lang="scss">
 .panel {
-	background: var(--panel);
+	background: var(--MI_THEME-panel);
 }
 
 @keyframes border {
 	from {
-		border-left: 0 solid var(--accent);
+		border-left: 0 solid var(--MI_THEME-accent);
 	}
 	to {
-		border-left: 6px solid var(--accent);
+		border-left: 6px solid var(--MI_THEME-accent);
 	}
 }
 

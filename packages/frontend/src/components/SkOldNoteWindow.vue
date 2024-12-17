@@ -182,8 +182,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 .noteHeaderAvatar {
 	display: block;
 	flex-shrink: 0;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 }
 
 .noteHeaderBody {
@@ -206,8 +206,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 	padding: 4px 6px;
 	font-size: 80%;
 	line-height: 1;
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius-xs);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-xs);
 }
 
 .noteHeaderInfo {
@@ -240,19 +240,19 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 }
 
 .noteReplyTarget {
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
 }
 
 .rn {
 	margin-left: 4px;
 	font-style: oblique;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 }
 
 .translation {
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
 }
@@ -267,8 +267,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 
 .quoteNote {
 	padding: 16px;
-	border: dashed 1px var(--renote);
-	border-radius: var(--radius-xs);
+	border: dashed 1px var(--MI_THEME-renote);
+	border-radius: var(--MI-radius-xs);
 	overflow: clip;
 }
 
@@ -287,7 +287,7 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 	}
 
 	&:hover {
-		color: var(--fgHighlighted);
+		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 

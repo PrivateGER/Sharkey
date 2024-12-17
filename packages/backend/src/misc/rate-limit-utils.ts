@@ -117,12 +117,27 @@ export interface LimitInfo {
 	fullResetMs: number;
 }
 
+export const disabledLimitInfo: Readonly<LimitInfo> = Object.freeze({
+	blocked: false,
+	remaining: Number.MAX_SAFE_INTEGER,
+	resetSec: 0,
+	resetMs: 0,
+	fullResetSec: 0,
+	fullResetMs: 0,
+});
+
 export function isLegacyRateLimit(limit: RateLimit): limit is LegacyRateLimit {
 	return limit.type === undefined;
 }
 
-export function hasMinLimit(limit: LegacyRateLimit): limit is LegacyRateLimit & { minInterval: number } {
-	return !!limit.minInterval;
+export type MaxLegacyLimit = LegacyRateLimit & { duration: number, max: number };
+export function hasMaxLimit(limit: LegacyRateLimit): limit is MaxLegacyLimit {
+	return limit.max != null && limit.duration != null;
+}
+
+export type MinLegacyLimit = LegacyRateLimit & { minInterval: number };
+export function hasMinLimit(limit: LegacyRateLimit): limit is MinLegacyLimit {
+	return limit.minInterval != null;
 }
 
 export function sendRateLimitHeaders(reply: FastifyReply, info: LimitInfo): void {

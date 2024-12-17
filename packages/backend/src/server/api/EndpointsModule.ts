@@ -68,6 +68,8 @@ import * as ep___admin_relays_list from './endpoints/admin/relays/list.js';
 import * as ep___admin_relays_remove from './endpoints/admin/relays/remove.js';
 import * as ep___admin_resetPassword from './endpoints/admin/reset-password.js';
 import * as ep___admin_resolveAbuseUserReport from './endpoints/admin/resolve-abuse-user-report.js';
+import * as ep___admin_forwardAbuseUserReport from './endpoints/admin/forward-abuse-user-report.js';
+import * as ep___admin_updateAbuseUserReport from './endpoints/admin/update-abuse-user-report.js';
 import * as ep___admin_sendEmail from './endpoints/admin/send-email.js';
 import * as ep___admin_serverInfo from './endpoints/admin/server-info.js';
 import * as ep___admin_showModerationLogs from './endpoints/admin/show-moderation-logs.js';
@@ -311,6 +313,9 @@ import * as ep___notes_renotes from './endpoints/notes/renotes.js';
 import * as ep___notes_replies from './endpoints/notes/replies.js';
 import * as ep___notes_edit from './endpoints/notes/edit.js';
 import * as ep___notes_versions from './endpoints/notes/versions.js';
+import * as ep___notes_schedule_create from './endpoints/notes/schedule/create.js';
+import * as ep___notes_schedule_delete from './endpoints/notes/schedule/delete.js';
+import * as ep___notes_schedule_list from './endpoints/notes/schedule/list.js';
 import * as ep___notes_searchByTag from './endpoints/notes/search-by-tag.js';
 import * as ep___notes_search from './endpoints/notes/search.js';
 import * as ep___notes_show from './endpoints/notes/show.js';
@@ -470,6 +475,8 @@ const $admin_relays_list: Provider = { provide: 'ep:admin/relays/list', useClass
 const $admin_relays_remove: Provider = { provide: 'ep:admin/relays/remove', useClass: ep___admin_relays_remove.default };
 const $admin_resetPassword: Provider = { provide: 'ep:admin/reset-password', useClass: ep___admin_resetPassword.default };
 const $admin_resolveAbuseUserReport: Provider = { provide: 'ep:admin/resolve-abuse-user-report', useClass: ep___admin_resolveAbuseUserReport.default };
+const $admin_forwardAbuseUserReport: Provider = { provide: 'ep:admin/forward-abuse-user-report', useClass: ep___admin_forwardAbuseUserReport.default };
+const $admin_updateAbuseUserReport: Provider = { provide: 'ep:admin/update-abuse-user-report', useClass: ep___admin_updateAbuseUserReport.default };
 const $admin_sendEmail: Provider = { provide: 'ep:admin/send-email', useClass: ep___admin_sendEmail.default };
 const $admin_serverInfo: Provider = { provide: 'ep:admin/server-info', useClass: ep___admin_serverInfo.default };
 const $admin_showModerationLogs: Provider = { provide: 'ep:admin/show-moderation-logs', useClass: ep___admin_showModerationLogs.default };
@@ -711,6 +718,9 @@ const $notes_reactions_delete: Provider = { provide: 'ep:notes/reactions/delete'
 const $notes_like: Provider = { provide: 'ep:notes/like', useClass: ep___notes_like.default };
 const $notes_renotes: Provider = { provide: 'ep:notes/renotes', useClass: ep___notes_renotes.default };
 const $notes_replies: Provider = { provide: 'ep:notes/replies', useClass: ep___notes_replies.default };
+const $notes_schedule_create: Provider = { provide: 'ep:notes/schedule/create', useClass: ep___notes_schedule_create.default };
+const $notes_schedule_delete: Provider = { provide: 'ep:notes/schedule/delete', useClass: ep___notes_schedule_delete.default };
+const $notes_schedule_list: Provider = { provide: 'ep:notes/schedule/list', useClass: ep___notes_schedule_list.default };
 const $notes_searchByTag: Provider = { provide: 'ep:notes/search-by-tag', useClass: ep___notes_searchByTag.default };
 const $notes_search: Provider = { provide: 'ep:notes/search', useClass: ep___notes_search.default };
 const $notes_show: Provider = { provide: 'ep:notes/show', useClass: ep___notes_show.default };
@@ -876,6 +886,8 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$admin_relays_remove,
 		$admin_resetPassword,
 		$admin_resolveAbuseUserReport,
+		$admin_forwardAbuseUserReport,
+		$admin_updateAbuseUserReport,
 		$admin_sendEmail,
 		$admin_serverInfo,
 		$admin_showModerationLogs,
@@ -1117,6 +1129,9 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$notes_like,
 		$notes_renotes,
 		$notes_replies,
+		$notes_schedule_create,
+		$notes_schedule_delete,
+		$notes_schedule_list,
 		$notes_searchByTag,
 		$notes_search,
 		$notes_show,
@@ -1276,6 +1291,8 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$admin_relays_remove,
 		$admin_resetPassword,
 		$admin_resolveAbuseUserReport,
+		$admin_forwardAbuseUserReport,
+		$admin_updateAbuseUserReport,
 		$admin_sendEmail,
 		$admin_serverInfo,
 		$admin_showModerationLogs,
@@ -1516,6 +1533,9 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$notes_like,
 		$notes_renotes,
 		$notes_replies,
+		$notes_schedule_create,
+		$notes_schedule_delete,
+		$notes_schedule_list,
 		$notes_searchByTag,
 		$notes_search,
 		$notes_show,

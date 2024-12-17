@@ -100,6 +100,7 @@ export class MetaEntityService {
 			turnstileSiteKey: instance.turnstileSiteKey,
 			enableFC: instance.enableFC,
 			fcSiteKey: instance.fcSiteKey,
+			enableTestcaptcha: instance.enableTestcaptcha,
 			swPublickey: instance.swPublicKey,
 			themeColor: instance.themeColor,
 			mascotImageUrl: instance.mascotImageUrl ?? '/assets/ai.png',

@@ -119,7 +119,7 @@ function onTabClick(tab: Tab, ev: MouseEvent): void {
 }
 
 const calcBg = () => {
-	const rawBg = pageMetadata.value?.bg ?? 'var(--bg)';
+	const rawBg = pageMetadata.value?.bg ?? 'var(--MI_THEME-bg)';
 	const tinyBg = tinycolor(rawBg.startsWith('var(') ? getComputedStyle(document.documentElement).getPropertyValue(rawBg.slice(4, -1)) : rawBg);
 	tinyBg.setAlpha(0.85);
 	bg.value = tinyBg.toRgbString();
@@ -156,8 +156,8 @@ onUnmounted(() => {
 	--height: 60px;
 	display: flex;
 	width: 100%;
-	-webkit-backdrop-filter: var(--blur, blur(15px));
-	backdrop-filter: var(--blur, blur(15px));
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
 
 	> .buttons {
 		--margin: 8px;
@@ -182,14 +182,14 @@ onUnmounted(() => {
 			width: calc(var(--height) - (var(--margin) * 2));
 			box-sizing: border-box;
 			position: relative;
-			border-radius: var(--radius-xs);
+			border-radius: var(--MI-radius-xs);
 
 			&:hover {
 				background: rgba(0, 0, 0, 0.05);
 			}
 
 			&.highlighted {
-				color: var(--accent);
+				color: var(--MI_THEME-accent);
 			}
 		}
 
@@ -286,8 +286,8 @@ onUnmounted(() => {
 			position: absolute;
 			bottom: 0;
 			height: 3px;
-			background: var(--accent);
-			border-radius: var(--radius-ellipse);
+			background: var(--MI_THEME-accent);
+			border-radius: var(--MI-radius-ellipse);
 			transition: all 0.2s ease;
 			pointer-events: none;
 		}

@@ -156,7 +156,7 @@ const everyone = ref<Section[]>([
 			},
 			{
 				handle: '@Leah',
-				avatar: 'https://secure.gravatar.com/avatar/3b35b921b284ccfd1fe348508f6f705b?s=128&d=identicon',
+				avatar: 'https://activitypub.software/uploads/-/system/user/avatar/9/avatar.png?width=128',
 				link: 'https://activitypub.software/Leah',
 			},
 			{
@@ -352,7 +352,7 @@ definePageMetadata(() => ({
 .znqjceqz {
 	> .about {
 		position: relative;
-		border-radius: var(--radius);
+		border-radius: var(--MI-radius);
 
 		> .treasure {
 			position: absolute;
@@ -391,7 +391,7 @@ definePageMetadata(() => ({
 				display: block;
 				width: 80px;
 				margin: 0 auto;
-				border-radius: var(--radius-md);
+				border-radius: var(--MI-radius-md);
 				position: relative;
 				z-index: 1;
 				transform: translateX(-10%);
@@ -441,23 +441,23 @@ definePageMetadata(() => ({
 	display: flex;
 	align-items: center;
 	padding: 12px;
-	background: var(--buttonBg);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-buttonBg);
+	border-radius: var(--MI-radius-sm);
 
 	&:hover {
 		text-decoration: none;
-		background: var(--buttonHoverBg);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 
 	&.active {
-		color: var(--accent);
-		background: var(--buttonHoverBg);
+		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 
 .contributorAvatar {
 	width: 30px;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 }
 
 .contributorUsername {
@@ -474,13 +474,13 @@ definePageMetadata(() => ({
 	display: flex;
 	align-items: center;
 	padding: 12px;
-	background: var(--buttonBg);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-buttonBg);
+	border-radius: var(--MI-radius-sm);
 }
 
 .patronIcon {
 	width: 24px;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 }
 
 .patronName {

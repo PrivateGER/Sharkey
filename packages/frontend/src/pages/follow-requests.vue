@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</template>
 					<template #default="{items}">
-						<div class="mk-follow-requests">
+						<div class="mk-follow-requests _gaps">
 							<div v-for="req in items" :key="req.id" class="user _panel">
 								<MkAvatar class="avatar" :user="displayUser(req)" indicator link preview/>
 								<div class="body">
@@ -28,6 +28,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<div v-if="tab === 'list'" class="commands">
 										<MkButton class="command" rounded primary @click="accept(displayUser(req))"><i class="ti ti-check"/> {{ i18n.ts.accept }}</MkButton>
 										<MkButton class="command" rounded danger @click="reject(displayUser(req))"><i class="ti ti-x"/> {{ i18n.ts.reject }}</MkButton>
+									</div>
+									<div v-else class="commands">
+										<MkButton class="command" rounded danger @click="cancel(displayUser(req))"><i class="ti ti-x"/> {{ i18n.ts.cancel }}</MkButton>
 									</div>
 								</div>
 							</div>
@@ -41,38 +44,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
+import * as Misskey from 'misskey-js';
 import { shallowRef, computed, ref } from 'vue';
-import MkPagination from '@/components/MkPagination.vue';
+import MkPagination, { type Paging } from '@/components/MkPagination.vue';
 import MkButton from '@/components/MkButton.vue';
 import { userPage, acct } from '@/filters/user.js';
-import { misskeyApi } from '@/scripts/misskey-api.js';
+import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { infoImageUrl } from '@/instance.js';
+import { $i } from '@/account.js';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
-import { $i } from '@/account';
 
 const paginationComponent = shallowRef<InstanceType<typeof MkPagination>>();
 
-const pagination = computed(() => tab.value === 'list'
-	? {
-		endpoint: 'following/requests/list' as const,
-		limit: 10,
-	}
-	: {
-		endpoint: 'following/requests/sent' as const,
-		limit: 10,
-	},
-);
+const pagination = computed<Paging>(() => tab.value === 'list' ? {
+	endpoint: 'following/requests/list',
+	limit: 10,
+} : {
+	endpoint: 'following/requests/sent',
+	limit: 10,
+});
 
-function accept(user) {
-	misskeyApi('following/requests/accept', { userId: user.id }).then(() => {
+function accept(user: Misskey.entities.UserLite) {
+	os.apiWithDialog('following/requests/accept', { userId: user.id }).then(() => {
 		paginationComponent.value?.reload();
 	});
 }
 
-function reject(user) {
-	misskeyApi('following/requests/reject', { userId: user.id }).then(() => {
+function reject(user: Misskey.entities.UserLite) {
+	os.apiWithDialog('following/requests/reject', { userId: user.id }).then(() => {
+		paginationComponent.value?.reload();
+	});
+}
+
+function cancel(user: Misskey.entities.UserLite) {
+	os.apiWithDialog('following/requests/cancel', { userId: user.id }).then(() => {
 		paginationComponent.value?.reload();
 	});
 }
@@ -86,11 +93,11 @@ const headerActions = computed(() => []);
 const headerTabs = computed(() => [
 	{
 		key: 'list',
-		title: i18n.ts.followRequests,
+		title: i18n.ts._followRequest.recieved,
 		icon: 'ph-envelope ph-bold ph-lg',
 	}, {
 		key: 'sent',
-		title: i18n.ts.pendingFollowRequests,
+		title: i18n.ts._followRequest.sent,
 		icon: 'ph-paper-plane-tilt ph-bold ph-lg',
 	},
 ]);
@@ -115,7 +122,7 @@ definePageMetadata(() => ({
 			margin: 0 12px 0 0;
 			width: 42px;
 			height: 42px;
-			border-radius: var(--radius-sm);
+			border-radius: var(--MI-radius-sm);
 		}
 
 		> .body {

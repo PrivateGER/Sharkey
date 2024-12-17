@@ -2,10 +2,9 @@
  * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
+import * as Misskey from 'misskey-js';
 
-import type { Note, MeDetailed } from "misskey-js/entities.js";
-
-export function checkWordMute(note: Note, me: MeDetailed | null | undefined, mutedWords: Array<string | string[]>): boolean {
+export function checkWordMute(note: Misskey.entities.Note, me: Misskey.entities.UserLite | null | undefined, mutedWords: Array<string | string[]>): boolean {
 	// 自分自身
 	if (me && (note.userId === me.id)) return false;
 

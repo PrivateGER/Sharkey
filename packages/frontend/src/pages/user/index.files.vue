@@ -96,7 +96,7 @@ onMounted(() => {
 .img {
 	position: relative;
 	height: 128px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 }
 

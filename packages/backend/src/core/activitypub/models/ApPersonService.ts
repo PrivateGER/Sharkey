@@ -255,6 +255,12 @@ export class ApPersonService implements OnModuleInit {
 		if (user == null) throw new Error('failed to create user: user is null');
 
 		const [avatar, banner, background] = await Promise.all([icon, image, bgimg].map(img => {
+			// icon and image may be arrays
+			// see https://www.w3.org/TR/activitystreams-vocabulary/#dfn-icon
+			if (Array.isArray(img)) {
+				img = img.find(item => item && item.url) ?? null;
+			}
+
 			// if we have an explicitly missing image, return an
 			// explicitly-null set of values
 			if ((img == null) || (typeof img === 'object' && img.url == null)) {
@@ -385,17 +391,20 @@ export class ApPersonService implements OnModuleInit {
 					lastFetchedAt: new Date(),
 					name: truncate(person.name, nameLength),
 					noindex: (person as any).noindex ?? false,
+					enableRss: person.enableRss === true,
 					isLocked: person.manuallyApprovesFollowers,
 					movedToUri: person.movedTo,
 					movedAt: person.movedTo ? new Date() : null,
 					alsoKnownAs: person.alsoKnownAs,
+					// We use "!== false" to handle incorrect types, missing / null values, and "default to true" logic.
+					hideOnlineStatus: person.hideOnlineStatus !== false,
 					isExplorable: person.discoverable,
 					username: person.preferredUsername,
 					approved: true,
 					usernameLower: person.preferredUsername?.toLowerCase(),
 					host,
 					inbox: person.inbox,
-					sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox,
+					sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
 					notesCount: outboxcollection?.totalItems ?? 0,
 					followersCount: followerscollection?.totalItems ?? 0,
 					followingCount: followingcollection?.totalItems ?? 0,
@@ -406,6 +415,9 @@ export class ApPersonService implements OnModuleInit {
 					isBot,
 					isCat: (person as any).isCat === true,
 					speakAsCat: (person as any).speakAsCat != null ? (person as any).speakAsCat === true : (person as any).isCat === true,
+					requireSigninToViewContents: (person as any).requireSigninToViewContents === true,
+					makeNotesFollowersOnlyBefore: (person as any).makeNotesFollowersOnlyBefore ?? null,
+					makeNotesHiddenBefore: (person as any).makeNotesHiddenBefore ?? null,
 					emojis,
 				})) as MiRemoteUser;
 
@@ -459,13 +471,15 @@ export class ApPersonService implements OnModuleInit {
 		this.cacheService.uriPersonCache.set(user.uri, user);
 
 		// Register host
-		this.federatedInstanceService.fetch(host).then(i => {
-			this.instancesRepository.increment({ id: i.id }, 'usersCount', 1);
-			this.fetchInstanceMetadataService.fetchInstanceMetadata(i);
-			if (this.meta.enableChartsForFederatedInstances) {
-				this.instanceChart.newUser(i.host);
-			}
-		});
+		if (this.meta.enableStatsForFederatedInstances) {
+			this.federatedInstanceService.fetchOrRegister(host).then(i => {
+				this.instancesRepository.increment({ id: i.id }, 'usersCount', 1);
+				if (this.meta.enableChartsForFederatedInstances) {
+					this.instanceChart.newUser(i.host);
+				}
+				this.fetchInstanceMetadataService.fetchInstanceMetadata(i);
+			});
+		}
 
 		this.usersChart.update(user, true);
 
@@ -571,7 +585,7 @@ export class ApPersonService implements OnModuleInit {
 		const updates = {
 			lastFetchedAt: new Date(),
 			inbox: person.inbox,
-			sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox,
+			sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
 			followersUri: person.followers ? getApId(person.followers) : undefined,
 			featured: person.featured,
 			emojis: emojiNames,
@@ -582,9 +596,12 @@ export class ApPersonService implements OnModuleInit {
 			isCat: (person as any).isCat === true,
 			speakAsCat: (person as any).speakAsCat != null ? (person as any).speakAsCat === true : (person as any).isCat === true,
 			noindex: (person as any).noindex ?? false,
+			enableRss: person.enableRss === true,
 			isLocked: person.manuallyApprovesFollowers,
 			movedToUri: person.movedTo ?? null,
 			alsoKnownAs: person.alsoKnownAs ?? null,
+			// We use "!== false" to handle incorrect types, missing / null values, and "default to true" logic.
+			hideOnlineStatus: person.hideOnlineStatus !== false,
 			isExplorable: person.discoverable,
 			...(await this.resolveAvatarAndBanner(exist, person.icon, person.image, person.backgroundUrl).catch(() => ({}))),
 		} as Partial<MiRemoteUser> & Pick<MiRemoteUser, 'isBot' | 'isCat' | 'speakAsCat' | 'isLocked' | 'movedToUri' | 'alsoKnownAs' | 'isExplorable'>;
@@ -647,7 +664,7 @@ export class ApPersonService implements OnModuleInit {
 		// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
 		await this.followingsRepository.update(
 			{ followerId: exist.id },
-			{ followerSharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox },
+			{ followerSharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null },
 		);
 
 		await this.updateFeatured(exist.id, resolver).catch(err => this.logger.error(err));

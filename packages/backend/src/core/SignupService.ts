@@ -135,6 +135,7 @@ export class SignupService {
 				isRoot: isTheFirstUser,
 				approved: isTheFirstUser || (opts.approved ?? !this.meta.approvalRequiredForSignup),
 				signupReason: reason,
+				enableRss: false,
 			}));
 
 			await transactionalEntityManager.save(new MiUserKeypair({
@@ -155,8 +156,8 @@ export class SignupService {
 			}));
 		});
 
-		this.usersChart.update(account, true).then();
-		this.userService.notifySystemWebhook(account, 'userCreated').then();
+		this.usersChart.update(account, true);
+		this.userService.notifySystemWebhook(account, 'userCreated');
 
 		return { account, secret };
 	}

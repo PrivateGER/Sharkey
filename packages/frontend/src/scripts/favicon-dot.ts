@@ -78,7 +78,7 @@ class FavIconDot {
 		this.ctx.beginPath();
 		this.ctx.arc(this.faviconImage.width - 10, 10, 10, 0, 2 * Math.PI);
 		const computedStyle = getComputedStyle(document.documentElement);
-		this.ctx.fillStyle = tinycolor(computedStyle.getPropertyValue('--navIndicator')).toHexString();
+		this.ctx.fillStyle = tinycolor(computedStyle.getPropertyValue('--MI_THEME-navIndicator')).toHexString();
 		this.ctx.strokeStyle = 'white';
 		this.ctx.fill();
 		this.ctx.stroke();
@@ -104,7 +104,7 @@ class FavIconDot {
 			this.drawDot();
 			this.canvas.toDataURL('image/png');
 		} catch (error) {
-			return false;			
+			return false;
 		}
 		return true;
 	}
@@ -140,6 +140,6 @@ export async function worksOnInstance() {
 		icon = new FavIconDot();
 		await icon.setup();
 	}
-	
+
 	return await icon.worksOnInstance();
 }

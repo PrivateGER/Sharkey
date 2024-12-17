@@ -212,7 +212,7 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 	> .caption {
 		font-size: 0.85em;
 		padding: 8px 0 0 0;
-		color: var(--fgTransparentWeak);
+		color: var(--MI_THEME-fgTransparentWeak);
 
 		&:empty {
 			display: none;
@@ -224,9 +224,9 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 
 	> .body {
 		padding: 7px 12px;
-		background: var(--panel);
-		border: solid 1px var(--panel);
-		border-radius: var(--radius-sm);
+		background: var(--MI_THEME-panel);
+		border: solid 1px var(--MI_THEME-panel);
+		border-radius: var(--MI-radius-sm);
 
 		> .container {
 			position: relative;
@@ -242,7 +242,7 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 				width: calc(100% - #{$thumbWidth});
 				height: 3px;
 				background: rgba(0, 0, 0, 0.1);
-				border-radius: var(--radius-ellipse);
+				border-radius: var(--MI-radius-ellipse);
 				overflow: clip;
 
 				> .highlight {
@@ -250,7 +250,7 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 					top: 0;
 					left: 0;
 					height: 100%;
-					background: var(--accent);
+					background: var(--MI_THEME-accent);
 					opacity: 0.5;
 				}
 			}
@@ -272,8 +272,8 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 					width: $tickWidth;
 					height: 3px;
 					margin-left: - math.div($tickWidth, 2);
-					background: var(--divider);
-					border-radius: var(--radius-ellipse);
+					background: var(--MI_THEME-divider);
+					border-radius: var(--MI-radius-ellipse);
 				}
 			}
 
@@ -282,11 +282,11 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 				width: $thumbWidth;
 				height: $thumbHeight;
 				cursor: grab;
-				background: var(--accent);
-				border-radius: var(--radius-ellipse);
+				background: var(--MI_THEME-accent);
+				border-radius: var(--MI-radius-ellipse);
 
 				&:hover {
-					background: var(--accentLighten);
+					background: var(--MI_THEME-accentLighten);
 				}
 			}
 		}

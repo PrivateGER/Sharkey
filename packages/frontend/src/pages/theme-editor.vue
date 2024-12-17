@@ -236,7 +236,7 @@ definePageMetadata(() => ({
 				position: relative;
 				width: 64px;
 				height: 64px;
-				border-radius: var(--radius-sm);
+				border-radius: var(--MI-radius-sm);
 
 				> .preview {
 					position: absolute;
@@ -247,7 +247,7 @@ definePageMetadata(() => ({
 					margin: auto;
 					width: 42px;
 					height: 42px;
-					border-radius: var(--radius-xs);
+					border-radius: var(--MI-radius-xs);
 					box-shadow: 0 2px 4px rgb(0 0 0 / 30%);
 					transition: transform 0.15s ease;
 				}
@@ -259,14 +259,14 @@ definePageMetadata(() => ({
 				}
 
 				&.active {
-					box-shadow: 0 0 0 2px var(--divider) inset;
+					box-shadow: 0 0 0 2px var(--MI_THEME-divider) inset;
 				}
 
 				&.rounded {
-					border-radius: var(--radius-ellipse);
+					border-radius: var(--MI-radius-ellipse);
 
 					> .preview {
-						border-radius: var(--radius-ellipse);
+						border-radius: var(--MI-radius-ellipse);
 					}
 				}
 

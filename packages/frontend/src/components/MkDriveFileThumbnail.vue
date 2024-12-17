@@ -69,8 +69,8 @@ const isThumbnailAvailable = computed(() => {
 .root {
 	position: relative;
 	display: flex;
-	background: var(--panel);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 }
 
@@ -83,7 +83,7 @@ const isThumbnailAvailable = computed(() => {
 	height: 100%;
 	pointer-events: none;
 	border-radius: inherit;
-	box-shadow: inset 0 0 0 4px var(--warn);
+	box-shadow: inset 0 0 0 4px var(--MI_THEME-warn);
 }
 
 .iconSub {

@@ -51,18 +51,18 @@ const toggle = () => {
 	width: calc(var(--height) * 1.6);
 	height: calc(var(--height) + 2px); // 枠線
 	outline: none;
-	background: var(--switchOffBg);
+	background: var(--MI_THEME-switchOffBg);
 	background-clip: content-box;
-	border: solid 1px var(--switchOffBg);
-	border-radius: var(--radius-ellipse);
+	border: solid 1px var(--MI_THEME-switchOffBg);
+	border-radius: var(--MI-radius-ellipse);
 	cursor: pointer;
 	transition: inherit;
 	user-select: none;
 }
 
 .buttonChecked {
-	background-color: var(--switchOnBg) !important;
-	border-color: var(--switchOnBg) !important;
+	background-color: var(--MI_THEME-switchOnBg) !important;
+	border-color: var(--MI_THEME-switchOnBg) !important;
 }
 
 .buttonDisabled {
@@ -75,17 +75,17 @@ const toggle = () => {
 	top: 3px;
 	width: calc(var(--height) - 6px);
 	height: calc(var(--height) - 6px);
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	transition: all 0.2s ease;
 
 	&:not(.knobChecked) {
 		left: 3px;
-		background: var(--switchOffFg);
+		background: var(--MI_THEME-switchOffFg);
 	}
 }
 
 .knobChecked {
 	left: calc(calc(100% - var(--height)) + 3px);
-	background: var(--switchOnFg);
+	background: var(--MI_THEME-switchOnFg);
 }
 </style>

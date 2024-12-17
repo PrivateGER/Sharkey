@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div class="_gaps">
 			<div>
-				<div v-panel style="border-radius: var(--radius-sm);">
+				<div v-panel style="border-radius: var(--MI-radius-sm);">
 					<Sortable
 						v-model="pinnedEmojisForReaction"
 						:class="$style.emojis"
@@ -52,7 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div class="_gaps">
 			<div>
-				<div v-panel style="border-radius: var(--radius-sm);">
+				<div v-panel style="border-radius: var(--MI-radius-sm);">
 					<Sortable
 						v-model="pinnedEmojis"
 						:class="$style.emojis"
@@ -287,9 +287,9 @@ definePageMetadata(() => ({
 
 <style lang="scss" module>
 .tab {
-	margin: calc(var(--margin) / 2) 0;
-	padding: calc(var(--margin) / 2) 0;
-	background: var(--bg);
+	margin: calc(var(--MI-margin) / 2) 0;
+	padding: calc(var(--MI-margin) / 2) 0;
+	background: var(--MI_THEME-bg);
 }
 
 .emojis {
@@ -311,6 +311,6 @@ definePageMetadata(() => ({
 .editorCaption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: var(--fgTransparentWeak);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

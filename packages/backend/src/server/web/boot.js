@@ -108,7 +108,7 @@
 		}
 		for (const [k, v] of Object.entries(themeProps)) {
 			if (k.startsWith('font')) continue;
-			document.documentElement.style.setProperty(`--${k}`, v.toString());
+			document.documentElement.style.setProperty(`--MI_THEME-${k}`, v.toString());
 
 			// HTMLの theme-color 適用
 			if (k === 'htmlThemeColor') {

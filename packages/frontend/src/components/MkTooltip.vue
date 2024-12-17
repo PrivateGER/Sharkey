@@ -109,8 +109,8 @@ onUnmounted(() => {
 	padding: 8px 12px;
 	box-sizing: border-box;
 	text-align: center;
-	border-radius: var(--radius-xs);
-	border: solid 0.5px var(--divider);
+	border-radius: var(--MI-radius-xs);
+	border: solid 0.5px var(--MI_THEME-divider);
 	pointer-events: none;
 	transform-origin: center center;
 }

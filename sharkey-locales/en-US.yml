@@ -88,6 +88,8 @@ searchEngineCustomURIDescription: "The custom URI must be input in the format li
 searchEngineCusomURI: "Custom URI"
 makeIndexable: "Make public notes not indexable"
 makeIndexableDescription: "Stop note search from indexing your public notes."
+enableRss: "Enable RSS feed"
+enableRssDescription: "Generate an RSS feed containing your basic profile details and public notes. Users can subscribe to the feed without a follow request or approval."
 sendErrorReportsDescription: "When turned on, detailed error information will be shared with Sharkey when a problem occurs, helping to improve the quality of Sharkey.\nThis will include information such the version of your OS, what browser you're using, your activity in Sharkey, etc."
 noInquiryUrlWarning: "Contact URL is not set."
 misskeyUpdated: "Sharkey has been updated!"
@@ -225,6 +227,7 @@ _role:
     btlAvailable: "Can view the bubble timeline"
     canImportNotes: "Can import notes"
     canUpdateBioMedia: "Allow users to edit their avatar or banner"
+    scheduleNoteMax: "Maximum number of scheduled notes"
   _condition:
     isLocked: "Private account"
     isExplorable: "Account is discoverable"
@@ -276,6 +279,8 @@ _notification:
   youRenoted: "Boost from {name}"
   renotedBySomeUsers: "Boosted by {n} users"
   edited: "Note got edited"
+  scheduledNoteFailed: "Posting scheduled note failed"
+  scheduledNotePosted: "Scheduled Note was posted"
   _types:
     renote: "Boosts"
     edited: "Edits"
@@ -414,3 +419,12 @@ _deck:
     following: "Following"
 
 selectFollowRelationship: "Select a follow relationship..."
+
+schedulePost: "Schedule a note"
+schedulePostList: "List of scheduled notes"
+postOn: "Post on"
+scheduledNotes: "Scheduled Notes"
+
+_permissions:
+  "read:notes-schedule": "View your list of scheduled notes"
+  "write:notes-schedule": "Compose or delete scheduled notes"

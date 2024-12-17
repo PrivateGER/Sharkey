@@ -12,6 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-else-if="botProtectionForm.savedState.provider === 'recaptcha'" #suffix>reCAPTCHA</template>
 	<template v-else-if="botProtectionForm.savedState.provider === 'turnstile'" #suffix>Turnstile</template>
 	<template v-else-if="botProtectionForm.savedState.provider === 'fc'" #suffix>FriendlyCaptcha</template>
+	<template v-else-if="botProtectionForm.savedState.provider === 'testcaptcha'" #suffix>testCaptcha</template>
 	<template v-else #suffix>{{ i18n.ts.none }} ({{ i18n.ts.notRecommended }})</template>
 	<template v-if="botProtectionForm.modified.value" #footer>
 		<MkFormFooter :form="botProtectionForm"/>
@@ -25,6 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<option value="recaptcha">reCAPTCHA</option>
 			<option value="turnstile">Turnstile</option>
 			<option value="fc">FriendlyCaptcha</option>
+			<option value="testcaptcha">testCaptcha</option>
 		</MkRadios>
 
 		<template v-if="botProtectionForm.state.provider === 'hcaptcha'">
@@ -101,6 +103,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkCaptcha provider="fc" :sitekey="botProtectionForm.state.fcSiteKey"/>
 			</FormSlot>
 		</template>
+		<template v-else-if="botProtectionForm.state.provider === 'testcaptcha'">
+			<MkInfo warn><span v-html="i18n.ts.testCaptchaWarning"></span></MkInfo>
+			<FormSlot>
+				<template #label>{{ i18n.ts.preview }}</template>
+				<MkCaptcha provider="testcaptcha"/>
+			</FormSlot>
+		</template>
 	</div>
 </MkFolder>
 </template>
@@ -117,6 +126,7 @@ import { i18n } from '@/i18n.js';
 import { useForm } from '@/scripts/use-form.js';
 import MkFormFooter from '@/components/MkFormFooter.vue';
 import MkFolder from '@/components/MkFolder.vue';
+import MkInfo from '@/components/MkInfo.vue';
 
 const MkCaptcha = defineAsyncComponent(() => import('@/components/MkCaptcha.vue'));
 
@@ -133,6 +143,8 @@ const botProtectionForm = useForm({
 					? 'mcaptcha'
 					: meta.enableFC
 						? 'fc'
+					: meta.enableTestcaptcha
+						? 'testcaptcha'
 						: null,
 	hcaptchaSiteKey: meta.hcaptchaSiteKey,
 	hcaptchaSecretKey: meta.hcaptchaSecretKey,
@@ -163,6 +175,7 @@ const botProtectionForm = useForm({
 		enableFC: state.provider === 'fc',
 		fcSiteKey: state.fcSiteKey,
 		fcSecretKey: state.fcSecretKey,
+		enableTestcaptcha: state.provider === 'testcaptcha',
 	});
 	fetchInstance(true);
 });

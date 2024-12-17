@@ -17,6 +17,9 @@ export interface IObject {
 	summary?: string | null;
 	_misskey_summary?: string;
 	_misskey_followedMessage?: string | null;
+	_misskey_requireSigninToViewContents?: boolean;
+	_misskey_makeNotesFollowersOnlyBefore?: number | null;
+	_misskey_makeNotesHiddenBefore?: number | null;
 	published?: string;
 	cc?: ApObject;
 	to?: ApObject;
@@ -215,7 +218,9 @@ export interface IActor extends IObject {
 	};
 	'vcard:bday'?: string;
 	'vcard:Address'?: string;
+	hideOnlineStatus?: boolean;
 	noindex?: boolean;
+	enableRss?: boolean;
 	listenbrainz?: string;
 	backgroundUrl?: string;
 }

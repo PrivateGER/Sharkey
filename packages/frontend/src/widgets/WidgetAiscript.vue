@@ -126,10 +126,10 @@ defineExpose<WidgetComponentExpose>({
 		max-width: 100%;
 		min-width: 100%;
 		padding: 16px;
-		color: var(--fg);
+		color: var(--MI_THEME-fg);
 		background: transparent;
 		border: none;
-		border-bottom: solid 0.5px var(--divider);
+		border-bottom: solid 0.5px var(--MI_THEME-divider);
 		border-radius: 0;
 		box-sizing: border-box;
 		font: inherit;
@@ -145,7 +145,7 @@ defineExpose<WidgetComponentExpose>({
 		padding: 0 10px;
 		height: 28px;
 		outline: none;
-		border-radius: var(--radius-xs);
+		border-radius: var(--MI-radius-xs);
 
 		&:disabled {
 			opacity: 0.7;
@@ -154,7 +154,7 @@ defineExpose<WidgetComponentExpose>({
 	}
 
 	> .logs {
-		border-top: solid 0.5px var(--divider);
+		border-top: solid 0.5px var(--MI_THEME-divider);
 		text-align: left;
 		padding: 16px;
 

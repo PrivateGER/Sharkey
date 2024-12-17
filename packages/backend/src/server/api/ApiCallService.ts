@@ -340,7 +340,7 @@ export class ApiCallService implements OnApplicationShutdown {
 						code: 'RATE_LIMIT_EXCEEDED',
 						id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
 						httpStatusCode: 429,
-					});
+					}, info);
 				}
 			}
 		}

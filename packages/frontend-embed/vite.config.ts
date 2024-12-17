@@ -90,6 +90,11 @@ export function getConfig(): UserConfig {
 					return shortId + '-' + toBase62(hash(id)).substring(0, 4);
 				},
 			},
+			preprocessorOptions: {
+				scss: {
+					api: 'modern-compiler',
+				},
+			},
 		},
 
 		define: {

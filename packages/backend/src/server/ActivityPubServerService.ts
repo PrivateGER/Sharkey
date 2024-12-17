@@ -33,6 +33,7 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { IActivity } from '@/core/activitypub/type.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
+import * as Acct from '@/misc/acct.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
 import type { FindOptionsWhere } from 'typeorm';
 import type Logger from '@/logger.js';
@@ -229,7 +230,7 @@ export class ActivityPubServerService {
 		let signature;
 
 		try {
-			signature = httpSignature.parseRequest(request.raw, { 'headers': ['(request-target)', 'digest', 'host', 'date'], authorizationHeaderName: 'signature' });
+			signature = httpSignature.parseRequest(request.raw, { 'headers': ['(request-target)', 'host', 'date'], authorizationHeaderName: 'signature' });
 		} catch (e) {
 			reply.code(401);
 			return;
@@ -619,7 +620,18 @@ export class ActivityPubServerService {
 			return;
 		}
 
+		// リモートだったらリダイレクト
+		if (user.host != null) {
+			if (user.uri == null || this.utilityService.isSelfHost(user.host)) {
+				reply.code(500);
+				return;
+			}
+			reply.redirect(user.uri, 301);
+			return;
+		}
+
 		if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
+
 		this.setResponseType(request, reply);
 		return (this.apRendererService.addContext(await this.apRendererService.renderPerson(user as MiLocalUser)));
 	}
@@ -795,21 +807,22 @@ export class ActivityPubServerService {
 
 			const user = await this.usersRepository.findOneBy({
 				id: userId,
-				host: IsNull(),
 				isSuspended: false,
 			});
 
 			return await this.userInfo(request, reply, user);
 		});
 
-		fastify.get<{ Params: { user: string; } }>('/@:user', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+		fastify.get<{ Params: { acct: string; } }>('/@:acct', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
+			if (await this.shouldRefuseGetRequest(request, reply, request.params.acct)) return;
 
 			vary(reply.raw, 'Accept');
 
+			const acct = Acct.parse(request.params.acct);
+
 			const user = await this.usersRepository.findOneBy({
-				usernameLower: request.params.user.toLowerCase(),
-				host: IsNull(),
+				usernameLower: acct.username,
+				host: acct.host ?? IsNull(),
 				isSuspended: false,
 			});
 

@@ -694,6 +694,28 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    request<E extends 'admin/forward-abuse-user-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    request<E extends 'admin/update-abuse-user-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:send-email*
      */
     request<E extends 'admin/send-email', P extends Endpoints[E]['req']>(
@@ -3380,6 +3402,39 @@ declare module '../api.js' {
      * **Credential required**: *No*
      */
     request<E extends 'notes/replies', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:notes-schedule*
+     */
+    request<E extends 'notes/schedule/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:notes-schedule*
+     */
+    request<E extends 'notes/schedule/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:notes-schedule*
+     */
+    request<E extends 'notes/schedule/list', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

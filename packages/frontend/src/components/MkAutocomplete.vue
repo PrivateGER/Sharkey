@@ -407,16 +407,16 @@ onBeforeUnmount(() => {
 	text-overflow: ellipsis;
 
 	&:hover {
-		background: var(--X3);
+		background: var(--MI_THEME-X3);
 	}
 
 	&[data-selected='true'] {
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		color: #fff !important;
 	}
 
 	&:active {
-		background: var(--accentDarken);
+		background: var(--MI_THEME-accentDarken);
 		color: #fff !important;
 	}
 }
@@ -427,7 +427,7 @@ onBeforeUnmount(() => {
 	max-width: 28px;
 	max-height: 28px;
 	margin: 0 8px 0 0;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 }
 
 .userName {

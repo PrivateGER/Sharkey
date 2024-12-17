@@ -210,6 +210,12 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						tag: `achievement:${data.body.achievement}`,
 					}];
 
+				case 'login':
+					return [i18n.ts._notification.login, {
+						badge: iconUrl('login-2'),
+						data,
+					}];
+
 				case 'exportCompleted': {
 					const entityName = {
 						antenna: i18n.ts.antennas,
@@ -255,6 +261,21 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						body: data.body.note.text ?? '',
 						icon: data.body.user.avatarUrl ?? undefined,
 						badge: iconUrl('messages'),
+						data,
+					}];
+
+				case 'scheduledNoteFailed':
+					return [i18n.ts._notification.scheduledNoteFailed, {
+						body: data.body.reason,
+						badge: iconUrl('bell'),
+						data,
+					}];
+
+				case 'scheduledNotePosted':
+					return [i18n.ts._notification.scheduledNotePosted, {
+						body: data.body.note.text ?? '',
+						icon: data.body.user.avatarUrl ?? undefined,
+						badge: iconUrl('bell'),
 						data,
 					}];
 

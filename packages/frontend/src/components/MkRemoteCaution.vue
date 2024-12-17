@@ -19,15 +19,15 @@ defineProps<{
 .root {
 	font-size: 0.8em;
 	padding: 16px;
-	background: color-mix(in srgb, var(--infoWarnBg) 65%, transparent);
-	color: var(--infoWarnFg);
-	border-radius: var(--radius);
+	background: color-mix(in srgb, var(--MI_THEME-infoWarnBg) 65%, transparent);
+	color: var(--MI_THEME-infoWarnFg);
+	border-radius: var(--MI-radius);
 	overflow: clip;
 	z-index: 1;
 }
 
 .link {
 	margin-left: 4px;
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 }
 </style>

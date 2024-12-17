@@ -10,12 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<div :class="$style.name"><MkCondensedLine :minScale="0.5">{{ decoration.name }}</MkCondensedLine></div>
 	<MkAvatar style="width: 60px; height: 60px;" :user="$i" :decorations="[{ url: decoration.url, angle, flipH, offsetX, offsetY, showBelow }]" forceShowDecoration/>
-	<i v-if="decoration.roleIdsThatCanBeUsedThisDecoration.length > 0 && !$i.roles.some(r => decoration.roleIdsThatCanBeUsedThisDecoration.includes(r.id))" :class="$style.lock" class="ti ti-lock"></i>
+	<i v-if="locked" :class="$style.lock" class="ti ti-lock"></i>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { computed } from 'vue';
 import { signinRequired } from '@/account.js';
 
 const $i = signinRequired();
@@ -38,14 +38,16 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(ev: 'click'): void;
 }>();
+
+const locked = computed(() => props.decoration.roleIdsThatCanBeUsedThisDecoration.length > 0 && !$i.roles.some(r => props.decoration.roleIdsThatCanBeUsedThisDecoration.includes(r.id)));
 </script>
 
 <style lang="scss" module>
 .root {
 	cursor: pointer;
 	padding: 16px 16px 28px 16px;
-	border: solid 2px var(--divider);
-	border-radius: var(--radius-sm);
+	border: solid 2px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-sm);
 	text-align: center;
 	font-size: 90%;
 	overflow: clip;
@@ -53,8 +55,8 @@ const emit = defineEmits<{
 }
 
 .active {
-	background-color: var(--accentedBg);
-	border-color: var(--accent);
+	background-color: var(--MI_THEME-accentedBg);
+	border-color: var(--MI_THEME-accent);
 }
 
 .name {
@@ -68,5 +70,6 @@ const emit = defineEmits<{
 	position: absolute;
 	bottom: 12px;
 	right: 12px;
+	color: var(--MI_THEME-warn);
 }
 </style>

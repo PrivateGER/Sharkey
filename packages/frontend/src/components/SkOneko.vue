@@ -240,6 +240,6 @@ onMounted(init);
 	pointer-events: none;
 	image-rendering: pixelated;
 	z-index: 2147483647;
-	background-image: var(--oneko-image, url(/client-assets/oneko.gif));
+	background-image: var(--MI_THEME-oneko-image, url(/client-assets/oneko.gif));
 }
 </style>

@@ -59,6 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
 						<MkTextarea v-model="moderationNote" manualSave>
 							<template #label>{{ i18n.ts.moderationNote }}</template>
+							<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
 						</MkTextarea>
 					</div>
 				</FormSection>
@@ -460,7 +461,7 @@ definePageMetadata(() => ({
 		display: block;
 		margin: 0 16px 0 0;
 		height: 64px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 	}
 
 	> .name {

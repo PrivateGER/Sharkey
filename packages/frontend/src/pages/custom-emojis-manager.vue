@@ -119,7 +119,7 @@ const selectAll = () => {
 	if (selectedEmojis.value.length > 0) {
 		selectedEmojis.value = [];
 	} else {
-		selectedEmojis.value = Array.from(emojisPaginationComponent.value.items.values(), item => item.id);
+		selectedEmojis.value = Array.from(emojisPaginationComponent.value?.items.values(), item => item.id);
 	}
 };
 
@@ -136,7 +136,7 @@ const add = async (ev: MouseEvent) => {
 	}, {
 		done: result => {
 			if (result.created) {
-				emojisPaginationComponent.value.prepend(result.created);
+				emojisPaginationComponent.value?.prepend(result.created);
 			}
 		},
 		closed: () => dispose(),
@@ -149,12 +149,12 @@ const edit = (emoji) => {
 	}, {
 		done: result => {
 			if (result.updated) {
-				emojisPaginationComponent.value.updateItem(result.updated.id, (oldEmoji: any) => ({
+				emojisPaginationComponent.value?.updateItem(result.updated.id, (oldEmoji) => ({
 					...oldEmoji,
 					...result.updated,
 				}));
 			} else if (result.deleted) {
-				emojisPaginationComponent.value.removeItem(emoji.id);
+				emojisPaginationComponent.value?.removeItem(emoji.id);
 			}
 		},
 		closed: () => dispose(),
@@ -239,7 +239,7 @@ const setCategoryBulk = async () => {
 		ids: selectedEmojis.value,
 		category: result,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const setLicenseBulk = async () => {
@@ -251,43 +251,43 @@ const setLicenseBulk = async () => {
 		ids: selectedEmojis.value,
 		license: result,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const addTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/add-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const removeTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/remove-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const setTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/set-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const delBulk = async () => {
@@ -299,7 +299,7 @@ const delBulk = async () => {
 	await os.apiWithDialog('admin/emoji/delete-bulk', {
 		ids: selectedEmojis.value,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const headerActions = computed(() => [{
@@ -330,28 +330,28 @@ definePageMetadata(() => ({
 .ogwlenmc {
 	> .local {
 		.empty {
-			margin: var(--margin);
+			margin: var(--MI-margin);
 		}
 
 		.ldhfsamy {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 			grid-gap: 12px;
-			margin: var(--margin) 0;
+			margin: var(--MI-margin) 0;
 
 			> .emoji {
 				display: flex;
 				align-items: center;
 				padding: 11px;
 				text-align: left;
-				border: solid 1px var(--panel);
+				border: solid 1px var(--MI_THEME-panel);
 
 				&:hover {
-					border-color: var(--inputBorderHover);
+					border-color: var(--MI_THEME-inputBorderHover);
 				}
 
 				&.selected {
-					border-color: var(--accent);
+					border-color: var(--MI_THEME-accent);
 				}
 
 				> .img {
@@ -382,14 +382,14 @@ definePageMetadata(() => ({
 
 	> .remote {
 		.empty {
-			margin: var(--margin);
+			margin: var(--MI-margin);
 		}
 
 		.ldhfsamy {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 			grid-gap: 12px;
-			margin: var(--margin) 0;
+			margin: var(--MI-margin) 0;
 
 			> .emoji {
 				display: flex;
@@ -398,7 +398,7 @@ definePageMetadata(() => ({
 				text-align: left;
 
 				&:hover {
-					color: var(--accent);
+					color: var(--MI_THEME-accent);
 				}
 
 				> .img {

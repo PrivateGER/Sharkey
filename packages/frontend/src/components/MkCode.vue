@@ -71,11 +71,11 @@ function copy() {
 .codeBlockFallbackRoot {
 	display: block;
 	overflow-wrap: anywhere;
-	background: var(--bg);
+	background: var(--MI_THEME-bg);
 	padding: 1em;
 	margin: .5em 0;
 	overflow: auto;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .codeBlockFallbackCode {
@@ -91,11 +91,11 @@ function copy() {
 	cursor: pointer;
 
 	box-sizing: border-box;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	padding: 24px;
 	margin-top: 4px;
-	color: var(--fg);
-	background: var(--bg);
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-bg);
 }
 
 .codePlaceholderContainer {

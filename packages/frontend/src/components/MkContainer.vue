@@ -64,26 +64,30 @@ const showBody = ref(props.expanded);
 const ignoreOmit = ref(false);
 const omitted = ref(false);
 
-function enter(el) {
+function enter(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
 	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = 0;
+	el.style.height = '0';
 	el.offsetHeight; // reflow
-	el.style.height = Math.min(elementHeight, props.maxHeight ?? Infinity) + 'px';
+	el.style.height = `${Math.min(elementHeight, props.maxHeight ?? Infinity)}px`;
 }
 
-function afterEnter(el) {
-	el.style.height = null;
+function afterEnter(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
+	el.style.height = '';
 }
 
-function leave(el) {
+function leave(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
 	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = elementHeight + 'px';
+	el.style.height = `${elementHeight}px`;
 	el.offsetHeight; // reflow
-	el.style.height = 0;
+	el.style.height = '0';
 }
 
-function afterLeave(el) {
-	el.style.height = null;
+function afterLeave(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
+	el.style.height = '';
 }
 
 const calcOmit = () => {
@@ -138,7 +142,7 @@ onUnmounted(() => {
 	position: relative;
 	overflow: clip;
 	contain: content;
-	background: color-mix(in srgb, var(--panel) 65%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-panel) 65%, transparent);
 	&.naked {
 		background: transparent !important;
 		box-shadow: none !important;
@@ -165,13 +169,14 @@ onUnmounted(() => {
 
 .header {
 	position: sticky;
-	top: var(--stickyTop, 0px);
+	top: var(--MI-stickyTop, 0px);
 	left: 0;
-	color: var(--panelHeaderFg);
-	border-bottom: solid 0.5px var(--panelHeaderDivider);
+	color: var(--MI_THEME-panelHeaderFg);
+	background: var(--MI_THEME-panelHeaderBg);
+	border-bottom: solid 0.5px var(--MI_THEME-panelHeaderDivider);
 	z-index: 2;
 	line-height: 1.4em;
-	background: color-mix(in srgb, var(--panelHeaderBg) 35%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-panelHeaderBg) 35%, transparent);
 }
 
 .title {
@@ -201,7 +206,7 @@ onUnmounted(() => {
 }
 
 .content {
-	--stickyTop: 0px;
+	--MI-stickyTop: 0px;
 
 	&.omitted {
 		position: relative;
@@ -216,20 +221,20 @@ onUnmounted(() => {
 			left: 0;
 			width: 100%;
 			height: 64px;
-			background: linear-gradient(0deg, var(--panel), color(from var(--panel) srgb r g b / 0));
+			background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
 
 			> .fadeLabel {
 				display: inline-block;
-				background: var(--panel);
+				background: var(--MI_THEME-panel);
 				padding: 6px 10px;
 				font-size: 0.8em;
-				border-radius: var(--radius-ellipse);
+				border-radius: var(--MI-radius-ellipse);
 				box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 			}
 
 			&:hover {
 				> .fadeLabel {
-					background: var(--panelHighlight);
+					background: var(--MI_THEME-panelHighlight);
 				}
 			}
 		}

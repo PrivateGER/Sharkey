@@ -94,7 +94,7 @@ onMounted(async () => {
 <style lang="scss" module>
 
 .panel {
-	background: var(--panel);
+	background: var(--MI_THEME-panel);
 }
 
 .userInfo {

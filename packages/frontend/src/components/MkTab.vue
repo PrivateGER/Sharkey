@@ -39,7 +39,7 @@ export default defineComponent({
 	> button {
 		flex: 1;
 		padding: 10px 8px;
-		border-radius: var(--radius-ellipse);
+		border-radius: var(--MI-radius-ellipse);
 
 		&:disabled {
 			opacity: 1 !important;
@@ -47,13 +47,13 @@ export default defineComponent({
 		}
 
 		&.active {
-			color: var(--accent);
-			background: var(--accentedBg);
+			color: var(--MI_THEME-accent);
+			background: var(--MI_THEME-accentedBg);
 		}
 
 		&:not(.active):hover {
-			color: var(--fgHighlighted);
-			background: var(--panelHighlight);
+			color: var(--MI_THEME-fgHighlighted);
+			background: var(--MI_THEME-panelHighlight);
 		}
 
 		&:not(:first-child) {

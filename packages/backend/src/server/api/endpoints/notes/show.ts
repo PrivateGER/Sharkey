@@ -28,6 +28,12 @@ export const meta = {
 			code: 'NO_SUCH_NOTE',
 			id: '24fcbfc6-2e37-42b6-8388-c29b3861a08d',
 		},
+
+		signinRequired: {
+			message: 'Signin required.',
+			code: 'SIGNIN_REQUIRED',
+			id: '8e75455b-738c-471d-9f80-62693f33372e',
+		},
 	},
 
 	// 2 calls per second
@@ -56,7 +62,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = await this.notesRepository.createQueryBuilder('note')
-				.where('note.id = :noteId', { noteId: ps.noteId });
+				.where('note.id = :noteId', { noteId: ps.noteId })
+				.innerJoinAndSelect('note.user', 'user');
 
 			await this.queryService.generateVisibilityQuery(query, me);
 			if (me) {
@@ -67,6 +74,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (note === null) {
 				throw new ApiError(meta.errors.noSuchNote);
+			}
+
+			if (note.user!.requireSigninToViewContents && me == null) {
+				throw new ApiError(meta.errors.signinRequired);
 			}
 
 			return await this.noteEntityService.pack(note, me, {

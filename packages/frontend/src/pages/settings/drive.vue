@@ -152,12 +152,12 @@ definePageMetadata(() => ({
 .meter {
 	height: 10px;
 	background: rgba(0, 0, 0, 0.1);
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	overflow: clip;
 }
 
 .meterValue {
 	height: 100%;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 }
 </style>

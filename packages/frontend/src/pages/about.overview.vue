@@ -170,9 +170,9 @@ await misskeyApi('sponsors', { instance: true }).then((res) => sponsors.value.pu
 <style lang="scss" module>
 .banner {
 	text-align: center;
-	border-radius: var(--radius);
+	border-radius: var(--MI-radius);
 	overflow: clip;
-	background-color: var(--panel);
+	background-color: var(--MI_THEME-panel);
 	background-size: cover;
 	background-position: center center;
 }
@@ -181,7 +181,7 @@ await misskeyApi('sponsors', { instance: true }).then((res) => sponsors.value.pu
 	display: block;
 	margin: 16px auto 0 auto;
 	max-height: 96px;
-	border-radius: var(--radius-sm);;
+	border-radius: var(--MI-radius-sm);;
 }
 
 .bannerName {
@@ -208,19 +208,19 @@ await misskeyApi('sponsors', { instance: true }).then((res) => sponsors.value.pu
 		flex-shrink: 0;
 		display: flex;
 		position: sticky;
-		top: calc(var(--stickyTop, 0px) + 8px);
+		top: calc(var(--MI-stickyTop, 0px) + 8px);
 		counter-increment: item;
 		content: counter(item);
 		width: 32px;
 		height: 32px;
 		line-height: 32px;
-		background-color: var(--accentedBg);
-		color: var(--accent);
+		background-color: var(--MI_THEME-accentedBg);
+		color: var(--MI_THEME-accent);
 		font-size: 13px;
 		font-weight: bold;
 		align-items: center;
 		justify-content: center;
-		border-radius: var(--radius-ellipse);
+		border-radius: var(--MI-radius-ellipse);
 	}
 }
 
@@ -238,23 +238,23 @@ await misskeyApi('sponsors', { instance: true }).then((res) => sponsors.value.pu
 	display: flex;
 	align-items: center;
 	padding: 12px;
-	background: var(--buttonBg);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-buttonBg);
+	border-radius: var(--MI-radius-sm);
 
 	&:hover {
 		text-decoration: none;
-		background: var(--buttonHoverBg);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 
 	&.active {
-		color: var(--accent);
-		background: var(--buttonHoverBg);
+		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 
 .contributorAvatar {
 	width: 30px;
-	border-radius: var(--radius-full);
+	border-radius: var(--MI-radius-full);
 }
 
 .contributorUsername {

@@ -12,13 +12,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i class="icon" :class="item.icon"></i>
 					<div class="text">{{ item.text }}</div>
 					<span v-if="item.indicate && item.indicateValue" class="_indicateCounter indicatorWithValue">{{ item.indicateValue }}</span>
-					<span v-else-if="item.indicate" class="indicator"><i class="_indicatorCircle"></i></span>
+					<span v-else-if="item.indicate" class="indicator _blink"><i class="_indicatorCircle"></i></span>
 				</button>
 				<MkA v-else v-click-anime :to="item.to" class="item" @click.passive="close()">
 					<i class="icon" :class="item.icon"></i>
 					<div class="text">{{ item.text }}</div>
 					<span v-if="item.indicate && item.indicateValue" class="_indicateCounter indicatorWithValue">{{ item.indicateValue }}</span>
-					<span v-else-if="item.indicate" class="indicator"><i class="_indicatorCircle"></i></span>
+					<span v-else-if="item.indicate" class="indicator _blink"><i class="_indicatorCircle"></i></span>
 				</MkA>
 			</template>
 		</div>
@@ -77,12 +77,12 @@ function close() {
 	overflow: auto;
 	overscroll-behavior: contain;
 	text-align: left;
-	border-radius: var(--radius-md);
+	border-radius: var(--MI-radius-md);
 
 	&.asDrawer {
 		width: 100%;
 		padding: 16px 16px max(env(safe-area-inset-bottom, 0px), 16px) 16px;
-		border-radius: var(--radius-lg);
+		border-radius: var(--MI-radius-lg);
 		border-bottom-right-radius: 0;
 		border-bottom-left-radius: 0;
 		text-align: center;
@@ -100,13 +100,13 @@ function close() {
 			justify-content: center;
 			vertical-align: bottom;
 			height: 100px;
-			border-radius: var(--radius);
+			border-radius: var(--MI-radius);
 			padding: 10px;
 			box-sizing: border-box;
 
 			&:hover {
-				color: var(--accent);
-				background: var(--accentedBg);
+				color: var(--MI_THEME-accent);
+				background: var(--MI_THEME-accentedBg);
 				text-decoration: none;
 			}
 
@@ -137,9 +137,8 @@ function close() {
 				position: absolute;
 				top: 32px;
 				left: 32px;
-				color: var(--indicator);
+				color: var(--MI_THEME-indicator);
 				font-size: 8px;
-				animation: global-blink 1s infinite;
 
 				@media (max-width: 500px) {
 					top: 16px;

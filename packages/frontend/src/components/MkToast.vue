@@ -70,7 +70,7 @@ onMounted(() => {
 	max-width: calc(100% - 32px);
 	width: min-content;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 	text-align: center;
 	pointer-events: none;

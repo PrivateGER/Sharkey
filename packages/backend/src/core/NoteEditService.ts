@@ -220,7 +220,7 @@ export class NoteEditService implements OnApplicationShutdown {
 		private latestNoteService: LatestNoteService,
 		private noteCreateService: NoteCreateService,
 	) {
-		this.updateNotesCountQueue = new CollapsedQueue(60 * 1000 * 5, this.collapseNotesCount, this.performUpdateNotesCount);
+		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
 
 	@bindThis
@@ -441,7 +441,7 @@ export class NoteEditService implements OnApplicationShutdown {
 		}
 
 		if (user.host && !data.cw) {
-			await this.federatedInstanceService.fetch(user.host).then(async i => {
+			await this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
 				if (i.isNSFW && !this.noteCreateService.isPureRenote(data)) {
 					data.cw = 'Instance is marked as NSFW';
 				}
@@ -592,13 +592,17 @@ export class NoteEditService implements OnApplicationShutdown {
 		noindex: MiUser['noindex'];
 	}, data: Option, silent: boolean, tags: string[], mentionedUsers: MinimumUser[]) {
 		// Register host
-		if (this.userEntityService.isRemoteUser(user)) {
-			this.federatedInstanceService.fetch(user.host).then(async i => {
-				this.updateNotesCountQueue.enqueue(i.id, 1);
-				if (this.meta.enableChartsForFederatedInstances) {
-					this.instanceChart.updateNote(i.host, note, true);
-				}
-			});
+		if (this.meta.enableStatsForFederatedInstances) {
+			if (this.userEntityService.isRemoteUser(user)) {
+				this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
+					if (note.renote && note.text || !note.renote) {
+						this.updateNotesCountQueue.enqueue(i.id, 1);
+					}
+					if (this.meta.enableChartsForFederatedInstances) {
+						this.instanceChart.updateNote(i.host, note, true);
+					}
+				});
+			}
 		}
 
 		// ハッシュタグ更新

@@ -558,14 +558,19 @@ const extension_context_definition = {
 	'_misskey_votes': 'misskey:_misskey_votes',
 	'_misskey_summary': 'misskey:_misskey_summary',
 	'_misskey_followedMessage': 'misskey:_misskey_followedMessage',
+	'_misskey_requireSigninToViewContents': 'misskey:_misskey_requireSigninToViewContents',
+	'_misskey_makeNotesFollowersOnlyBefore': 'misskey:_misskey_makeNotesFollowersOnlyBefore',
+	'_misskey_makeNotesHiddenBefore': 'misskey:_misskey_makeNotesHiddenBefore',
 	'isCat': 'misskey:isCat',
 	// Firefish
 	firefish: 'https://joinfirefish.org/ns#',
 	speakAsCat: 'firefish:speakAsCat',
 	// Sharkey
 	sharkey: 'https://joinsharkey.org/ns#',
+	hideOnlineStatus: 'sharkey:hideOnlineStatus',
 	backgroundUrl: 'sharkey:backgroundUrl',
 	listenbrainz: 'sharkey:listenbrainz',
+	enableRss: 'sharkey:enableRss',
 	// vcard
 	vcard: 'http://www.w3.org/2006/vcard/ns#',
 } satisfies Context;

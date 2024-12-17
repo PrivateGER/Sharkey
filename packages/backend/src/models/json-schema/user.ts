@@ -130,6 +130,10 @@ export const packedUserLiteSchema = {
 			type: 'boolean',
 			nullable: false, optional: false,
 		},
+		enableRss: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
 		isBot: {
 			type: 'boolean',
 			nullable: false, optional: true,
@@ -145,6 +149,18 @@ export const packedUserLiteSchema = {
 		isSilenced: {
 			type: 'boolean',
 			nullable: false, optional: false,
+		},
+		requireSigninToViewContents: {
+			type: 'boolean',
+			nullable: false, optional: true,
+		},
+		makeNotesFollowersOnlyBefore: {
+			type: 'number',
+			nullable: true, optional: true,
+		},
+		makeNotesHiddenBefore: {
+			type: 'number',
+			nullable: true, optional: true,
 		},
 		instance: {
 			type: 'object',
@@ -392,21 +408,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 			nullable: false, optional: false,
 			enum: ['public', 'followers', 'private'],
 		},
-		twoFactorEnabled: {
-			type: 'boolean',
-			nullable: false, optional: false,
-			default: false,
-		},
-		usePasswordLessLogin: {
-			type: 'boolean',
-			nullable: false, optional: false,
-			default: false,
-		},
-		securityKeys: {
-			type: 'boolean',
-			nullable: false, optional: false,
-			default: false,
-		},
 		roles: {
 			type: 'array',
 			nullable: false, optional: false,
@@ -426,6 +427,18 @@ export const packedUserDetailedNotMeOnlySchema = {
 		},
 		moderationNote: {
 			type: 'string',
+			nullable: false, optional: true,
+		},
+		twoFactorEnabled: {
+			type: 'boolean',
+			nullable: false, optional: true,
+		},
+		usePasswordLessLogin: {
+			type: 'boolean',
+			nullable: false, optional: true,
+		},
+		securityKeys: {
+			type: 'boolean',
 			nullable: false, optional: true,
 		},
 		//#region relations
@@ -688,6 +701,21 @@ export const packedMeDetailedOnlySchema = {
 			type: 'object',
 			nullable: false, optional: false,
 			ref: 'RolePolicies',
+		},
+		twoFactorEnabled: {
+			type: 'boolean',
+			nullable: false, optional: false,
+			default: false,
+		},
+		usePasswordLessLogin: {
+			type: 'boolean',
+			nullable: false, optional: false,
+			default: false,
+		},
+		securityKeys: {
+			type: 'boolean',
+			nullable: false, optional: false,
+			default: false,
 		},
 		//#region secrets
 		email: {

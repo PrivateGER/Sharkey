@@ -9,10 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	v-show="!isDeleted"
 	ref="rootEl"
 	v-hotkey="keymap"
-	:class="[$style.root, { [$style.showActionsOnlyHover]: defaultStore.state.showNoteActionsOnlyHover }]"
+	:class="[$style.root, { [$style.showActionsOnlyHover]: defaultStore.state.showNoteActionsOnlyHover, [$style.skipRender]: defaultStore.state.skipNoteRender }]"
 	:tabindex="isDeleted ? '-1' : '0'"
 >
-	<SkNoteSub v-if="appearNote.reply && !renoteCollapsed && !inReplyToCollapsed" :note="appearNote.reply" :class="$style.replyTo"/>
+	<SkNoteSub v-if="appearNote.reply" v-show="!renoteCollapsed && !inReplyToCollapsed" :note="appearNote.reply" :class="$style.replyTo"/>
 	<div v-if="appearNote.reply && inReplyToCollapsed && !renoteCollapsed" :class="$style.collapsedInReplyTo">
 		<div :class="$style.collapsedInReplyToLine"></div>
 		<MkAvatar :class="$style.collapsedInReplyToAvatar" :user="appearNote.reply.user" link preview/>
@@ -133,7 +133,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					ref="renoteButton"
 					:class="$style.footerButton"
 					class="_button"
-					:style="renoted ? 'color: var(--accent) !important;' : ''"
+					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 					@click.stop
 					@mousedown.prevent="renoted ? undoRenote(appearNote) : boostVisibility()"
 				>
@@ -157,8 +157,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i class="ph-heart ph-bold ph-lg"></i>
 				</button>
 				<button ref="reactButton" :class="$style.footerButton" class="_button" @click="toggleReact()" @click.stop>
-					<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--love);"></i>
-					<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--accent);"></i>
+					<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
+					<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
 					<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
 					<i v-else class="ph-smiley ph-bold ph-lg"></i>
 					<p v-if="(appearNote.reactionAcceptance === 'likeOnly' || defaultStore.state.showReactionsCount) && appearNote.reactionCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.reactionCount) }}</p>
@@ -202,6 +202,9 @@ import { computed, inject, onMounted, ref, shallowRef, Ref, watch, provide } fro
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
+import { shouldCollapsed } from '@@/js/collapsed.js';
+import { host } from '@@/js/config.js';
+import type { MenuItem } from '@/types/menu.js';
 import SkNoteSub from '@/components/SkNoteSub.vue';
 import SkNoteHeader from '@/components/SkNoteHeader.vue';
 import SkNoteSimple from '@/components/SkNoteSimple.vue';
@@ -215,6 +218,7 @@ import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import MkButton from '@/components/MkButton.vue';
 import { pleaseLogin, type OpenOnRemoteOptions } from '@/scripts/please-login.js';
 import { checkWordMute } from '@/scripts/check-word-mute.js';
+import { notePage } from '@/filters/note.js';
 import { userPage } from '@/filters/user.js';
 import number from '@/filters/number.js';
 import * as os from '@/os.js';
@@ -233,13 +237,10 @@ import { deepClone } from '@/scripts/clone.js';
 import { useTooltip } from '@/scripts/use-tooltip.js';
 import { claimAchievement } from '@/scripts/achievements.js';
 import { getNoteSummary } from '@/scripts/get-note-summary.js';
-import type { MenuItem } from '@/types/menu.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { showMovedDialog } from '@/scripts/show-moved-dialog.js';
 import { useRouter } from '@/router/supplier.js';
 import { boostMenuItems, type Visibility } from '@/scripts/boost-quote.js';
-import { shouldCollapsed } from '@@/js/collapsed.js';
-import { host } from '@@/js/config.js';
 import { isEnabledUrlPreview } from '@/instance.js';
 import { type Keymap } from '@/scripts/hotkey.js';
 import { focusPrev, focusNext } from '@/scripts/focus.js';
@@ -264,6 +265,7 @@ const emit = defineEmits<{
 const router = useRouter();
 
 const inTimeline = inject<boolean>('inTimeline', false);
+const tl_withSensitive = inject<Ref<boolean>>('tl_withSensitive', ref(true));
 const inChannel = inject('inChannel', null);
 const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', null);
 
@@ -343,15 +345,18 @@ function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string 
 function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly: false): boolean | 'sensitiveMute';
 */
 function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly = false): boolean | 'sensitiveMute' {
-	if (mutedWords == null) return false;
-
-	if (checkWordMute(noteToCheck, $i, mutedWords)) return true;
-	if (noteToCheck.reply && checkWordMute(noteToCheck.reply, $i, mutedWords)) return true;
-	if (noteToCheck.renote && checkWordMute(noteToCheck.renote, $i, mutedWords)) return true;
+	if (mutedWords != null) {
+		if (checkWordMute(noteToCheck, $i, mutedWords)) return true;
+		if (noteToCheck.reply && checkWordMute(noteToCheck.reply, $i, mutedWords)) return true;
+		if (noteToCheck.renote && checkWordMute(noteToCheck.renote, $i, mutedWords)) return true;
+	}
 
 	if (checkOnly) return false;
 
-	if (inTimeline && !defaultStore.state.tl.filter.withSensitive && noteToCheck.files?.some((v) => v.isSensitive)) return 'sensitiveMute';
+	if (inTimeline && tl_withSensitive.value === false && noteToCheck.files?.some((v) => v.isSensitive)) {
+		return 'sensitiveMute';
+	}
+
 	return false;
 }
 
@@ -514,7 +519,7 @@ function boostVisibility() {
 }
 
 function renote(visibility: Visibility, localOnly: boolean = false) {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
 	renoting = true;
@@ -564,7 +569,7 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 }
 
 function quote() {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	if (props.mock) {
 		return;
@@ -625,7 +630,7 @@ function quote() {
 }
 
 function reply(): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	if (props.mock) {
 		return;
 	}
@@ -638,7 +643,7 @@ function reply(): void {
 }
 
 function like(): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
 	if (props.mock) {
@@ -660,7 +665,7 @@ function like(): void {
 }
 
 function react(viaKeyboard = false): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	if (appearNote.value.reactionAcceptance === 'likeOnly') {
 		sound.playMisskeySfx('reaction');
@@ -808,15 +813,24 @@ function showRenoteMenu(): void {
 		};
 	}
 
+	const renoteDetailsMenu: MenuItem = {
+		type: 'link',
+		text: i18n.ts.renoteDetails,
+		icon: 'ti ti-info-circle',
+		to: notePage(note.value),
+	};
+
 	if (isMyRenote) {
-		pleaseLogin(undefined, pleaseLoginContext.value);
+		pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 		os.popupMenu([
+			renoteDetailsMenu,
 			getCopyNoteLinkMenu(note.value, i18n.ts.copyLinkRenote),
 			{ type: 'divider' },
 			getUnrenote(),
 		], renoteTime.value);
 	} else {
 		os.popupMenu([
+			renoteDetailsMenu,
 			getCopyNoteLinkMenu(note.value, i18n.ts.copyLinkRenote),
 			{ type: 'divider' },
 			getAbuseNoteMenu(note.value, i18n.ts.reportAbuseRenote),
@@ -901,8 +915,8 @@ function emitUpdReaction(emoji: string, delta: number) {
 			margin: auto;
 			width: calc(100% - 8px);
 			height: calc(100% - 8px);
-			border: solid 2px var(--focus);
-			border-radius: var(--radius);
+			border: solid 2px var(--MI_THEME-focus);
+			border-radius: var(--MI-radius);
 			box-sizing: border-box;
 		}
 	}
@@ -929,9 +943,9 @@ function emitUpdReaction(emoji: string, delta: number) {
 			right: 12px;
 			padding: 0 4px;
 			margin-bottom: 0 !important;
-			background: var(--popup);
-			border-radius: var(--radius-sm);
-			box-shadow: 0px 4px 32px var(--shadow);
+			background: var(--MI_THEME-popup);
+			border-radius: var(--MI-radius-sm);
+			box-shadow: 0px 4px 32px var(--MI_THEME-shadow);
 		}
 
 		.footerButton {
@@ -948,6 +962,11 @@ function emitUpdReaction(emoji: string, delta: number) {
 			visibility: visible;
 		}
 	}
+}
+
+.skipRender {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 150px;
 }
 
 .tip {
@@ -972,18 +991,18 @@ function emitUpdReaction(emoji: string, delta: number) {
 	position: relative;
 	display: flex;
 	align-items: center;
-	padding: 24px 32px 0 calc(32px + var(--avatar) + 14px);
+	padding: 24px 32px 0 calc(32px + var(--MI-avatar) + 14px);
 	line-height: 28px;
 	white-space: pre;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 
 	&::before {
 		content: '';
 		position: absolute;
 		top: 0;
-		left: calc(32px + .5 * var(--avatar));
+		left: calc(32px + .5 * var(--MI-avatar));
 		bottom: -8px;
-		border-left: var(--thread-width) solid var(--thread);
+		border-left: var(--MI-thread-width) solid var(--MI_THEME-thread);
 	}
 
 	&:first-child {
@@ -1072,9 +1091,9 @@ function emitUpdReaction(emoji: string, delta: number) {
 
 .collapsedInReplyToLine {
 	position: absolute;
-	left: calc(32px + .5 * var(--avatar));
+	left: calc(32px + .5 * var(--MI-avatar));
 	// using solid instead of dotted, stylelistic choice
-	border-left: var(--thread-width) solid var(--thread);
+	border-left: var(--MI-thread-width) solid var(--MI_THEME-thread);
 	top: calc(28px + 28px); // 28px of .root padding, plus 28px of avatar height (see SkNote)
 	height: 28px;
 }
@@ -1090,7 +1109,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 	left: 8px;
 	width: 5px;
 	height: calc(100% - 16px);
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	pointer-events: none;
 }
 
@@ -1099,10 +1118,10 @@ function emitUpdReaction(emoji: string, delta: number) {
 	display: block !important;
 	position: sticky !important;
 	margin: 0 14px 0 0;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 	position: sticky !important;
-	top: calc(22px + var(--stickyTop, 0px));
+	top: calc(22px + var(--MI-stickyTop, 0px));
 	left: 0;
 	transition: top 0.5s;
 
@@ -1128,15 +1147,15 @@ function emitUpdReaction(emoji: string, delta: number) {
 	width: 100%;
 	margin-top: 14px;
 	position: sticky;
-	bottom: calc(var(--stickyBottom, 0px) - 100px);
+	bottom: calc(var(--MI-stickyBottom, 0px) - 100px);
 }
 
 .showLessLabel {
 	display: inline-block;
-	background: var(--popup);
+	background: var(--MI_THEME-popup);
 	padding: 6px 10px;
 	font-size: 0.8em;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 }
 
@@ -1154,19 +1173,19 @@ function emitUpdReaction(emoji: string, delta: number) {
 	z-index: 2;
 	width: 100%;
 	height: 64px;
-	//background: linear-gradient(0deg, var(--panel), color(from var(--panel) srgb r g b / 0));
+	//background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
 
 	&:hover > .collapsedLabel {
-		background: var(--panelHighlight);
+		background: var(--MI_THEME-panelHighlight);
 	}
 }
 
 .collapsedLabel {
 	display: inline-block;
-	background: var(--panel);
+	background: var(--MI_THEME-panel);
 	padding: 6px 10px;
 	font-size: 0.8em;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 }
 
@@ -1175,13 +1194,13 @@ function emitUpdReaction(emoji: string, delta: number) {
 }
 
 .replyIcon {
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
 }
 
 .translation {
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
 }
@@ -1205,8 +1224,8 @@ function emitUpdReaction(emoji: string, delta: number) {
 .quoteNote {
 	padding: 16px;
 	// Made border solid, stylistic choice
-	border: solid 1px var(--renote);
-	border-radius: var(--radius-sm);
+	border: solid 1px var(--MI_THEME-renote);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 }
 
@@ -1229,7 +1248,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 	}
 
 	&:hover {
-		color: var(--fgHighlighted);
+		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 
@@ -1242,14 +1261,14 @@ function emitUpdReaction(emoji: string, delta: number) {
 @container (max-width: 580px) {
 	.root {
 		font-size: 0.95em;
-		--avatar: 46px;
+		--MI-avatar: 46px;
 	}
 
 	.renote {
-		padding: 24px 26px 0 calc(26px + var(--avatar) + 14px);
+		padding: 24px 26px 0 calc(26px + var(--MI-avatar) + 14px);
 
 		&::before {
-			left: calc(26px + .5 * var(--avatar));
+			left: calc(26px + .5 * var(--MI-avatar));
 		}
 	}
 
@@ -1262,7 +1281,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 	}
 
 	.collapsedInReplyToLine {
-		left: calc(26px + .5 * var(--avatar));
+		left: calc(26px + .5 * var(--MI-avatar));
 	}
 
 	.article {
@@ -1284,26 +1303,26 @@ function emitUpdReaction(emoji: string, delta: number) {
 	}
 
 	.collapsedInReplyToLine {
-		left: calc(25px + .5 * var(--avatar));
+		left: calc(25px + .5 * var(--MI-avatar));
 	}
 }
 
 @container (max-width: 500px) {
 	.renote {
-		padding: 23px 25px 0 calc(25px + var(--avatar) + 14px);
+		padding: 23px 25px 0 calc(25px + var(--MI-avatar) + 14px);
 
 		&::before {
-			left: calc(25px + .5 * var(--avatar));
+			left: calc(25px + .5 * var(--MI-avatar));
 		}
 	}
 }
 
 @container (max-width: 480px) {
 	.renote {
-		padding: 22px 24px 0 calc(24px + var(--avatar) + 14px);
+		padding: 22px 24px 0 calc(24px + var(--MI-avatar) + 14px);
 
 		&::before {
-			left: calc(24px + .5 * var(--avatar));
+			left: calc(24px + .5 * var(--MI-avatar));
 		}
 	}
 
@@ -1321,7 +1340,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 	}
 
 	.collapsedInReplyToLine {
-		left: calc(24px + .5 * var(--avatar));
+		left: calc(24px + .5 * var(--MI-avatar));
 		top: calc(22px + 28px); // 22px of .root padding, plus 28px of avatar height
 	}
 
@@ -1332,12 +1351,12 @@ function emitUpdReaction(emoji: string, delta: number) {
 
 @container (max-width: 450px) {
 	.root {
-		--avatar: 44px;
+		--MI-avatar: 44px;
 	}
 
 	.avatar {
 		margin: 0 10px 0 0;
-		top: calc(14px + var(--stickyTop, 0px));
+		top: calc(14px + var(--MI-stickyTop, 0px));
 	}
 }
 

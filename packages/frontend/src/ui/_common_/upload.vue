@@ -40,7 +40,7 @@ const zIndex = os.claimZIndex('high');
 	padding: 16px 20px;
 	pointer-events: none;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 .mk-uploader:empty {
   display: none;
@@ -116,7 +116,7 @@ const zIndex = os.claimZIndex('high');
   display: block;
   background: transparent;
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--MI-radius-xs);
   overflow: hidden;
   grid-column: 2/3;
   grid-row: 2/3;
@@ -125,10 +125,10 @@ const zIndex = os.claimZIndex('high');
 	height: 8px;
 }
 .mk-uploader > ol > li > progress::-webkit-progress-value {
-  background: var(--accent);
+  background: var(--MI_THEME-accent);
 }
 .mk-uploader > ol > li > progress::-webkit-progress-bar {
-  //background: var(--accentAlpha01);
+  //background: var(--MI_THEME-accentAlpha01);
 	background: transparent;
 }
 </style>

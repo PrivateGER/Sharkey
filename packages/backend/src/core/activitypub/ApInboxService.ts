@@ -135,6 +135,7 @@ export class ApInboxService {
 		if (actor.uri) {
 			if (actor.lastFetchedAt == null || Date.now() - actor.lastFetchedAt.getTime() > 1000 * 60 * 60 * 24) {
 				setImmediate(() => {
+					// 同一ユーザーの情報を再度処理するので、使用済みのresolverを再利用してはいけない
 					this.apPersonService.updatePerson(actor.uri);
 				});
 			}
@@ -572,7 +573,7 @@ export class ApInboxService {
 	@bindThis
 	private async flag(actor: MiRemoteUser, activity: IFlag): Promise<string> {
 		// Make sure the source instance is allowed to send reports.
-		const instance = await this.federatedInstanceService.fetch(actor.host);
+		const instance = await this.federatedInstanceService.fetchOrRegister(actor.host);
 		if (instance.rejectReports) {
 			throw new Bull.UnrecoverableError(`Rejecting report from instance: ${actor.host}`);
 		}

@@ -36,11 +36,11 @@ const text = computed(() => {
 
 <style lang="scss" module>
 .root {
-	box-shadow: 0 0 0 3px var(--panel);
+	box-shadow: 0 0 0 3px var(--MI_THEME-panel);
 
 	// sharkey: the comment mentions something about 100% radius not behaving correctly on blink.
 	// couldn't reproduce, assuming the 120% here was just an old workaround
-	border-radius: var(--radius-full); // Blinkのバグか知らんけど、100%ぴったりにすると何故か若干楕円でレンダリングされる
+	border-radius: var(--MI-radius-full); // Blinkのバグか知らんけど、100%ぴったりにすると何故か若干楕円でレンダリングされる
 
 	&.status_online {
 		background: #58d4c9;

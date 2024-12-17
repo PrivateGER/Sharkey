@@ -58,7 +58,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<img v-for="role in appearNote.user.badgeRoles" :key="role.id" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl"/>
 						</span>
 					</div>
-					<div :class="$style.noteHeaderUsername"><MkAcct :user="appearNote.user"/></div>
+					<div :class="$style.noteHeaderUsernameAndBadgeRoles">
+						<div :class="$style.noteHeaderUsername">
+							<MkAcct :user="appearNote.user"/>
+						</div>
+						<div v-if="appearNote.user.badgeRoles" :class="$style.noteHeaderBadgeRoles">
+							<img v-for="(role, i) in appearNote.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.noteHeaderBadgeRole" :src="role.iconUrl!"/>
+						</div>
+					</div>
 				</div>
 			</div>
 			<div style="display: flex; align-items: flex-end; margin-left: auto;">
@@ -143,7 +150,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				ref="renoteButton"
 				class="_button"
 				:class="$style.noteFooterButton"
-				:style="renoted ? 'color: var(--accent) !important;' : ''"
+				:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 				@mousedown.prevent="renoted ? undoRenote() : boostVisibility()"
 			>
 				<i class="ti ti-repeat"></i>
@@ -165,8 +172,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i class="ph-heart ph-bold ph-lg"></i>
 			</button>
 			<button ref="reactButton" :class="$style.noteFooterButton" class="_button" @click="toggleReact()">
-				<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--love);"></i>
-				<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--accent);"></i>
+				<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
+				<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
 				<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
 				<i v-else class="ph-smiley ph-bold ph-lg"></i>
 				<p v-if="(appearNote.reactionAcceptance === 'likeOnly' || defaultStore.state.showReactionsCount) && appearNote.reactionCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.reactionCount) }}</p>
@@ -247,6 +254,7 @@ import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, shal
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
+import { host } from '@@/js/config.js';
 import SkNoteSub from '@/components/SkNoteSub.vue';
 import SkNoteSimple from '@/components/SkNoteSimple.vue';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
@@ -270,7 +278,6 @@ import { reactionPicker } from '@/scripts/reaction-picker.js';
 import { extractUrlFromMfm } from '@/scripts/extract-url-from-mfm.js';
 import { $i } from '@/account.js';
 import { i18n } from '@/i18n.js';
-import { host } from '@@/js/config.js';
 import { getNoteClipMenu, getNoteMenu } from '@/scripts/get-note-menu.js';
 import { getNoteVersionsMenu } from '@/scripts/get-note-versions-menu.js';
 import { useNoteCapture } from '@/scripts/use-note-capture.js';
@@ -553,7 +560,7 @@ async function backfill() {
 }
 
 function renote(visibility: Visibility, localOnly: boolean = false) {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
 	renoting = true;
@@ -599,7 +606,7 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 }
 
 function quote() {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
 	if (appearNote.value.channel) {
@@ -657,7 +664,7 @@ function quote() {
 }
 
 function reply(): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	os.post({
 		reply: appearNote.value,
@@ -668,7 +675,7 @@ function reply(): void {
 }
 
 function react(): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	if (appearNote.value.reactionAcceptance === 'likeOnly') {
 		sound.playMisskeySfx('reaction');
@@ -705,7 +712,7 @@ function react(): void {
 }
 
 function like(): void {
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
 	misskeyApi('notes/like', {
@@ -787,7 +794,7 @@ async function clip(): Promise<void> {
 
 function showRenoteMenu(): void {
 	if (!isMyRenote) return;
-	pleaseLogin(undefined, pleaseLoginContext.value);
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	os.popupMenu([{
 		text: i18n.ts.unrenote,
 		icon: 'ti ti-trash',
@@ -915,8 +922,8 @@ onUnmounted(() => {
 			margin: auto;
 			width: calc(100% - 8px);
 			height: calc(100% - 8px);
-			border: dashed 2px var(--focus);
-			border-radius: var(--radius);
+			border: dashed 2px var(--MI_THEME-focus);
+			border-radius: var(--MI-radius);
 			box-sizing: border-box;
 		}
 	}
@@ -942,7 +949,7 @@ onUnmounted(() => {
 	padding: 16px 32px 8px 32px;
 	line-height: 28px;
 	white-space: pre;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 }
 
 .renoteAvatar {
@@ -951,7 +958,7 @@ onUnmounted(() => {
 	width: 28px;
 	height: 28px;
 	margin: 0 8px 0 0;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .renoteText {
@@ -1005,8 +1012,8 @@ onUnmounted(() => {
 			margin: auto;
 			width: calc(100% - 8px);
 			height: calc(100% - 8px);
-			border: solid 1px var(--focus);
-			border-radius: var(--radius);
+			border: solid 1px var(--MI_THEME-focus);
+			border-radius: var(--MI-radius);
 			box-sizing: border-box;
 		}
 	}
@@ -1023,8 +1030,8 @@ onUnmounted(() => {
 .noteHeaderAvatar {
 	display: block;
 	flex-shrink: 0;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 }
 
 .noteHeaderBody {
@@ -1047,8 +1054,8 @@ onUnmounted(() => {
 	padding: 4px 6px;
 	font-size: 80%;
 	line-height: 1;
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius-xs);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-xs);
 }
 
 .noteHeaderInfo {
@@ -1056,8 +1063,13 @@ onUnmounted(() => {
 	text-align: right;
 }
 
+.noteHeaderUsernameAndBadgeRoles {
+	display: flex;
+}
+
 .noteHeaderUsername {
 	margin-bottom: 2px;
+	margin-right: 0.5em;
 	line-height: 1.3;
 	word-wrap: anywhere;
 	text-overflow: ellipsis;
@@ -1070,6 +1082,19 @@ onUnmounted(() => {
 
 .playMFMButton {
 	margin-top: 5px;
+}
+
+.noteHeaderBadgeRoles {
+	margin: 0 .5em 0 0;
+}
+
+.noteHeaderBadgeRole {
+	height: 1.3em;
+	vertical-align: -20%;
+
+	& + .noteHeaderBadgeRole {
+		margin-left: 0.2em;
+	}
 }
 
 .noteContent {
@@ -1087,19 +1112,19 @@ onUnmounted(() => {
 }
 
 .noteReplyTarget {
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
 }
 
 .rn {
 	margin-left: 4px;
 	font-style: oblique;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 }
 
 .translation {
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
 }
@@ -1114,8 +1139,8 @@ onUnmounted(() => {
 
 .quoteNote {
 	padding: 16px;
-	border: solid 1px var(--renote);
-	border-radius: var(--radius-sm);
+	border: solid 1px var(--MI_THEME-renote);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 }
 
@@ -1140,7 +1165,7 @@ onUnmounted(() => {
 	}
 
 	&:hover {
-		color: var(--fgHighlighted);
+		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 
@@ -1150,17 +1175,17 @@ onUnmounted(() => {
 	opacity: 0.7;
 
 	&.reacted {
-		color: var(--accent);
+		color: var(--MI_THEME-accent);
 	}
 }
 
 .reply:not(:first-child) {
-	border-top: solid 0.5px var(--divider);
+	border-top: solid 0.5px var(--MI_THEME-divider);
 }
 
 .tabs {
-	border-top: solid 0.5px var(--divider);
-	border-bottom: solid 0.5px var(--divider);
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: solid 0.5px var(--MI_THEME-divider);
 	display: flex;
 }
 
@@ -1179,7 +1204,7 @@ onUnmounted(() => {
 }
 
 .tabActive {
-	border-bottom: solid 2px var(--accent);
+	border-bottom: solid 2px var(--MI_THEME-accent);
 }
 
 .tab_renotes {
@@ -1199,12 +1224,12 @@ onUnmounted(() => {
 
 .reactionTab {
 	padding: 4px 6px;
-	border: solid 1px var(--divider);
-	border-radius: var(--radius-sm);
+	border: solid 1px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-sm);
 }
 
 .reactionTabActive {
-	border-color: var(--accent);
+	border-color: var(--MI_THEME-accent);
 }
 
 @container (max-width: 500px) {
@@ -1259,7 +1284,7 @@ onUnmounted(() => {
 	margin: 0 10px 0 0 !important;
 	width: 40px !important;
 	height: 40px !important;
-	border-radius: var(--radius-sm) !important;
+	border-radius: var(--MI-radius-sm) !important;
 }
 
 .muted {

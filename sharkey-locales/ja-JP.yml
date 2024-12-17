@@ -210,6 +210,7 @@ _role:
     btlAvailable: "バブルタイムラインの閲覧"
     canImportNotes: "ノートのインポートが可能"
     canUpdateBioMedia: "アイコンとバナーの更新を許可"
+    scheduleNoteMax: "予約投稿の最大数"
   _condition:
     isLocked: "鍵アカウントユーザー"
     isExplorable: "「アカウントを見つけやすくする」が有効なユーザー"
@@ -384,3 +385,8 @@ _externalNavigationWarning:
   title: "外部サイトに移動します"
   description: "{host}を離れて外部サイトに移動します"
   trustThisDomain: "このデバイスで今後このドメインを信頼する"
+schedulePost: "予約投稿"
+schedulePostList: "予約投稿一覧"
+_permissions:
+  "read:notes-schedule": "予約投稿を見る"
+  "write:notes-schedule": "予約投稿を作成・削除する"

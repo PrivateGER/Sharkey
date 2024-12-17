@@ -244,9 +244,9 @@ onDeactivated(() => {
 }
 
 .hide {
-	border-radius: var(--radius-sm) !important;
+	border-radius: var(--MI-radius-sm) !important;
 	background-color: black !important;
-	color: var(--accentLighten) !important;
+	color: var(--MI_THEME-accentLighten) !important;
 	font-size: 12px !important;
 }
 
@@ -260,9 +260,9 @@ onDeactivated(() => {
 	> i {
 		display: block;
 		position: absolute;
-		border-radius: var(--radius-sm);
-		background-color: var(--fg);
-		color: var(--accentLighten);
+		border-radius: var(--MI-radius-sm);
+		background-color: var(--MI_THEME-fg);
+		color: var(--MI_THEME-accentLighten);
 		font-size: 14px;
 		opacity: .5;
 		padding: 3px 6px;
@@ -276,9 +276,9 @@ onDeactivated(() => {
 	> .alt {
 		display: block;
 		position: absolute;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 		background-color: black;
-		color: var(--accentLighten);
+		color: var(--MI_THEME-accentLighten);
 		font-size: 0.8em;
 		font-weight: bold;
 		opacity: .5;
@@ -311,10 +311,10 @@ onDeactivated(() => {
 			justify-content: center;
 			align-items: center;
 			background: rgba(64, 64, 64, 0.3);
-			backdrop-filter: var(--modalBgFilter);
+			backdrop-filter: var(--MI-modalBgFilter);
 			color: #fff;
 			font-size: 12px;
-			border-radius: var(--radius-sm);
+			border-radius: var(--MI-radius-sm);
 
 			position: absolute;
 			z-index: 4;
@@ -334,7 +334,7 @@ onDeactivated(() => {
 	> .controls {
 		display: flex;
 		width: 100%;
-		background-color: var(--bg);
+		background-color: var(--MI_THEME-bg);
 		z-index: 5;
 
 		> * {
@@ -344,12 +344,12 @@ onDeactivated(() => {
 		> button, a {
 			border: none;
 			background-color: transparent;
-			color: var(--accent);
+			color: var(--MI_THEME-accent);
 			text-decoration: none;
 			cursor: pointer;
 
 			&:hover {
-				background-color: var(--fg);
+				background-color: var(--MI_THEME-fg);
 			}
 
 			&:disabled {
@@ -385,11 +385,11 @@ onDeactivated(() => {
 				outline: none;
 
 				&::-webkit-slider-runnable-track {
-					background: var(--bg);
+					background: var(--MI_THEME-bg);
 				}
 
 				&::-ms-fill-lower, &::-ms-fill-upper {
-					background: var(--bg);
+					background: var(--MI_THEME-bg);
 				}
 			}
 
@@ -398,8 +398,8 @@ onDeactivated(() => {
 				height: 100%;
 				border-radius: 0;
 				animate: 0.2s;
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 				overflow-x: hidden;
 			}
 
@@ -408,9 +408,9 @@ onDeactivated(() => {
 				height: 100%;
 				width: 14px;
 				border-radius: 0;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 				-webkit-appearance: none;
-				box-shadow: calc(-100vw - 14px) 0 0 100vw var(--accent);
+				box-shadow: calc(-100vw - 14px) 0 0 100vw var(--MI_THEME-accent);
 				clip-path: polygon(1px 0, 100% 0, 100% 100%, 1px 100%, 1px calc(50% + 10.5px), -100vw calc(50% + 10.5px), -100vw calc(50% - 10.5px), 0 calc(50% - 10.5px));
 				z-index: 1;
 			}
@@ -420,13 +420,13 @@ onDeactivated(() => {
 				height: 100%;
 				border-radius: 0;
 				animate: 0.2s;
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 			}
 
 			&::-moz-range-progress {
 				height: 100%;
-				background: var(--accent);
+				background: var(--MI_THEME-accent);
 			}
 
 			&::-moz-range-thumb {
@@ -434,7 +434,7 @@ onDeactivated(() => {
 				height: 100%;
 				border-radius: 0;
 				width: 14px;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 			}
 
 			&::-ms-track {
@@ -448,14 +448,14 @@ onDeactivated(() => {
 			}
 
 			&::-ms-fill-lower {
-				background: var(--accent);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-accent);
+				border: 1px solid var(--MI_THEME-fg);
 				border-radius: 0;
 			}
 
 			&::-ms-fill-upper {
-				background: var(--bg);
-				border: 1px solid var(--fg);
+				background: var(--MI_THEME-bg);
+				border: 1px solid var(--MI_THEME-fg);
 				border-radius: 0;
 			}
 
@@ -465,7 +465,7 @@ onDeactivated(() => {
 				height: 100%;
 				width: 14px;
 				border-radius: 0;
-				background: var(--accentLighten);
+				background: var(--MI_THEME-accentLighten);
 			}
 		}
 	}

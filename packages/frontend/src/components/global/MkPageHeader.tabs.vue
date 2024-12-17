@@ -53,7 +53,7 @@ export type Tab = {
 </script>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue';
+import { nextTick, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 import { defaultStore } from '@/store.js';
 
 const props = withDefaults(defineProps<{
@@ -120,14 +120,14 @@ function onTabWheel(ev: WheelEvent) {
 
 let entering = false;
 
-async function enter(element: Element) {
+async function enter(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
 	entering = true;
-	const el = element as HTMLElement;
 	const elementWidth = el.getBoundingClientRect().width;
 	el.style.width = '0';
 	el.style.paddingLeft = '0';
-	el.offsetWidth; // force reflow
-	el.style.width = elementWidth + 'px';
+	el.offsetWidth; // reflow
+	el.style.width = `${elementWidth}px`;
 	el.style.paddingLeft = '';
 	nextTick(() => {
 		entering = false;
@@ -136,22 +136,23 @@ async function enter(element: Element) {
 	setTimeout(renderTab, 170);
 }
 
-function afterEnter(element: Element) {
-	//el.style.width = '';
+function afterEnter(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
+	// element.style.width = '';
 }
 
-async function leave(element: Element) {
-	const el = element as HTMLElement;
+async function leave(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
 	const elementWidth = el.getBoundingClientRect().width;
-	el.style.width = elementWidth + 'px';
+	el.style.width = `${elementWidth}px`;
 	el.style.paddingLeft = '';
-	el.offsetWidth; // force reflow
+	el.offsetWidth; // reflow
 	el.style.width = '0';
 	el.style.paddingLeft = '0';
 }
 
-function afterLeave(element: Element) {
-	const el = element as HTMLElement;
+function afterLeave(el: Element) {
+	if (!(el instanceof HTMLElement)) return;
 	el.style.width = '';
 }
 
@@ -219,7 +220,7 @@ onUnmounted(() => {
 
 	&.active {
 		opacity: 1;
-		color: var(--accent);
+		color: var(--MI_THEME-accent);
 	}
 
 	&.animate {
@@ -248,8 +249,8 @@ onUnmounted(() => {
 	position: absolute;
 	bottom: 0;
 	height: 3px;
-	background: var(--accent);
-	border-radius: var(--radius-ellipse);
+	background: var(--MI_THEME-accent);
+	border-radius: var(--MI-radius-ellipse);
 	transition: none;
 	pointer-events: none;
 

@@ -66,7 +66,7 @@ const props = defineProps<{
 			align-items: center;
 
 			&:hover {
-				color: var(--accent);
+				color: var(--MI_THEME-accent);
 			}
 
 			> .thumbnail {
@@ -108,7 +108,7 @@ const props = defineProps<{
 				padding: 2px 4px;
 				background: #ff0000bf;
 				color: #fff;
-				border-radius: var(--radius-xs);
+				border-radius: var(--MI-radius-xs);
 				font-size: 85%;
 				animation: sensitive-blink 1s infinite;
 			}

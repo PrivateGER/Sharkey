@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</I18n>
 	<MkNote :class="$style.exampleNoteRoot" :note="exampleNote" :mock="true" @reaction="addReaction" @removeReaction="removeReaction"/>
 	<div v-if="onceReacted">
-		<b style="color: var(--accent);"><i class="ti ti-check"></i> {{ i18n.ts._initialTutorial.wellDone }}</b> {{ i18n.ts._initialTutorial._reaction.reactNotification }}<br>
+		<b style="color: var(--MI_THEME-accent);"><i class="ti ti-check"></i> {{ i18n.ts._initialTutorial.wellDone }}</b> {{ i18n.ts._initialTutorial._reaction.reactNotification }}<br>
 		<I18n :src="i18n.ts._initialTutorial._reaction.reactDone">
 			<template #undo>
 				<i class="ph-minus ph-bold ph-lg"></i>
@@ -116,13 +116,13 @@ function removeReaction(emoji) {
 
 <style lang="scss" module>
 .exampleNoteRoot {
-	border-radius: var(--radius);
-	border: var(--panelBorder);
-	background: var(--panel);
+	border-radius: var(--MI-radius);
+	border: var(--MI_THEME-panelBorder);
+	background: var(--MI_THEME-panel);
 }
 
 .divider {
 	height: 1px;
-	background: var(--divider);
+	background: var(--MI_THEME-divider);
 }
 </style>
