@@ -104,7 +104,7 @@ export class Resolver {
 		}
 
 		if (!this.utilityService.isFederationAllowedHost(host)) {
-			throw new UnrecoverableError(`instance is blocked: ${value}`);
+			throw new UnrecoverableError(`cannot fetch AP object ${value}: blocked instance ${host}`);
 		}
 
 		if (this.config.signToActivityPubGet && !this.user) {
@@ -123,16 +123,25 @@ export class Resolver {
 			throw new UnrecoverableError(`invalid AP object ${value}: does not have ActivityStreams context`);
 		}
 
-		// HttpRequestService / ApRequestService have already checked that
-		// `object.id` or `object.url` matches the URL used to fetch the
-		// object after redirects; here we double-check that no redirects
-		// bounced between hosts
+		// Since redirects are allowed, we cannot safely validate an anonymous object.
+		// Reject any responses without an ID, as all other checks depend on that value.
 		if (object.id == null) {
 			throw new UnrecoverableError(`invalid AP object ${value}: missing id`);
 		}
 
-		if (this.utilityService.punyHostPSLDomain(object.id) !== this.utilityService.punyHostPSLDomain(value)) {
-			throw new UnrecoverableError(`invalid AP object ${value}: id ${object.id} has different host`);
+		// We allow some limited cross-domain redirects, which means the host may have changed during fetch.
+		// Additional checks are needed to validate the scope of cross-domain redirects.
+		const finalHost = this.utilityService.extractDbHost(object.id);
+		if (finalHost !== host) {
+			// Make sure the redirect stayed within the same authority.
+			if (this.utilityService.punyHostPSLDomain(object.id) !== this.utilityService.punyHostPSLDomain(value)) {
+				throw new UnrecoverableError(`invalid AP object ${value}: id ${object.id} has different host`);
+			}
+
+			// Check if the redirect bounce from [allowed domain] to [blocked domain].
+			if (!this.utilityService.isFederationAllowedHost(finalHost)) {
+				throw new UnrecoverableError(`cannot fetch AP object ${value}: redirected to blocked instance ${finalHost}`);
+			}
 		}
 
 		return object;

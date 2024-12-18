@@ -43,6 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkButton>
 	</div>
 </template>
+<div v-else-if="theNote" :class="[$style.link, { [$style.compact]: compact }]"><XNoteSimple :note="theNote" :class="$style.body"/></div>
 <div v-else>
 	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="self ? url.substring(local.length) : url" rel="nofollow noopener" :target="target" :title="url">
 		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="defaultStore.state.dataSaver.urlPreview ? '' : `background-image: url('${thumbnail}')`">
@@ -83,7 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onDeactivated, onUnmounted, ref } from 'vue';
+import { defineAsyncComponent, onDeactivated, onUnmounted, ref, watch } from 'vue';
 import { url as local } from '@@/js/config.js';
 import { versatileLang } from '@@/js/intl-const.js';
 import type { summaly } from '@misskey-dev/summaly';
@@ -93,6 +94,14 @@ import { deviceKind } from '@/scripts/device-kind.js';
 import MkButton from '@/components/MkButton.vue';
 import { transformPlayerUrl } from '@/scripts/player-url-transform.js';
 import { defaultStore } from '@/store.js';
+import * as Misskey from 'misskey-js';
+import { misskeyApi } from '@/scripts/misskey-api.js';
+
+const XNoteSimple = defineAsyncComponent(() =>
+	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteSimple.vue') :
+	(defaultStore.state.noteDesign === 'sharkey') ? import('@/components/SkNoteSimple.vue') :
+	null
+);
 
 type SummalyResult = Awaited<ReturnType<typeof summaly>>;
 
@@ -100,10 +109,12 @@ const props = withDefaults(defineProps<{
 	url: string;
 	detail?: boolean;
 	compact?: boolean;
+	showAsQuote?: boolean;
 	showActions?: boolean;
 }>(), {
 	detail: false,
 	compact: false,
+	showAsQuote: false,
 	showActions: true,
 });
 
@@ -120,6 +131,7 @@ const thumbnail = ref<string | null>(null);
 const icon = ref<string | null>(null);
 const sitename = ref<string | null>(null);
 const sensitive = ref<boolean>(false);
+const activityPub = ref<string | null>(null);
 const player = ref({
 	url: null,
 	width: null,
@@ -131,9 +143,24 @@ const tweetExpanded = ref(props.detail);
 const embedId = `embed${Math.random().toString().replace(/\D/, '')}`;
 const tweetHeight = ref(150);
 const unknownUrl = ref(false);
+const theNote = ref<Misskey.entities.Note | null>(null);
 
 onDeactivated(() => {
 	playerEnabled.value = false;
+});
+
+watch(activityPub, async (uri) => {
+		if (!props.showAsQuote) return;
+		if (!uri) return;
+		try {
+			const response = await misskeyApi('ap/show', { uri });
+			if (response.type !== 'Note') return;
+			theNote.value = response['object'];
+		} catch (err) {
+			if (_DEV_) {
+				console.error(`failed to extract note for preview of ${uri}`, err);
+			}
+		}
 });
 
 const requestUrl = new URL(props.url);
@@ -178,6 +205,7 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 		sitename.value = info.sitename;
 		player.value = info.player;
 		sensitive.value = info.sensitive ?? false;
+		activityPub.value = info.activityPub;
 	});
 
 function adjustTweetHeight(message: MessageEvent) {

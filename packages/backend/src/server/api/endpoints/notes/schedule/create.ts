@@ -6,6 +6,7 @@
 import ms from 'ms';
 import { In } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
+import moment from 'moment';
 import { isPureRenote } from '@/misc/is-renote.js';
 import type { MiUser } from '@/models/User.js';
 import type {
@@ -307,7 +308,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.poll) {
 				let scheduleNote_scheduledAt = Date.now();
 				if (typeof ps.scheduleNote.scheduledAt === 'number') {
-					scheduleNote_scheduledAt = ps.scheduleNote.scheduledAt;
+					scheduleNote_scheduledAt = moment.utc(ps.scheduleNote.scheduledAt).local().valueOf();
 				}
 				if (typeof ps.poll.expiresAt === 'number') {
 					if (ps.poll.expiresAt < scheduleNote_scheduledAt) {
@@ -318,7 +319,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 			if (typeof ps.scheduleNote.scheduledAt === 'number') {
-				if (ps.scheduleNote.scheduledAt < Date.now()) {
+				if (moment.utc(ps.scheduleNote.scheduledAt).local().valueOf() < Date.now()) {
 					throw new ApiError(meta.errors.cannotCreateAlreadyExpiredSchedule);
 				}
 			} else {
@@ -347,14 +348,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.scheduleNote.scheduledAt) {
 				me.token = null;
 				const noteId = this.idService.gen(new Date().getTime());
+				const schedNoteLocalTime = moment.utc(ps.scheduleNote.scheduledAt).local().valueOf();
 				await this.noteScheduleRepository.insert({
 					id: noteId,
 					note: note,
 					userId: me.id,
-					scheduledAt: new Date(ps.scheduleNote.scheduledAt),
+					scheduledAt: new Date(schedNoteLocalTime),
 				});
 
-				const delay = new Date(ps.scheduleNote.scheduledAt).getTime() - Date.now();
+				const delay = new Date(schedNoteLocalTime).getTime() - Date.now();
 				await this.queueService.ScheduleNotePostQueue.add(String(delay), {
 					scheduleNoteId: noteId,
 				}, {

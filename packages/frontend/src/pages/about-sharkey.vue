@@ -155,11 +155,6 @@ const everyone = ref<Section[]>([
 				link: 'https://activitypub.software/julia',
 			},
 			{
-				handle: '@Leah',
-				avatar: 'https://activitypub.software/uploads/-/system/user/avatar/9/avatar.png?width=128',
-				link: 'https://activitypub.software/Leah',
-			},
-			{
 				handle: '@Luna',
 				avatar: 'https://secure.gravatar.com/avatar/4faf37df86a3d93a6c19ed6abf8588eade4efb837410dbbc53021b4fd12eaae7?s=128&d=identicon',
 				link: 'https://activitypub.software/luna',
