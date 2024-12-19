@@ -12,6 +12,7 @@ import * as os from '@/os.js';
 import { instance } from '@/instance.js';
 import { defaultStore } from '@/store.js';
 import { MisskeyEntity } from '@/types/date-separated-list.js';
+import { $i } from '@/account.js';
 
 export default defineComponent({
 	props: {
@@ -55,7 +56,7 @@ export default defineComponent({
 
 		if (props.items.length === 0) return;
 
-		const renderChildrenImpl = () => props.items.map((item, i) => {
+		const renderChildrenImpl = (shouldHideAds: boolean) => props.items.map((item, i) => {
 			if (!slots || !slots.default) return;
 
 			const el = slots.default({
@@ -100,7 +101,7 @@ export default defineComponent({
 
 				return [el, separator];
 			} else {
-				if (props.ad && instance.ads.length > 0 && item._shouldInsertAd_) {
+				if (props.ad && instance.ads.length > 0 && item._shouldInsertAd_ && !shouldHideAds) {
 					return [h('div', {
 						key: item.id + ':ad',
 						class: $style['ad-wrapper'],
@@ -114,7 +115,9 @@ export default defineComponent({
 		});
 
 		const renderChildren = () => {
-			const children = renderChildrenImpl();
+			const shouldHideAds = !defaultStore.state.forceShowAds && $i && $i.policies.canHideAds;
+
+			const children = renderChildrenImpl(shouldHideAds);
 			if (isDebuggerEnabled(6864)) {
 				const nodes = children.flatMap((node) => node ?? []);
 				const keys = new Set(nodes.map((node) => node.key));

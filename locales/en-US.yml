@@ -1457,6 +1457,8 @@ _serverSettings:
   inquiryUrl: "Inquiry URL"
   inquiryUrlDescription: "Specify a URL for the inquiry form to the server maintainer or a web page for the contact information."
   thisSettingWillAutomaticallyOffWhenModeratorsInactive: "If no moderator activity is detected for a while, this setting will be automatically turned off to prevent spam."
+  openRegistration: "Open account creation"
+  openRegistrationWarning: "Opening up registration is risky, so we recommend turning it on only if you are able to constantly monitor your server and respond immediately if any problems arise."
 _accountMigration:
   moveFrom: "Migrate another account to this one"
   moveFromSub: "Create alias to another account"
@@ -2738,3 +2740,7 @@ _selfXssPrevention:
   description1: "If you paste something here, a malicious user could hijack your account or steal your personal information."
   description2: "If you do not understand exactly what you are trying to paste, %cstop working right now and close this window."
   description3: "For more information, please refer to this. {link}"
+_followRequest:
+  recieved: "Received"
+  sent: "Sent"
+acknowledgeNotesAndEnable: "Be sure you have understood the warnings before turning this on"

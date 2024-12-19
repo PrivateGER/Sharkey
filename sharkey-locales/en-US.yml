@@ -284,6 +284,8 @@ _notification:
   _types:
     renote: "Boosts"
     edited: "Edits"
+    scheduledNoteFailed: "Posting scheduled note failed"
+    scheduledNotePosted: "Scheduled note was posted"
   _actions:
     renote: "Boost"
 _webhookSettings:

@@ -48,7 +48,7 @@ export class FeedService {
 
 		const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
 
-		const notes = await this.notesRepository.find({
+		const notes = user.requireSigninToViewContents ? [] : await this.notesRepository.find({
 			where: {
 				userId: user.id,
 				renoteId: IsNull(),
@@ -74,7 +74,16 @@ export class FeedService {
 			copyright: user.name ?? user.username,
 		});
 
+		const followersOnlyBefore = user.makeNotesFollowersOnlyBefore;
+		const hiddenBefore = user.makeNotesHiddenBefore;
+
 		for (const note of notes) {
+			const createdAt = new Date(this.idService.parse(note.id).date);
+
+			if (this.shouldHideNote(followersOnlyBefore, createdAt) || this.shouldHideNote(hiddenBefore, createdAt)) {
+				continue;
+			}
+
 			const files = note.fileIds.length > 0 ? await this.driveFilesRepository.findBy({
 				id: In(note.fileIds),
 			}) : [];
@@ -92,5 +101,18 @@ export class FeedService {
 		}
 
 		return feed;
+	}
+
+	// this logic is copied from NoteEntityService.hideNote
+	private shouldHideNote(reference: number | null, createdAt: Date): boolean {
+		if ((reference !== null)
+				&& (
+					(reference <= 0 && (Date.now() - createdAt.getTime() > 0 - (reference * 1000)))
+						|| (reference > 0 && (createdAt.getTime() < reference * 1000))
+				)
+		) {
+			return true;
+		}
+		return false;
 	}
 }

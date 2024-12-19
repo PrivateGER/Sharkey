@@ -9637,6 +9637,14 @@ export interface Locale extends ILocale {
              * Edits
              */
             "edited": string;
+            /**
+             * Posting scheduled note failed
+             */
+            "scheduledNoteFailed": string;
+            /**
+             * Scheduled note was posted
+             */
+            "scheduledNotePosted": string;
         };
         "_actions": {
             /**
