@@ -12,7 +12,6 @@ import chalk from 'chalk';
 import chalkTemplate from 'chalk-template';
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import { collectDefaultMetrics, AggregatorRegistry } from 'prom-client';
 import Logger from '@/logger.js';
 import { loadConfig } from '@/config.js';
 import type { Config } from '@/config.js';
@@ -94,10 +93,6 @@ export async function masterMain() {
 			...config.sentryForBackend.options,
 		});
 	}
-
-	// initialize prom-client in the master
-	const aggregatorRegistry = new AggregatorRegistry();
-	collectDefaultMetrics();
 
 	if (envOption.disableClustering) {
 		if (envOption.onlyServer) {
