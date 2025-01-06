@@ -382,11 +382,14 @@ onUnmounted(() => {
 				position: absolute;
 				width: 56px;
 				height: 100%;
+
+				& + .body {
+					left: 56px;
+					width: calc(100% - 56px);
+				}
 			}
 
 			> .body {
-				left: 56px;
-				width: calc(100% - 56px);
 				padding: 4px;
 
 				> .header {

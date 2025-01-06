@@ -8,13 +8,21 @@ import { defaultStore } from '@/store.js';
 import * as os from '@/os.js';
 import MkUrlWarningDialog from '@/components/MkUrlWarningDialog.vue';
 
-const extractDomain = /^(https?:\/\/|\/\/)?([^@/\s]+@)?(www\.)?([^:/\s]+)/i;
 const isRegExp = /^\/(.+)\/(.*)$/;
 
-export async function warningExternalWebsite(url: string) {
-	const domain = extractDomain.exec(url)?.[4];
+function extractHostname(maybeUrl: string): URL | null {
+	try {
+		const url = new URL(maybeUrl);
+		return url.host;
+	} catch {
+		return null;
+	}
+}
 
-	if (!domain) return false;
+export async function warningExternalWebsite(url: string) {
+	const hostname = extractHostname(url);
+
+	if (!hostname) return false;
 
 	const isTrustedByInstance = instance.trustedLinkUrlPatterns.some(expression => {
 		const r = isRegExp.exec(expression);
@@ -24,11 +32,11 @@ export async function warningExternalWebsite(url: string) {
 		} else if (expression.includes(' ')) {
 			return expression.split(' ').every(keyword => url.includes(keyword));
 		} else {
-			return domain.endsWith(expression);
+			return `.${hostname}`.endsWith(`.${expression}`);
 		}
 	});
 
-	const isTrustedByUser = defaultStore.reactiveState.trustedDomains.value.includes(domain);
+	const isTrustedByUser = defaultStore.reactiveState.trustedDomains.value.includes(hostname);
 	const isDisabledByUser = !defaultStore.reactiveState.warnExternalUrl.value;
 
 	if (!isTrustedByInstance && !isTrustedByUser && !isDisabledByUser) {
@@ -44,7 +52,7 @@ export async function warningExternalWebsite(url: string) {
 		});
 
 		if (confirm.canceled) return false;
- 
+
 		return window.open(url, '_blank', 'nofollow noopener popup=false');
 	}
 

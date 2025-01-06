@@ -9,6 +9,12 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { envOption } from '@/env.js';
 import { loadConfig } from '@/config.js';
 import { jobQueue, server } from './common.js';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+import * as fs from 'node:fs';
+const _filename = fileURLToPath(import.meta.url);
+const _dirname = dirname(_filename);
+const meta = JSON.parse(fs.readFileSync(`${_dirname}/../../../../built/meta.json`, 'utf-8'));
 
 /**
  * Init worker process
@@ -29,6 +35,9 @@ export async function workerMain() {
 			profilesSampleRate: 1.0,
 
 			maxBreadcrumbs: 0,
+
+			// Set release version
+			release: "Sharkey@" + meta.version,
 
 			...config.sentryForBackend.options,
 		});

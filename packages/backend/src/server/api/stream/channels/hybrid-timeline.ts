@@ -98,13 +98,20 @@ class HybridTimelineChannel extends Channel {
 			}
 		}
 
-		if (this.user && note.renoteId && !note.text) {
-			if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-				console.log(note.renote.reactionAndUserPairCache);
-				const myRenoteReaction = await this.noteEntityService.populateMyReaction(note.renote, this.user.id);
-				note.renote.myReaction = myRenoteReaction;
+		const reactionsToFetch = [];
+		if (this.user && isRenotePacked(note) && !isQuotePacked(note)) {
+			if (note.renote) {
+				reactionsToFetch.push(this.assignMyReaction(note.renote, this.noteEntityService));
+				if (note.renote.reply) {
+					reactionsToFetch.push(this.assignMyReaction(note.renote.reply, this.noteEntityService));
+				}
 			}
 		}
+		if (this.user && note.reply) {
+			reactionsToFetch.push(this.assignMyReaction(note.reply, this.noteEntityService));
+		}
+
+		await Promise.all(reactionsToFetch);
 
 		this.connection.cacheNote(note);
 
