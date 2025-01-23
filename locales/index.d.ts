@@ -9020,6 +9020,10 @@ export interface Locale extends ILocale {
          * Remove background
          */
         "removeBackground": string;
+        /**
+         * ListenBrainz username
+         */
+        "listenbrainz": string;
     };
     "_exportOrImport": {
         /**
@@ -10806,6 +10810,10 @@ export interface Locale extends ILocale {
      */
     "date": string;
     /**
+     * Boost (hold Shift for visibility menu)
+     */
+    "renoteShift": string;
+    /**
      * Quoted.
      */
     "quoted": string;
@@ -11525,6 +11533,14 @@ export interface Locale extends ILocale {
          * Change the background color of text.
          */
         "backgroundDescription": string;
+        /**
+         * Border
+         */
+        "border": string;
+        /**
+         * Draw a border around the content.
+         */
+        "borderDescription": string;
         /**
          * Plain
          */

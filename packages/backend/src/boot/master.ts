@@ -35,10 +35,10 @@ function greet() {
 		const v = `v${meta.version}`;
 		console.log(themeColor(' _____ _                _              '));
 		console.log(themeColor('/  ___| |              | |             '));
-		console.log(themeColor('\ `--.| |__   __ _ _ __| | _____ _   _ '));
-		console.log(themeColor(" `--. \ '_ \ / _` | '__| |/ / _ \ | | |"));
-		console.log(themeColor('/\__/ / | | | (_| | |  |   <  __/ |_| |'));
-		console.log(themeColor('\____/|_| |_|\__,_|_|  |_|\_\___|\__, |'));
+		console.log(themeColor('\\ `--.| |__   __ _ _ __| | _____ _   _ '));
+		console.log(themeColor(' `--. \\ \'_ \\ / _` | \'__| |/ / _ \\ | | |'));
+		console.log(themeColor('/\\__/ / | | | (_| | |  |   <  __/ |_| |'));
+		console.log(themeColor('\\____/|_| |_|\\__,_|_|  |_|\\_\\___|\\__, |'));
 		console.log(themeColor('                                  __/ |'));
 		console.log(themeColor('                                 |___/ '));
 		//#endregion
@@ -89,6 +89,9 @@ export async function masterMain() {
 			profilesSampleRate: 1.0,
 
 			maxBreadcrumbs: 0,
+
+			// Set release version
+			release: "Sharkey@" + meta.version,
 
 			...config.sentryForBackend.options,
 		});

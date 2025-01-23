@@ -36,10 +36,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button
 					v-if="canRenote"
 					ref="renoteButton"
+					v-tooltip="renoteTooltip"
 					class="_button"
 					:class="$style.noteFooterButton"
 					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
-					@mousedown="renoted ? undoRenote() : boostVisibility()"
+					@mousedown="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 				>
 					<i class="ph-rocket-launch ph-bold ph-lg"></i>
 					<p v-if="note.renoteCount > 0" :class="$style.noteFooterButtonCount">{{ note.renoteCount }}</p>
@@ -114,7 +115,7 @@ import { reactionPicker } from '@/scripts/reaction-picker.js';
 import { claimAchievement } from '@/scripts/achievements.js';
 import { getNoteMenu } from '@/scripts/get-note-menu.js';
 import { useNoteCapture } from '@/scripts/use-note-capture.js';
-import { boostMenuItems, type Visibility } from '@/scripts/boost-quote.js';
+import { boostMenuItems, type Visibility, computeRenoteTooltip } from '@/scripts/boost-quote.js';
 
 const canRenote = computed(() => ['public', 'home'].includes(props.note.visibility) || props.note.userId === $i.id);
 const hideLine = computed(() => { return props.detail ? true : false; });
@@ -148,6 +149,8 @@ const renoteButton = shallowRef<HTMLElement>();
 const quoteButton = shallowRef<HTMLElement>();
 const menuButton = shallowRef<HTMLElement>();
 const likeButton = shallowRef<HTMLElement>();
+
+const renoteTooltip = computeRenoteTooltip(renoted);
 
 let appearNote = computed(() => isRenote ? props.note.renote as Misskey.entities.Note : props.note);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
@@ -299,8 +302,8 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 	if (expandAllCws !== showContent.value) showContent.value = expandAllCws;
 });
 
-function boostVisibility() {
-	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+function boostVisibility(forceMenu: boolean = false) {
+	if (!defaultStore.state.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(defaultStore.state.visibilityOnBoost);
 	} else {
 		os.popupMenu(boostMenuItems(appearNote, renote), renoteButton.value);

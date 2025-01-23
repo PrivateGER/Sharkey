@@ -260,6 +260,7 @@ onMounted(() => {
 			position: sticky;
 			top: 0;
 			height: 100%;
+			width: 300px;
 			padding-top: 16px;
 			box-sizing: border-box;
 			overflow: auto;

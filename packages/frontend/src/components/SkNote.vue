@@ -129,11 +129,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button
 					v-if="canRenote"
 					ref="renoteButton"
+					v-tooltip="renoteTooltip"
 					:class="$style.footerButton"
 					class="_button"
 					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 					@click.stop
-					@mousedown.prevent="renoted ? undoRenote(appearNote) : boostVisibility()"
+					@mousedown.prevent="renoted ? undoRenote(appearNote) : boostVisibility($event.shiftKey)"
 				>
 					<i class="ti ti-repeat"></i>
 					<p v-if="appearNote.renoteCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.renoteCount) }}</p>
@@ -238,7 +239,7 @@ import { getNoteSummary } from '@/scripts/get-note-summary.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { showMovedDialog } from '@/scripts/show-moved-dialog.js';
 import { useRouter } from '@/router/supplier.js';
-import { boostMenuItems, type Visibility } from '@/scripts/boost-quote.js';
+import { boostMenuItems, type Visibility, computeRenoteTooltip } from '@/scripts/boost-quote.js';
 import { isEnabledUrlPreview } from '@/instance.js';
 import { type Keymap } from '@/scripts/hotkey.js';
 import { focusPrev, focusNext } from '@/scripts/focus.js';
@@ -332,6 +333,8 @@ const inReplyToCollapsed = ref(defaultStore.state.collapseNotesRepliedTo);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
 const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.value) : null);
 const allowAnim = ref(defaultStore.state.advancedMfm && defaultStore.state.animatedMfm ? true : false);
+
+const renoteTooltip = computeRenoteTooltip(renoted);
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
@@ -506,10 +509,10 @@ if (!props.mock) {
 	}
 }
 
-function boostVisibility() {
+function boostVisibility(forceMenu: boolean = false) {
 	if (renoting) return;
 
-	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+	if (!defaultStore.state.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(defaultStore.state.visibilityOnBoost);
 	} else {
 		os.popupMenu(boostMenuItems(appearNote, renote), renoteButton.value);

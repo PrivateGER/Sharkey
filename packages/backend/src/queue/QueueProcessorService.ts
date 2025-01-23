@@ -349,7 +349,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 						});
 					}
 				})
-				.on('error', (err: Error) => logger.error(`error ${err.name}: ${err.message}`, { e: renderError(err) }))
+				.on('error', (err: Error) => logger.error('inbox error:', renderError(err)))
 				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
 		}
 		//#endregion

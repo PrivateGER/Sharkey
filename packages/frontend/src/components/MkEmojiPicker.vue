@@ -186,11 +186,13 @@ function parseAndMergeCategories(input: string, root: CustomEmojiFolderTree): Cu
 	const parts = input.split('/').map(p => p.trim());
 	let currentNode: CustomEmojiFolderTree = root;
 
+	const currentPath = [];
 	for (const part of parts) {
+		currentPath.push(part);
 		let existingNode = currentNode.children.find((node) => node.value === part);
 
 		if (!existingNode) {
-			const newNode: CustomEmojiFolderTree = { value: part, category: input, children: [] };
+			const newNode: CustomEmojiFolderTree = { value: part, category: currentPath.join("/"), children: [] };
 			currentNode.children.push(newNode);
 			existingNode = newNode;
 		}

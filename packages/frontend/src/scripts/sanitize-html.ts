@@ -13,6 +13,7 @@ export default function sanitizeHtml(str: string | null): string | null {
 			...original.defaults.allowedAttributes,
 			a: original.defaults.allowedAttributes.a.concat(['style']),
 			img: original.defaults.allowedAttributes.img.concat(['style']),
+			'*': (original.defaults.allowedAttributes['*'] || []).concat(['style']),
 		},
 	});
 }

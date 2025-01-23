@@ -17,6 +17,7 @@ emailDestination: "Destination address"
 date: "Date"
 renote: "Boost"
 unrenote: "Remove boost"
+renoteShift: "Boost (hold Shift for visibility menu)"
 renoted: "Boosted."
 quoted: "Quoted."
 rmboost: "Unboosted."
@@ -270,6 +271,7 @@ _profile:
   changeBackground: "Change background"
   updateBackground: "Update background"
   removeBackground: "Remove background"
+  listenbrainz: "ListenBrainz username"
 _timelines:
   bubble: "Bubble"
 _pages:
@@ -383,6 +385,8 @@ _mfm:
   fadeDescription: 'Fade text in and out.'
   background: "Background color"
   backgroundDescription: "Change the background color of text."
+  border: "Border"
+  borderDescription: "Draw a border around the content."
   plain: "Plain"
   plainDescription: "Deactivates the effects of all MFM contained within this MFM effect."
 _animatedMFM:

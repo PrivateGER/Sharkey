@@ -54,9 +54,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkUserName :nowrap="false" :user="appearNote.user"/>
 						</MkA>
 						<span v-if="appearNote.user.isBot" :class="$style.isBot">bot</span>
-						<span v-if="appearNote.user.badgeRoles" :class="$style.badgeRoles">
-							<img v-for="role in appearNote.user.badgeRoles" :key="role.id" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl"/>
-						</span>
 					</div>
 					<div :class="$style.noteHeaderUsernameAndBadgeRoles">
 						<div :class="$style.noteHeaderUsername">
@@ -148,10 +145,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button
 				v-if="canRenote"
 				ref="renoteButton"
+				v-tooltip="renoteTooltip"
 				class="_button"
 				:class="$style.noteFooterButton"
 				:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
-				@mousedown.prevent="renoted ? undoRenote() : boostVisibility()"
+				@mousedown.prevent="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 			>
 				<i class="ti ti-repeat"></i>
 				<p v-if="appearNote.renoteCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.renoteCount) }}</p>
@@ -291,7 +289,7 @@ import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkPagination, { type Paging } from '@/components/MkPagination.vue';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import MkButton from '@/components/MkButton.vue';
-import { boostMenuItems, type Visibility } from '@/scripts/boost-quote.js';
+import { boostMenuItems, type Visibility, computeRenoteTooltip } from '@/scripts/boost-quote.js';
 import { isEnabledUrlPreview } from '@/instance.js';
 import { getAppearNote } from '@/scripts/get-appear-note.js';
 import { type Keymap } from '@/scripts/hotkey.js';
@@ -360,6 +358,8 @@ const replies = ref<Misskey.entities.Note[]>([]);
 const quotes = ref<Misskey.entities.Note[]>([]);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
+
+const renoteTooltip = computeRenoteTooltip(renoted);
 
 watch(() => props.expandAllCws, (expandAllCws) => {
 	if (expandAllCws !== showContent.value) showContent.value = expandAllCws;
@@ -492,10 +492,10 @@ useTooltip(quoteButton, async (showing) => {
 	});
 });
 
-function boostVisibility() {
+function boostVisibility(forceMenu: boolean = false) {
 	if (renoting) return;
 
-	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+	if (!defaultStore.state.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(defaultStore.state.visibilityOnBoost);
 	} else {
 		os.popupMenu(boostMenuItems(appearNote, renote), renoteButton.value);

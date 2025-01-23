@@ -86,7 +86,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkSelect>
 
 				<div v-if="useCustomSearchEngine">
-					<MkInput v-model="searchEngine" :max="300">
+					<MkInput v-model="searchEngine" :max="300" :manualSave="true">
 						<template #label>{{ i18n.ts.searchEngineCusomURI }}</template>
 						<template #caption>{{ i18n.ts.searchEngineCustomURIDescription }}</template>
 					</MkInput>

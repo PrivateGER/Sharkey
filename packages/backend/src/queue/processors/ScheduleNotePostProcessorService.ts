@@ -43,7 +43,7 @@ export class ScheduleNotePostProcessorService {
 	@bindThis
 	private async isValidNoteSchedule(note: MiScheduleNoteType, id: string): Promise<boolean> {
 		const reply = note.reply ? await this.notesRepository.findOneBy({ id: note.reply }) : undefined;
-		const renote = note.reply ? await this.notesRepository.findOneBy({ id: note.renote }) : undefined;
+		const renote = note.renote ? await this.notesRepository.findOneBy({ id: note.renote }) : undefined;
 		const channel = note.channel ? await this.channelsRepository.findOneBy({ id: note.channel, isArchived: false }) : undefined;
 		if (note.reply && !reply) {
 			this.logger.warn('Schedule Note Failed Reason: parent note to reply does not exist');
@@ -78,7 +78,7 @@ export class ScheduleNotePostProcessorService {
 				const me = await this.usersRepository.findOneBy({ id: data.userId });
 				const note = data.note;
 				const reply = note.reply ? await this.notesRepository.findOneBy({ id: note.reply }) : undefined;
-				const renote = note.reply ? await this.notesRepository.findOneBy({ id: note.renote }) : undefined;
+				const renote = note.renote ? await this.notesRepository.findOneBy({ id: note.renote }) : undefined;
 				const channel = note.channel ? await this.channelsRepository.findOneBy({ id: note.channel, isArchived: false }) : undefined;
 
 				let files: MiDriveFile[] = [];
