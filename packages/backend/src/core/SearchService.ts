@@ -282,18 +282,16 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
-			if (this.config.db.pgroongaSearch && opts.similarSearch) {
-				query.andWhere('note.text &@* :q', { q: q });
-			} else {
-				query.andWhere('note.text &@~ (:q, ARRAY[10], ARRAY[\'scorer_tf_idf($index)\'], \'pgroonga_idx\')::pgroonga_full_text_search_condition_with_scorers', { q });
+			query.andWhere('tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
 
-				if (opts.order === 'asc') {
-					query
-						.addSelect('pgroonga_score(note.tableoid, note.ctid)', 'pgroonga_score')
-						.orderBy('pgroonga_score', 'DESC');
-				} else {
-					query.orderBy('note.created_at', 'DESC');
-				}
+			if (opts.order === 'asc') {
+				query
+					.addSelect('ts_rank(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.orderBy('rank', 'DESC');
+			} else {
+				query
+					.addSelect('ts_rank(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.orderBy('rank', 'DESC');
 			}
 
 			query

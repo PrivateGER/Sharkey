@@ -23,8 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #prefix><i class="ti ti-server"></i></template>
 				</MkInput>
 				<MkSwitch v-model="order">Sort by newest to oldest</MkSwitch>
-				<MkSwitch v-model="similarSearch">Search for similar posts (disable to use search operators)</MkSwitch>
-				<div v-if="!similarSearch">
+				<div>
 					<MkFoldableSection :expanded="true">
 						<template #header>Advanced Search Operators</template>
 						<div class="_gaps_m">
@@ -44,14 +43,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<tr>
 									<td><strong>""</strong></td>
 									<td>Searches for an exact phrase (e.g., <code>"neocat woozy"</code>).</td>
-								</tr>
-								<tr>
-									<td><strong>*</strong></td>
-									<td>Wildcard for multiple characters (e.g., <code>neo*</code>). <strong>This operator may result in very slow searches.</strong></td>
-								</tr>
-								<tr>
-									<td><strong>()</strong></td>
-									<td>Parentheses may be used to create complex queries (e.g., <code>(neocat* OR neofox*) git</code>).</td>
 								</tr>
 							</table>
 						</div>
