@@ -274,6 +274,9 @@ export class SearchService {
 			});
 			return notes.sort((a, b) => a.id > b.id ? -1 : 1);
 		} else {
+			// ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', text || cw || name)) STORED;
+			// CREATE INDEX vector_idx ON note USING GIN (tsvector_embedding);
+
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
 
 			if (opts.userId) {
@@ -286,11 +289,11 @@ export class SearchService {
 
 			if (opts.order === 'asc') {
 				query
-					.addSelect('ts_rank(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.addSelect('ts_rank_cd(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
 					.orderBy('rank', 'DESC');
 			} else {
 				query
-					.addSelect('ts_rank(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.addSelect('ts_rank_cd(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
 					.orderBy('rank', 'DESC');
 			}
 
