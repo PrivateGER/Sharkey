@@ -285,15 +285,15 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
-			query.andWhere('tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
+			query.andWhere('"note.tsvector_embedding" @@ websearch_to_tsquery(:q)', { q });
 
 			if (opts.order === 'asc') {
 				query
-					.addSelect('ts_rank_cd(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.addSelect('ts_rank_cd("note.tsvector_embedding", websearch_to_tsquery(:q))', 'rank')
 					.orderBy('rank', 'DESC');
 			} else {
 				query
-					.addSelect('ts_rank_cd(tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.addSelect('ts_rank_cd("note.tsvector_embedding", websearch_to_tsquery(:q))', 'rank')
 					.orderBy('rank', 'DESC');
 			}
 
