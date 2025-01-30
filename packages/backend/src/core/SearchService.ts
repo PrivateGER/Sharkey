@@ -293,7 +293,7 @@ export class SearchService {
 					.orderBy('rank', 'DESC');
 			} else {
 				query
-					.orderBy('created_at', 'DESC');
+					.orderBy('note.created_at', 'DESC');
 			}
 
 			query
