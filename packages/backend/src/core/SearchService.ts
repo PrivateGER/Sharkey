@@ -274,7 +274,7 @@ export class SearchService {
 			});
 			return notes.sort((a, b) => a.id > b.id ? -1 : 1);
 		} else {
-			// ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', text || cw || name)) STORED;
+			// ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', COALESCE(text, '') || ' ' || COALESCE(cw, '') || ' ' || COALESCE(name, ''))) STORED;
 			// CREATE INDEX vector_idx ON note USING GIN (tsvector_embedding);
 
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
@@ -285,16 +285,15 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
-			query.andWhere('"note.tsvector_embedding" @@ websearch_to_tsquery(:q)', { q });
+			query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
 
 			if (opts.order === 'asc') {
 				query
-					.addSelect('ts_rank_cd("note.tsvector_embedding", websearch_to_tsquery(:q))', 'rank')
+					.addSelect('ts_rank_cd(note.tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
 					.orderBy('rank', 'DESC');
 			} else {
 				query
-					.addSelect('ts_rank_cd("note.tsvector_embedding", websearch_to_tsquery(:q))', 'rank')
-					.orderBy('rank', 'DESC');
+					.orderBy('created_at', 'DESC');
 			}
 
 			query
