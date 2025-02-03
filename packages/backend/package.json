@@ -155,6 +155,7 @@
 		"oauth": "0.10.0",
 		"oauth2orize": "1.12.0",
 		"oauth2orize-pkce": "0.1.2",
+		"openai": "^4.82.0",
 		"os-utils": "0.0.14",
 		"otpauth": "9.3.4",
 		"parse5": "7.2.1",

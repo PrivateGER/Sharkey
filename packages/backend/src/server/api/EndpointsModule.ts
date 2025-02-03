@@ -165,6 +165,7 @@ import * as ep___drive_files_delete from './endpoints/drive/files/delete.js';
 import * as ep___drive_files_findByHash from './endpoints/drive/files/find-by-hash.js';
 import * as ep___drive_files_find from './endpoints/drive/files/find.js';
 import * as ep___drive_files_show from './endpoints/drive/files/show.js';
+import * as ep___drive_files_generate_alt from './endpoints/drive/files/generate-alt.js';
 import * as ep___drive_files_update from './endpoints/drive/files/update.js';
 import * as ep___drive_files_uploadFromUrl from './endpoints/drive/files/upload-from-url.js';
 import * as ep___drive_folders from './endpoints/drive/folders.js';
@@ -572,6 +573,7 @@ const $drive_files_delete: Provider = { provide: 'ep:drive/files/delete', useCla
 const $drive_files_findByHash: Provider = { provide: 'ep:drive/files/find-by-hash', useClass: ep___drive_files_findByHash.default };
 const $drive_files_find: Provider = { provide: 'ep:drive/files/find', useClass: ep___drive_files_find.default };
 const $drive_files_show: Provider = { provide: 'ep:drive/files/show', useClass: ep___drive_files_show.default };
+const $drive_files_generate_alt_text: Provider = { provide: 'ep:drive/files/generate-alt-text', useClass: ep___drive_files_generate_alt.default };
 const $drive_files_update: Provider = { provide: 'ep:drive/files/update', useClass: ep___drive_files_update.default };
 const $drive_files_uploadFromUrl: Provider = { provide: 'ep:drive/files/upload-from-url', useClass: ep___drive_files_uploadFromUrl.default };
 const $drive_folders: Provider = { provide: 'ep:drive/folders', useClass: ep___drive_folders.default };
@@ -1227,6 +1229,7 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$reversi_showGame,
 		$reversi_surrender,
 		$reversi_verify,
+		$drive_files_generate_alt_text,
 	],
 	exports: [
 		$admin_meta,
@@ -1629,6 +1632,7 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$reversi_showGame,
 		$reversi_surrender,
 		$reversi_verify,
+		$drive_files_generate_alt_text,
 	],
 })
 export class EndpointsModule {}

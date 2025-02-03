@@ -126,6 +126,13 @@ type Source = {
 	imgproxySalt: string,
 	imgproxyKey: string,
 	filePermissionBits?: string;
+
+	openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 };
 
 export type Config = {
@@ -233,6 +240,13 @@ export type Config = {
 	imgproxySalt: string,
 	imgproxyKey: string,
 	filePermissionBits?: string;
+
+	openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 };
 
 const _filename = fileURLToPath(import.meta.url);
@@ -297,6 +311,13 @@ export function loadConfig(): Config {
 		: null;
 	const internalMediaProxy = `${scheme}://${host}/proxy`;
 	const redis = convertRedisOptions(config.redis, host);
+
+	const openai = config.openai ? {
+		apiKey: config.openai.apiKey,
+		baseUrl: config.openai.baseUrl ?? 'https://api.openai.com/v1',
+		headers: config.openai.headers ?? {},
+		model: config.openai.model,
+	} : undefined;
 
 	return {
 		version,
@@ -375,6 +396,7 @@ export function loadConfig(): Config {
 		imgproxySalt: config.imgproxySalt,
 		imgproxyKey: config.imgproxyKey,
 		filePermissionBits: config.filePermissionBits,
+		openai: openai,
 	};
 }
 

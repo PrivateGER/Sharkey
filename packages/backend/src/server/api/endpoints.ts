@@ -172,6 +172,7 @@ import * as ep___drive_files_delete from './endpoints/drive/files/delete.js';
 import * as ep___drive_files_findByHash from './endpoints/drive/files/find-by-hash.js';
 import * as ep___drive_files_find from './endpoints/drive/files/find.js';
 import * as ep___drive_files_show from './endpoints/drive/files/show.js';
+import * as ep___drive_files_generate_alt from './endpoints/drive/files/generate-alt.js';
 import * as ep___drive_files_update from './endpoints/drive/files/update.js';
 import * as ep___drive_files_uploadFromUrl from './endpoints/drive/files/upload-from-url.js';
 import * as ep___drive_folders from './endpoints/drive/folders.js';
@@ -577,6 +578,7 @@ const eps = [
 	['drive/files/find-by-hash', ep___drive_files_findByHash],
 	['drive/files/find', ep___drive_files_find],
 	['drive/files/show', ep___drive_files_show],
+	['drive/files/generate-alt-text', ep___drive_files_generate_alt],
 	['drive/files/update', ep___drive_files_update],
 	['drive/files/upload-from-url', ep___drive_files_uploadFromUrl],
 	['drive/folders', ep___drive_folders],
