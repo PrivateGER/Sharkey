@@ -64,7 +64,7 @@ async function generateAltText() {
 		return;
 	}
 
-	os.toast(i18n.ts.generatedAltText);
+	os.toast(i18n.ts.generatedAltTextSuccess);
 	caption.value = res.text;
 }
 
