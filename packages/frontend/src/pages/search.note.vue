@@ -23,6 +23,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #prefix><i class="ti ti-server"></i></template>
 				</MkInput>
 				<MkSwitch v-model="order">Sort by newest to oldest</MkSwitch>
+				<div>
+					<MkFoldableSection :expanded="true">
+						<template #header>Advanced Search Operators</template>
+						<div class="_gaps_m">
+							<table>
+								<tr>
+									<td><strong>AND</strong></td>
+									<td>Matches multiple keywords, separated by spaces (e.g., <code>apple orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>OR</strong></td>
+									<td>Matches any of the keywords (e.g., <code>apple OR orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>NOT</strong></td>
+									<td>Excludes results containing a keyword (e.g., <code>apple -orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>""</strong></td>
+									<td>Searches for an exact phrase (e.g., <code>"neocat woozy"</code>).</td>
+								</tr>
+							</table>
+						</div>
+					</MkFoldableSection>
+				</div>
 				<MkSelect v-model="filetype" small>
 					<template #label>File Type</template>
 					<option :value="null">None</option>
@@ -96,8 +121,9 @@ const searchQuery = ref(toRef(props, 'query').value);
 const notePagination = ref<Paging>();
 const user = ref<UserDetailed | null>(null);
 const hostInput = ref(toRef(props, 'host').value);
-const order = ref(false);
+const order = ref(true);
 const filetype = ref(null);
+const similarSearch = ref(false);
 
 const noteSearchableScope = instance.noteSearchableScope ?? 'local';
 
@@ -213,6 +239,7 @@ async function search() {
 			...(searchHost.value ? { host: searchHost.value } : {}),
 			order: order.value ? 'desc' : 'asc',
 			filetype: filetype.value,
+			similarSearch: similarSearch.value,
 		},
 	};
 
