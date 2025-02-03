@@ -72,9 +72,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 		@Inject(DI.config)
 		private config: Config,
-
-		private driveService: DriveService,
-		private roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const file = await this.driveFilesRepository.findOneBy({ id: ps.fileId });
@@ -88,7 +85,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Only generate alt text for images
 			if (!file.type.startsWith("image/")) {
-				throw new ApiError(meta.errors.noSuchFile);
+				throw new ApiError(meta.errors.generationFailed);
 			}
 
 			// Generate alt text
@@ -98,6 +95,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				defaultHeaders: this.config.openai?.headers,
 			});
 
+			// @ts-expect-error bad api typings
 			const response = await client.chat.completions.create({
 				model: this.config.openai?.model,
 				messages: [
@@ -118,7 +116,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			return {
-				text: response.choices[0].message.content,
+				text: response.choices[0].message.content ?? '',
 			};
 		});
 	}
