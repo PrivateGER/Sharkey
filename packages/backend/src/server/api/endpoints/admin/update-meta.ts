@@ -149,6 +149,7 @@ export const paramDef = {
 		enableStatsForFederatedInstances: { type: 'boolean' },
 		enableServerMachineStats: { type: 'boolean' },
 		enableAchievements: { type: 'boolean' },
+		robotsTxt: { type: 'string', nullable: true },
 		enableIdenticonGeneration: { type: 'boolean' },
 		serverRules: { type: 'array', items: { type: 'string' } },
 		bannedEmailDomains: { type: 'array', items: { type: 'string' } },
@@ -634,6 +635,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.enableAchievements !== undefined) {
 				set.enableAchievements = ps.enableAchievements;
+			}
+
+			if (ps.robotsTxt !== undefined) {
+				set.robotsTxt = ps.robotsTxt;
 			}
 
 			if (ps.enableIdenticonGeneration !== undefined) {

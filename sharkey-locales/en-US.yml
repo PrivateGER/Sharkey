@@ -434,3 +434,6 @@ scheduledNotes: "Scheduled Notes"
 _permissions:
   "read:notes-schedule": "View your list of scheduled notes"
   "write:notes-schedule": "Compose or delete scheduled notes"
+
+robotsTxt: "Custom robots.txt"
+robotsTxtDescription: "Adding entries here will override the default robots.txt packaged with Sharkey."

@@ -17,6 +17,7 @@ import { bindThis } from '@/decorators.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserImportJobData } from '../types.js';
+import type { Config } from '@/config.js';
 
 // TODO: 名前衝突時の動作を選べるようにする
 @Injectable()
@@ -24,6 +25,9 @@ export class ImportCustomEmojisProcessorService {
 	private logger: Logger;
 
 	constructor(
+		@Inject(DI.config)
+		private config: Config,
+
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
@@ -57,7 +61,7 @@ export class ImportCustomEmojisProcessorService {
 
 		try {
 			fs.writeFileSync(destPath, '', 'binary');
-			await this.downloadService.downloadUrl(file.url, destPath);
+			await this.downloadService.downloadUrl(file.url, destPath, { operationTimeout: this.config.import?.downloadTimeout, maxSize: this.config.import?.maxFileSize });
 		} catch (e) { // TODO: 何度か再試行
 			if (e instanceof Error || typeof e === 'string') {
 				this.logger.error(e);

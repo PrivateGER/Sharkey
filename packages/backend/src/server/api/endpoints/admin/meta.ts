@@ -391,6 +391,10 @@ export const meta = {
 				type: 'boolean',
 				optional: false, nullable: false,
 			},
+			robotsTxt: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
 			enableIdenticonGeneration: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -708,6 +712,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				enableStatsForFederatedInstances: instance.enableStatsForFederatedInstances,
 				enableServerMachineStats: instance.enableServerMachineStats,
 				enableAchievements: instance.enableAchievements,
+				robotsTxt: instance.robotsTxt,
 				enableIdenticonGeneration: instance.enableIdenticonGeneration,
 				bannedEmailDomains: instance.bannedEmailDomains,
 				policies: { ...DEFAULT_POLICIES, ...instance.policies },

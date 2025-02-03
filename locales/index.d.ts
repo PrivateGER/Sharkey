@@ -11626,6 +11626,14 @@ export interface Locale extends ILocale {
      * Scheduled Notes
      */
     "scheduledNotes": string;
+    /**
+     * Custom robots.txt
+     */
+    "robotsTxt": string;
+    /**
+     * Adding entries here will override the default robots.txt packaged with Sharkey. Maximum 2048 characters.
+     */
+    "robotsTxtDescription": string;
 }
 declare const locales: {
     [lang: string]: Locale;

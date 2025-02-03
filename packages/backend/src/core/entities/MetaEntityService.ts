@@ -95,6 +95,7 @@ export class MetaEntityService {
 			mcaptchaInstanceUrl: instance.mcaptchaInstanceUrl,
 			enableRecaptcha: instance.enableRecaptcha,
 			enableAchievements: instance.enableAchievements,
+			robotsTxt: instance.robotsTxt,
 			recaptchaSiteKey: instance.recaptchaSiteKey,
 			enableTurnstile: instance.enableTurnstile,
 			turnstileSiteKey: instance.turnstileSiteKey,
