@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModalWindow
 	ref="dialog"
 	:width="400"
-	:height="450"
+	:height="500"
 	:withOkButton="true"
 	:okButtonDisabled="false"
 	@ok="ok()"
@@ -34,6 +34,7 @@ import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
+import {misskeyApi} from "@/scripts/misskey-api.js";
 
 const props = defineProps<{
 	file: Misskey.entities.DriveFile;
@@ -54,14 +55,8 @@ const caption = ref(props.default);
 async function generateAltText() {
 	if (!isImage) return;
 
-	const res = await fetch(`/api/drive/files/generate-alt-text`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			fileId: props.file.id,
-		}),
+	const res = await misskeyApi('drive/files/generate-alt-text', {
+		fileId: props.file.id,
 	});
 
 	if (!res.ok) {
@@ -69,9 +64,8 @@ async function generateAltText() {
 		return;
 	}
 
-	const altText = await res.text();
 	os.toast(i18n.ts.generatedAltText);
-	caption.value = altText;
+	caption.value = res.text;
 }
 
 function onKeydown(ev: KeyboardEvent) {

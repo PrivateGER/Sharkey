@@ -11631,9 +11631,21 @@ export interface Locale extends ILocale {
      */
     "robotsTxt": string;
     /**
-     * Adding entries here will override the default robots.txt packaged with Sharkey. Maximum 2048 characters.
+     * Adding entries here will override the default robots.txt packaged with Sharkey.
      */
     "robotsTxtDescription": string;
+    /**
+     * Generate alt text
+     */
+    "generateAltText": string;
+    /**
+     * Failed to generate alt text
+     */
+    "failedToGenerateAltText": string;
+    /**
+     * Alt text generated successfully. Please check and edit if necessary.
+     */
+    "generatedAltTextSuccess": string;
 }
 declare const locales: {
     [lang: string]: Locale;
