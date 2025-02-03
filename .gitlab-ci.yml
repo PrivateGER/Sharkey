@@ -10,12 +10,13 @@ testCommit:
     - redis
   variables:
     POSTGRES_PASSWORD: ci
+    COREPACK_DEFAULT_TO_LATEST: 0
   script:
     - apt-get update && apt-get install -y git wget curl build-essential python3 ffmpeg
     - cp .config/ci.yml .config/default.yml
     - cp .config/ci.yml .config/test.yml
     - corepack enable
-    - corepack prepare pnpm@latest --activate
+    - corepack install
     - git submodule update --init
     - pnpm install --frozen-lockfile
     - pnpm run build

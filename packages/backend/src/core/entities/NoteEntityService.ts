@@ -528,41 +528,41 @@ export class NoteEntityService implements OnModuleInit {
 			// パフォーマンスのためノートが作成されてから2秒以上経っていない場合はリアクションを取得しない
 			const oldId = this.idService.gen(Date.now() - 2000);
 
+			const targetNotes: MiNote[] = [];
 			for (const note of notes) {
 				if (isPureRenote(note)) {
-					const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.renote.reactions, bufferedReactions?.get(note.renote.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
-					if (reactionsCount === 0) {
-						myReactionsMap.set(note.renote.id, null);
-					} else if (reactionsCount <= note.renote.reactionAndUserPairCache.length + (bufferedReactions?.get(note.renote.id)?.pairs.length ?? 0)) {
-						const pairInBuffer = bufferedReactions?.get(note.renote.id)?.pairs.find(p => p[0] === meId);
-						if (pairInBuffer) {
-							myReactionsMap.set(note.renote.id, pairInBuffer[1]);
-						} else {
-							const pair = note.renote.reactionAndUserPairCache.find(p => p.startsWith(meId));
-							myReactionsMap.set(note.renote.id, pair ? pair.split('/')[1] : null);
-						}
-					} else {
-						idsNeedFetchMyReaction.add(note.renote.id);
+					// we may need to fetch 'my reaction' for renote target.
+					targetNotes.push(note.renote);
+					if (note.renote.reply) {
+						// idem if the renote is also a reply.
+						targetNotes.push(note.renote.reply);
 					}
+				} else if (note.reply) {
+					// idem for OP of a regular reply.
+					targetNotes.push(note.reply);
 				} else {
 					if (note.id < oldId) {
-						const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.get(note.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
-						if (reactionsCount === 0) {
-							myReactionsMap.set(note.id, null);
-						} else if (reactionsCount <= note.reactionAndUserPairCache.length + (bufferedReactions?.get(note.id)?.pairs.length ?? 0)) {
-							const pairInBuffer = bufferedReactions?.get(note.id)?.pairs.find(p => p[0] === meId);
-							if (pairInBuffer) {
-								myReactionsMap.set(note.id, pairInBuffer[1]);
-							} else {
-								const pair = note.reactionAndUserPairCache.find(p => p.startsWith(meId));
-								myReactionsMap.set(note.id, pair ? pair.split('/')[1] : null);
-							}
-						} else {
-							idsNeedFetchMyReaction.add(note.id);
-						}
+						targetNotes.push(note);
 					} else {
 						myReactionsMap.set(note.id, null);
 					}
+				}
+			}
+
+			for (const note of targetNotes) {
+				const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.get(note.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
+				if (reactionsCount === 0) {
+					myReactionsMap.set(note.id, null);
+				} else if (reactionsCount <= note.reactionAndUserPairCache.length + (bufferedReactions?.get(note.id)?.pairs.length ?? 0)) {
+					const pairInBuffer = bufferedReactions?.get(note.id)?.pairs.find(p => p[0] === meId);
+					if (pairInBuffer) {
+						myReactionsMap.set(note.id, pairInBuffer[1]);
+					} else {
+						const pair = note.reactionAndUserPairCache.find(p => p.startsWith(meId));
+						myReactionsMap.set(note.id, pair ? pair.split('/')[1] : null);
+					}
+				} else {
+					idsNeedFetchMyReaction.add(note.id);
 				}
 			}
 

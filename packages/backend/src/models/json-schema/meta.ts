@@ -139,6 +139,10 @@ export const packedMetaLiteSchema = {
 			type: 'boolean',
 			optional: false, nullable: true,
 		},
+		robotsTxt: {
+			type: 'string',
+			optional: false, nullable: true,
+		},
 		enableTestcaptcha: {
 			type: 'boolean',
 			optional: false, nullable: false,

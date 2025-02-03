@@ -341,9 +341,9 @@ checkActivityPubGetSignature: false
 # Upload or download file size limits (bytes)
 #maxFileSize: 262144000
 
-# timeout and maximum size for imports (e.g. note imports)
+# timeout (in milliseconds) and maximum size for imports (e.g. note imports)
 #import:
-#  downloadTimeout: 30
+#  downloadTimeout: 30000
 #  maxFileSize: 262144000
 
 # PID File of master process

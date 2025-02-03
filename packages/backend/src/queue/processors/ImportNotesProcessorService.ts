@@ -626,7 +626,7 @@ export class ImportNotesProcessorService {
 
 						if (!exists) {
 							try {
-								await this.downloadService.downloadUrl(videos[0].url, filePath);
+								await this.downloadUrl(videos[0].url, filePath);
 							} catch (e) { // TODO: 何度か再試行
 								this.logger.error(e instanceof Error ? e : new Error(e as string));
 							}
@@ -651,7 +651,7 @@ export class ImportNotesProcessorService {
 
 						if (!exists) {
 							try {
-								await this.downloadService.downloadUrl(file.media_url_https, filePath);
+								await this.downloadUrl(file.media_url_https, filePath);
 							} catch (e) { // TODO: 何度か再試行
 								this.logger.error(e instanceof Error ? e : new Error(e as string));
 							}
