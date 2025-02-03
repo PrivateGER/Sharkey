@@ -353,3 +353,8 @@ checkActivityPubGetSignature: false
 # Permission bits are specified as a base-8 string representing User/Group/Other permissions.
 # This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
 #filePermissionBits: '644'
+
+# openai:
+#    apiKey: 'apikey'
+#    baseUrl: 'https://openrouter.ai/api/v1'
+#    model: 'google/gemini-flash-1.5-8b'
