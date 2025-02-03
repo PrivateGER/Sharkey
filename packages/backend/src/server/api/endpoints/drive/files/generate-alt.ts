@@ -84,7 +84,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// Only generate alt text for images
-			if (!file.type.startsWith("image/")) {
+			if (!file.type.startsWith('image/')) {
 				throw new ApiError(meta.errors.generationFailed);
 			}
 

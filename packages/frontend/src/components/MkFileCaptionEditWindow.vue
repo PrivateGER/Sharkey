@@ -20,6 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
+		<MkButton v-if="isImage" :style="{ marginTop: '16px' }" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
 	</MkSpacer>
 </MkModalWindow>
 </template>
@@ -31,11 +32,15 @@ import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import { i18n } from '@/i18n.js';
+import MkButton from '@/components/MkButton.vue';
+import * as os from '@/os.js';
 
 const props = defineProps<{
 	file: Misskey.entities.DriveFile;
 	default: string;
 }>();
+
+const isImage = props.file.type.startsWith('image/');
 
 const emit = defineEmits<{
 	(ev: 'done', v: string): void;
@@ -45,6 +50,29 @@ const emit = defineEmits<{
 const dialog = shallowRef<InstanceType<typeof MkModalWindow>>();
 
 const caption = ref(props.default);
+
+async function generateAltText() {
+	if (!isImage) return;
+
+	const res = await fetch(`/api/drive/files/generate-alt-text`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({
+			fileId: props.file.id,
+		}),
+	});
+
+	if (!res.ok) {
+		os.toast(i18n.ts.failedToGenerateAltText);
+		return;
+	}
+
+	const altText = await res.text();
+	os.toast(i18n.ts.generatedAltText);
+	caption.value = altText;
+}
 
 function onKeydown(ev: KeyboardEvent) {
 	if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) ok();

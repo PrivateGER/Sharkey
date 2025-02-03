@@ -437,3 +437,6 @@ _permissions:
 
 robotsTxt: "Custom robots.txt"
 robotsTxtDescription: "Adding entries here will override the default robots.txt packaged with Sharkey."
+generateAltText: "Generate alt text"
+failedToGenerateAltText: "Failed to generate alt text"
+generatedAltTextSuccess: "Alt text generated successfully. Please check and edit if necessary."
