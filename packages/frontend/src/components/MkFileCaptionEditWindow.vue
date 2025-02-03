@@ -59,7 +59,7 @@ async function generateAltText() {
 		fileId: props.file.id,
 	});
 
-	if (!res.ok) {
+	if (!res) {
 		os.toast(i18n.ts.failedToGenerateAltText);
 		return;
 	}
