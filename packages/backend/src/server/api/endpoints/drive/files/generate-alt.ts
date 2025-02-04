@@ -95,9 +95,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				defaultHeaders: this.config.openai?.headers,
 			});
 
-			// @ts-expect-error bad api typings
 			const response = await client.chat.completions.create({
-				model: this.config.openai?.model,
+				model: this.config.openai?.model ?? 'openai/gpt-4o-mini',
 				messages: [
 					{
 						role: 'system',
@@ -108,7 +107,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					{
 						role: 'user',
 						content: [
-							{ type: 'image', image: { url: file.url } },
+							{ type: 'image_url', image_url: { url: file.url } },
 						],
 					},
 				],
