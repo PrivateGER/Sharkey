@@ -20,7 +20,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
-		<MkButton v-if="isImage" :style="{ marginTop: '16px' }" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
+		<div>
+			<MkLoading v-if="loading" :style="{ marginTop: '16px' }" />
+			<MkButton v-if="isImage" :style="{ marginTop: '16px' }" :disabled="loading" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
+		</div>
 	</MkSpacer>
 </MkModalWindow>
 </template>
@@ -42,6 +45,7 @@ const props = defineProps<{
 }>();
 
 const isImage = props.file.type.startsWith('image/');
+let loading = ref(false);
 
 const emit = defineEmits<{
 	(ev: 'done', v: string): void;
@@ -54,18 +58,27 @@ const caption = ref(props.default);
 
 async function generateAltText() {
 	if (!isImage) return;
+	loading.value = true;
 
-	const res = await misskeyApi('drive/files/generate-alt-text', {
-		fileId: props.file.id,
-	});
+	try {
+		const res = await misskeyApi('drive/files/generate-alt-text', {
+			fileId: props.file.id,
+		});
 
-	if (!res) {
+		if (!res) {
+			os.toast(i18n.ts.failedToGenerateAltText);
+			return;
+		}
+
+		os.toast(i18n.ts.generatedAltTextSuccess);
+		caption.value = res.text;
+		// eslint-disable-next-line id-denylist
+	} catch (e) {
 		os.toast(i18n.ts.failedToGenerateAltText);
 		return;
+	} finally {
+		loading.value = false;
 	}
-
-	os.toast(i18n.ts.generatedAltTextSuccess);
-	caption.value = res.text;
 }
 
 function onKeydown(ev: KeyboardEvent) {
