@@ -102,7 +102,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					{
 						role: 'system',
 						content: [
-							{ type: 'text', content: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.' },
+							{ type: 'text', text: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.' },
 							{ type: 'image_url', image_url: { url: file.url } },
 						],
 					},
