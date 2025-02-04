@@ -27,8 +27,8 @@ type Q =
 	{ op: '<', k: K, v: number } |
 	{ op: '>=', k: K, v: number } |
 	{ op: '<=', k: K, v: number } |
-	{ op: 'is null', k: K} |
-	{ op: 'is not null', k: K} |
+	{ op: 'is null', k: K } |
+	{ op: 'is not null', k: K } |
 	{ op: 'and', qs: Q[] } |
 	{ op: 'or', qs: Q[] } |
 	{ op: 'not', q: Q };
@@ -46,18 +46,30 @@ function compileValue(value: V): string {
 
 function compileQuery(q: Q): string {
 	switch (q.op) {
-		case '=': return `(${q.k} = ${compileValue(q.v)})`;
-		case '!=': return `(${q.k} != ${compileValue(q.v)})`;
-		case '>': return `(${q.k} > ${compileValue(q.v)})`;
-		case '<': return `(${q.k} < ${compileValue(q.v)})`;
-		case '>=': return `(${q.k} >= ${compileValue(q.v)})`;
-		case '<=': return `(${q.k} <= ${compileValue(q.v)})`;
-		case 'and': return q.qs.length === 0 ? '' : `(${ q.qs.map(_q => compileQuery(_q)).join(' AND ') })`;
-		case 'or': return q.qs.length === 0 ? '' : `(${ q.qs.map(_q => compileQuery(_q)).join(' OR ') })`;
-		case 'is null': return `(${q.k} IS NULL)`;
-		case 'is not null': return `(${q.k} IS NOT NULL)`;
-		case 'not': return `(NOT ${compileQuery(q.q)})`;
-		default: throw new Error('unrecognized query operator');
+		case '=':
+			return `(${q.k} = ${compileValue(q.v)})`;
+		case '!=':
+			return `(${q.k} != ${compileValue(q.v)})`;
+		case '>':
+			return `(${q.k} > ${compileValue(q.v)})`;
+		case '<':
+			return `(${q.k} < ${compileValue(q.v)})`;
+		case '>=':
+			return `(${q.k} >= ${compileValue(q.v)})`;
+		case '<=':
+			return `(${q.k} <= ${compileValue(q.v)})`;
+		case 'and':
+			return q.qs.length === 0 ? '' : `(${q.qs.map(_q => compileQuery(_q)).join(' AND ')})`;
+		case 'or':
+			return q.qs.length === 0 ? '' : `(${q.qs.map(_q => compileQuery(_q)).join(' OR ')})`;
+		case 'is null':
+			return `(${q.k} IS NULL)`;
+		case 'is not null':
+			return `(${q.k} IS NOT NULL)`;
+		case 'not':
+			return `(NOT ${compileQuery(q.q)})`;
+		default:
+			throw new Error('unrecognized query operator');
 	}
 }
 
@@ -69,13 +81,10 @@ export class SearchService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
-
 		@Inject(DI.meilisearch)
 		private meilisearch: MeiliSearch | null,
-
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
-
 		private cacheService: CacheService,
 		private queryService: QueryService,
 		private idService: IdService,
@@ -166,18 +175,28 @@ export class SearchService {
 		filetype?: string | null;
 		order?: string | null;
 		disableMeili?: boolean | null;
+		similarSearch?: boolean | null;
 	}, pagination: {
 		untilId?: MiNote['id'];
 		sinceId?: MiNote['id'];
 		limit?: number;
 	}): Promise<MiNote[]> {
 		if (this.meilisearch && !opts.disableMeili) {
+			// Existing MeiliSearch code path
 			const filter: Q = {
 				op: 'and',
 				qs: [],
 			};
-			if (pagination.untilId) filter.qs.push({ op: '<', k: 'createdAt', v: this.idService.parse(pagination.untilId).date.getTime() });
-			if (pagination.sinceId) filter.qs.push({ op: '>', k: 'createdAt', v: this.idService.parse(pagination.sinceId).date.getTime() });
+			if (pagination.untilId) filter.qs.push({
+				op: '<',
+				k: 'createdAt',
+				v: this.idService.parse(pagination.untilId).date.getTime(),
+			});
+			if (pagination.sinceId) filter.qs.push({
+				op: '>',
+				k: 'createdAt',
+				v: this.idService.parse(pagination.sinceId).date.getTime(),
+			});
 			if (opts.userId) filter.qs.push({ op: '=', k: 'userId', v: opts.userId });
 			if (opts.channelId) filter.qs.push({ op: '=', k: 'channelId', v: opts.channelId });
 			if (opts.host) {
@@ -189,40 +208,46 @@ export class SearchService {
 			}
 			if (opts.filetype) {
 				if (opts.filetype === 'image') {
-					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'image/webp' }, 
-						{ op: '=', k: 'attachedFileTypes', v: 'image/png' },
-						{ op: '=', k: 'attachedFileTypes', v: 'image/jpeg' },
-						{ op: '=', k: 'attachedFileTypes', v: 'image/avif' },
-						{ op: '=', k: 'attachedFileTypes', v: 'image/apng' },
-						{ op: '=', k: 'attachedFileTypes', v: 'image/gif' },
-					] });
+					filter.qs.push({
+						op: 'or', qs: [
+							{ op: '=', k: 'attachedFileTypes', v: 'image/webp' },
+							{ op: '=', k: 'attachedFileTypes', v: 'image/png' },
+							{ op: '=', k: 'attachedFileTypes', v: 'image/jpeg' },
+							{ op: '=', k: 'attachedFileTypes', v: 'image/avif' },
+							{ op: '=', k: 'attachedFileTypes', v: 'image/apng' },
+							{ op: '=', k: 'attachedFileTypes', v: 'image/gif' },
+						],
+					});
 				} else if (opts.filetype === 'video') {
-					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'video/mp4' }, 
-						{ op: '=', k: 'attachedFileTypes', v: 'video/webm' },
-						{ op: '=', k: 'attachedFileTypes', v: 'video/mpeg' },
-						{ op: '=', k: 'attachedFileTypes', v: 'video/x-m4v' },
-					] });
+					filter.qs.push({
+						op: 'or', qs: [
+							{ op: '=', k: 'attachedFileTypes', v: 'video/mp4' },
+							{ op: '=', k: 'attachedFileTypes', v: 'video/webm' },
+							{ op: '=', k: 'attachedFileTypes', v: 'video/mpeg' },
+							{ op: '=', k: 'attachedFileTypes', v: 'video/x-m4v' },
+						],
+					});
 				} else if (opts.filetype === 'audio') {
-					filter.qs.push({ op: 'or', qs: [
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/mpeg' }, 
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/flac' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/wav' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/aac' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/webm' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/opus' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/ogg' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/x-m4a' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/mod' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/s3m' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/xm' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/it' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/x-mod' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/x-s3m' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/x-xm' },
-						{ op: '=', k: 'attachedFileTypes', v: 'audio/x-it' },
-					] });
+					filter.qs.push({
+						op: 'or', qs: [
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/mpeg' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/flac' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/wav' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/aac' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/webm' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/opus' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/ogg' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-m4a' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/mod' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/s3m' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-xm' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/it' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-mod' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-s3m' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-xm' },
+							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-it' },
+						],
+					});
 				}
 			}
 			const res = await this.meilisearchNoteIndex!.search(q, {
@@ -249,6 +274,9 @@ export class SearchService {
 			});
 			return notes.sort((a, b) => a.id > b.id ? -1 : 1);
 		} else {
+			// ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', COALESCE(text, '') || ' ' || COALESCE(cw, '') || ' ' || COALESCE(name, ''))) STORED;
+			// CREATE INDEX vector_idx ON note USING GIN (tsvector_embedding);
+
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
 
 			if (opts.userId) {
@@ -257,8 +285,18 @@ export class SearchService {
 				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
 
+			query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
+
+			if (opts.order === 'asc') {
+				query
+					.addSelect('ts_rank_cd(note.tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.orderBy('rank', 'DESC');
+			} else {
+				query
+					.orderBy('note.created_at', 'DESC');
+			}
+
 			query
-				.andWhere('note.text ILIKE :q', { q: `%${ sqlLikeEscape(q) }%` })
 				.innerJoinAndSelect('note.user', 'user')
 				.leftJoinAndSelect('note.reply', 'reply')
 				.leftJoinAndSelect('note.renote', 'renote')
@@ -274,21 +312,10 @@ export class SearchService {
 			}
 
 			if (opts.filetype) {
-				/* this is very ugly, but the "correct" solution would
-				  be `and exists (select 1 from
-				  unnest(note."attachedFileTypes") x(t) where t like
-				  :type)` and I can't find a way to get TypeORM to
-				  generate that; this hack works because `~*` is
-				  "regexp match, ignoring case" and the stringified
-				  version of an array of varchars (which is what
-				  `attachedFileTypes` is) looks like `{foo,bar}`, so
-				  we're looking for opts.filetype as the first half of
-				  a MIME type, either at start of the array (after the
-				  `{`) or later (after a `,`) */
-				query.andWhere(`note."attachedFileTypes"::varchar ~* :type`, { type: `[{,]${opts.filetype}/` });
+				query.andWhere('note."attachedFileTypes"::varchar ~* :type', { type: `[{,]${opts.filetype}/` });
 			}
 
-			this.queryService.generateVisibilityQuery(query, me);
+			await this.queryService.generateVisibilityQuery(query, me);
 			if (me) this.queryService.generateMutedUserQuery(query, me);
 			if (me) this.queryService.generateBlockedUserQuery(query, me);
 
