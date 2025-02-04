@@ -583,6 +583,10 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/reversi/game.vue')),
 	loginRequired: false,
 }, {
+	path: '/doom',
+	component: page(() => import('@/pages/dos/doom/game.vue')),
+	loginRequired: false,
+}, {
 	path: '/timeline',
 	component: page(() => import('@/pages/timeline.vue')),
 }, {
@@ -594,6 +598,11 @@ const routes: RouteDef[] = [{
 	// テスト用リダイレクト設定。ログイン中ユーザのプロフィールにリダイレクトする
 	path: '/redirect-test',
 	redirect: $i ? `@${$i.username}` : '/',
+	loginRequired: true,
+},
+{
+	path: '/services',
+	component: page(() => import('@/pages/services.vue')),
 	loginRequired: true,
 }, {
 	path: '/:(*)',

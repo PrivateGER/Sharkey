@@ -244,7 +244,7 @@ export class HttpRequestService {
 			headers: Object.assign({
 				Accept: accept,
 			}, headers ?? {}),
-			timeout: 5000,
+			timeout: 10000,
 			size: 1024 * 256,
 			isLocalAddressAllowed: isLocalAddressAllowed,
 		});
@@ -259,7 +259,7 @@ export class HttpRequestService {
 			headers: Object.assign({
 				Accept: accept,
 			}, headers ?? {}),
-			timeout: 5000,
+			timeout: 10000,
 			isLocalAddressAllowed: isLocalAddressAllowed,
 		});
 
