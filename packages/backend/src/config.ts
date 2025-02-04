@@ -37,6 +37,7 @@ type Source = {
 		user?: string;
 		pass?: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
 		extra?: { [x: string]: string };
 	};
 	dbReplications?: boolean;
@@ -44,6 +45,7 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
+		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -117,6 +119,12 @@ type Source = {
 	};
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 	filePermissionBits?: string;
 
 	openai?: {
@@ -140,6 +148,8 @@ export type Config = {
 		user: string;
 		pass: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
+		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
@@ -223,6 +233,12 @@ export type Config = {
 	} | undefined;
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 	filePermissionBits?: string;
 
 	openai?: {
@@ -374,6 +390,11 @@ export function loadConfig(): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		import: config.import,
 		pidFile: config.pidFile,
+		ntfyURL: config.ntfyURL,
+
+		imgproxyURL: config.imgproxyURL,
+		imgproxySalt: config.imgproxySalt,
+		imgproxyKey: config.imgproxyKey,
 		filePermissionBits: config.filePermissionBits,
 		openai: openai,
 	};
