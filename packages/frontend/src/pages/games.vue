@@ -18,6 +18,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<img src="/client-assets/reversi/logo.png" style="display: block; max-width: 100%; max-height: 200px; margin: auto;"/>
 				</MkA>
 			</div>
+			<div class="_panel">
+				<MkA to="/doom">
+					<img src="/client-assets/doom/logo.png" style="display: block; max-width: 100%; max-height: 200px; margin: auto;"/>
+				</MkA>
+			</div>
 		</div>
 	</MkSpacer>
 </MkStickyContainer>
