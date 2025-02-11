@@ -4,6 +4,15 @@ import type {
 	AdminMetaResponse,
 	AdminAbuseUserReportsRequest,
 	AdminAbuseUserReportsResponse,
+	AdminAbuseReportNotificationRecipientListRequest,
+	AdminAbuseReportNotificationRecipientListResponse,
+	AdminAbuseReportNotificationRecipientShowRequest,
+	AdminAbuseReportNotificationRecipientShowResponse,
+	AdminAbuseReportNotificationRecipientCreateRequest,
+	AdminAbuseReportNotificationRecipientCreateResponse,
+	AdminAbuseReportNotificationRecipientUpdateRequest,
+	AdminAbuseReportNotificationRecipientUpdateResponse,
+	AdminAbuseReportNotificationRecipientDeleteRequest,
 	AdminAccountsCreateRequest,
 	AdminAccountsCreateResponse,
 	AdminAccountsDeleteRequest,
@@ -22,6 +31,7 @@ import type {
 	AdminAnnouncementsListResponse,
 	AdminAnnouncementsUpdateRequest,
 	AdminAvatarDecorationsCreateRequest,
+	AdminAvatarDecorationsCreateResponse,
 	AdminAvatarDecorationsDeleteRequest,
 	AdminAvatarDecorationsListRequest,
 	AdminAvatarDecorationsListResponse,
@@ -74,6 +84,8 @@ import type {
 	AdminResetPasswordRequest,
 	AdminResetPasswordResponse,
 	AdminResolveAbuseUserReportRequest,
+	AdminForwardAbuseUserReportRequest,
+	AdminUpdateAbuseUserReportRequest,
 	AdminSendEmailRequest,
 	AdminServerInfoResponse,
 	AdminShowModerationLogsRequest,
@@ -88,6 +100,7 @@ import type {
 	AdminUnsilenceUserRequest,
 	AdminSuspendUserRequest,
 	AdminApproveUserRequest,
+	AdminDeclineUserRequest,
 	AdminUnsuspendUserRequest,
 	AdminUpdateMetaRequest,
 	AdminDeleteAccountRequest,
@@ -104,8 +117,20 @@ import type {
 	AdminRolesUpdateDefaultPoliciesRequest,
 	AdminRolesUsersRequest,
 	AdminRolesUsersResponse,
+	AdminSystemWebhookCreateRequest,
+	AdminSystemWebhookCreateResponse,
+	AdminSystemWebhookDeleteRequest,
+	AdminSystemWebhookListRequest,
+	AdminSystemWebhookListResponse,
+	AdminSystemWebhookShowRequest,
+	AdminSystemWebhookShowResponse,
+	AdminSystemWebhookUpdateRequest,
+	AdminSystemWebhookUpdateResponse,
+	AdminSystemWebhookTestRequest,
 	AnnouncementsRequest,
 	AnnouncementsResponse,
+	AnnouncementsShowRequest,
+	AnnouncementsShowResponse,
 	AntennasCreateRequest,
 	AntennasCreateResponse,
 	AntennasDeleteRequest,
@@ -260,6 +285,8 @@ import type {
 	FollowingRequestsCancelResponse,
 	FollowingRequestsListRequest,
 	FollowingRequestsListResponse,
+	FollowingRequestsSentRequest,
+	FollowingRequestsSentResponse,
 	FollowingRequestsRejectRequest,
 	GalleryFeaturedRequest,
 	GalleryFeaturedResponse,
@@ -363,6 +390,7 @@ import type {
 	IWebhooksShowResponse,
 	IWebhooksUpdateRequest,
 	IWebhooksDeleteRequest,
+	IWebhooksTestRequest,
 	InviteCreateResponse,
 	InviteDeleteRequest,
 	InviteListRequest,
@@ -400,6 +428,8 @@ import type {
 	NotesFavoritesDeleteRequest,
 	NotesFeaturedRequest,
 	NotesFeaturedResponse,
+	NotesFollowingRequest,
+	NotesFollowingResponse,
 	NotesGlobalTimelineRequest,
 	NotesGlobalTimelineResponse,
 	NotesBubbleTimelineRequest,
@@ -413,6 +443,7 @@ import type {
 	NotesPollsRecommendationRequest,
 	NotesPollsRecommendationResponse,
 	NotesPollsVoteRequest,
+	NotesPollsRefreshRequest,
 	NotesReactionsRequest,
 	NotesReactionsResponse,
 	NotesReactionsCreateRequest,
@@ -422,6 +453,10 @@ import type {
 	NotesRenotesResponse,
 	NotesRepliesRequest,
 	NotesRepliesResponse,
+	NotesScheduleCreateRequest,
+	NotesScheduleDeleteRequest,
+	NotesScheduleListRequest,
+	NotesScheduleListResponse,
 	NotesSearchByTagRequest,
 	NotesSearchByTagResponse,
 	NotesSearchRequest,
@@ -457,6 +492,7 @@ import type {
 	FlashCreateRequest,
 	FlashCreateResponse,
 	FlashDeleteRequest,
+	FlashFeaturedRequest,
 	FlashFeaturedResponse,
 	FlashLikeRequest,
 	FlashShowRequest,
@@ -571,6 +607,11 @@ import type {
 export type Endpoints = {
 	'admin/meta': { req: EmptyRequest; res: AdminMetaResponse };
 	'admin/abuse-user-reports': { req: AdminAbuseUserReportsRequest; res: AdminAbuseUserReportsResponse };
+	'admin/abuse-report/notification-recipient/list': { req: AdminAbuseReportNotificationRecipientListRequest; res: AdminAbuseReportNotificationRecipientListResponse };
+	'admin/abuse-report/notification-recipient/show': { req: AdminAbuseReportNotificationRecipientShowRequest; res: AdminAbuseReportNotificationRecipientShowResponse };
+	'admin/abuse-report/notification-recipient/create': { req: AdminAbuseReportNotificationRecipientCreateRequest; res: AdminAbuseReportNotificationRecipientCreateResponse };
+	'admin/abuse-report/notification-recipient/update': { req: AdminAbuseReportNotificationRecipientUpdateRequest; res: AdminAbuseReportNotificationRecipientUpdateResponse };
+	'admin/abuse-report/notification-recipient/delete': { req: AdminAbuseReportNotificationRecipientDeleteRequest; res: EmptyResponse };
 	'admin/accounts/create': { req: AdminAccountsCreateRequest; res: AdminAccountsCreateResponse };
 	'admin/accounts/delete': { req: AdminAccountsDeleteRequest; res: EmptyResponse };
 	'admin/accounts/find-by-email': { req: AdminAccountsFindByEmailRequest; res: AdminAccountsFindByEmailResponse };
@@ -582,7 +623,7 @@ export type Endpoints = {
 	'admin/announcements/delete': { req: AdminAnnouncementsDeleteRequest; res: EmptyResponse };
 	'admin/announcements/list': { req: AdminAnnouncementsListRequest; res: AdminAnnouncementsListResponse };
 	'admin/announcements/update': { req: AdminAnnouncementsUpdateRequest; res: EmptyResponse };
-	'admin/avatar-decorations/create': { req: AdminAvatarDecorationsCreateRequest; res: EmptyResponse };
+	'admin/avatar-decorations/create': { req: AdminAvatarDecorationsCreateRequest; res: AdminAvatarDecorationsCreateResponse };
 	'admin/avatar-decorations/delete': { req: AdminAvatarDecorationsDeleteRequest; res: EmptyResponse };
 	'admin/avatar-decorations/list': { req: AdminAvatarDecorationsListRequest; res: AdminAvatarDecorationsListResponse };
 	'admin/avatar-decorations/update': { req: AdminAvatarDecorationsUpdateRequest; res: EmptyResponse };
@@ -626,6 +667,8 @@ export type Endpoints = {
 	'admin/relays/remove': { req: AdminRelaysRemoveRequest; res: EmptyResponse };
 	'admin/reset-password': { req: AdminResetPasswordRequest; res: AdminResetPasswordResponse };
 	'admin/resolve-abuse-user-report': { req: AdminResolveAbuseUserReportRequest; res: EmptyResponse };
+	'admin/forward-abuse-user-report': { req: AdminForwardAbuseUserReportRequest; res: EmptyResponse };
+	'admin/update-abuse-user-report': { req: AdminUpdateAbuseUserReportRequest; res: EmptyResponse };
 	'admin/send-email': { req: AdminSendEmailRequest; res: EmptyResponse };
 	'admin/server-info': { req: EmptyRequest; res: AdminServerInfoResponse };
 	'admin/show-moderation-logs': { req: AdminShowModerationLogsRequest; res: AdminShowModerationLogsResponse };
@@ -637,6 +680,7 @@ export type Endpoints = {
 	'admin/unsilence-user': { req: AdminUnsilenceUserRequest; res: EmptyResponse };
 	'admin/suspend-user': { req: AdminSuspendUserRequest; res: EmptyResponse };
 	'admin/approve-user': { req: AdminApproveUserRequest; res: EmptyResponse };
+	'admin/decline-user': { req: AdminDeclineUserRequest; res: EmptyResponse };
 	'admin/unsuspend-user': { req: AdminUnsuspendUserRequest; res: EmptyResponse };
 	'admin/update-meta': { req: AdminUpdateMetaRequest; res: EmptyResponse };
 	'admin/delete-account': { req: AdminDeleteAccountRequest; res: EmptyResponse };
@@ -650,7 +694,14 @@ export type Endpoints = {
 	'admin/roles/unassign': { req: AdminRolesUnassignRequest; res: EmptyResponse };
 	'admin/roles/update-default-policies': { req: AdminRolesUpdateDefaultPoliciesRequest; res: EmptyResponse };
 	'admin/roles/users': { req: AdminRolesUsersRequest; res: AdminRolesUsersResponse };
+	'admin/system-webhook/create': { req: AdminSystemWebhookCreateRequest; res: AdminSystemWebhookCreateResponse };
+	'admin/system-webhook/delete': { req: AdminSystemWebhookDeleteRequest; res: EmptyResponse };
+	'admin/system-webhook/list': { req: AdminSystemWebhookListRequest; res: AdminSystemWebhookListResponse };
+	'admin/system-webhook/show': { req: AdminSystemWebhookShowRequest; res: AdminSystemWebhookShowResponse };
+	'admin/system-webhook/update': { req: AdminSystemWebhookUpdateRequest; res: AdminSystemWebhookUpdateResponse };
+	'admin/system-webhook/test': { req: AdminSystemWebhookTestRequest; res: EmptyResponse };
 	'announcements': { req: AnnouncementsRequest; res: AnnouncementsResponse };
+	'announcements/show': { req: AnnouncementsShowRequest; res: AnnouncementsShowResponse };
 	'antennas/create': { req: AntennasCreateRequest; res: AntennasCreateResponse };
 	'antennas/delete': { req: AntennasDeleteRequest; res: EmptyResponse };
 	'antennas/list': { req: EmptyRequest; res: AntennasListResponse };
@@ -741,6 +792,7 @@ export type Endpoints = {
 	'following/requests/accept': { req: FollowingRequestsAcceptRequest; res: EmptyResponse };
 	'following/requests/cancel': { req: FollowingRequestsCancelRequest; res: FollowingRequestsCancelResponse };
 	'following/requests/list': { req: FollowingRequestsListRequest; res: FollowingRequestsListResponse };
+	'following/requests/sent': { req: FollowingRequestsSentRequest; res: FollowingRequestsSentResponse };
 	'following/requests/reject': { req: FollowingRequestsRejectRequest; res: EmptyResponse };
 	'gallery/featured': { req: GalleryFeaturedRequest; res: GalleryFeaturedResponse };
 	'gallery/popular': { req: EmptyRequest; res: GalleryPopularResponse };
@@ -818,6 +870,7 @@ export type Endpoints = {
 	'i/webhooks/show': { req: IWebhooksShowRequest; res: IWebhooksShowResponse };
 	'i/webhooks/update': { req: IWebhooksUpdateRequest; res: EmptyResponse };
 	'i/webhooks/delete': { req: IWebhooksDeleteRequest; res: EmptyResponse };
+	'i/webhooks/test': { req: IWebhooksTestRequest; res: EmptyResponse };
 	'invite/create': { req: EmptyRequest; res: InviteCreateResponse };
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
@@ -842,6 +895,7 @@ export type Endpoints = {
 	'notes/favorites/create': { req: NotesFavoritesCreateRequest; res: EmptyResponse };
 	'notes/favorites/delete': { req: NotesFavoritesDeleteRequest; res: EmptyResponse };
 	'notes/featured': { req: NotesFeaturedRequest; res: NotesFeaturedResponse };
+	'notes/following': { req: NotesFollowingRequest; res: NotesFollowingResponse };
 	'notes/global-timeline': { req: NotesGlobalTimelineRequest; res: NotesGlobalTimelineResponse };
 	'notes/bubble-timeline': { req: NotesBubbleTimelineRequest; res: NotesBubbleTimelineResponse };
 	'notes/hybrid-timeline': { req: NotesHybridTimelineRequest; res: NotesHybridTimelineResponse };
@@ -849,12 +903,16 @@ export type Endpoints = {
 	'notes/mentions': { req: NotesMentionsRequest; res: NotesMentionsResponse };
 	'notes/polls/recommendation': { req: NotesPollsRecommendationRequest; res: NotesPollsRecommendationResponse };
 	'notes/polls/vote': { req: NotesPollsVoteRequest; res: EmptyResponse };
+	'notes/polls/refresh': { req: NotesPollsRefreshRequest; res: EmptyResponse };
 	'notes/reactions': { req: NotesReactionsRequest; res: NotesReactionsResponse };
 	'notes/reactions/create': { req: NotesReactionsCreateRequest; res: EmptyResponse };
 	'notes/reactions/delete': { req: NotesReactionsDeleteRequest; res: EmptyResponse };
 	'notes/like': { req: NotesLikeRequest; res: EmptyResponse };
 	'notes/renotes': { req: NotesRenotesRequest; res: NotesRenotesResponse };
 	'notes/replies': { req: NotesRepliesRequest; res: NotesRepliesResponse };
+	'notes/schedule/create': { req: NotesScheduleCreateRequest; res: EmptyResponse };
+	'notes/schedule/delete': { req: NotesScheduleDeleteRequest; res: EmptyResponse };
+	'notes/schedule/list': { req: NotesScheduleListRequest; res: NotesScheduleListResponse };
 	'notes/search-by-tag': { req: NotesSearchByTagRequest; res: NotesSearchByTagResponse };
 	'notes/search': { req: NotesSearchRequest; res: NotesSearchResponse };
 	'notes/show': { req: NotesShowRequest; res: NotesShowResponse };
@@ -881,7 +939,7 @@ export type Endpoints = {
 	'pages/update': { req: PagesUpdateRequest; res: EmptyResponse };
 	'flash/create': { req: FlashCreateRequest; res: FlashCreateResponse };
 	'flash/delete': { req: FlashDeleteRequest; res: EmptyResponse };
-	'flash/featured': { req: EmptyRequest; res: FlashFeaturedResponse };
+	'flash/featured': { req: FlashFeaturedRequest; res: FlashFeaturedResponse };
 	'flash/like': { req: FlashLikeRequest; res: EmptyResponse };
 	'flash/show': { req: FlashShowRequest; res: FlashShowResponse };
 	'flash/unlike': { req: FlashUnlikeRequest; res: EmptyResponse };
@@ -951,3 +1009,10 @@ export type Endpoints = {
 	'reversi/surrender': { req: ReversiSurrenderRequest; res: EmptyResponse };
 	'reversi/verify': { req: ReversiVerifyRequest; res: ReversiVerifyResponse };
 }
+
+/**
+ * NOTE: The content-type for all endpoints not listed here is application/json.
+ */
+export const endpointReqTypes = {
+	'drive/files/create': 'multipart/form-data',
+} as const satisfies { [K in keyof Endpoints]?: 'multipart/form-data'; };

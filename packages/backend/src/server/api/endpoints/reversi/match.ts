@@ -34,6 +34,12 @@ export const meta = {
 		optional: true,
 		ref: 'ReversiGameDetailed',
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

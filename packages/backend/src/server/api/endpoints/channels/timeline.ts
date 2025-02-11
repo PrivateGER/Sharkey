@@ -5,17 +5,16 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { ChannelsRepository, NotesRepository } from '@/models/_.js';
+import type { ChannelsRepository, MiMeta, NotesRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
-import { CacheService } from '@/core/CacheService.js';
-import { MetaService } from '@/core/MetaService.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { ApiError } from '../../error.js';
+import { Brackets } from 'typeorm';
 
 export const meta = {
 	tags: ['notes', 'channels'],
@@ -38,6 +37,12 @@ export const meta = {
 			code: 'NO_SUCH_CHANNEL',
 			id: '4d0eeeba-a02c-4c3c-9966-ef60d38d2e7f',
 		},
+	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
 	},
 } as const;
 
@@ -64,6 +69,9 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.meta)
+		private serverSettings: MiMeta,
+
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
@@ -74,15 +82,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
-		private cacheService: CacheService,
 		private activeUsersChart: ActiveUsersChart,
-		private metaService: MetaService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
 			const sinceId = ps.sinceId ?? (ps.sinceDate ? this.idService.gen(ps.sinceDate!) : null);
-
-			const serverSettings = await this.metaService.fetch();
 
 			const channel = await this.channelsRepository.findOneBy({
 				id: ps.channelId,
@@ -94,7 +98,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (me) this.activeUsersChart.read(me);
 
-			if (!serverSettings.enableFanoutTimeline) {
+			if (!this.serverSettings.enableFanoutTimeline) {
 				return await this.noteEntityService.packMany(await this.getFromDb({ untilId, sinceId, limit: ps.limit, channelId: channel.id, withFiles: ps.withFiles, withRenotes: ps.withRenotes }, me), me);
 			}
 

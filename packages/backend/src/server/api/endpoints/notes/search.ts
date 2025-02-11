@@ -32,6 +32,12 @@ export const meta = {
 			id: '0b44998d-77aa-4427-80d0-d2c9b8523011',
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -50,6 +56,7 @@ export const paramDef = {
 		userId: { type: 'string', format: 'misskey:id', nullable: true, default: null },
 		channelId: { type: 'string', format: 'misskey:id', nullable: true, default: null },
 		order: { type: 'string' },
+		similarSearch: { type: 'boolean', nullable: true, default: false },
 	},
 	required: ['query'],
 } as const;
@@ -75,6 +82,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				host: ps.host,
 				filetype: ps.filetype,
 				order: ps.order,
+				similarSearch: ps.similarSearch,
 			}, {
 				untilId: ps.untilId,
 				sinceId: ps.sinceId,

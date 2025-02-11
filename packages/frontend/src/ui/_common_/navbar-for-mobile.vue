@@ -8,18 +8,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.top">
 		<div :class="$style.banner" :style="{ backgroundImage: `url(${ instance.bannerUrl })` }"></div>
 		<button class="_button" :class="$style.instance" @click="openInstanceMenu">
-			<img :src="instance.iconUrl || instance.faviconUrl || '/favicon.ico'" alt="" :class="$style.instanceIcon"/>
+			<img :src="instance.sidebarLogoUrl || instance.iconUrl || '/apple-touch-icon.png'" alt="" :class="instance.sidebarLogoUrl ? $style.wideInstanceIcon : $style.instanceIcon"/>
 		</button>
 	</div>
 	<div :class="$style.middle">
 		<MkA :class="$style.item" :activeClass="$style.active" to="/" exact>
-			<i :class="$style.itemIcon" class="ph-house ph-bold ph-lg ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
+			<i :class="$style.itemIcon" class="ti ti-home ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 		</MkA>
 		<template v-for="item in menu">
 			<div v-if="item === '-'" :class="$style.divider"></div>
 			<component :is="navbarItemDef[item].to ? 'MkA' : 'button'" v-else-if="navbarItemDef[item] && (navbarItemDef[item].show !== false)" class="_button" :class="[$style.item, { [$style.active]: navbarItemDef[item].active }]" :activeClass="$style.active" :to="navbarItemDef[item].to" v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}">
 				<i class="ti-fw" :class="[$style.itemIcon, navbarItemDef[item].icon]"></i><span :class="$style.itemText">{{ navbarItemDef[item].title }}</span>
-				<span v-if="navbarItemDef[item].indicated" :class="$style.itemIndicator">
+				<span v-if="navbarItemDef[item].indicated" :class="$style.itemIndicator" class="_blink">
 					<span v-if="navbarItemDef[item].indicateValue" class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ navbarItemDef[item].indicateValue }}</span>
 					<i v-else class="_indicatorCircle"></i>
 				</span>
@@ -27,19 +27,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 		<div :class="$style.divider"></div>
 		<MkA v-if="$i.isAdmin || $i.isModerator" :class="$style.item" :activeClass="$style.active" to="/admin">
-			<i :class="$style.itemIcon" class="ph-gauge ph-bold ph-lg ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
+			<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
+		</MkA>
+		<MkA :class="$style.item" :activeClass="$style.active" to="/services">
+			<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Services</span>
 		</MkA>
 		<button :class="$style.item" class="_button" @click="more">
-			<i :class="$style.itemIcon" class="ph-dots-nine ph-bold ph-lg ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
-			<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator"><i class="_indicatorCircle"></i></span>
+			<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
+			<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 		</button>
 		<MkA :class="$style.item" :activeClass="$style.active" to="/settings">
-			<i :class="$style.itemIcon" class="ph-gear ph-bold ph-lg ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.settings }}</span>
+			<i :class="$style.itemIcon" class="ti ti-settings ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.settings }}</span>
 		</MkA>
 	</div>
 	<div :class="$style.bottom">
 		<button class="_button" :class="$style.post" data-cy-open-post-form @click="os.post">
-			<i :class="$style.postIcon" class="ph-pencil-simple ph-bold ph-lg ti-fw"></i><span style="position: relative;">{{ i18n.ts.note }}</span>
+			<i :class="$style.postIcon" class="ti ti-pencil ti-fw"></i><span style="position: relative;">{{ i18n.ts.note }}</span>
 		</button>
 		<button class="_button" :class="$style.account" @click="openAccountMenu">
 			<MkAvatar :user="$i" :class="$style.avatar"/><MkAcct :class="$style.acct" class="_nowrap" :user="$i"/>
@@ -74,13 +77,16 @@ function openAccountMenu(ev: MouseEvent) {
 }
 
 function more() {
-	os.popup(defineAsyncComponent(() => import('@/components/MkLaunchPad.vue')), {}, {
-	}, 'closed');
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkLaunchPad.vue')), {}, {
+		closed: () => dispose(),
+	});
 }
 </script>
 
 <style lang="scss" module>
 .root {
+	--nav-bg-transparent: color(from var(--MI_THEME-navBg) srgb r g b / 0.5);
+
 	display: flex;
 	flex-direction: column;
 }
@@ -90,9 +96,9 @@ function more() {
 	top: 0;
 	z-index: 1;
 	padding: 20px 0;
-	background: var(--X14);
-	-webkit-backdrop-filter: var(--blur, blur(8px));
-	backdrop-filter: var(--blur, blur(8px));
+	background: var(--nav-bg-transparent);
+	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+	backdrop-filter: var(--MI-blur, blur(8px));
 }
 
 .banner {
@@ -116,17 +122,24 @@ function more() {
 
 .instanceIcon {
 	display: inline-block;
-	width: 38px;
-	aspect-ratio: 1;
+	width: 120px;
+	content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp")
+}
+
+.wideInstanceIcon {
+	display: inline-block;
+	min-width: 38px;
+	max-width: 100%;
+	max-height: 80px;
 }
 
 .bottom {
 	position: sticky;
 	bottom: 0;
 	padding: 20px 0;
-	background: var(--X14);
-	-webkit-backdrop-filter: var(--blur, blur(8px));
-	backdrop-filter: var(--blur, blur(8px));
+	background: var(--nav-bg-transparent);
+	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+	backdrop-filter: var(--MI-blur, blur(8px));
 }
 
 .post {
@@ -134,11 +147,11 @@ function more() {
 	display: block;
 	width: 100%;
 	height: 40px;
-	color: var(--fgOnAccent);
+	color: var(--MI_THEME-fgOnAccent);
 	font-weight: bold;
 	text-align: left;
 
-	&:before {
+	&::before {
 		content: "";
 		display: block;
 		width: calc(100% - 38px);
@@ -149,13 +162,13 @@ function more() {
 		left: 0;
 		right: 0;
 		bottom: 0;
-		border-radius: var(--radius-ellipse);
-		background: linear-gradient(90deg, var(--buttonGradateA), var(--buttonGradateB));
+		border-radius: var(--MI-radius-ellipse);
+		background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
 	}
 
 	&:hover, &.active {
-		&:before {
-			background: var(--accentLighten);
+		&::before {
+			background: var(--MI_THEME-accentLighten);
 		}
 	}
 }
@@ -199,7 +212,7 @@ function more() {
 
 .divider {
 	margin: 16px 16px;
-	border-top: solid 0.5px var(--divider);
+	border-top: solid 0.5px var(--MI_THEME-divider);
 }
 
 .item {
@@ -213,19 +226,19 @@ function more() {
 	width: 100%;
 	text-align: left;
 	box-sizing: border-box;
-	color: var(--navFg);
+	color: var(--MI_THEME-navFg);
 
 	&:hover {
 		text-decoration: none;
-		color: var(--navHoverFg);
+		color: var(--MI_THEME-navHoverFg);
 	}
 
 	&.active {
-		color: var(--navActive);
+		color: var(--MI_THEME-navActive);
 	}
 
 	&:hover, &.active {
-		&:before {
+		&::before {
 			content: "";
 			display: block;
 			width: calc(100% - 24px);
@@ -236,8 +249,8 @@ function more() {
 			left: 0;
 			right: 0;
 			bottom: 0;
-			border-radius: var(--radius-ellipse);
-			background: var(--accentedBg);
+			border-radius: var(--MI-radius-ellipse);
+			background: var(--MI_THEME-accentedBg);
 		}
 	}
 }
@@ -252,9 +265,8 @@ function more() {
 	position: absolute;
 	top: 0;
 	left: 20px;
-	color: var(--navIndicator);
+	color: var(--MI_THEME-navIndicator);
 	font-size: 8px;
-	animation: global-blink 1s infinite;
 
 	&:has(.itemIndicateValueIcon) {
 		animation: none;

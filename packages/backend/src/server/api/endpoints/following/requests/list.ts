@@ -42,6 +42,12 @@ export const meta = {
 			},
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -71,7 +77,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit)
 				.getMany();
 
-			return await Promise.all(requests.map(req => this.followRequestEntityService.pack(req)));
+			return await this.followRequestEntityService.packMany(requests, me);
 		});
 	}
 }

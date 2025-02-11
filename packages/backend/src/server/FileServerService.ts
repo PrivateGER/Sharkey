@@ -28,6 +28,11 @@ import { bindThis } from '@/decorators.js';
 import { isMimeImage } from '@/misc/is-mime-image.js';
 import { correctFilename } from '@/misc/correct-filename.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
+import { getIpHash } from '@/misc/get-ip-hash.js';
+import { AuthenticateService } from '@/server/api/AuthenticateService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions } from 'fastify';
 
 const _filename = fileURLToPath(import.meta.url);
@@ -52,8 +57,11 @@ export class FileServerService {
 		private videoProcessingService: VideoProcessingService,
 		private internalStorageService: InternalStorageService,
 		private loggerService: LoggerService,
+		private authenticateService: AuthenticateService,
+		private rateLimiterService: SkRateLimiterService,
+		private roleService: RoleService,
 	) {
-		this.logger = this.loggerService.getLogger('server', 'gray', false);
+		this.logger = this.loggerService.getLogger('server', 'gray');
 
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -76,11 +84,13 @@ export class FileServerService {
 			});
 
 			fastify.get<{ Params: { key: string; } }>('/files/:key', async (request, reply) => {
+				if (!await this.checkRateLimit(request, reply, '/files/', request.params.key)) return;
+
 				return await this.sendDriveFile(request, reply)
 					.catch(err => this.errorHandler(request, reply, err));
 			});
 			fastify.get<{ Params: { key: string; } }>('/files/:key/*', async (request, reply) => {
-				return await reply.redirect(301, `${this.config.url}/files/${request.params.key}`);
+				return await reply.redirect(`${this.config.url}/files/${request.params.key}`, 301);
 			});
 			done();
 		});
@@ -89,6 +99,20 @@ export class FileServerService {
 			Params: { url: string; };
 			Querystring: { url?: string; };
 		}>('/proxy/:url*', async (request, reply) => {
+			const url = 'url' in request.query ? request.query.url : 'https://' + request.params.url;
+			if (!url || !URL.canParse(url)) {
+				reply.code(400);
+				return;
+			}
+
+			const keyUrl = new URL(url);
+			keyUrl.searchParams.forEach(k => keyUrl.searchParams.delete(k));
+			keyUrl.hash = '';
+			keyUrl.username = '';
+			keyUrl.password = '';
+
+			if (!await this.checkRateLimit(request, reply, '/proxy/', keyUrl.href)) return;
+
 			return await this.proxyHandler(request, reply)
 				.catch(err => this.errorHandler(request, reply, err));
 		});
@@ -145,12 +169,12 @@ export class FileServerService {
 						url.searchParams.set('static', '1');
 
 						file.cleanup();
-						return await reply.redirect(301, url.toString());
+						return await reply.redirect(url.toString(), 301);
 					} else if (file.mime.startsWith('video/')) {
 						const externalThumbnail = this.videoProcessingService.getExternalVideoThumbnailUrl(file.url);
 						if (externalThumbnail) {
 							file.cleanup();
-							return await reply.redirect(301, externalThumbnail);
+							return await reply.redirect(externalThumbnail, 301);
 						}
 
 						image = await this.videoProcessingService.generateVideoThumbnail(file.path);
@@ -165,9 +189,12 @@ export class FileServerService {
 						url.searchParams.set('url', file.url);
 
 						file.cleanup();
-						return await reply.redirect(301, url.toString());
+						return await reply.redirect(url.toString(), 301);
 					}
 				}
+
+				// set Content-Length before we chunk, so it can properly override when chunking.
+				reply.header('Content-Length', file.file.size);
 
 				if (!image) {
 					if (request.headers.range && file.file.size > 0) {
@@ -212,6 +239,7 @@ export class FileServerService {
 				}
 
 				reply.header('Content-Type', FILE_TYPE_BROWSERSAFE.includes(image.type) ? image.type : 'application/octet-stream');
+				reply.header('Cache-Control', 'max-age=31536000, immutable');
 				reply.header('Content-Disposition',
 					contentDisposition(
 						'inline',
@@ -254,6 +282,7 @@ export class FileServerService {
 				return fs.createReadStream(file.path);
 			} else {
 				reply.header('Content-Type', FILE_TYPE_BROWSERSAFE.includes(file.file.type) ? file.file.type : 'application/octet-stream');
+				reply.header('Content-Length', file.file.size);
 				reply.header('Cache-Control', 'max-age=31536000, immutable');
 				reply.header('Content-Disposition', contentDisposition('inline', file.filename));
 
@@ -309,9 +338,15 @@ export class FileServerService {
 			}
 
 			return await reply.redirect(
-				301,
 				url.toString(),
+				301,
 			);
+		}
+
+		if (!request.headers['user-agent']) {
+			throw new StatusError('User-Agent is required', 400, 'User-Agent is required');
+		} else if (request.headers['user-agent'].toLowerCase().indexOf('misskey/') !== -1) {
+			throw new StatusError('Refusing to proxy a request from another proxy', 403, 'Proxy is recursive');
 		}
 
 		// Create temp file
@@ -528,9 +563,7 @@ export class FileServerService {
 		if (!file.storedInternal) {
 			if (!(file.isLink && file.uri)) return '204';
 			const result = await this.downloadAndDetectTypeFromUrl(file.uri);
-			if (!file.size) {
-				file.size = (await fs.promises.stat(result.path)).size;
-			}
+			file.size = (await fs.promises.stat(result.path)).size;	// DB file.sizeは正確とは限らないので
 			return {
 				...result,
 				url: file.uri,
@@ -565,4 +598,83 @@ export class FileServerService {
 			path,
 		};
 	}
+
+	// Based on ApiCallService
+	private async checkRateLimit(
+		request: FastifyRequest<{
+			Body?: Record<string, unknown> | undefined,
+			Querystring?: Record<string, unknown> | undefined,
+			Params?: Record<string, unknown> | unknown,
+		}>,
+		reply: FastifyReply,
+		group: string,
+		resource: string,
+	): Promise<boolean> {
+		const body = request.method === 'GET'
+			? request.query
+			: request.body;
+
+		// https://datatracker.ietf.org/doc/html/rfc6750.html#section-2.1 (case sensitive)
+		const token = request.headers.authorization?.startsWith('Bearer ')
+			? request.headers.authorization.slice(7)
+			: body?.['i'];
+		if (token != null && typeof token !== 'string') {
+			reply.code(400);
+			return false;
+		}
+
+		// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
+		const [user] = await this.authenticateService.authenticate(token);
+		const actor = user?.id ?? getIpHash(request.ip);
+		const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
+
+		// Call both limits: the per-resource limit and the shared cross-resource limit
+		return await this.checkResourceLimit(reply, actor, group, resource, factor) && await this.checkSharedLimit(reply, actor, group, factor);
+	}
+
+	private async checkResourceLimit(reply: FastifyReply, actor: string, group: string, resource: string, factor = 1): Promise<boolean> {
+		const limit: Keyed<RateLimit> = {
+			// Group by resource
+			key: `${group}${resource}`,
+			type: 'bucket',
+
+			// Maximum of 10 requests, average rate of 1 per minute
+			size: 10,
+			dripRate: 1000 * 60,
+		};
+
+		return await this.checkLimit(reply, actor, limit, factor);
+	}
+
+	private async checkSharedLimit(reply: FastifyReply, actor: string, group: string, factor = 1): Promise<boolean> {
+		const limit: Keyed<RateLimit> = {
+			key: group,
+			type: 'bucket',
+
+			// Maximum of 3600 requests, average rate of 1 per second.
+			size: 3600,
+		};
+
+		return await this.checkLimit(reply, actor, limit, factor);
+	}
+
+	private async checkLimit(reply: FastifyReply, actor: string, limit: Keyed<RateLimit>, factor = 1): Promise<boolean> {
+		const info = await this.rateLimiterService.limit(limit, actor, factor);
+
+		sendRateLimitHeaders(reply, info);
+
+		if (info.blocked) {
+			reply.code(429);
+			reply.send({
+				message: 'Rate limit exceeded. Please try again later.',
+				code: 'RATE_LIMIT_EXCEEDED',
+				id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
+			});
+
+			return false;
+		}
+
+		return true;
+	}
 }
+

@@ -15,6 +15,7 @@ import Logger from '@/logger.js';
 import { envOption } from '../env.js';
 import { masterMain } from './master.js';
 import { workerMain } from './worker.js';
+import { readyRef } from './ready.js';
 
 import 'reflect-metadata';
 
@@ -24,7 +25,7 @@ Error.stackTraceLimit = Infinity;
 EventEmitter.defaultMaxListeners = 128;
 
 const logger = new Logger('core', 'cyan');
-const clusterLogger = logger.createSubLogger('cluster', 'orange', false);
+const clusterLogger = logger.createSubLogger('cluster', 'orange');
 const ev = new Xev();
 
 // We wrap this in a main function, that gets called,
@@ -75,9 +76,11 @@ async function main() {
 			ev.mount();
 		}
 	}
-	if (cluster.isWorker || envOption.disableClustering) {
+	if (cluster.isWorker) {
 		await workerMain();
 	}
+
+	readyRef.value = true;
 
 	// ユニットテスト時にMisskeyが子プロセスで起動された時のため
 	// それ以外のときは process.send は使えないので弾く

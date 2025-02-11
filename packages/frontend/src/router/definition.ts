@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { App, AsyncComponentLoader, defineAsyncComponent, provide } from 'vue';
-import type { RouteDef } from '@/nirax.js';
-import { IRouter, Router } from '@/nirax.js';
+import { AsyncComponentLoader, defineAsyncComponent } from 'vue';
+import type { IRouter, RouteDef } from '@/nirax.js';
+import { Router } from '@/nirax.js';
 import { $i, iAmModerator } from '@/account.js';
 import MkLoading from '@/pages/_loading_.vue';
 import MkError from '@/pages/_error_.vue';
-import { setMainRouter } from '@/router/main.js';
 
-const page = (loader: AsyncComponentLoader<any>) => defineAsyncComponent({
+export const page = (loader: AsyncComponentLoader) => defineAsyncComponent({
 	loader: loader,
 	loadingComponent: MkLoading,
 	errorComponent: MkError,
@@ -35,7 +34,7 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/user/index.vue')),
 }, {
 	name: 'note',
-	path: '/notes/:noteId',
+	path: '/notes/:noteId/:initialTab?',
 	component: page(() => import('@/pages/note.vue')),
 }, {
 	name: 'list',
@@ -194,9 +193,15 @@ const routes: RouteDef[] = [{
 	path: '/announcements',
 	component: page(() => import('@/pages/announcements.vue')),
 }, {
+	path: '/announcements/:announcementId',
+	component: page(() => import('@/pages/announcement.vue')),
+}, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',
+}, {
+	path: '/contact',
+	component: page(() => import('@/pages/contact.vue')),
 }, {
 	path: '/about-sharkey',
 	component: page(() => import('@/pages/about-sharkey.vue')),
@@ -212,7 +217,7 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/theme-editor.vue')),
 	loginRequired: true,
 }, {
-	path: '/roles/:role',
+	path: '/roles/:roleId',
 	component: page(() => import('@/pages/role.vue')),
 }, {
 	path: '/user-tags/:tag',
@@ -222,17 +227,38 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/explore.vue')),
 	hash: 'initialTab',
 }, {
+	path: '/following-feed',
+	component: page(() => import('@/pages/following-feed.vue')),
+	loginRequired: true,
+}, {
+	path: '/following-feed/:userId',
+	component: page(() => import('@/pages/user/recent-notes.vue')),
+	loginRequired: true,
+}, {
 	path: '/search',
 	component: page(() => import('@/pages/search.vue')),
 	query: {
 		q: 'query',
+		userId: 'userId',
+		username: 'username',
+		host: 'host',
 		channel: 'channel',
 		type: 'type',
 		origin: 'origin',
 	},
 }, {
+	// Legacy Compatibility
 	path: '/authorize-follow',
-	component: page(() => import('@/pages/follow.vue')),
+	redirect: '/lookup',
+	loginRequired: true,
+}, {
+	// Mastodon Compatibility
+	path: '/authorize_interaction',
+	redirect: '/lookup',
+	loginRequired: true,
+}, {
+	path: '/lookup',
+	component: page(() => import('@/pages/lookup.vue')),
 	loginRequired: true,
 }, {
 	path: '/share',
@@ -245,6 +271,9 @@ const routes: RouteDef[] = [{
 }, {
 	path: '/scratchpad',
 	component: page(() => import('@/pages/scratchpad.vue')),
+}, {
+	path: '/preview',
+	component: page(() => import('@/pages/preview.vue')),
 }, {
 	path: '/auth/:token',
 	component: page(() => import('@/pages/auth.vue')),
@@ -442,21 +471,13 @@ const routes: RouteDef[] = [{
 		name: 'relays',
 		component: page(() => import('@/pages/admin/relays.vue')),
 	}, {
-		path: '/instance-block',
-		name: 'instance-block',
-		component: page(() => import('@/pages/admin/instance-block.vue')),
-	}, {
-		path: '/proxy-account',
-		name: 'proxy-account',
-		component: page(() => import('@/pages/admin/proxy-account.vue')),
-	}, {
 		path: '/external-services',
 		name: 'external-services',
 		component: page(() => import('@/pages/admin/external-services.vue')),
 	}, {
-		path: '/other-settings',
-		name: 'other-settings',
-		component: page(() => import('@/pages/admin/other-settings.vue')),
+		path: '/performance',
+		name: 'performance',
+		component: page(() => import('@/pages/admin/performance.vue')),
 	}, {
 		path: '/server-rules',
 		name: 'server-rules',
@@ -469,6 +490,14 @@ const routes: RouteDef[] = [{
 		path: '/approvals',
 		name: 'approvals',
 		component: page(() => import('@/pages/admin/approvals.vue')),
+	}, {
+		path: '/abuse-report-notification-recipient',
+		name: 'abuse-report-notification-recipient',
+		component: page(() => import('@/pages/admin/abuse-report/notification-recipient.vue')),
+	}, {
+		path: '/system-webhook',
+		name: 'system-webhook',
+		component: page(() => import('@/pages/admin/system-webhook.vue')),
 	}, {
 		path: '/',
 		component: page(() => import('@/pages/_empty_.vue')),
@@ -554,6 +583,10 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/reversi/game.vue')),
 	loginRequired: false,
 }, {
+	path: '/doom',
+	component: page(() => import('@/pages/dos/doom/game.vue')),
+	loginRequired: false,
+}, {
 	path: '/timeline',
 	component: page(() => import('@/pages/timeline.vue')),
 }, {
@@ -566,41 +599,16 @@ const routes: RouteDef[] = [{
 	path: '/redirect-test',
 	redirect: $i ? `@${$i.username}` : '/',
 	loginRequired: true,
+},
+{
+	path: '/services',
+	component: page(() => import('@/pages/services.vue')),
+	loginRequired: true,
 }, {
 	path: '/:(*)',
 	component: page(() => import('@/pages/not-found.vue')),
 }];
 
-function createRouterImpl(path: string): IRouter {
+export function createMainRouter(path: string): IRouter {
 	return new Router(routes, path, !!$i, page(() => import('@/pages/not-found.vue')));
-}
-
-/**
- * {@link Router}による画面遷移を可能とするために{@link mainRouter}をセットアップする。
- * また、{@link Router}のインスタンスを作成するためのファクトリも{@link provide}経由で公開する（`routerFactory`というキーで取得可能）
- */
-export function setupRouter(app: App) {
-	app.provide('routerFactory', createRouterImpl);
-
-	const mainRouter = createRouterImpl(location.pathname + location.search + location.hash);
-
-	window.addEventListener('popstate', (event) => {
-		mainRouter.replace(location.pathname + location.search + location.hash, event.state?.key);
-	});
-
-	mainRouter.addListener('push', ctx => {
-		window.history.pushState({ key: ctx.key }, '', ctx.path);
-	});
-
-	mainRouter.addListener('same', () => {
-		window.scroll({ top: 0, behavior: 'smooth' });
-	});
-
-	mainRouter.addListener('replace', ctx => {
-		window.history.replaceState({ key: ctx.key }, '', ctx.path);
-	});
-
-	mainRouter.init();
-
-	setMainRouter(mainRouter);
 }

@@ -140,6 +140,7 @@ fastify.get('/.well-known/change-password', async (request, reply) => {
 			}
 
 			const subject = `acct:${user.username}@${this.config.host}`;
+			const profileLink = `${this.config.url}/@${user.username}`;
 			const self = {
 				rel: 'self',
 				type: 'application/activity+json',
@@ -148,7 +149,7 @@ fastify.get('/.well-known/change-password', async (request, reply) => {
 			const profilePage = {
 				rel: 'http://webfinger.net/rel/profile-page',
 				type: 'text/html',
-				href: `${this.config.url}/@${user.username}`,
+				href: profileLink,
 			};
 			const subscribe = {
 				rel: 'http://ostatus.org/schema/1.0/subscribe',
@@ -164,12 +165,14 @@ fastify.get('/.well-known/change-password', async (request, reply) => {
 					{ element: 'Subject', value: subject },
 					{ element: 'Link', attributes: self },
 					{ element: 'Link', attributes: profilePage },
-					{ element: 'Link', attributes: subscribe });
+					{ element: 'Link', attributes: subscribe },
+					{ element: 'Alias', value: profileLink });
 			} else {
 				reply.type(jrd);
 				return {
 					subject,
 					links: [self, profilePage, subscribe],
+					aliases: [profileLink],
 				};
 			}
 		});

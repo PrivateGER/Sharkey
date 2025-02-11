@@ -8,12 +8,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import * as yaml from 'js-yaml';
 import { globSync } from 'glob';
+import * as Sentry from '@sentry/node';
 import type { RedisOptions } from 'ioredis';
 
 type RedisOptionsSource = Partial<RedisOptions> & {
-	host: string;
-	port: number;
+	host?: string;
+	port?: number;
 	family?: number;
+	path?: string,
 	pass: string;
 	db?: number;
 	prefix?: string;
@@ -23,7 +25,7 @@ type RedisOptionsSource = Partial<RedisOptions> & {
  * 設定ファイルの型
  */
 type Source = {
-	url: string;
+	url?: string;
 	port?: number;
 	socket?: string;
 	chmodSocket?: string;
@@ -31,10 +33,11 @@ type Source = {
 	db: {
 		host: string;
 		port: number;
-		db: string;
-		user: string;
-		pass: string;
+		db?: string;
+		user?: string;
+		pass?: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
 		extra?: { [x: string]: string };
 	};
 	dbReplications?: boolean;
@@ -42,6 +45,7 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
+		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -49,6 +53,7 @@ type Source = {
 	redisForPubsub?: RedisOptionsSource;
 	redisForJobQueue?: RedisOptionsSource;
 	redisForTimelines?: RedisOptionsSource;
+	redisForReactions?: RedisOptionsSource;
 	meilisearch?: {
 		host: string;
 		port: string;
@@ -57,8 +62,12 @@ type Source = {
 		index: string;
 		scope?: 'local' | 'global' | string[];
 	};
+	sentryForBackend?: { options: Partial<Sentry.NodeOptions>; enableNodeProfiling: boolean; };
+	sentryForFrontend?: { options: Partial<Sentry.NodeOptions> };
 
 	publishTarballInsteadOfProvideRepositoryUrl?: boolean;
+
+	setupPassword?: string;
 
 	proxy?: string;
 	proxySmtp?: string;
@@ -68,6 +77,11 @@ type Source = {
 
 	maxFileSize?: number;
 	maxNoteLength?: number;
+	maxCwLength?: number;
+	maxRemoteCwLength?: number;
+	maxRemoteNoteLength?: number;
+	maxAltTextLength?: number;
+	maxRemoteAltTextLength?: number;
 
 	clusterLimit?: number;
 
@@ -92,12 +106,33 @@ type Source = {
 	customMOTD?: string[];
 
 	signToActivityPubGet?: boolean;
+	attachLdSignatureForRelays?: boolean;
 	checkActivityPubGetSignature?: boolean;
 
 	perChannelMaxNoteCacheCount?: number;
 	perUserNotificationsMaxCount?: number;
 	deactivateAntennaThreshold?: number;
+
+	import?: {
+		downloadTimeout: number;
+		maxFileSize: number;
+	};
+
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
+	filePermissionBits?: string;
+
+	openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 };
 
 export type Config = {
@@ -113,6 +148,8 @@ export type Config = {
 		user: string;
 		pass: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
+		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
@@ -135,8 +172,13 @@ export type Config = {
 	proxySmtp: string | undefined;
 	proxyBypassHosts: string[] | undefined;
 	allowedPrivateNetworks: string[] | undefined;
-	maxFileSize: number | undefined;
+	maxFileSize: number;
 	maxNoteLength: number;
+	maxRemoteNoteLength: number;
+	maxCwLength: number;
+	maxRemoteCwLength: number;
+	maxAltTextLength: number;
+	maxRemoteAltTextLength: number;
 	clusterLimit: number | undefined;
 	id: string;
 	outgoingAddress: string | undefined;
@@ -152,10 +194,12 @@ export type Config = {
 	proxyRemoteFiles: boolean | undefined;
 	customMOTD: string[] | undefined;
 	signToActivityPubGet: boolean;
+	attachLdSignatureForRelays: boolean;
 	checkActivityPubGetSignature: boolean | undefined;
 
 	version: string;
 	publishTarballInsteadOfProvideRepositoryUrl: boolean;
+	setupPassword: string | undefined;
 	host: string;
 	hostname: string;
 	scheme: string;
@@ -165,8 +209,10 @@ export type Config = {
 	authUrl: string;
 	driveUrl: string;
 	userAgent: string;
-	clientEntry: string;
-	clientManifestExists: boolean;
+	frontendEntry: string;
+	frontendManifestExists: boolean;
+	frontendEmbedEntry: string;
+	frontendEmbedManifestExists: boolean;
 	mediaProxy: string;
 	externalMediaProxyEnabled: boolean;
 	videoThumbnailGenerator: string | null;
@@ -174,10 +220,33 @@ export type Config = {
 	redisForPubsub: RedisOptions & RedisOptionsSource;
 	redisForJobQueue: RedisOptions & RedisOptionsSource;
 	redisForTimelines: RedisOptions & RedisOptionsSource;
+	redisForReactions: RedisOptions & RedisOptionsSource;
+	sentryForBackend: { options: Partial<Sentry.NodeOptions>; enableNodeProfiling: boolean; } | undefined;
+	sentryForFrontend: { options: Partial<Sentry.NodeOptions> } | undefined;
 	perChannelMaxNoteCacheCount: number;
 	perUserNotificationsMaxCount: number;
 	deactivateAntennaThreshold: number;
+
+	import: {
+		downloadTimeout: number;
+		maxFileSize: number;
+	} | undefined;
+
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
+	filePermissionBits?: string;
+
+	openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 };
 
 const _filename = fileURLToPath(import.meta.url);
@@ -199,13 +268,25 @@ const path = process.env.MISSKEY_CONFIG_YML
 
 export function loadConfig(): Config {
 	const meta = JSON.parse(fs.readFileSync(`${_dirname}/../../../built/meta.json`, 'utf-8'));
-	const clientManifestExists = fs.existsSync(`${_dirname}/../../../built/_vite_/manifest.json`);
-	const clientManifest = clientManifestExists ?
-		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_vite_/manifest.json`, 'utf-8'))
-		: { 'src/_boot_.ts': { file: 'src/_boot_.ts' } };
 
-	const config = globSync(path).sort()
-		.map(path => fs.readFileSync(path, 'utf-8'))
+	const frontendManifestExists = fs.existsSync(_dirname + '/../../../built/_frontend_vite_/manifest.json');
+	const frontendEmbedManifestExists = fs.existsSync(_dirname + '/../../../built/_frontend_embed_vite_/manifest.json');
+	const frontendManifest = frontendManifestExists ?
+		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_vite_/manifest.json`, 'utf-8'))
+		: { 'src/_boot_.ts': { file: 'src/_boot_.ts' } };
+	const frontendEmbedManifest = frontendEmbedManifestExists ?
+		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_embed_vite_/manifest.json`, 'utf-8'))
+		: { 'src/boot.ts': { file: 'src/boot.ts' } };
+
+	const configFiles = globSync(path).sort();
+
+	if (configFiles.length === 0
+			&& !process.env['MK_WARNED_ABOUT_CONFIG']) {
+		console.log('No config files loaded, check if this is intentional');
+		process.env['MK_WARNED_ABOUT_CONFIG'] = '1';
+	}
+
+	const config = configFiles.map(path => fs.readFileSync(path, 'utf-8'))
 		.map(contents => yaml.load(contents) as Source)
 		.reduce(
 			(acc: Source, cur: Source) => Object.assign(acc, cur),
@@ -214,12 +295,16 @@ export function loadConfig(): Config {
 
 	applyEnvOverrides(config);
 
-	const url = tryCreateUrl(config.url);
+	const url = tryCreateUrl(config.url ?? process.env.MISSKEY_URL ?? '');
 	const version = meta.version;
 	const host = url.host;
 	const hostname = url.hostname;
 	const scheme = url.protocol.replace(/:$/, '');
 	const wsScheme = scheme.replace('http', 'ws');
+
+	const dbDb = config.db.db ?? process.env.DATABASE_DB ?? '';
+	const dbUser = config.db.user ?? process.env.DATABASE_USER ?? '';
+	const dbPass = config.db.pass ?? process.env.DATABASE_PASSWORD ?? '';
 
 	const externalMediaProxy = config.mediaProxy ?
 		config.mediaProxy.endsWith('/') ? config.mediaProxy.substring(0, config.mediaProxy.length - 1) : config.mediaProxy
@@ -227,11 +312,19 @@ export function loadConfig(): Config {
 	const internalMediaProxy = `${scheme}://${host}/proxy`;
 	const redis = convertRedisOptions(config.redis, host);
 
+	const openai = config.openai ? {
+		apiKey: config.openai.apiKey,
+		baseUrl: config.openai.baseUrl ?? 'https://api.openai.com/v1',
+		headers: config.openai.headers ?? {},
+		model: config.openai.model,
+	} : undefined;
+
 	return {
 		version,
 		publishTarballInsteadOfProvideRepositoryUrl: !!config.publishTarballInsteadOfProvideRepositoryUrl,
+		setupPassword: config.setupPassword,
 		url: url.origin,
-		port: config.port ?? parseInt(process.env.PORT ?? '', 10),
+		port: config.port ?? parseInt(process.env.PORT ?? '3000', 10),
 		socket: config.socket,
 		chmodSocket: config.chmodSocket,
 		disableHsts: config.disableHsts,
@@ -243,7 +336,7 @@ export function loadConfig(): Config {
 		apiUrl: `${scheme}://${host}/api`,
 		authUrl: `${scheme}://${host}/auth`,
 		driveUrl: `${scheme}://${host}/files`,
-		db: config.db,
+		db: { ...config.db, db: dbDb, user: dbUser, pass: dbPass },
 		dbReplications: config.dbReplications,
 		dbSlaves: config.dbSlaves,
 		meilisearch: config.meilisearch,
@@ -251,13 +344,21 @@ export function loadConfig(): Config {
 		redisForPubsub: config.redisForPubsub ? convertRedisOptions(config.redisForPubsub, host) : redis,
 		redisForJobQueue: config.redisForJobQueue ? convertRedisOptions(config.redisForJobQueue, host) : redis,
 		redisForTimelines: config.redisForTimelines ? convertRedisOptions(config.redisForTimelines, host) : redis,
+		redisForReactions: config.redisForReactions ? convertRedisOptions(config.redisForReactions, host) : redis,
+		sentryForBackend: config.sentryForBackend,
+		sentryForFrontend: config.sentryForFrontend,
 		id: config.id,
 		proxy: config.proxy,
 		proxySmtp: config.proxySmtp,
 		proxyBypassHosts: config.proxyBypassHosts,
 		allowedPrivateNetworks: config.allowedPrivateNetworks,
-		maxFileSize: config.maxFileSize,
+		maxFileSize: config.maxFileSize ?? 262144000,
 		maxNoteLength: config.maxNoteLength ?? 3000,
+		maxRemoteNoteLength: config.maxRemoteNoteLength ?? 100000,
+		maxCwLength: config.maxCwLength ?? 500,
+		maxRemoteCwLength: config.maxRemoteCwLength ?? 5000,
+		maxAltTextLength: config.maxAltTextLength ?? 20000,
+		maxRemoteAltTextLength: config.maxRemoteAltTextLength ?? 100000,
 		clusterLimit: config.clusterLimit,
 		outgoingAddress: config.outgoingAddress,
 		outgoingAddressFamily: config.outgoingAddressFamily,
@@ -272,6 +373,7 @@ export function loadConfig(): Config {
 		proxyRemoteFiles: config.proxyRemoteFiles,
 		customMOTD: config.customMOTD,
 		signToActivityPubGet: config.signToActivityPubGet ?? true,
+		attachLdSignatureForRelays: config.attachLdSignatureForRelays ?? true,
 		checkActivityPubGetSignature: config.checkActivityPubGetSignature,
 		mediaProxy: externalMediaProxy ?? internalMediaProxy,
 		externalMediaProxyEnabled: externalMediaProxy !== null && externalMediaProxy !== internalMediaProxy,
@@ -279,12 +381,22 @@ export function loadConfig(): Config {
 			config.videoThumbnailGenerator.endsWith('/') ? config.videoThumbnailGenerator.substring(0, config.videoThumbnailGenerator.length - 1) : config.videoThumbnailGenerator
 			: null,
 		userAgent: `Misskey/${version} (${config.url})`,
-		clientEntry: clientManifest['src/_boot_.ts'],
-		clientManifestExists: clientManifestExists,
+		frontendEntry: frontendManifest['src/_boot_.ts'],
+		frontendManifestExists: frontendManifestExists,
+		frontendEmbedEntry: frontendEmbedManifest['src/boot.ts'],
+		frontendEmbedManifestExists: frontendEmbedManifestExists,
 		perChannelMaxNoteCacheCount: config.perChannelMaxNoteCacheCount ?? 1000,
 		perUserNotificationsMaxCount: config.perUserNotificationsMaxCount ?? 500,
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
+		import: config.import,
 		pidFile: config.pidFile,
+		ntfyURL: config.ntfyURL,
+
+		imgproxyURL: config.imgproxyURL,
+		imgproxySalt: config.imgproxySalt,
+		imgproxyKey: config.imgproxyKey,
+		filePermissionBits: config.filePermissionBits,
+		openai: openai,
 	};
 }
 
@@ -327,11 +439,11 @@ function applyEnvOverrides(config: Source) {
 	// these inner functions recurse through the config structure, using
 	// the given steps, building the env variable name
 
-	function _apply_top(steps: (string | number)[]) {
+	function _apply_top(steps: (string | string[] | number | number[])[]) {
 		_walk('', [], steps);
 	}
 
-	function _walk(name: string, path: (string | number)[], steps: (string | number)[]) {
+	function _walk(name: string, path: (string | number)[], steps: (string | string[] | number | number[])[]) {
 		// are there more steps after this one? recurse
 		if (steps.length > 1) {
 			const thisStep = steps.shift();
@@ -364,13 +476,13 @@ function applyEnvOverrides(config: Source) {
 	}
 
 	function _step2name(step: string|number): string {
-		return step.toString().replaceAll(/[^a-z0-9]+/gi,'').toUpperCase();
+		return step.toString().replaceAll(/[^a-z0-9]+/gi, '').toUpperCase();
 	}
 
 	// this recurses down, bailing out if there's no config to override
-	function _descend(name: string, path: (string | number)[], thisStep: string | number, steps: (string | number)[]) {
+	function _descend(name: string, path: (string | number)[], thisStep: string | number, steps: (string | string[] | number | number[])[]) {
 		name = `${name}${_step2name(thisStep)}_`;
-		path = [ ...path, thisStep ];
+		path = [...path, thisStep];
 		_walk(name, path, steps);
 	}
 
@@ -380,7 +492,7 @@ function applyEnvOverrides(config: Source) {
 		name = `MK_CONFIG_${name}${_step2name(lastStep)}`;
 
 		const val = process.env[name];
-		if (val != null && val != undefined) {
+		if (val !== null && val !== undefined) {
 			_assign(path, lastStep, val);
 		}
 
@@ -390,10 +502,13 @@ function applyEnvOverrides(config: Source) {
 		}
 	}
 
-	const alwaysStrings = { 'chmodSocket': 1 };
+	const alwaysStrings: { [key in string]?: boolean } = {
+		'chmodSocket': true,
+		'filePermissionBits': true,
+	};
 
 	function _assign(path: (string | number)[], lastStep: string | number, value: string) {
-		let thisConfig = config;
+		let thisConfig = config as any;
 		for (const step of path) {
 			if (!thisConfig[step]) {
 				thisConfig[step] = {};
@@ -403,9 +518,11 @@ function applyEnvOverrides(config: Source) {
 
 		if (!alwaysStrings[lastStep]) {
 			if (value.match(/^[0-9]+$/)) {
-				value = parseInt(value);
+				thisConfig[lastStep] = parseInt(value);
+				return;
 			} else if (value.match(/^(true|false)$/i)) {
-				value = !!value.match(/^true$/i);
+				thisConfig[lastStep] = !!value.match(/^true$/i);
+				return;
 			}
 		}
 
@@ -414,15 +531,19 @@ function applyEnvOverrides(config: Source) {
 
 	// these are all the settings that can be overridden
 
-	_apply_top([['url', 'port', 'socket', 'chmodSocket', 'disableHsts']]);
-	_apply_top(['db', ['host', 'port', 'db', 'user', 'pass']]);
-	_apply_top(['dbSlaves', config.dbSlaves?.keys(), ['host', 'port', 'db', 'user', 'pass']]);
+	_apply_top([['url', 'port', 'socket', 'chmodSocket', 'disableHsts', 'id', 'dbReplications']]);
+	_apply_top(['db', ['host', 'port', 'db', 'user', 'pass', 'disableCache']]);
+	_apply_top(['dbSlaves', Array.from((config.dbSlaves ?? []).keys()), ['host', 'port', 'db', 'user', 'pass']]);
 	_apply_top([
-		['redis', 'redisForPubsub', 'redisForJobQueue', 'redisForTimelines'],
-		['host','port','username','pass','db','prefix'],
+		['redis', 'redisForPubsub', 'redisForJobQueue', 'redisForTimelines', 'redisForReactions'],
+		['host', 'port', 'username', 'pass', 'db', 'prefix'],
 	]);
 	_apply_top(['meilisearch', ['host', 'port', 'apikey', 'ssl', 'index', 'scope']]);
+	_apply_top([['sentryForFrontend', 'sentryForBackend'], 'options', ['dsn', 'profileSampleRate', 'serverName', 'includeLocalVariables', 'proxy', 'keepAlive', 'caCerts']]);
+	_apply_top(['sentryForBackend', 'enableNodeProfiling']);
 	_apply_top([['clusterLimit', 'deliverJobConcurrency', 'inboxJobConcurrency', 'relashionshipJobConcurrency', 'deliverJobPerSec', 'inboxJobPerSec', 'relashionshipJobPerSec', 'deliverJobMaxAttempts', 'inboxJobMaxAttempts']]);
-	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaProxy', 'videoThumbnailGenerator']]);
-	_apply_top([['maxFileSize', 'maxNoteLength', 'pidFile']]);
+	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator']]);
+	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'pidFile', 'filePermissionBits']]);
+	_apply_top(['import', ['downloadTimeout', 'maxFileSize']]);
+	_apply_top([['signToActivityPubGet', 'checkActivityPubGetSignature', 'setupPassword']]);
 }

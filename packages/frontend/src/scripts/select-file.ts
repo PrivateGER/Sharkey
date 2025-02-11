@@ -80,7 +80,7 @@ export function chooseFileFromUrl(): Promise<Misskey.entities.DriveFile> {
 	});
 }
 
-function select(src: any, label: string | null, multiple: boolean): Promise<Misskey.entities.DriveFile[]> {
+function select(src: HTMLElement | EventTarget | null, label: string | null, multiple: boolean): Promise<Misskey.entities.DriveFile[]> {
 	return new Promise((res, rej) => {
 		const keepOriginal = ref(defaultStore.state.keepOriginalUploading);
 
@@ -93,24 +93,24 @@ function select(src: any, label: string | null, multiple: boolean): Promise<Miss
 			ref: keepOriginal,
 		}, {
 			text: i18n.ts.upload,
-			icon: 'ph-upload ph-bold ph-lg',
+			icon: 'ti ti-upload',
 			action: () => chooseFileFromPc(multiple, keepOriginal.value).then(files => res(files)),
 		}, {
 			text: i18n.ts.fromDrive,
-			icon: 'ph-cloud ph-bold ph-lg',
+			icon: 'ti ti-cloud',
 			action: () => chooseFileFromDrive(multiple).then(files => res(files)),
 		}, {
 			text: i18n.ts.fromUrl,
-			icon: 'ph-link ph-bold ph-lg',
+			icon: 'ti ti-link',
 			action: () => chooseFileFromUrl().then(file => res([file])),
 		}], src);
 	});
 }
 
-export function selectFile(src: any, label: string | null = null): Promise<Misskey.entities.DriveFile> {
+export function selectFile(src: HTMLElement | EventTarget | null, label: string | null = null): Promise<Misskey.entities.DriveFile> {
 	return select(src, label, false).then(files => files[0]);
 }
 
-export function selectFiles(src: any, label: string | null = null): Promise<Misskey.entities.DriveFile[]> {
+export function selectFiles(src: HTMLElement | EventTarget | null, label: string | null = null): Promise<Misskey.entities.DriveFile[]> {
 	return select(src, label, true);
 }

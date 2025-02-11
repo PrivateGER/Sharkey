@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div class="ogwlenmc">
 				<div v-if="tab === 'local'" class="local">
 					<MkInput v-model="query" :debounce="true" type="search" autocapitalize="off">
-						<template #prefix><i class="ph-magnifying-glass ph-bold ph-lg"></i></template>
+						<template #prefix><i class="ti ti-search"></i></template>
 						<template #label>{{ i18n.ts.search }}</template>
 					</MkInput>
 					<MkSwitch v-model="selectMode" style="margin: 8px 0;">
@@ -45,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-else-if="tab === 'remote'" class="remote">
 					<FormSplit>
 						<MkInput v-model="queryRemote" :debounce="true" type="search" autocapitalize="off">
-							<template #prefix><i class="ph-magnifying-glass ph-bold ph-lg"></i></template>
+							<template #prefix><i class="ti ti-search"></i></template>
 							<template #label>{{ i18n.ts.search }}</template>
 						</MkInput>
 						<MkInput v-model="host" :debounce="true">
@@ -98,6 +98,9 @@ const selectedEmojis = ref<string[]>([]);
 const pagination = {
 	endpoint: 'admin/emoji/list' as const,
 	limit: 30,
+	offsetMode: computed(() => (
+		(query.value && query.value !== '') ? true : false
+	)),
 	params: computed(() => ({
 		query: (query.value && query.value !== '') ? query.value : null,
 	})),
@@ -116,7 +119,7 @@ const selectAll = () => {
 	if (selectedEmojis.value.length > 0) {
 		selectedEmojis.value = [];
 	} else {
-		selectedEmojis.value = Array.from(emojisPaginationComponent.value.items.values(), item => item.id);
+		selectedEmojis.value = Array.from(emojisPaginationComponent.value?.items.values(), item => item.id);
 	}
 };
 
@@ -129,31 +132,33 @@ const toggleSelect = (emoji) => {
 };
 
 const add = async (ev: MouseEvent) => {
-	os.popup(defineAsyncComponent(() => import('./emoji-edit-dialog.vue')), {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('./emoji-edit-dialog.vue')), {
 	}, {
 		done: result => {
 			if (result.created) {
-				emojisPaginationComponent.value.prepend(result.created);
+				emojisPaginationComponent.value?.prepend(result.created);
 			}
 		},
-	}, 'closed');
+		closed: () => dispose(),
+	});
 };
 
 const edit = (emoji) => {
-	os.popup(defineAsyncComponent(() => import('./emoji-edit-dialog.vue')), {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('./emoji-edit-dialog.vue')), {
 		emoji: emoji,
 	}, {
 		done: result => {
 			if (result.updated) {
-				emojisPaginationComponent.value.updateItem(result.updated.id, (oldEmoji: any) => ({
+				emojisPaginationComponent.value?.updateItem(result.updated.id, (oldEmoji) => ({
 					...oldEmoji,
 					...result.updated,
 				}));
 			} else if (result.deleted) {
-				emojisPaginationComponent.value.removeItem(emoji.id);
+				emojisPaginationComponent.value?.removeItem(emoji.id);
 			}
 		},
-	}, 'closed');
+		closed: () => dispose(),
+	});
 };
 
 const importEmoji = (emoji) => {
@@ -169,7 +174,7 @@ const remoteMenu = (emoji, ev: MouseEvent) => {
 	},
 	{
 		text: i18n.ts.import,
-		icon: 'ph-plus ph-bold ph-lg',
+		icon: 'ti ti-plus',
 		action: () => { importEmoji(emoji); },
 	},
 	{
@@ -185,7 +190,7 @@ const remoteMenu = (emoji, ev: MouseEvent) => {
 
 const menu = (ev: MouseEvent) => {
 	os.popupMenu([{
-		icon: 'ph-download ph-bold ph-lg',
+		icon: 'ti ti-download',
 		text: i18n.ts.export,
 		action: async () => {
 			misskeyApi('export-custom-emojis', {
@@ -203,7 +208,7 @@ const menu = (ev: MouseEvent) => {
 				});
 		},
 	}, {
-		icon: 'ph-upload ph-bold ph-lg',
+		icon: 'ti ti-upload',
 		text: i18n.ts.import,
 		action: async () => {
 			const file = await selectFile(ev.currentTarget ?? ev.target);
@@ -234,7 +239,7 @@ const setCategoryBulk = async () => {
 		ids: selectedEmojis.value,
 		category: result,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const setLicenseBulk = async () => {
@@ -246,43 +251,43 @@ const setLicenseBulk = async () => {
 		ids: selectedEmojis.value,
 		license: result,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const addTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/add-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const removeTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/remove-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const setTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
 		title: 'Tag',
 	});
-	if (canceled) return;
+	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/set-aliases-bulk', {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const delBulk = async () => {
@@ -294,16 +299,16 @@ const delBulk = async () => {
 	await os.apiWithDialog('admin/emoji/delete-bulk', {
 		ids: selectedEmojis.value,
 	});
-	emojisPaginationComponent.value.reload();
+	emojisPaginationComponent.value?.reload();
 };
 
 const headerActions = computed(() => [{
 	asFullButton: true,
-	icon: 'ph-plus ph-bold ph-lg',
+	icon: 'ti ti-plus',
 	text: i18n.ts.addEmoji,
 	handler: add,
 }, {
-	icon: 'ph-dots-three ph-bold ph-lg',
+	icon: 'ti ti-dots',
 	handler: menu,
 }]);
 
@@ -325,28 +330,28 @@ definePageMetadata(() => ({
 .ogwlenmc {
 	> .local {
 		.empty {
-			margin: var(--margin);
+			margin: var(--MI-margin);
 		}
 
 		.ldhfsamy {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 			grid-gap: 12px;
-			margin: var(--margin) 0;
+			margin: var(--MI-margin) 0;
 
 			> .emoji {
 				display: flex;
 				align-items: center;
 				padding: 11px;
 				text-align: left;
-				border: solid 1px var(--panel);
+				border: solid 1px var(--MI_THEME-panel);
 
 				&:hover {
-					border-color: var(--inputBorderHover);
+					border-color: var(--MI_THEME-inputBorderHover);
 				}
 
 				&.selected {
-					border-color: var(--accent);
+					border-color: var(--MI_THEME-accent);
 				}
 
 				> .img {
@@ -377,14 +382,14 @@ definePageMetadata(() => ({
 
 	> .remote {
 		.empty {
-			margin: var(--margin);
+			margin: var(--MI-margin);
 		}
 
 		.ldhfsamy {
 			display: grid;
 			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 			grid-gap: 12px;
-			margin: var(--margin) 0;
+			margin: var(--MI-margin) 0;
 
 			> .emoji {
 				display: flex;
@@ -393,7 +398,7 @@ definePageMetadata(() => ({
 				text-align: left;
 
 				&:hover {
-					color: var(--accent);
+					color: var(--MI_THEME-accent);
 				}
 
 				> .img {

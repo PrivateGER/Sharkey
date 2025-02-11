@@ -11,11 +11,10 @@ import { sharpBmp } from '@misskey-dev/sharp-read-bmp';
 import { IsNull } from 'typeorm';
 import { DeleteObjectCommandInput, PutObjectCommandInput, NoSuchKey } from '@aws-sdk/client-s3';
 import { DI } from '@/di-symbols.js';
-import type { DriveFilesRepository, UsersRepository, DriveFoldersRepository, UserProfilesRepository } from '@/models/_.js';
+import type { DriveFilesRepository, UsersRepository, DriveFoldersRepository, UserProfilesRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import Logger from '@/logger.js';
 import type { MiRemoteUser, MiUser } from '@/models/User.js';
-import { MetaService } from '@/core/MetaService.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
 import { IdService } from '@/core/IdService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
@@ -38,11 +37,13 @@ import { InternalStorageService } from '@/core/InternalStorageService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { FileInfoService } from '@/core/FileInfoService.js';
+import type { FileInfo } from '@/core/FileInfoService.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import { correctFilename } from '@/misc/correct-filename.js';
 import { isMimeImage } from '@/misc/is-mime-image.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 
 type AddFileArgs = {
 	/** User who wish to add file */
@@ -98,6 +99,9 @@ export class DriveService {
 		@Inject(DI.config)
 		private config: Config,
 
+		@Inject(DI.meta)
+		private meta: MiMeta,
+
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 
@@ -114,7 +118,6 @@ export class DriveService {
 		private userEntityService: UserEntityService,
 		private driveFileEntityService: DriveFileEntityService,
 		private idService: IdService,
-		private metaService: MetaService,
 		private downloadService: DownloadService,
 		private internalStorageService: InternalStorageService,
 		private s3Service: S3Service,
@@ -127,6 +130,7 @@ export class DriveService {
 		private driveChart: DriveChart,
 		private perUserDriveChart: PerUserDriveChart,
 		private instanceChart: InstanceChart,
+		private utilityService: UtilityService,
 	) {
 		const logger = new Logger('drive', 'blue');
 		this.registerLogger = logger.createSubLogger('register', 'yellow');
@@ -136,20 +140,21 @@ export class DriveService {
 
 	/***
 	 * Save file
+	 * @param file
 	 * @param path Path for original
 	 * @param name Name for original (should be extention corrected)
-	 * @param type Content-Type for original
-	 * @param hash Hash for original
-	 * @param size Size for original
+	 * @param info File metadata
 	 */
 	@bindThis
-	private async save(file: MiDriveFile, path: string, name: string, type: string, hash: string, size: number): Promise<MiDriveFile> {
-	// thunbnail, webpublic を必要なら生成
+	private async save(file: MiDriveFile, path: string, name: string, info: FileInfo): Promise<MiDriveFile> {
+		const type = info.type.mime;
+		const hash = info.md5;
+		const size = info.size;
+
+		// thunbnail, webpublic を必要なら生成
 		const alts = await this.generateAlts(path, type, !file.uri);
 
-		const meta = await this.metaService.fetch();
-
-		if (meta.useObjectStorage) {
+		if (this.meta.useObjectStorage) {
 		//#region ObjectStorage params
 			let [ext] = (name.match(/\.([a-zA-Z0-9_-]+)$/) ?? ['']);
 
@@ -168,11 +173,11 @@ export class DriveService {
 				ext = '';
 			}
 
-			const baseUrl = meta.objectStorageBaseUrl
-				?? `${ meta.objectStorageUseSSL ? 'https' : 'http' }://${ meta.objectStorageEndpoint }${ meta.objectStoragePort ? `:${meta.objectStoragePort}` : '' }/${ meta.objectStorageBucket }`;
+			const baseUrl = this.meta.objectStorageBaseUrl
+				?? `${ this.meta.objectStorageUseSSL ? 'https' : 'http' }://${ this.meta.objectStorageEndpoint }${ this.meta.objectStoragePort ? `:${this.meta.objectStoragePort}` : '' }/${ this.meta.objectStorageBucket }`;
 
 			// for original
-			const key = `${meta.objectStoragePrefix}/${randomUUID()}${ext}`;
+			const key = `${this.meta.objectStoragePrefix}/${randomUUID()}${ext}`;
 			const url = `${ baseUrl }/${ key }`;
 
 			// for alts
@@ -189,7 +194,7 @@ export class DriveService {
 			];
 
 			if (alts.webpublic) {
-				webpublicKey = `${meta.objectStoragePrefix}/webpublic-${randomUUID()}.${alts.webpublic.ext}`;
+				webpublicKey = `${this.meta.objectStoragePrefix}/webpublic-${randomUUID()}.${alts.webpublic.ext}`;
 				webpublicUrl = `${ baseUrl }/${ webpublicKey }`;
 
 				this.registerLogger.info(`uploading webpublic: ${webpublicKey}`);
@@ -197,7 +202,7 @@ export class DriveService {
 			}
 
 			if (alts.thumbnail) {
-				thumbnailKey = `${meta.objectStoragePrefix}/thumbnail-${randomUUID()}.${alts.thumbnail.ext}`;
+				thumbnailKey = `${this.meta.objectStoragePrefix}/thumbnail-${randomUUID()}.${alts.thumbnail.ext}`;
 				thumbnailUrl = `${ baseUrl }/${ thumbnailKey }`;
 
 				this.registerLogger.info(`uploading thumbnail: ${thumbnailKey}`);
@@ -220,31 +225,41 @@ export class DriveService {
 			file.size = size;
 			file.storedInternal = false;
 
-			return await this.driveFilesRepository.insert(file).then(x => this.driveFilesRepository.findOneByOrFail(x.identifiers[0]));
+			return await this.driveFilesRepository.insertOne(file);
 		} else { // use internal storage
-			const accessKey = randomUUID();
-			const thumbnailAccessKey = 'thumbnail-' + randomUUID();
-			const webpublicAccessKey = 'webpublic-' + randomUUID();
+			const ext = FILE_TYPE_BROWSERSAFE.includes(type) ? info.type.ext : null;
 
-			const url = this.internalStorageService.saveFromPath(accessKey, path);
+			const accessKey = makeFileKey(ext);
+			const thumbnailAccessKey = makeFileKey(ext, 'thumbnail');
+			const webpublicAccessKey = makeFileKey(ext, 'webpublic');
 
-			let thumbnailUrl: string | null = null;
-			let webpublicUrl: string | null = null;
+			// Ugly type is just to help TS figure out that 2nd / 3rd promises are optional.
+			const promises: [Promise<string>, ...(Promise<string> | undefined)[]] = [
+				this.internalStorageService.saveFromPath(accessKey, path),
+			];
 
 			if (alts.thumbnail) {
-				thumbnailUrl = this.internalStorageService.saveFromBuffer(thumbnailAccessKey, alts.thumbnail.data);
-				this.registerLogger.info(`thumbnail stored: ${thumbnailAccessKey}`);
+				promises.push(this.internalStorageService.saveFromBuffer(thumbnailAccessKey, alts.thumbnail.data));
 			}
 
 			if (alts.webpublic) {
-				webpublicUrl = this.internalStorageService.saveFromBuffer(webpublicAccessKey, alts.webpublic.data);
+				promises.push(this.internalStorageService.saveFromBuffer(webpublicAccessKey, alts.webpublic.data));
+			}
+
+			const [url, thumbnailUrl, webpublicUrl] = await Promise.all(promises);
+
+			if (thumbnailUrl) {
+				this.registerLogger.info(`thumbnail stored: ${thumbnailAccessKey}`);
+			}
+
+			if (webpublicUrl) {
 				this.registerLogger.info(`web stored: ${webpublicAccessKey}`);
 			}
 
 			file.storedInternal = true;
 			file.url = url;
-			file.thumbnailUrl = thumbnailUrl;
-			file.webpublicUrl = webpublicUrl;
+			file.thumbnailUrl = thumbnailUrl ?? null;
+			file.webpublicUrl = webpublicUrl ?? null;
 			file.accessKey = accessKey;
 			file.thumbnailAccessKey = thumbnailAccessKey;
 			file.webpublicAccessKey = webpublicAccessKey;
@@ -254,7 +269,7 @@ export class DriveService {
 			file.md5 = hash;
 			file.size = size;
 
-			return await this.driveFilesRepository.insert(file).then(x => this.driveFilesRepository.findOneByOrFail(x.identifiers[0]));
+			return await this.driveFilesRepository.insertOne(file);
 		}
 	}
 
@@ -374,10 +389,8 @@ export class DriveService {
 		if (type === 'image/apng') type = 'image/png';
 		if (!FILE_TYPE_BROWSERSAFE.includes(type)) type = 'application/octet-stream';
 
-		const meta = await this.metaService.fetch();
-
 		const params = {
-			Bucket: meta.objectStorageBucket,
+			Bucket: this.meta.objectStorageBucket,
 			Key: key,
 			Body: stream,
 			ContentType: type,
@@ -390,9 +403,9 @@ export class DriveService {
 			// 許可されているファイル形式でしか拡張子をつけない
 			ext ? correctFilename(filename, ext) : filename,
 		);
-		if (meta.objectStorageSetPublicRead) params.ACL = 'public-read';
+		if (this.meta.objectStorageSetPublicRead) params.ACL = 'public-read';
 
-		await this.s3Service.upload(meta, params)
+		await this.s3Service.upload(this.meta, params)
 			.then(
 				result => {
 					if ('Bucket' in result) { // CompleteMultipartUploadCommandOutput
@@ -461,9 +474,7 @@ export class DriveService {
 		requestHeaders = null,
 		ext = null,
 	}: AddFileArgs): Promise<MiDriveFile> {
-		const instance = await this.metaService.fetch();
 		const userRoleNSFW = user && (await this.roleService.getUserPolicies(user.id)).alwaysMarkNsfw;
-
 		const info = await this.fileInfoService.getFileInfo(path);
 		this.registerLogger.info(`${JSON.stringify(info)}`);
 
@@ -477,14 +488,20 @@ export class DriveService {
 
 		if (user && !force) {
 		// Check if there is a file with the same hash
-			const much = await this.driveFilesRepository.findOneBy({
+			const matched = await this.driveFilesRepository.findOneBy({
 				md5: info.md5,
 				userId: user.id,
 			});
 
-			if (much) {
-				this.registerLogger.info(`file with same hash is found: ${much.id}`);
-				return much;
+			if (matched) {
+				this.registerLogger.info(`file with same hash is found: ${matched.id}`);
+				if (sensitive && !matched.isSensitive) {
+					// The file is federated as sensitive for this time, but was federated as non-sensitive before.
+					// Therefore, update the file to sensitive.
+					await this.driveFilesRepository.update({ id: matched.id }, { isSensitive: true });
+					matched.isSensitive = true;
+				}
+				return matched;
 			}
 		}
 
@@ -557,10 +574,11 @@ export class DriveService {
 		file.maybeSensitive = info.sensitive;
 		file.maybePorn = info.porn;
 		file.isSensitive = user
-			? this.userEntityService.isLocalUser(user) && profile!.alwaysMarkNsfw ? true :
+			? this.userEntityService.isLocalUser(user) && (profile!.alwaysMarkNsfw || profile!.defaultSensitive) ? true :
 			sensitive ?? false
 			: false;
 
+		if (user && this.utilityService.isMediaSilencedHost(this.meta.mediaSilencedHosts, user.host)) file.isSensitive = true;
 		if (info.sensitive && profile!.autoSensitive) file.isSensitive = true;
 		if (userRoleNSFW) file.isSensitive = true;
 
@@ -588,7 +606,7 @@ export class DriveService {
 				file.type = info.type.mime;
 				file.storedInternal = false;
 
-				file = await this.driveFilesRepository.insert(file).then(x => this.driveFilesRepository.findOneByOrFail(x.identifiers[0]));
+				file = await this.driveFilesRepository.insertOne(file);
 			} catch (err) {
 			// duplicate key error (when already registered)
 				if (isDuplicateKeyValueError(err)) {
@@ -604,7 +622,7 @@ export class DriveService {
 				}
 			}
 		} else {
-			file = await (this.save(file, path, detectedName, info.type.mime, info.md5, info.size));
+			file = await (this.save(file, path, detectedName, info));
 		}
 
 		this.registerLogger.succ(`drive file has been created ${file.id}`);
@@ -622,7 +640,7 @@ export class DriveService {
 			// ローカルユーザーのみ
 			this.perUserDriveChart.update(file, true);
 		} else {
-			if ((await this.metaService.fetch()).enableChartsForFederatedInstances) {
+			if (this.meta.enableChartsForFederatedInstances) {
 				this.instanceChart.updateDrive(file, true);
 			}
 		}
@@ -632,7 +650,8 @@ export class DriveService {
 
 	@bindThis
 	public async updateFile(file: MiDriveFile, values: Partial<MiDriveFile>, updater: MiUser) {
-		const alwaysMarkNsfw = (await this.roleService.getUserPolicies(file.userId)).alwaysMarkNsfw;
+		const profile = file.userId ? await this.userProfilesRepository.findOneBy({ userId: file.userId }) : null;
+		const alwaysMarkNsfw = file.userId ? (await this.roleService.getUserPolicies(file.userId)).alwaysMarkNsfw || (profile !== null && profile!.alwaysMarkNsfw) : false;
 
 		if (values.name != null && !this.driveFileEntityService.validateFileName(values.name)) {
 			throw new DriveService.InvalidFileNameError();
@@ -715,19 +734,19 @@ export class DriveService {
 
 	@bindThis
 	public async deleteFileSync(file: MiDriveFile, isExpired = false, deleter?: MiUser) {
+		const promises = [];
+
 		if (file.storedInternal) {
-			this.internalStorageService.del(file.accessKey!);
+			promises.push(this.internalStorageService.del(file.accessKey!));
 
 			if (file.thumbnailUrl) {
-				this.internalStorageService.del(file.thumbnailAccessKey!);
+				promises.push(this.internalStorageService.del(file.thumbnailAccessKey!));
 			}
 
 			if (file.webpublicUrl) {
-				this.internalStorageService.del(file.webpublicAccessKey!);
+				promises.push(this.internalStorageService.del(file.webpublicAccessKey!));
 			}
 		} else if (!file.isLink) {
-			const promises = [];
-
 			promises.push(this.deleteObjectStorageFile(file.accessKey!));
 
 			if (file.thumbnailUrl) {
@@ -737,9 +756,9 @@ export class DriveService {
 			if (file.webpublicUrl) {
 				promises.push(this.deleteObjectStorageFile(file.webpublicAccessKey!));
 			}
-
-			await Promise.all(promises);
 		}
+
+		await Promise.all(promises);
 
 		this.deletePostProcess(file, isExpired, deleter);
 	}
@@ -768,7 +787,7 @@ export class DriveService {
 			// ローカルユーザーのみ
 			this.perUserDriveChart.update(file, false);
 		} else {
-			if ((await this.metaService.fetch()).enableChartsForFederatedInstances) {
+			if (this.meta.enableChartsForFederatedInstances) {
 				this.instanceChart.updateDrive(file, false);
 			}
 		}
@@ -790,14 +809,13 @@ export class DriveService {
 
 	@bindThis
 	public async deleteObjectStorageFile(key: string) {
-		const meta = await this.metaService.fetch();
 		try {
 			const param = {
-				Bucket: meta.objectStorageBucket,
+				Bucket: this.meta.objectStorageBucket,
 				Key: key,
 			} as DeleteObjectCommandInput;
 
-			await this.s3Service.delete(meta, param);
+			await this.s3Service.delete(this.meta, param);
 		} catch (err: any) {
 			if (err.name === 'NoSuchKey') {
 				this.deleteLogger.warn(`The object storage had no such key to delete: ${key}. Skipping this.`, err as Error);
@@ -849,4 +867,17 @@ export class DriveService {
 			cleanup();
 		}
 	}
+}
+
+function makeFileKey(ext: string | null, prefix?: string): string {
+	const parts: string[] = [randomUUID()];
+
+	if (prefix) {
+		parts.unshift(prefix, '-');
+	}
+	if (ext) {
+		parts.push('.', ext);
+	}
+
+	return parts.join('');
 }

@@ -13,6 +13,12 @@ export const meta = {
 	requireCredential: true,
 
 	kind: 'write:notifications',
+
+	// 2 calls per 10 seconds
+	limit: {
+		duration: 1000 * 10,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

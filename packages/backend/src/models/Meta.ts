@@ -84,7 +84,17 @@ export class MiMeta {
 	@Column('varchar', {
 		length: 1024, array: true, default: '{}',
 	})
+	public prohibitedWordsForNameOfUser: string[];
+
+	@Column('varchar', {
+		length: 1024, array: true, default: '{}',
+	})
 	public silencedHosts: string[];
+
+	@Column('varchar', {
+		length: 1024, array: true, default: '{}',
+	})
+	public mediaSilencedHosts: string[];
 
 	@Column('varchar', {
 		length: 1024,
@@ -133,6 +143,12 @@ export class MiMeta {
 		nullable: true,
 	})
 	public app512IconUrl: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public sidebarLogoUrl: string | null;
 
 	@Column('varchar', {
 		length: 1024,
@@ -258,6 +274,28 @@ export class MiMeta {
 	})
 	public turnstileSecretKey: string | null;
 
+	@Column('boolean', {
+		default: false,
+	})
+	public enableFC: boolean;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public fcSiteKey: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public fcSecretKey: string | null;
+
+	@Column('boolean', {
+		default: false,
+	})
+	public enableTestcaptcha: boolean;
+
 	// chaptcha系を追加した際にはnodeinfoのレスポンスに追加するのを忘れないようにすること
 
 	@Column('enum', {
@@ -286,12 +324,6 @@ export class MiMeta {
 		default: true,
 	})
 	public enableBotTrending: boolean;
-
-	@Column('varchar', {
-		length: 1024,
-		nullable: true,
-	})
-	public summalyProxy: string | null;
 
 	@Column('boolean', {
 		default: false,
@@ -408,6 +440,12 @@ export class MiMeta {
 		nullable: true,
 	})
 	public donationUrl: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public inquiryUrl: string | null;
 
 	@Column('varchar', {
 		length: 8192,
@@ -542,6 +580,11 @@ export class MiMeta {
 	public enableChartsForFederatedInstances: boolean;
 
 	@Column('boolean', {
+		default: true,
+	})
+	public enableStatsForFederatedInstances: boolean;
+
+	@Column('boolean', {
 		default: false,
 	})
 	public enableServerMachineStats: boolean;
@@ -555,6 +598,11 @@ export class MiMeta {
 		default: true,
 	})
 	public enableAchievements: boolean;
+
+	@Column('varchar', {
+		length: 2048, nullable: true,
+	})
+	public robotsTxt: string | null;
 
 	@Column('jsonb', {
 		default: { },
@@ -616,6 +664,11 @@ export class MiMeta {
 	})
 	public perUserListTimelineCacheMax: number;
 
+	@Column('boolean', {
+		default: false,
+	})
+	public enableReactionsBuffering: boolean;
+
 	@Column('integer', {
 		default: 0,
 	})
@@ -631,4 +684,57 @@ export class MiMeta {
 		length: 256, array: true, default: '{}',
 	})
 	public bubbleInstances: string[];
+
+	@Column('boolean', {
+		default: true,
+	})
+	public urlPreviewEnabled: boolean;
+
+	@Column('integer', {
+		default: 10000,
+	})
+	public urlPreviewTimeout: number;
+
+	@Column('bigint', {
+		default: 1024 * 1024 * 10,
+	})
+	public urlPreviewMaximumContentLength: number;
+
+	@Column('boolean', {
+		default: true,
+	})
+	public urlPreviewRequireContentLength: boolean;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public urlPreviewSummaryProxyUrl: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public urlPreviewUserAgent: string | null;
+
+	@Column('varchar', {
+		length: 3072,
+		array: true,
+		default: '{}',
+		comment: 'An array of URL strings or regex that can be used to omit warnings about redirects to external sites. Separate them with spaces to specify AND, and enclose them with slashes to specify regular expressions. Each item is regarded as an OR.',
+	})
+	public trustedLinkUrlPatterns: string[];
+
+	@Column('varchar', {
+		length: 128,
+		default: 'all',
+	})
+	public federation: 'all' | 'specified' | 'none';
+
+	@Column('varchar', {
+		length: 1024,
+		array: true,
+		default: '{}',
+	})
+	public federationHosts: string[];
 }

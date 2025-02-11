@@ -6,7 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
-import type { DriveFilesRepository } from '@/models/_.js';
+import type { DriveFilesRepository, MiEmoji } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
 
@@ -79,25 +79,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (driveFile == null) throw new ApiError(meta.errors.noSuchFile);
 			}
 
-			let emojiId;
-			if (ps.id) {
-				emojiId = ps.id;
-				const emoji = await this.customEmojiService.getEmojiById(ps.id);
-				if (!emoji) throw new ApiError(meta.errors.noSuchEmoji);
-				if (nameNfc && (nameNfc !== emoji.name)) {
-					const isDuplicate = await this.customEmojiService.checkDuplicate(nameNfc);
-					if (isDuplicate) throw new ApiError(meta.errors.sameNameEmojiExists);
-				}
-			} else {
-				if (!nameNfc) throw new Error('Invalid Params unexpectedly passed. This is a BUG. Please report it to the development team.');
-				const emoji = await this.customEmojiService.getEmojiByName(nameNfc);
-				if (!emoji) throw new ApiError(meta.errors.noSuchEmoji);
-				emojiId = emoji.id;
-			}
+			// JSON schemeのanyOfの型変換がうまくいっていないらしい
+			const required = { id: ps.id, name: nameNfc } as
+				| { id: MiEmoji['id']; name?: string }
+				| { id?: MiEmoji['id']; name: string };
 
-			await this.customEmojiService.update(emojiId, {
+			const error = await this.customEmojiService.update({
+				...required,
 				driveFile,
-				name: nameNfc,
 				category: ps.category?.normalize('NFC'),
 				aliases: ps.aliases?.map(a => a.normalize('NFC')),
 				license: ps.license,
@@ -105,6 +94,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				localOnly: ps.localOnly,
 				roleIdsThatCanBeUsedThisEmojiAsReaction: ps.roleIdsThatCanBeUsedThisEmojiAsReaction,
 			}, me);
+
+			switch (error) {
+				case null: return;
+				case 'NO_SUCH_EMOJI': throw new ApiError(meta.errors.noSuchEmoji);
+				case 'SAME_NAME_EMOJI_EXISTS': throw new ApiError(meta.errors.sameNameEmojiExists);
+			}
+			// 網羅性チェック
+			const mustBeNever: never = error;
 		});
 	}
 }

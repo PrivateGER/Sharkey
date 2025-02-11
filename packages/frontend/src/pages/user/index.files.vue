@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkContainer :max-height="300" :foldable="true">
-	<template #icon><i class="ph-image-square ph-bold ph-lg"></i></template>
+<MkContainer :max-height="300" :foldable="true" :expanded="!collapsed">
+	<template #icon><i class="ti ti-photo"></i></template>
 	<template #header>{{ i18n.ts.files }}</template>
 	<div :class="$style.root">
 		<MkLoading v-if="fetching"/>
@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<ImgWithBlurhash :class="$style.sensitiveImg" :hash="file.file.blurhash" :src="thumbnail(file.file)" :title="file.file.name" :forceBlurhash="true"/>
 					<div :class="$style.sensitive">
 						<div>
-							<div><i class="ph-eye-slash ph-bold ph-lg"></i> {{ i18n.ts.sensitive }}</div>
+							<div><i class="ti ti-eye-exclamation"></i> {{ i18n.ts.sensitive }}</div>
 							<div>{{ i18n.ts.clickToShow }}</div>
 						</div>
 					</div>
@@ -43,9 +43,12 @@ import ImgWithBlurhash from '@/components/MkImgWithBlurhash.vue';
 import { defaultStore } from '@/store.js';
 import { i18n } from '@/i18n.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
-}>();
+	collapsed?: boolean;
+}>(), {
+	collapsed: false,
+});
 
 const fetching = ref(true);
 const files = ref<{
@@ -93,7 +96,7 @@ onMounted(() => {
 .img {
 	position: relative;
 	height: 128px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 }
 

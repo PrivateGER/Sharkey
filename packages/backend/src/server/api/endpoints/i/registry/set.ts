@@ -10,6 +10,12 @@ import { RegistryApiService } from '@/core/RegistryApiService.js';
 export const meta = {
 	requireCredential: true,
 	kind: 'write:account',
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {

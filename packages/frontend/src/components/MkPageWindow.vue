@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:buttonsLeft="buttonsLeft"
 	:buttonsRight="buttonsRight"
 	:contextmenu="contextmenu"
-	@closed="$emit('closed')"
+	@closed="emit('closed')"
 >
 	<template #header>
 		<template v-if="pageMetadata">
@@ -30,17 +30,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, provide, ref, shallowRef } from 'vue';
+import { url } from '@@/js/config.js';
+import { getScrollContainer } from '@@/js/scroll.js';
 import RouterView from '@/components/global/RouterView.vue';
 import MkWindow from '@/components/MkWindow.vue';
 import { popout as _popout } from '@/scripts/popout.js';
-import copyToClipboard from '@/scripts/copy-to-clipboard.js';
-import { url } from '@/config.js';
+import { copyToClipboard } from '@/scripts/copy-to-clipboard.js';
 import { useScrollPositionManager } from '@/nirax.js';
 import { i18n } from '@/i18n.js';
 import { PageMetadata, provideMetadataReceiver, provideReactiveMetadata } from '@/scripts/page-metadata.js';
 import { openingWindowsCount } from '@/os.js';
 import { claimAchievement } from '@/scripts/achievements.js';
-import { getScrollContainer } from '@/scripts/scroll.js';
 import { useRouterFactory } from '@/router/supplier.js';
 import { mainRouter } from '@/router/main.js';
 import MkUserName from './global/MkUserName.vue';
@@ -49,7 +49,7 @@ const props = defineProps<{
 	initialPath: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
@@ -59,7 +59,7 @@ const windowRouter = routerFactory(props.initialPath);
 const contents = shallowRef<HTMLElement | null>(null);
 const pageMetadata = ref<null | PageMetadata>(null);
 const windowEl = shallowRef<InstanceType<typeof MkWindow>>();
-const history = ref<{ path: string; key: any; }[]>([{
+const history = ref<{ path: string; key: string; }[]>([{
 	path: windowRouter.getCurrentPath(),
 	key: windowRouter.getCurrentKey(),
 }]);
@@ -68,7 +68,7 @@ const buttonsLeft = computed(() => {
 
 	if (history.value.length > 1) {
 		buttons.push({
-			icon: 'ph-arrow-left ph-bold ph-lg',
+			icon: 'ti ti-arrow-left',
 			onClick: back,
 		});
 	}
@@ -77,11 +77,11 @@ const buttonsLeft = computed(() => {
 });
 const buttonsRight = computed(() => {
 	const buttons = [{
-		icon: 'ph-arrows-clockwise ph-bold ph-lg',
+		icon: 'ti ti-reload',
 		title: i18n.ts.reload,
 		onClick: reload,
 	}, {
-		icon: 'ph-eject ph-bold ph-lg',
+		icon: 'ti ti-player-eject',
 		title: i18n.ts.showInPage,
 		onClick: expand,
 	}];
@@ -113,22 +113,22 @@ provide('forceSpacerMin', true);
 provide('shouldBackButton', false);
 
 const contextmenu = computed(() => ([{
-	icon: 'ph-eject ph-bold ph-lg',
+	icon: 'ti ti-player-eject',
 	text: i18n.ts.showInPage,
 	action: expand,
 }, {
-	icon: 'ph-frame-corners ph-bold ph-lg',
+	icon: 'ti ti-window-maximize',
 	text: i18n.ts.popout,
 	action: popout,
 }, {
-	icon: 'ph-arrow-square-out ph-bold ph-lg',
+	icon: 'ti ti-external-link',
 	text: i18n.ts.openInNewTab,
 	action: () => {
 		window.open(url + windowRouter.getCurrentPath(), '_blank', 'noopener');
 		windowEl.value?.close();
 	},
 }, {
-	icon: 'ph-link ph-bold ph-lg',
+	icon: 'ti ti-link',
 	text: i18n.ts.copyLink,
 	action: () => {
 		copyToClipboard(url + windowRouter.getCurrentPath());
@@ -181,8 +181,8 @@ defineExpose({
 	overscroll-behavior: contain;
 
 	min-height: 100%;
-	background: var(--bg);
+	background: var(--MI_THEME-bg);
 
-	--margin: var(--marginHalf);
+	--MI-margin: var(--MI-marginHalf);
 }
 </style>

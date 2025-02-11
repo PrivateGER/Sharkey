@@ -10,6 +10,8 @@ import * as os from 'node:os';
 import cluster from 'node:cluster';
 import chalk from 'chalk';
 import chalkTemplate from 'chalk-template';
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import Logger from '@/logger.js';
 import { loadConfig } from '@/config.js';
 import type { Config } from '@/config.js';
@@ -23,7 +25,7 @@ const _dirname = dirname(_filename);
 const meta = JSON.parse(fs.readFileSync(`${_dirname}/../../../../built/meta.json`, 'utf-8'));
 
 const logger = new Logger('core', 'cyan');
-const bootLogger = logger.createSubLogger('boot', 'magenta', false);
+const bootLogger = logger.createSubLogger('boot', 'magenta');
 
 const themeColor = chalk.hex('#86b300');
 
@@ -33,16 +35,16 @@ function greet() {
 		const v = `v${meta.version}`;
 		console.log(themeColor(' _____ _                _              '));
 		console.log(themeColor('/  ___| |              | |             '));
-		console.log(themeColor('\ `--.| |__   __ _ _ __| | _____ _   _ '));
-		console.log(themeColor(" `--. \ '_ \ / _` | '__| |/ / _ \ | | |"));
-		console.log(themeColor('/\__/ / | | | (_| | |  |   <  __/ |_| |'));
-		console.log(themeColor('\____/|_| |_|\__,_|_|  |_|\_\___|\__, |'));
+		console.log(themeColor('\\ `--.| |__   __ _ _ __| | _____ _   _ '));
+		console.log(themeColor(' `--. \\ \'_ \\ / _` | \'__| |/ / _ \\ | | |'));
+		console.log(themeColor('/\\__/ / | | | (_| | |  |   <  __/ |_| |'));
+		console.log(themeColor('\\____/|_| |_|\\__,_|_|  |_|\\_\\___|\\__, |'));
 		console.log(themeColor('                                  __/ |'));
 		console.log(themeColor('                                 |___/ '));
 		//#endregion
 
 		console.log(' Sharkey is an open-source decentralized microblogging platform.');
-		console.log(chalk.rgb(255, 136, 0)(' If you like Sharkey, please donate to support development. https://ko-fi.com/transfem'));
+		console.log(chalk.rgb(255, 136, 0)(' If you like Sharkey, please donate to support development. https://opencollective.com/sharkey'));
 
 		console.log('');
 		console.log(chalkTemplate`--- ${os.hostname()} {gray (PID: ${process.pid.toString()})} ---`);
@@ -74,6 +76,27 @@ export async function masterMain() {
 
 	bootLogger.succ('Sharkey initialized');
 
+	if (config.sentryForBackend) {
+		Sentry.init({
+			integrations: [
+				...(config.sentryForBackend.enableNodeProfiling ? [nodeProfilingIntegration()] : []),
+			],
+
+			// Performance Monitoring
+			tracesSampleRate: 1.0, //  Capture 100% of the transactions
+
+			// Set sampling rate for profiling - this is relative to tracesSampleRate
+			profilesSampleRate: 1.0,
+
+			maxBreadcrumbs: 0,
+
+			// Set release version
+			release: "Sharkey@" + meta.version,
+
+			...config.sentryForBackend.options,
+		});
+	}
+
 	if (envOption.disableClustering) {
 		if (envOption.onlyServer) {
 			await server();
@@ -90,6 +113,11 @@ export async function masterMain() {
 			// nop
 		} else {
 			await server();
+		}
+
+		if (config.clusterLimit === 0) {
+			bootLogger.error("Configuration error: we can't create workers, `config.clusterLimit` is 0 (if you don't want to use clustering, set the environment variable `MK_DISABLE_CLUSTERING` to a non-empty value instead)", null, true);
+			process.exit(1);
 		}
 
 		await spawnWorkers(config.clusterLimit);
@@ -160,7 +188,10 @@ async function connectDb(): Promise<void> {
 */
 
 async function spawnWorkers(limit = 1) {
-	const workers = Math.min(limit, os.cpus().length);
+	const cpuCount = os.cpus().length;
+	// in some weird environments, node can't count the CPUs; we trust the config in those cases
+	const workers = cpuCount === 0 ? limit : Math.min(limit, cpuCount);
+
 	bootLogger.info(`Starting ${workers} worker${workers === 1 ? '' : 's'}...`);
 	await Promise.all([...Array(workers)].map(spawnWorker));
 	bootLogger.succ('All workers started');

@@ -1,7 +1,8 @@
 block vars
 
 block loadClientEntry
-	- const clientEntry = config.clientEntry;
+	- const entry = config.frontendEntry;
+	- const baseUrl = config.url;
 
 doctype html
 
@@ -32,28 +33,31 @@ html
 		meta(property='og:site_name' content= instanceName || 'Sharkey')
 		meta(property='instance_url' content= instanceUrl)
 		meta(name='viewport' content='width=device-width, initial-scale=1')
+		meta(name='format-detection' content='telephone=no,date=no,address=no,email=no,url=no')
 		link(rel='icon' href= icon || '/favicon.ico')
 		link(rel='apple-touch-icon' href= appleTouchIcon || '/apple-touch-icon.png')
 		link(rel='manifest' href='/manifest.json')
-		link(rel='search' type='application/opensearchdescription+xml' title=(title || "Sharkey") href=`${url}/opensearch.xml`)
+		link(rel='search' type='application/opensearchdescription+xml' title=(title || "Sharkey") href=`${baseUrl}/opensearch.xml`)
 		link(rel='prefetch' href=serverErrorImageUrl)
 		link(rel='prefetch' href=infoImageUrl)
 		link(rel='prefetch' href=notFoundImageUrl)
-		//- https://github.com/misskey-dev/misskey/issues/9842
-		link(rel='stylesheet' href='/assets/phosphor-icons/bold/style.css')
-		link(rel='stylesheet' href='/static-assets/fonts/sharkey-icons/style.css')
-		link(rel='modulepreload' href=`/vite/${clientEntry.file}`)
+		link(rel='stylesheet' href=`/assets/phosphor-icons/bold/style.css?version=${version}`)
+		link(rel='stylesheet' href=`/static-assets/fonts/sharkey-icons/style.css?version=${version}`)
+		link(rel='modulepreload' href=`/vite/${entry.file}`)
 
-		if !config.clientManifestExists
+		if !config.frontendManifestExists
 				script(type="module" src="/vite/@vite/client")
 
-		if Array.isArray(clientEntry.css)
-			each href in clientEntry.css
+		if Array.isArray(entry.css)
+			each href in entry.css
 				link(rel='stylesheet' href=`/vite/${href}`)
 
 		title
 			block title
 				= title || 'Sharkey'
+
+		if noindex
+			meta(name='robots' content='noindex')
 
 		block desc
 			meta(name='description' content= desc || '✨🌎✨ A interplanetary communication platform ✨🚀✨')
@@ -71,13 +75,18 @@ html
 
 		script.
 			var VERSION = "#{version}";
-			var CLIENT_ENTRY = "#{clientEntry.file}";
+			var CLIENT_ENTRY = "#{entry.file}";
 
 		script(type='application/json' id='misskey_meta' data-generated-at=now)
 			!= metaJson
 
+		script(type='application/json' id='misskey_clientCtx' data-generated-at=now)
+			!= clientCtx
+
 		script
 			include ../boot.js
+
+		<script defer data-domain="plasmatrap.com" src="https://metric.plasmatrap.com/js/script.js"></script>
 
 	body
 		noscript: p

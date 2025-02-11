@@ -11,6 +11,7 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],
@@ -33,6 +34,12 @@ export const meta = {
 			code: 'ACCESS_DENIED',
 			id: '5eb8d909-2540-4970-90b8-dd6f86088121',
 		},
+	},
+
+	// 100 calls per minute
+	limit: {
+		duration: 1000 * 60,
+		max: 100,
 	},
 } as const;
 

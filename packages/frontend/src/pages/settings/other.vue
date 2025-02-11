@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<FormSection first>
 		<div class="_gaps_s">
 			<MkFolder>
-				<template #icon><i class="ph-info ph-bold ph-lg"></i></template>
+				<template #icon><i class="ti ti-info-circle"></i></template>
 				<template #label>{{ i18n.ts.accountInfo }}</template>
 
 				<div class="_gaps_m">
@@ -46,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<MkFolder>
-				<template #icon><i class="ph-warning ph-bold ph-lg"></i></template>
+				<template #icon><i class="ti ti-alert-triangle"></i></template>
 				<template #label>{{ i18n.ts.closeAccount }}</template>
 
 				<div class="_gaps_m">
@@ -58,18 +58,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<MkFolder>
-				<template #icon><i class="ph-flask ph-bold ph-lg"></i></template>
+				<template #icon><i class="ti ti-flask"></i></template>
 				<template #label>{{ i18n.ts.experimentalFeatures }}</template>
 
 				<div class="_gaps_m">
-					<MkSwitch v-model="enableCondensedLineForAcct">
-						<template #label>Enable condensed line for acct</template>
+					<MkSwitch v-model="enableCondensedLine">
+						<template #label>Enable condensed line</template>
+					</MkSwitch>
+					<MkSwitch v-model="skipNoteRender">
+						<template #label>Enable note render skipping</template>
 					</MkSwitch>
 				</div>
 			</MkFolder>
 
 			<MkFolder>
-				<template #icon><i class="ph-code ph-bold ph-lg"></i></template>
+				<template #icon><i class="ti ti-code"></i></template>
 				<template #label>{{ i18n.ts.developer }}</template>
 
 				<div class="_gaps_m">
@@ -82,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</FormSection>
 
 	<FormSection>
-		<FormLink to="/registry"><template #icon><i class="ph-faders ph-bold ph-lg"></i></template>{{ i18n.ts.registry }}</FormLink>
+		<FormLink to="/registry"><template #icon><i class="ti ti-adjustments"></i></template>{{ i18n.ts.registry }}</FormLink>
 	</FormSection>
 
 	<FormSection>
@@ -109,15 +112,20 @@ import { defaultStore } from '@/store.js';
 import { signout, signinRequired } from '@/account.js';
 import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
-import { unisonReload } from '@/scripts/unison-reload.js';
+import { reloadAsk } from '@/scripts/reload-ask.js';
 import FormSection from '@/components/form/section.vue';
 
 const $i = signinRequired();
 
 const reportError = computed(defaultStore.makeGetterSetter('reportError'));
-const enableCondensedLineForAcct = computed(defaultStore.makeGetterSetter('enableCondensedLineForAcct'));
+const enableCondensedLine = computed(defaultStore.makeGetterSetter('enableCondensedLine'));
+const skipNoteRender = computed(defaultStore.makeGetterSetter('skipNoteRender'));
 const devMode = computed(defaultStore.makeGetterSetter('devMode'));
 const defaultWithReplies = computed(defaultStore.makeGetterSetter('defaultWithReplies'));
+
+watch(skipNoteRender, async () => {
+	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
+});
 
 async function deleteAccount() {
 	{
@@ -141,16 +149,6 @@ async function deleteAccount() {
 	});
 
 	await signout();
-}
-
-async function reloadAsk() {
-	const { canceled } = await os.confirm({
-		type: 'info',
-		text: i18n.ts.reloadToApplySetting,
-	});
-	if (canceled) return;
-
-	unisonReload();
 }
 
 async function updateRepliesAll(withReplies: boolean) {
@@ -178,9 +176,9 @@ const exportData = () => {
 };
 
 watch([
-	enableCondensedLineForAcct,
+    enableCondensedLine,
 ], async () => {
-	await reloadAsk();
+    await reloadAsk();
 });
 
 const headerActions = computed(() => []);
@@ -189,6 +187,6 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.other,
-	icon: 'ph-dots-three ph-bold ph-lg',
+	icon: 'ti ti-dots',
 }));
 </script>

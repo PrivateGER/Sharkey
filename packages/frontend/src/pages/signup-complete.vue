@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.formContainer">
 		<form :class="$style.form" class="_panel" @submit.prevent="submit()">
 			<div :class="$style.banner">
-				<i class="ph-check ph-bold ph-lg"></i>
+				<i class="ti ti-user-check"></i>
 			</div>
 			<div class="_gaps_m" style="padding: 32px;">
 				<div>{{ i18n.tsx.clickToFinishEmailVerification({ ok: i18n.ts.gotIt }) }}</div>
@@ -78,7 +78,7 @@ place-content: center;
 .form {
 	position: relative;
 	z-index: 10;
-	border-radius: var(--radius);
+	border-radius: var(--MI-radius);
 	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 	overflow: clip;
 	max-width: 500px;
@@ -88,7 +88,7 @@ place-content: center;
 	padding: 16px;
 	text-align: center;
 	font-size: 26px;
-	background-color: var(--accentedBg);
-	color: var(--accent);
+	background-color: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
 }
 </style>

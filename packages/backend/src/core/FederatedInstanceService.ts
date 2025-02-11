@@ -12,6 +12,8 @@ import { IdService } from '@/core/IdService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { QueryFailedError } from 'typeorm';
+import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 
 @Injectable()
 export class FederatedInstanceService implements OnApplicationShutdown {
@@ -40,13 +42,14 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 					firstRetrievedAt: new Date(parsed.firstRetrievedAt),
 					latestRequestReceivedAt: parsed.latestRequestReceivedAt ? new Date(parsed.latestRequestReceivedAt) : null,
 					infoUpdatedAt: parsed.infoUpdatedAt ? new Date(parsed.infoUpdatedAt) : null,
+					notRespondingSince: parsed.notRespondingSince ? new Date(parsed.notRespondingSince) : null,
 				};
 			},
 		});
 	}
 
 	@bindThis
-	public async fetch(host: string): Promise<MiInstance> {
+	public async fetchOrRegister(host: string): Promise<MiInstance> {
 		host = this.utilityService.toPuny(host);
 
 		const cached = await this.federatedInstanceCache.get(host);
@@ -55,14 +58,45 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 		const index = await this.instancesRepository.findOneBy({ host });
 
 		if (index == null) {
-			const i = await this.instancesRepository.insert({
-				id: this.idService.gen(),
-				host,
-				firstRetrievedAt: new Date(),
-			}).then(x => this.instancesRepository.findOneByOrFail(x.identifiers[0]));
+			let i;
+			try {
+				i = await this.instancesRepository.insertOne({
+					id: this.idService.gen(),
+					host,
+					firstRetrievedAt: new Date(),
+				});
+			} catch (e: unknown) {
+				if (e instanceof QueryFailedError) {
+					if (isDuplicateKeyValueError(e)) {
+						i = await this.instancesRepository.findOneBy({ host });
+					}
+				}
+
+				if (i == null) {
+					throw e;
+				}
+			}
 
 			this.federatedInstanceCache.set(host, i);
 			return i;
+		} else {
+			this.federatedInstanceCache.set(host, index);
+			return index;
+		}
+	}
+
+	@bindThis
+	public async fetch(host: string): Promise<MiInstance | null> {
+		host = this.utilityService.toPuny(host);
+
+		const cached = await this.federatedInstanceCache.get(host);
+		if (cached !== undefined) return cached;
+
+		const index = await this.instancesRepository.findOneBy({ host });
+
+		if (index == null) {
+			this.federatedInstanceCache.set(host, null);
+			return null;
 		} else {
 			this.federatedInstanceCache.set(host, index);
 			return index;

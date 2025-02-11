@@ -3,13 +3,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { ref } from 'vue';
 import { Interpreter, Parser, utils, values } from '@syuilo/aiscript';
 import { aiScriptReadline, createAiScriptEnv } from '@/scripts/aiscript/api.js';
-import { inputText } from '@/os.js';
+import * as os from '@/os.js';
+import { i18n } from '@/i18n.js';
 import { Plugin, noteActions, notePostInterruptors, noteViewInterruptors, postFormActions, userActions, pageViewInterruptors } from '@/store.js';
+import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
 
 const parser = new Parser();
 const pluginContexts = new Map<string, Interpreter>();
+export const pluginLogs = ref(new Map<string, string[]>());
 
 export async function install(plugin: Plugin): Promise<void> {
 	// 後方互換性のため
@@ -22,21 +26,27 @@ export async function install(plugin: Plugin): Promise<void> {
 		in: aiScriptReadline,
 		out: (value): void => {
 			console.log(value);
+			pluginLogs.value.get(plugin.id).push(utils.reprValue(value));
 		},
 		log: (): void => {
+		},
+		err: (err): void => {
+			pluginLogs.value.get(plugin.id).push(`${err}`);
+			throw err; // install時のtry-catchに反応させる
 		},
 	});
 
 	initPlugin({ plugin, aiscript });
 
-	try {
-		await aiscript.exec(parser.parse(plugin.src));
-	} catch (err) {
-		console.error('Plugin install failed:', plugin.name, 'v' + plugin.version);
-		return;
-	}
-
-	console.info('Plugin installed:', plugin.name, 'v' + plugin.version);
+	aiscript.exec(parser.parse(plugin.src)).then(
+		() => {
+			console.info('Plugin installed:', plugin.name, 'v' + plugin.version);
+		},
+		(err) => {
+			console.error('Plugin install failed:', plugin.name, 'v' + plugin.version);
+			throw err;
+		},
+	);
 }
 
 function createPluginEnv(opts: { plugin: Plugin; storageKey: string }): Record<string, values.Value> {
@@ -84,7 +94,7 @@ function createPluginEnv(opts: { plugin: Plugin; storageKey: string }): Record<s
 		}),
 		'Plugin:open_url': values.FN_NATIVE(([url]) => {
 			utils.assertString(url);
-			window.open(url.value, '_blank', 'noopener');
+			warningExternalWebsite(url.value);
 		}),
 		'Plugin:config': values.OBJ(config),
 	};
@@ -92,6 +102,7 @@ function createPluginEnv(opts: { plugin: Plugin; storageKey: string }): Record<s
 
 function initPlugin({ plugin, aiscript }): void {
 	pluginContexts.set(plugin.id, aiscript);
+	pluginLogs.value.set(plugin.id, []);
 }
 
 function registerPostFormAction({ pluginId, title, handler }): void {

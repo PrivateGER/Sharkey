@@ -49,13 +49,14 @@ describe('detector', () => {
     })
   })
 
-  describe('wildebeest', () => {
-    const url = 'https://wildebeest.mirror-kt.dev'
-    it('should be mastodon', async () => {
-      const wildebeest = await detector(url)
-      expect(wildebeest).toEqual('mastodon')
-    })
-  })
+	// This domain no longer resolves, and resolution failures apparently crash jest
+  // describe('wildebeest', () => {
+  //   const url = 'https://wildebeest.mirror-kt.dev'
+  //   it('should be mastodon', async () => {
+  //     const wildebeest = await detector(url)
+  //     expect(wildebeest).toEqual('mastodon')
+  //   })
+  // })
 
   describe('unknown', () => {
     const url = 'https://google.com'

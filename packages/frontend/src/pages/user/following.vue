@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkStickyContainer>
-	<template #header><MkPageHeader :actions="headerActions" :tabs="headerTabs"/></template>
+	<template #header><MkPageHeader :actions="headerActions" :displayBackButton="true" :tabs="headerTabs"/></template>
 	<MkSpacer :contentMax="1000">
 		<Transition name="fade" mode="out-in">
 			<div v-if="user">
@@ -54,7 +54,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.user,
-	icon: 'ph-user ph-bold ph-lg',
+	icon: 'ti ti-user',
 	...user.value ? {
 		title: user.value.name ? `${user.value.name} (@${user.value.username})` : `@${user.value.username}`,
 		subtitle: i18n.ts.following,

@@ -5,10 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="[$style.root, { [$style.warn]: warn }]">
-	<i v-if="warn" class="ph-warning ph-bold ph-lg" :class="$style.i"></i>
-	<i v-else class="ph-info ph-bold ph-lg" :class="$style.i"></i>
+	<i v-if="warn" class="ti ti-alert-triangle" :class="$style.i"></i>
+	<i v-else class="ti ti-info-circle" :class="$style.i"></i>
 	<div><slot></slot></div>
-	<button v-if="closable" :class="$style.button" class="_button" @click="close()"><i class="ph-x ph-bold ph-lg"></i></button>
+	<button v-if="closable" :class="$style.button" class="_button" @click="close()"><i class="ti ti-x"></i></button>
 </div>
 </template>
 
@@ -36,15 +36,15 @@ function close() {
   align-items: center;
 	padding: 12px 14px;
 	font-size: 90%;
-	background: color-mix(in srgb, var(--infoBg) 65%, transparent);
-	color: var(--infoFg);
-	border-radius: var(--radius);
+	background: color-mix(in srgb, var(--MI_THEME-infoBg) 65%, transparent);
+	color: var(--MI_THEME-infoFg);
+	border-radius: var(--MI-radius);
 	white-space: pre-wrap;
 	z-index: 1;
 
 	&.warn {
-		background: color-mix(in srgb, var(--infoWarnBg) 65%, transparent);
-		color: var(--infoWarnFg);
+		background: color-mix(in srgb, var(--MI_THEME-infoWarnBg) 65%, transparent);
+		color: var(--MI_THEME-infoWarnFg);
 	}
 }
 

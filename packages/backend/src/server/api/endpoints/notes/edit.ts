@@ -11,7 +11,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { NoteEditService } from '@/core/NoteEditService.js';
 import { DI } from '@/di-symbols.js';
-import { isPureRenote } from '@/misc/is-pure-renote.js';
+import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { ApiError } from '../../error.js';
 
@@ -84,6 +84,12 @@ export const meta = {
 			message: 'You tried posting a note which is too long.',
 			code: 'MAX_LENGTH',
 			id: '3ac74a84-8fd5-4bb0-870f-01804f82ce16',
+		},
+
+		maxCwLength: {
+			message: 'You tried posting a content warning which is too long.',
+			code: 'MAX_CW_LENGTH',
+			id: '7004c478-bda3-4b4f-acb2-4316398c9d52',
 		},
 
 		cannotReplyToSpecifiedVisibilityNoteWithExtendedVisibility: {
@@ -197,7 +203,7 @@ export const paramDef = {
 				format: 'misskey:id',
 			},
 		},
-		cw: { type: 'string', nullable: true, minLength: 1, maxLength: 500 },
+		cw: { type: 'string', nullable: true, minLength: 1 },
 		localOnly: { type: 'boolean', default: false },
 		reactionAcceptance: { type: 'string', nullable: true, enum: [null, 'likeOnly', 'likeOnlyForRemote', 'nonSensitiveOnly', 'nonSensitiveOnlyForLocalLikeOnlyForRemote'], default: null },
 		noExtractMentions: { type: 'boolean', default: false },
@@ -297,9 +303,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEditService: NoteEditService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			if (ps.text && (ps.text.length > this.config.maxNoteLength)) {
+			if (ps.text && ps.text.length > this.config.maxNoteLength) {
 				throw new ApiError(meta.errors.maxLength);
 			}
+			if (ps.cw && ps.cw.length > this.config.maxCwLength) {
+				throw new ApiError(meta.errors.maxCwLength);
+			}
+
 			let visibleUsers: MiUser[] = [];
 			if (ps.visibleUserIds) {
 				visibleUsers = await this.usersRepository.findBy({
@@ -336,7 +346,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 				if (renote == null) {
 					throw new ApiError(meta.errors.noSuchRenoteTarget);
-				} else if (isPureRenote(renote)) {
+				} else if (isRenote(renote) && !isQuote(renote)) {
 					throw new ApiError(meta.errors.cannotReRenote);
 				}
 
@@ -386,7 +396,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 				if (reply == null) {
 					throw new ApiError(meta.errors.noSuchReplyTarget);
-				} else if (isPureRenote(reply)) {
+				} else if (isRenote(reply) && !isQuote(reply)) {
 					throw new ApiError(meta.errors.cannotReplyToPureRenote);
 				} else if (!await this.noteEntityService.isVisibleForMe(reply, me.id)) {
 					throw new ApiError(meta.errors.cannotReplyToInvisibleNote);

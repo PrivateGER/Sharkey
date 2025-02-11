@@ -7,12 +7,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.root">
 	<template v-if="edit">
 		<header :class="$style.editHeader">
-			<MkSelect v-model="widgetAdderSelected" style="margin-bottom: var(--margin)" data-cy-widget-select>
+			<MkSelect v-model="widgetAdderSelected" style="margin-bottom: var(--MI-margin)" data-cy-widget-select>
 				<template #label>{{ i18n.ts.selectWidget }}</template>
 				<option v-for="widget in widgetDefs" :key="widget" :value="widget">{{ i18n.ts._widgets[widget] }}</option>
 			</MkSelect>
-			<MkButton inline primary data-cy-widget-add @click="addWidget"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.add }}</MkButton>
-			<MkButton inline @click="$emit('exit')">{{ i18n.ts.close }}</MkButton>
+			<MkButton inline primary data-cy-widget-add @click="addWidget"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+			<MkButton inline @click="emit('exit')">{{ i18n.ts.close }}</MkButton>
 		</header>
 		<Sortable
 			:modelValue="props.widgets"
@@ -25,8 +25,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
 			<template #item="{element}">
 				<div :class="[$style.widget, $style.customizeContainer]" data-cy-customize-container>
-					<button :class="$style.customizeContainerConfig" class="_button" @click.prevent.stop="configWidget(element.id)"><i class="ph-gear ph-bold ph-lg"></i></button>
-					<button :class="$style.customizeContainerRemove" data-cy-customize-container-remove class="_button" @click.prevent.stop="removeWidget(element)"><i class="ph-x ph-bold ph-lg"></i></button>
+					<button :class="$style.customizeContainerConfig" class="_button" @click.prevent.stop="configWidget(element.id)"><i class="ti ti-settings"></i></button>
+					<button :class="$style.customizeContainerRemove" data-cy-customize-container-remove class="_button" @click.prevent.stop="removeWidget(element)"><i class="ti ti-x"></i></button>
 					<div class="handle">
 						<component :is="`widget-${element.name}`" :ref="el => widgetRefs[element.id] = el" class="widget" :class="$style.customizeContainerHandleWidget" :widget="element" @updateProps="updateWidget(element.id, $event)"/>
 					</div>
@@ -57,6 +57,7 @@ import MkButton from '@/components/MkButton.vue';
 import { widgets as widgetDefs } from '@/widgets/index.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
+import { isLink } from '@@/js/is-link.js';
 
 const Sortable = defineAsyncComponent(() => import('vuedraggable').then(x => x.default));
 
@@ -64,13 +65,6 @@ const props = defineProps<{
 	widgets: Widget[];
 	edit: boolean;
 }>();
-
-// This will not be available for now as I don't think this is needed
-// const notesSearchAvailable = (($i == null && instance.policies.canSearchNotes) || ($i != null && $i.policies.canSearchNotes));
-/* if (!notesSearchAvailable) {
-	const wid = widgetDefs.findIndex(widget => widget === 'search');
-	widgetDefs.splice(wid, 1);
-} */
 
 const emit = defineEmits<{
 	(ev: 'updateWidgets', widgets: Widget[]): void;
@@ -105,13 +99,6 @@ const updateWidget = (id, data) => {
 
 function onContextmenu(widget: Widget, ev: MouseEvent) {
 	const element = ev.target as HTMLElement | null;
-	const isLink = (el: HTMLElement): boolean => {
-		if (el.tagName === 'A') return true;
-		if (el.parentElement) {
-			return isLink(el.parentElement);
-		}
-		return false;
-	};
 	if (element && isLink(element)) return;
 	if (element && (['INPUT', 'TEXTAREA', 'IMG', 'VIDEO', 'CANVAS'].includes(element.tagName) || element.attributes['contenteditable'])) return;
 	if (window.getSelection()?.toString() !== '') return;
@@ -120,7 +107,7 @@ function onContextmenu(widget: Widget, ev: MouseEvent) {
 		type: 'label',
 		text: i18n.ts._widgets[widget.name],
 	}, {
-		icon: 'ph-gear ph-bold ph-lg',
+		icon: 'ti ti-settings',
 		text: i18n.ts.settings,
 		action: () => {
 			configWidget(widget.id);
@@ -136,7 +123,7 @@ function onContextmenu(widget: Widget, ev: MouseEvent) {
 
 .widget {
 	contain: content;
-	margin: var(--margin) 0;
+	margin: var(--MI-margin) 0;
 
 	&:first-of-type {
 		margin-top: 0;
@@ -171,7 +158,7 @@ function onContextmenu(widget: Widget, ev: MouseEvent) {
 		height: 32px;
 		color: #fff;
 		background: rgba(#000, 0.7);
-		border-radius: var(--radius-xs);
+		border-radius: var(--MI-radius-xs);
 	}
 
 	&Config {

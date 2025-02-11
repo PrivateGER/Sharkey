@@ -8,20 +8,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header><MkPageHeader v-model:tab="src" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :displayMyAvatar="true"/></template>
 	<MkSpacer :contentMax="800">
 		<MkHorizontalSwipe v-model:tab="src" :tabs="$i ? headerTabs : headerTabsWhenNotLogin">
-			<div :key="src" ref="rootEl" v-hotkey.global="keymap">
-				<MkInfo v-if="['home', 'local', 'social', 'global'].includes(src) && !defaultStore.reactiveState.timelineTutorials.value[src]" style="margin-bottom: var(--margin);" closable @close="closeTutorial()">
+			<div :key="src" ref="rootEl">
+				<MkInfo v-if="isBasicTimeline(src) && !defaultStore.reactiveState.timelineTutorials.value[src]" style="margin-bottom: var(--MI-margin);" closable @close="closeTutorial()">
 					{{ i18n.ts._timelineDescription[src] }}
 				</MkInfo>
-				<MkPostForm v-if="defaultStore.reactiveState.showFixedPostForm.value" :class="$style.postForm" class="post-form _panel" fixed style="margin-bottom: var(--margin);"/>
+				<MkPostForm v-if="defaultStore.reactiveState.showFixedPostForm.value" :class="$style.postForm" class="post-form _panel" fixed style="margin-bottom: var(--MI-margin);"/>
 				<div v-if="queue > 0" :class="$style.new"><button class="_buttonPrimary" :class="$style.newButton" @click="top()">{{ i18n.ts.newNoteRecived }}</button></div>
 				<div :class="$style.tl">
 					<MkTimeline
 						ref="tlComponent"
-						:key="src + withRenotes + withReplies + onlyFiles"
+						:key="src + withRenotes + withBots + withReplies + onlyFiles + withSensitive"
 						:src="src.split(':')[0]"
 						:list="src.split(':')[1]"
 						:withRenotes="withRenotes"
 						:withReplies="withReplies"
+						:withSensitive="withSensitive"
 						:onlyFiles="onlyFiles"
 						:withBots="withBots"
 						:sound="true"
@@ -35,41 +36,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, provide, shallowRef, ref } from 'vue';
+import { computed, watch, provide, shallowRef, ref, onMounted, onActivated } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import MkTimeline from '@/components/MkTimeline.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
-import { scroll } from '@/scripts/scroll.js';
+import { scroll } from '@@/js/scroll.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { defaultStore } from '@/store.js';
 import { i18n } from '@/i18n.js';
-import { instance } from '@/instance.js';
 import { $i } from '@/account.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
-import { antennasCache, userListsCache } from '@/cache.js';
+import { antennasCache, userListsCache, favoritedChannelsCache } from '@/cache.js';
 import { deviceKind } from '@/scripts/device-kind.js';
 import { deepMerge } from '@/scripts/merge.js';
-import { MenuItem } from '@/types/menu.js';
+import type { MenuItem } from '@/types/menu.js';
 import { miLocalStorage } from '@/local-storage.js';
+import { availableBasicTimelines, hasWithReplies, isAvailableBasicTimeline, isBasicTimeline, basicTimelineIconClass } from '@/timelines.js';
+import type { BasicTimelineType } from '@/timelines.js';
+import { useRouter } from '@/router/supplier.js';
 
 provide('shouldOmitHeaderTitle', true);
 
-const isLocalTimelineAvailable = ($i == null && instance.policies.ltlAvailable) || ($i != null && $i.policies.ltlAvailable);
-const isGlobalTimelineAvailable = ($i == null && instance.policies.gtlAvailable) || ($i != null && $i.policies.gtlAvailable);
-const isBubbleTimelineAvailable = ($i == null && instance.policies.btlAvailable) || ($i != null && $i.policies.btlAvailable);
-const keymap = {
-	't': focus,
-};
+const router = useRouter();
 
 const tlComponent = shallowRef<InstanceType<typeof MkTimeline>>();
 const rootEl = shallowRef<HTMLElement>();
 
+type TimelinePageSrc = BasicTimelineType | `list:${string}`;
+
 const queue = ref(0);
-const srcWhenNotSignin = ref<'local' | 'global'>(isLocalTimelineAvailable ? 'local' : 'global');
-const src = computed<'home' | 'local' | 'social' | 'global' | 'bubble' | `list:${string}`>({
+const srcWhenNotSignin = ref<'local' | 'global'>(isAvailableBasicTimeline('local') ? 'local' : 'global');
+const src = computed<TimelinePageSrc>({
 	get: () => ($i ? defaultStore.reactiveState.tl.value.src : srcWhenNotSignin.value),
 	set: (x) => saveSrc(x),
 });
@@ -79,7 +79,11 @@ const withRenotes = computed<boolean>({
 });
 
 // computed内での無限ループを防ぐためのフラグ
-const localSocialTLFilterSwitchStore = ref<'withReplies' | 'onlyFiles' | false>('withReplies');
+const localSocialTLFilterSwitchStore = ref<'withReplies' | 'onlyFiles' | false>(
+	defaultStore.reactiveState.tl.value.filter.withReplies ? 'withReplies' :
+	defaultStore.reactiveState.tl.value.filter.onlyFiles ? 'onlyFiles' :
+	false,
+);
 
 const withReplies = computed<boolean>({
 	get: () => {
@@ -127,11 +131,6 @@ watch(src, () => {
 	queue.value = 0;
 });
 
-watch(withSensitive, () => {
-	// これだけはクライアント側で完結する処理なので手動でリロード
-	tlComponent.value?.reloadTimeline();
-});
-
 function queueUpdated(q: number): void {
 	queue.value = q;
 }
@@ -151,7 +150,7 @@ async function chooseList(ev: MouseEvent): Promise<void> {
 		(lists.length === 0 ? undefined : { type: 'divider' }),
 		{
 			type: 'link' as const,
-			icon: 'ph-plus ph-bold ph-lg',
+			icon: 'ti ti-plus',
 			text: i18n.ts.createNew,
 			to: '/my/lists',
 		},
@@ -171,7 +170,7 @@ async function chooseAntenna(ev: MouseEvent): Promise<void> {
 		(antennas.length === 0 ? undefined : { type: 'divider' }),
 		{
 			type: 'link' as const,
-			icon: 'ph-plus ph-bold ph-lg',
+			icon: 'ti ti-plus',
 			text: i18n.ts.createNew,
 			to: '/my/antennas',
 		},
@@ -180,9 +179,7 @@ async function chooseAntenna(ev: MouseEvent): Promise<void> {
 }
 
 async function chooseChannel(ev: MouseEvent): Promise<void> {
-	const channels = await misskeyApi('channels/my-favorites', {
-		limit: 100,
-	});
+	const channels = await favoritedChannelsCache.fetch();
 	const items: MenuItem[] = [
 		...channels.map(channel => {
 			const lastReadedAt = miLocalStorage.getItemAsJson(`channelLastReadedAt:${channel.id}`) ?? null;
@@ -197,8 +194,8 @@ async function chooseChannel(ev: MouseEvent): Promise<void> {
 		}),
 		(channels.length === 0 ? undefined : { type: 'divider' }),
 		{
-			type: 'link' as const,
-			icon: 'ph-plus ph-bold ph-lg',
+			type: 'link',
+			icon: 'ti ti-plus',
 			text: i18n.ts.createNew,
 			to: '/channels',
 		},
@@ -206,7 +203,7 @@ async function chooseChannel(ev: MouseEvent): Promise<void> {
 	os.popupMenu(items, ev.currentTarget ?? ev.target);
 }
 
-function saveSrc(newSrc: 'home' | 'local' | 'social' | 'global' | 'bubble' | `list:${string}`): void {
+function saveSrc(newSrc: TimelinePageSrc): void {
 	const out = deepMerge({ src: newSrc }, defaultStore.state.tl);
 
 	if (newSrc.startsWith('userList:')) {
@@ -241,28 +238,53 @@ function focus(): void {
 }
 
 function closeTutorial(): void {
-	if (!['home', 'local', 'social', 'global'].includes(src.value)) return;
+	if (!isBasicTimeline(src.value)) return;
 	const before = defaultStore.state.timelineTutorials;
 	before[src.value] = true;
 	defaultStore.set('timelineTutorials', before);
 }
 
+function switchTlIfNeeded() {
+	if (isBasicTimeline(src.value) && !isAvailableBasicTimeline(src.value)) {
+		src.value = availableBasicTimelines()[0];
+	}
+}
+
+onMounted(() => {
+	switchTlIfNeeded();
+});
+onActivated(() => {
+	switchTlIfNeeded();
+});
+
 const headerActions = computed(() => {
 	const tmp = [
 		{
-			icon: 'ph-dots-three ph-bold ph-lg',
+			icon: 'ti ti-dots',
 			text: i18n.ts.options,
 			handler: (ev) => {
-				os.popupMenu([{
+				const menuItems: MenuItem[] = [];
+
+				menuItems.push({
 					type: 'switch',
 					text: i18n.ts.showRenotes,
 					ref: withRenotes,
-				}, src.value === 'local' || src.value === 'social' ? {
+				}, {
 					type: 'switch',
-					text: i18n.ts.showRepliesToOthersInTimeline,
-					ref: withReplies,
-					disabled: onlyFiles,
-				} : undefined, {
+					text: i18n.ts.showBots,
+					ref: withBots,
+				});
+
+				if (isBasicTimeline(src.value) && hasWithReplies(src.value)) {
+					menuItems.push({
+						type: 'switch',
+						text: i18n.ts.showRepliesToOthersInTimeline,
+						ref: withReplies,
+						disabled: onlyFiles,
+					});
+				}
+
+				menuItems.push({
 					type: 'switch',
 					text: i18n.ts.withSensitive,
 					ref: withSensitive,
@@ -270,14 +292,16 @@ const headerActions = computed(() => {
 					type: 'switch',
 					text: i18n.ts.fileAttachedOnly,
 					ref: onlyFiles,
-					disabled: src.value === 'local' || src.value === 'social' ? withReplies : false,
-				}], ev.currentTarget ?? ev.target);
+					disabled: isBasicTimeline(src.value) && hasWithReplies(src.value) ? withReplies : false,
+				});
+
+				os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 			},
 		},
 	];
 	if (deviceKind === 'desktop') {
 		tmp.unshift({
-			icon: 'ph-arrows-counter-clockwise ph-bold ph-lg',
+			icon: 'ti ti-refresh',
 			text: i18n.ts.reload,
 			handler: (ev: Event) => {
 				tlComponent.value?.reloadTimeline();
@@ -290,98 +314,75 @@ const headerActions = computed(() => {
 const headerTabs = computed(() => [...(defaultStore.reactiveState.pinnedUserLists.value.map(l => ({
 	key: 'list:' + l.id,
 	title: l.name,
-	icon: 'ph-star ph-bold ph-lg',
+	icon: 'ti ti-star',
 	iconOnly: true,
-}))), {
-	key: 'home',
-	title: i18n.ts._timelines.home,
-	icon: 'ph-house ph-bold ph-lg',
+}))), ...availableBasicTimelines().map(tl => ({
+	key: tl,
+	title: i18n.ts._timelines[tl],
+	icon: basicTimelineIconClass(tl),
 	iconOnly: true,
-}, ...(isLocalTimelineAvailable ? [{
-	key: 'local',
-	title: i18n.ts._timelines.local,
-	icon: 'ph-planet ph-bold ph-lg',
+})), {
+	icon: 'ph-user-check ph-bold ph-lg',
+	title: i18n.ts.following,
 	iconOnly: true,
+	onClick: () => router.push('/following-feed'),
 }, {
-	key: 'social',
-	title: i18n.ts._timelines.social,
-	icon: 'ph-rocket-launch ph-bold ph-lg',
-	iconOnly: true,
-}] : []), ...(isBubbleTimelineAvailable ? [{
-	key: 'bubble',
-	title: 'Bubble',
-	icon: 'ph-drop ph-bold ph-lg',
-	iconOnly: true,
-}] : []), ...(isGlobalTimelineAvailable ? [{
-	key: 'global',
-	title: i18n.ts._timelines.global,
-	icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
-	iconOnly: true,
-}] : []), {
-	icon: 'ph-list ph-bold ph-lg',
+	icon: 'ti ti-list',
 	title: i18n.ts.lists,
 	iconOnly: true,
 	onClick: chooseList,
 }, {
-	icon: 'ph-flying-saucer ph-bold ph-lg',
+	icon: 'ti ti-antenna',
 	title: i18n.ts.antennas,
 	iconOnly: true,
 	onClick: chooseAntenna,
 }, {
-	icon: 'ph-television ph-bold ph-lg',
+	icon: 'ti ti-device-tv',
 	title: i18n.ts.channel,
 	iconOnly: true,
 	onClick: chooseChannel,
 }] as Tab[]);
 
-const headerTabsWhenNotLogin = computed(() => [
-	...(isLocalTimelineAvailable ? [{
-		key: 'local',
-		title: i18n.ts._timelines.local,
-		icon: 'ph-planet ph-bold ph-lg',
-		iconOnly: true,
-	}] : []),
-	...(isGlobalTimelineAvailable ? [{
-		key: 'global',
-		title: i18n.ts._timelines.global,
-		icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
-		iconOnly: true,
-	}] : []),
-] as Tab[]);
+const headerTabsWhenNotLogin = computed(() => [...availableBasicTimelines().map(tl => ({
+	key: tl,
+	title: i18n.ts._timelines[tl],
+	icon: basicTimelineIconClass(tl),
+	iconOnly: true,
+}))] as Tab[]);
 
 definePageMetadata(() => ({
 	title: i18n.ts.timeline,
-	icon: src.value === 'local' ? 'ph-planet ph-bold ph-lg' : src.value === 'social' ? 'ph-rocket-launch ph-bold ph-lg' : src.value === 'global' ? 'ph-globe-hemisphere-west ph-bold ph-lg' : src.value === 'bubble' ? 'ph-drop ph-bold ph-lg' : 'ph-house ph-bold ph-lg',
+	icon: isBasicTimeline(src.value) ? basicTimelineIconClass(src.value) : 'ti ti-home',
 }));
 </script>
 
 <style lang="scss" module>
 .new {
 	position: sticky;
-	top: calc(var(--stickyTop, 0px) + 16px);
+	top: calc(var(--MI-stickyTop, 0px) + 16px);
 	z-index: 1000;
 	width: 100%;
 	margin: calc(-0.675em - 8px) 0;
 
 	&:first-child {
-		margin-top: calc(-0.675em - 8px - var(--margin));
+		margin-top: calc(-0.675em - 8px - var(--MI-margin));
 	}
 }
 
 .newButton {
 	display: block;
-	margin: var(--margin) auto 0 auto;
+	margin: var(--MI-margin) auto 0 auto;
 	padding: 8px 16px;
-	border-radius: var(--radius-xl);
+	border-radius: var(--MI-radius-xl);
 }
 
 .postForm {
-	border-radius: var(--radius);
+	border-radius: var(--MI-radius);
 }
 
 .tl {
-	background: var(--bg);
-	border-radius: var(--radius);
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-radius);
 	overflow: clip;
 }
 </style>

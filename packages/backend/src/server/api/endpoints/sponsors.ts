@@ -1,20 +1,31 @@
-import { Inject, Injectable } from '@nestjs/common';
-import * as Redis from 'ioredis';
+/*
+ * SPDX-FileCopyrightText: marie and other Sharkey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
+import { SponsorsService } from '@/core/SponsorsService.js';
 
 export const meta = {
 	tags: ['meta'],
-	description: 'Get Sharkey GH Sponsors',
+	description: 'Get Sharkey Sponsors or Instance Sponsors',
 
 	requireCredential: false,
 	requireCredentialPrivateMode: false,
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
 	type: 'object',
 	properties: {
 		forceUpdate: { type: 'boolean', default: false },
+		instance: { type: 'boolean', default: false },
 	},
 	required: [],
 } as const;
@@ -22,32 +33,14 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
-        @Inject(DI.redis) private redisClient: Redis.Redis,
+		private sponsorsService: SponsorsService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			let sponsors;
-			const cachedSponsors = await this.redisClient.get('sponsors');
-			if (!ps.forceUpdate && cachedSponsors) {
-				sponsors = JSON.parse(cachedSponsors);
+			if (ps.instance) {
+				return { sponsor_data: await this.sponsorsService.instanceSponsors(ps.forceUpdate) };
 			} else {
-				AbortSignal.timeout ??= function timeout(ms) {
-					const ctrl = new AbortController();
-					setTimeout(() => ctrl.abort(), ms);
-					return ctrl.signal;
-				};
-
-				try {
-					sponsors = await fetch('https://kaifa.ch/transfem-sponsors.json', { signal: AbortSignal.timeout(2000) })
-						.then((response) => response.json());
-
-					await this.redisClient.set('sponsors', JSON.stringify(sponsors), 'EX', 3600);
-				} catch (error) {
-					sponsors = {
-						sponsors: [],
-					};
-				}
+				return { sponsor_data: await this.sponsorsService.sharkeySponsors(ps.forceUpdate) };
 			}
-			return { sponsor_data: sponsors['sponsors'] };
 		});
 	}
 }

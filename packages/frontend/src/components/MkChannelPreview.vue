@@ -5,14 +5,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div style="position: relative;">
-	<MkA :to="`/channels/${channel.id}`" class="eftoefju _panel" tabindex="-1" @click="updateLastReadedAt">
+	<MkA :to="`/channels/${channel.id}`" class="eftoefju _panel" @click="updateLastReadedAt">
 		<div class="banner" :style="bannerStyle">
 			<div class="fade"></div>
-			<div class="name"><i class="ph-television ph-bold ph-lg"></i> {{ channel.name }}</div>
+			<div class="name"><i class="ti ti-device-tv"></i> {{ channel.name }}</div>
 			<div v-if="channel.isSensitive" class="sensitiveIndicator">{{ i18n.ts.sensitive }}</div>
 			<div class="status">
 				<div>
-					<i class="ph-users ph-bold ph-lg"></i>
+					<i class="ti ti-users ti-fw"></i>
 					<I18n :src="i18n.ts._channel.usersCount" tag="span" style="margin-left: 4px;">
 						<template #n>
 							<b>{{ channel.usersCount }}</b>
@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</I18n>
 				</div>
 				<div>
-					<i class="ph-pencil-simple ph-bold ph-lg"></i>
+					<i class="ti ti-pencil ti-fw"></i>
 					<I18n :src="i18n.ts._channel.notesCount" tag="span" style="margin-left: 4px;">
 						<template #n>
 							<b>{{ channel.notesCount }}</b>
@@ -47,11 +47,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
+import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
 
 const props = defineProps<{
-	channel: Record<string, any>;
+	channel: Misskey.entities.Channel;
 }>();
 
 const getLastReadedAt = (): number | null => {
@@ -80,11 +81,28 @@ const bannerStyle = computed(() => {
 <style lang="scss" scoped>
 .eftoefju {
 	display: block;
+	position: relative;
 	overflow: hidden;
 	width: 100%;
 
 	&:hover {
 		text-decoration: none;
+	}
+
+	&:focus-within {
+		outline: none;
+
+		&::after {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			border-radius: inherit;
+			pointer-events: none;
+			box-shadow: inset 0 0 0 2px var(--MI_THEME-focus);
+		}
 	}
 
 	> .banner {
@@ -100,7 +118,7 @@ const bannerStyle = computed(() => {
 			left: 0;
 			width: 100%;
 			height: 64px;
-			background: linear-gradient(0deg, var(--panel), var(--X15));
+			background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
 		}
 
 		> .name {
@@ -121,7 +139,7 @@ const bannerStyle = computed(() => {
 			padding: 8px 12px;
 			font-size: 80%;
 			background: rgba(0, 0, 0, 0.7);
-			border-radius: var(--radius-sm);
+			border-radius: var(--MI-radius-sm);
 			color: #fff;
 		}
 
@@ -131,8 +149,8 @@ const bannerStyle = computed(() => {
 			bottom: 16px;
 			left: 16px;
 			background: rgba(0, 0, 0, 0.7);
-			color: var(--warn);
-			border-radius: var(--radius-sm);
+			color: var(--MI_THEME-warn);
+			border-radius: var(--MI-radius-sm);
 			font-weight: bold;
 			font-size: 1em;
 			padding: 4px 7px;
@@ -150,7 +168,7 @@ const bannerStyle = computed(() => {
 
 	> footer {
 		padding: 12px 16px;
-		border-top: solid 0.5px var(--divider);
+		border-top: solid 0.5px var(--MI_THEME-divider);
 
 		> span {
 			opacity: 0.7;
@@ -196,9 +214,9 @@ const bannerStyle = computed(() => {
 	top: 0;
 	right: 0;
 	transform: translate(25%, -25%);
-	background-color: var(--accent);
-	border: solid var(--bg) 4px;
-	border-radius: var(--radius-full);
+	background-color: var(--MI_THEME-accent);
+	border: solid var(--MI_THEME-bg) 4px;
+	border-radius: var(--MI-radius-full);
 	width: 1.5rem;
 	height: 1.5rem;
 	aspect-ratio: 1 / 1;

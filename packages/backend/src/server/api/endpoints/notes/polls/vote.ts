@@ -63,6 +63,12 @@ export const meta = {
 			id: '85a5377e-b1e9-4617-b0b9-5bea73331e49',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -144,12 +150,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// Create vote
-			const vote = await this.pollVotesRepository.insert({
+			const vote = await this.pollVotesRepository.insertOne({
 				id: this.idService.gen(createdAt.getTime()),
 				noteId: note.id,
 				userId: me.id,
 				choice: ps.choice,
-			}).then(x => this.pollVotesRepository.findOneByOrFail(x.identifiers[0]));
+			});
 
 			// Increment votes count
 			const index = ps.choice + 1; // In SQL, array index is 1 based

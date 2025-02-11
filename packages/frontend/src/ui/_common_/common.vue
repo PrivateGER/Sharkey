@@ -30,7 +30,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:enterFromClass="defaultStore.state.animation ? $style.transition_notification_enterFrom : ''"
 	:leaveToClass="defaultStore.state.animation ? $style.transition_notification_leaveTo : ''"
 >
-	<div v-for="notification in notifications" :key="notification.id" :class="$style.notification">
+	<div
+		v-for="notification in notifications" :key="notification.id" :class="$style.notification" :style="{
+			pointerEvents: getPointerEvents()
+		}"
+	>
 		<XNotification :notification="notification"/>
 	</div>
 </TransitionGroup>
@@ -39,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <div v-if="pendingApiRequestsCount > 0" id="wait"></div>
 
-<div v-if="dev" id="devTicker"><span>DEV BUILD</span></div>
+<div v-if="dev" id="devTicker"><span style="animation: dev-ticker-blink 2s infinite;">DEV BUILD</span></div>
 
 <div v-if="$i && $i.isBot" id="botWarn"><span>{{ i18n.ts.loggedInAsBot }}</span></div>
 
@@ -93,12 +97,17 @@ function onNotification(notification: Misskey.entities.Notification, isClient = 
 if ($i) {
 	const connection = useStream().useChannel('main', null, 'UI');
 	connection.on('notification', onNotification);
+
 	globalEvents.on('clientNotification', notification => onNotification(notification, true));
 
 	//#region Listen message from SW
 	if ('serviceWorker' in navigator) {
 		swInject();
 	}
+}
+
+function getPointerEvents() {
+	return defaultStore.state.notificationClickable ? undefined : 'none';
 }
 </script>
 
@@ -120,27 +129,26 @@ if ($i) {
 .notifications {
 	position: fixed;
 	z-index: 3900000;
-	padding: 0 var(--margin);
-	pointer-events: none;
+	padding: 0 var(--MI-margin);
 	display: flex;
 
 	&.notificationsPosition_leftTop {
-		top: var(--margin);
+		top: var(--MI-margin);
 		left: 0;
 	}
 
 	&.notificationsPosition_rightTop {
-		top: var(--margin);
+		top: var(--MI-margin);
 		right: 0;
 	}
 
 	&.notificationsPosition_leftBottom {
-		bottom: calc(var(--minBottomSpacing) + var(--margin));
+		bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
 		left: 0;
 	}
 
 	&.notificationsPosition_rightBottom {
-		bottom: calc(var(--minBottomSpacing) + var(--margin));
+		bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
 		right: 0;
 	}
 
@@ -231,15 +239,15 @@ if ($i) {
 	right: 15px;
 	pointer-events: none;
 
-	&:before {
+	&::before {
 		content: "";
 		display: block;
 		width: 18px;
 		height: 18px;
 		box-sizing: border-box;
 		border: solid 2px transparent;
-		border-top-color: var(--accent);
-		border-left-color: var(--accent);
+		border-top-color: var(--MI_THEME-accent);
+		border-left-color: var(--MI_THEME-accent);
 		border-radius: 50%;
 		animation: progress-spinner 400ms linear infinite;
 	}
@@ -262,10 +270,6 @@ if ($i) {
 	font-size: 14px;
 	pointer-events: none;
 	user-select: none;
-
-	> span {
-		animation: dev-ticker-blink 2s infinite;
-	}
 }
 
 #devTicker {
@@ -279,9 +283,5 @@ if ($i) {
 	font-size: 14px;
 	pointer-events: none;
 	user-select: none;
-
-	> span {
-		animation: dev-ticker-blink 2s infinite;
-	}
 }
 </style>

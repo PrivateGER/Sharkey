@@ -4,21 +4,26 @@ stages:
 
 testCommit:
   stage: test
-  image: node:iron
+  image: node:jod
   services:
     - postgres:15
     - redis
   variables:
     POSTGRES_PASSWORD: ci
+    COREPACK_DEFAULT_TO_LATEST: 0
   script:
-    - apt-get update && apt-get install -y git wget curl build-essential python3
+    - apt-get update && apt-get install -y git wget curl build-essential python3 ffmpeg
     - cp .config/ci.yml .config/default.yml
+    - cp .config/ci.yml .config/test.yml
     - corepack enable
-    - corepack prepare pnpm@latest --activate
+    - corepack install
     - git submodule update --init
     - pnpm install --frozen-lockfile
     - pnpm run build
     - pnpm run migrate
+    - pnpm run --filter='!megalodon' test
+    - pnpm run --filter=backend --filter=misskey-js lint
+    - pnpm run --filter=frontend --filter=frontend-embed eslint
   cache:
     key: test
     policy: pull-push

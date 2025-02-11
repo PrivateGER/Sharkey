@@ -9,9 +9,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
-import { bundledLanguagesInfo } from 'shiki';
-import type { BuiltinLanguage } from 'shiki';
+import { computed, ref, watch } from 'vue';
+import { bundledLanguagesInfo } from 'shiki/langs';
+import type { BundledLanguage } from 'shiki/langs';
 import { getHighlighter, getTheme } from '@/scripts/code-highlighter.js';
 import { defaultStore } from '@/store.js';
 
@@ -23,7 +23,7 @@ const props = defineProps<{
 
 const highlighter = await getHighlighter();
 const darkMode = defaultStore.reactiveState.darkMode;
-const codeLang = ref<BuiltinLanguage | 'aiscript'>('js');
+const codeLang = ref<BundledLanguage | 'aiscript'>('js');
 
 const [lightThemeName, darkThemeName] = await Promise.all([
 	getTheme('light', true),
@@ -42,7 +42,7 @@ const html = computed(() => highlighter.codeToHtml(props.code, {
 }));
 
 async function fetchLanguage(to: string): Promise<void> {
-	const language = to as BuiltinLanguage;
+	const language = to as BundledLanguage;
 
 	// Check for the loaded languages, and load the language if it's not loaded yet.
 	if (!highlighter.getLoadedLanguages().includes(language)) {
@@ -95,8 +95,8 @@ watch(() => props.lang, (to) => {
 	padding: 1em;
 	margin: .5em 0;
 	overflow: auto;
-	border-radius: var(--radius-sm);
-	border: 1px solid var(--divider);
+	border-radius: var(--MI-radius-sm);
+	border: 1px solid var(--MI_THEME-divider);
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
 
 	color: var(--shiki-fallback);
@@ -140,7 +140,7 @@ watch(() => props.lang, (to) => {
 	& :global(.shiki) {
 		padding: 12px;
 		margin: 0;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 		border: none;
 		min-height: 130px;
 		pointer-events: none;

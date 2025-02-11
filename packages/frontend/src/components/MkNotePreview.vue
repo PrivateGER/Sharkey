@@ -5,18 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<MkAvatar :class="$style.avatar" :user="user" link preview/>
+	<MkAvatar :class="$style.avatar" :user="user"/>
 	<div :class="$style.main">
 		<div :class="$style.header">
 			<MkUserName :user="user" :nowrap="true"/>
 		</div>
 		<div>
 			<p v-if="useCw" :class="$style.cw">
-				<Mfm v-if="cw != null && cw != ''" :text="cw" :author="user" :nyaize="'respect'" :i="user" style="margin-right: 8px;"/>
+				<Mfm v-if="cw != null && cw != ''" :text="cw" :isBlock="true" :author="user" :nyaize="'respect'" :i="user" style="margin-right: 8px;"/>
 				<MkCwButton v-model="showContent" :text="text.trim()" :files="files" :poll="poll" style="margin: 4px 0;"/>
 			</p>
 			<div v-show="!useCw || showContent">
-				<Mfm :text="text.trim()" :author="user" :nyaize="'respect'" :i="user"/>
+				<Mfm :text="text.trim()" :isBlock="true" :author="user" :nyaize="'respect'" :i="user"/>
 			</div>
 		</div>
 	</div>
@@ -56,7 +56,7 @@ const props = defineProps<{
 	margin: 0 10px 0 0 !important;
 	width: 40px !important;
 	height: 40px !important;
-	border-radius: var(--radius-sm) !important;
+	border-radius: var(--MI-radius-sm) !important;
 	pointer-events: none !important;
 }
 

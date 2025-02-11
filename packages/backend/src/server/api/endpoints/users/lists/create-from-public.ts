@@ -60,6 +60,12 @@ export const meta = {
 			id: '1845ea77-38d1-426e-8e4e-8b83b24f5bd7',
 		},
 	},
+
+	// 5 calls per second
+	limit: {
+		duration: 1000,
+		max: 5,
+	},
 } as const;
 
 export const paramDef = {
@@ -100,15 +106,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const currentCount = await this.userListsRepository.countBy({
 				userId: me.id,
 			});
-			if (currentCount > (await this.roleService.getUserPolicies(me.id)).userListLimit) {
+			if (currentCount >= (await this.roleService.getUserPolicies(me.id)).userListLimit) {
 				throw new ApiError(meta.errors.tooManyUserLists);
 			}
 
-			const userList = await this.userListsRepository.insert({
+			const userList = await this.userListsRepository.insertOne({
 				id: this.idService.gen(),
 				userId: me.id,
 				name: ps.name,
-			} as MiUserList).then(x => this.userListsRepository.findOneByOrFail(x.identifiers[0]));
+			} as MiUserList);
 
 			const users = (await this.userListMembershipsRepository.findBy({
 				userListId: ps.listId,

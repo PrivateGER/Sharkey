@@ -9,7 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<XTimeline class="tl"/>
 	<div class="shape1"></div>
 	<div class="shape2"></div>
-	<img :src="misskeysvg" class="misskey"/>
+	<div class="logo-wrapper">
+		<div class="powered-by">Powered by</div>
+		<img :src="misskeysvg" class="misskey"/>
+	</div>
 	<div class="emojis">
 		<MkEmoji :normal="true" :noStyle="true" emoji="👍"/>
 		<MkEmoji :normal="true" :noStyle="true" emoji="❤"/>
@@ -39,11 +42,11 @@ import XTimeline from './welcome.timeline.vue';
 import MarqueeText from '@/components/MkMarquee.vue';
 import MkFeaturedPhotos from '@/components/MkFeaturedPhotos.vue';
 import misskeysvg from '/client-assets/sharkey.svg';
-import { misskeyApi, misskeyApiGet } from '@/scripts/misskey-api.js';
+import { misskeyApiGet } from '@/scripts/misskey-api.js';
 import MkVisitorDashboard from '@/components/MkVisitorDashboard.vue';
 import { getProxiedImageUrl } from '@/scripts/media-proxy.js';
+import { instance as meta } from '@/instance.js';
 
-const meta = ref<Misskey.entities.MetaResponse>();
 const instances = ref<Misskey.entities.FederationInstance[]>();
 
 function getInstanceIcon(instance: Misskey.entities.FederationInstance): string {
@@ -52,10 +55,6 @@ function getInstanceIcon(instance: Misskey.entities.FederationInstance): string 
 	}
 	return getProxiedImageUrl(instance.iconUrl, 'preview');
 }
-
-misskeyApi('meta', { detail: true }).then(_meta => {
-	meta.value = _meta;
-});
 
 misskeyApiGet('federation/instances', {
 	sort: '+pubSub',
@@ -99,7 +98,7 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		width: 100vw;
 		height: 100vh;
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		clip-path: polygon(0% 0%, 45% 0%, 20% 100%, 0% 100%);
 	}
 	> .shape2 {
@@ -108,19 +107,29 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		width: 100vw;
 		height: 100vh;
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		clip-path: polygon(0% 0%, 25% 0%, 35% 100%, 0% 100%);
 		opacity: 0.5;
 	}
 
-	> .misskey {
+	> .logo-wrapper {
 		position: fixed;
-		top: 42px;
-		left: 42px;
-		width: 140px;
+		top: 36px;
+		left: 36px;
+		flex: auto;
+		color: #fff;
+		user-select: none;
+		pointer-events: none;
 
-		@media (max-width: 450px) {
-			width: 130px;
+		> .powered-by {
+			margin-bottom: 2px;
+		}
+
+		> .misskey {
+			width: 140px;
+			@media (max-width: 450px) {
+				width: 130px;
+			}
 		}
 	}
 
@@ -155,10 +164,10 @@ misskeyApiGet('federation/instances', {
 		left: 0;
 		right: 0;
 		margin: auto;
-		background: var(--acrylicPanel);
-		-webkit-backdrop-filter: var(--blur, blur(15px));
-		backdrop-filter: var(--blur, blur(15px));
-		border-radius: var(--radius-ellipse);
+		background: var(--MI_THEME-acrylicPanel);
+		-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+		backdrop-filter: var(--MI-blur, blur(15px));
+		border-radius: var(--MI-radius-ellipse);
 		overflow: clip;
 		width: 800px;
 		padding: 8px 0;
@@ -177,15 +186,15 @@ misskeyApiGet('federation/instances', {
 	vertical-align: bottom;
 	padding: 6px 12px 6px 6px;
 	margin: 0 10px 0 0;
-	background: var(--panel);
-	border-radius: var(--radius-ellipse);
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-ellipse);
 
 	> :global(.icon) {
 		display: inline-block;
 		width: 20px;
 		height: 20px;
 		margin-right: 5px;
-		border-radius: var(--radius-ellipse);
+		border-radius: var(--MI-radius-ellipse);
 	}
 }
 </style>

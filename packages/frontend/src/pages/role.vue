@@ -5,16 +5,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkStickyContainer>
-	<template #header><MkPageHeader v-model:tab="tab" :tabs="headerTabs"/></template>
-	<MKSpacer v-if="!(typeof error === 'undefined')" :contentMax="1200">
+	<template #header><MkPageHeader v-model:tab="tab" :displayBackButton="true" :tabs="headerTabs"/></template>
+	<MkSpacer v-if="error != null" :contentMax="1200">
 		<div :class="$style.root">
 			<img :class="$style.img" :src="serverErrorImageUrl" class="_ghost"/>
 			<p :class="$style.text">
-				<i class="ph-warning ph-bold ph-lg"></i>
+				<i class="ti ti-alert-triangle"></i>
 				{{ error }}
 			</p>
 		</div>
-	</MKSpacer>
+	</MkSpacer>
 	<MkSpacer v-else-if="tab === 'users'" :contentMax="1200">
 		<div class="_gaps_s">
 			<div v-if="role">{{ role.description }}</div>
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</MkSpacer>
 	<MkSpacer v-else-if="tab === 'timeline'" :contentMax="700">
-		<MkTimeline v-if="visible" ref="timeline" src="role" :role="props.role"/>
+		<MkTimeline v-if="visible" ref="timeline" src="role" :role="props.roleId"/>
 		<div v-else-if="!visible" class="_fullinfo">
 			<img :src="infoImageUrl" class="_ghost"/>
 			<div>{{ i18n.ts.nothing }}</div>
@@ -43,27 +43,28 @@ import MkUserList from '@/components/MkUserList.vue';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
 import MkTimeline from '@/components/MkTimeline.vue';
-import { instanceName } from '@/config.js';
+import { instanceName } from '@@/js/config.js';
 import { serverErrorImageUrl, infoImageUrl } from '@/instance.js';
 
 const props = withDefaults(defineProps<{
-	role: string;
+	roleId: string;
 	initialTab?: string;
 }>(), {
 	initialTab: 'users',
 });
 
+// eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const tab = ref(props.initialTab);
-const role = ref<Misskey.entities.Role>();
-const error = ref();
+const role = ref<Misskey.entities.Role | null>(null);
+const error = ref<string | null>(null);
 const visible = ref(false);
 
-watch(() => props.role, () => {
+watch(() => props.roleId, () => {
 	misskeyApi('roles/show', {
-		roleId: props.role,
+		roleId: props.roleId,
 	}).then(res => {
 		role.value = res;
-		document.title = `${role.value.name} | ${instanceName}`;
+		error.value = null;
 		visible.value = res.isExplorable && res.isPublic;
 	}).catch((err) => {
 		if (err.code === 'NO_SUCH_ROLE') {
@@ -71,7 +72,6 @@ watch(() => props.role, () => {
 		} else {
 			error.value = i18n.ts.somethingHappened;
 		}
-		document.title = `${error.value} | ${instanceName}`;
 	});
 }, { immediate: true });
 
@@ -79,23 +79,23 @@ const users = computed(() => ({
 	endpoint: 'roles/users' as const,
 	limit: 30,
 	params: {
-		roleId: props.role,
+		roleId: props.roleId,
 	},
 }));
 
 const headerTabs = computed(() => [{
 	key: 'users',
-	icon: 'ph-users ph-bold ph-lg',
+	icon: 'ti ti-users',
 	title: i18n.ts.users,
 }, {
 	key: 'timeline',
-	icon: 'ph-pencil-simple ph-bold ph-lg',
+	icon: 'ti ti-pencil',
 	title: i18n.ts.timeline,
 }]);
 
 definePageMetadata(() => ({
-	title: role.value ? role.value.name : i18n.ts.role,
-	icon: 'ph-seal-check ph-bold ph-lg',
+	title: role.value ? role.value.name : (error.value ?? i18n.ts.role),
+	icon: 'ti ti-badge',
 }));
 </script>
 
@@ -115,7 +115,6 @@ definePageMetadata(() => ({
   width: 128px;
 	height: 128px;
 	margin-bottom: 16px;
-	border-radius: var(--radius-md);
+	border-radius: var(--MI-radius-md);
 }
 </style>
-

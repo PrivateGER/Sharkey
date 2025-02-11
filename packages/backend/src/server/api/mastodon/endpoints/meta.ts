@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: marie and other Sharkey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 import { Entity } from 'megalodon';
 import { FILE_TYPE_BROWSERSAFE } from '@/const.js';
 import type { Config } from '@/config.js';
@@ -49,7 +54,7 @@ export async function getInstance(
 			},
 			polls: {
 				max_options: 10,
-				max_characters_per_option: 50,
+				max_characters_per_option: 150,
 				min_expiration: 50,
 				max_expiration: 2629746,
 			},

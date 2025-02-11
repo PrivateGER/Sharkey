@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:flipH="avatarDecoration.flipH"
 					:offsetX="avatarDecoration.offsetX"
 					:offsetY="avatarDecoration.offsetY"
+					:showBelow="avatarDecoration.showBelow"
 					:active="true"
 					@click="openDecoration(avatarDecoration, i)"
 				/>
@@ -67,7 +68,7 @@ misskeyApi('get-avatar-decorations').then(_avatarDecorations => {
 });
 
 function openDecoration(avatarDecoration, index?: number) {
-	os.popup(defineAsyncComponent(() => import('./avatar-decoration.dialog.vue')), {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('./avatar-decoration.dialog.vue')), {
 		decoration: avatarDecoration,
 		usingIndex: index,
 	}, {
@@ -78,6 +79,7 @@ function openDecoration(avatarDecoration, index?: number) {
 				flipH: payload.flipH,
 				offsetX: payload.offsetX,
 				offsetY: payload.offsetY,
+				showBelow: payload.showBelow,
 			};
 			const update = [...$i.avatarDecorations, decoration];
 			await os.apiWithDialog('i/update', {
@@ -92,6 +94,7 @@ function openDecoration(avatarDecoration, index?: number) {
 				flipH: payload.flipH,
 				offsetX: payload.offsetX,
 				offsetY: payload.offsetY,
+				showBelow: payload.showBelow,
 			};
 			const update = [...$i.avatarDecorations];
 			update[index] = decoration;
@@ -108,7 +111,8 @@ function openDecoration(avatarDecoration, index?: number) {
 			});
 			$i.avatarDecorations = update;
 		},
-	}, 'closed');
+		closed: () => dispose(),
+	});
 }
 
 function detachAllDecorations() {
@@ -130,7 +134,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.avatarDecorations,
-	icon: 'ph-sparkle ph-bold ph-lg',
+	icon: 'ti ti-sparkles',
 }));
 </script>
 
@@ -144,7 +148,7 @@ definePageMetadata(() => ({
 
 .current {
 	padding: 16px;
-	border-radius: var(--radius);
+	border-radius: var(--MI-radius);
 }
 
 .decorations {

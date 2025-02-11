@@ -15,14 +15,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			scrolling="no"
 			:allow="player.allow == null ? 'autoplay;encrypted-media;fullscreen' : player.allow.filter(x => ['autoplay', 'clipboard-write', 'fullscreen', 'encrypted-media', 'picture-in-picture', 'web-share'].includes(x)).join(';')"
 			:class="$style.playerIframe"
-			:src="player.url + (player.url.match(/\?/) ? '&autoplay=1&auto_play=1' : '?autoplay=1&auto_play=1')"
+			:src="transformPlayerUrl(player.url)"
 			:style="{ border: 0 }"
 		></iframe>
 		<span v-else>invalid url</span>
 	</div>
 	<div :class="$style.action">
 		<MkButton :small="true" inline @click="playerEnabled = false">
-			<i class="ph-x ph-bold ph-lg"></i> {{ i18n.ts.disablePlayer }}
+			<i class="ti ti-x"></i> {{ i18n.ts.disablePlayer }}
 		</MkButton>
 	</div>
 </template>
@@ -39,10 +39,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.action">
 		<MkButton :small="true" inline @click="tweetExpanded = false">
-			<i class="ph-x ph-bold ph-lg"></i> {{ i18n.ts.close }}
+			<i class="ti ti-x"></i> {{ i18n.ts.close }}
 		</MkButton>
 	</div>
 </template>
+<div v-else-if="theNote" :class="[$style.link, { [$style.compact]: compact }]"><XNoteSimple :note="theNote" :class="$style.body"/></div>
 <div v-else>
 	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="self ? url.substring(local.length) : url" rel="nofollow noopener" :target="target" :title="url">
 		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="defaultStore.state.dataSaver.urlPreview ? '' : `background-image: url('${thumbnail}')`">
@@ -67,15 +68,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="showActions">
 		<div v-if="tweetId" :class="$style.action">
 			<MkButton :small="true" inline @click="tweetExpanded = true">
-				<i class="ph-twitter-logo ph-bold ph-lg"></i> {{ i18n.ts.expandTweet }}
+				<i class="ti ti-brand-x"></i> {{ i18n.ts.expandTweet }}
 			</MkButton>
 		</div>
 		<div v-if="!playerEnabled && player.url" :class="$style.action">
 			<MkButton :small="true" inline @click="playerEnabled = true">
-				<i class="ph-play ph-bold ph-lg"></i> {{ i18n.ts.enablePlayer }}
+				<i class="ti ti-player-play"></i> {{ i18n.ts.enablePlayer }}
 			</MkButton>
 			<MkButton v-if="!isMobile" :small="true" inline @click="openPlayer()">
-				<i class="ph-picture-in-picture ph-bold ph-lg"></i> {{ i18n.ts.openInWindow }}
+				<i class="ti ti-picture-in-picture"></i> {{ i18n.ts.openInWindow }}
 			</MkButton>
 		</div>
 	</template>
@@ -83,15 +84,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onDeactivated, onUnmounted, ref } from 'vue';
+import { defineAsyncComponent, onDeactivated, onUnmounted, ref, watch } from 'vue';
+import { url as local } from '@@/js/config.js';
+import { versatileLang } from '@@/js/intl-const.js';
 import type { summaly } from '@misskey-dev/summaly';
-import { url as local } from '@/config.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { deviceKind } from '@/scripts/device-kind.js';
 import MkButton from '@/components/MkButton.vue';
-import { versatileLang } from '@/scripts/intl-const.js';
+import { transformPlayerUrl } from '@/scripts/player-url-transform.js';
 import { defaultStore } from '@/store.js';
+import * as Misskey from 'misskey-js';
+import { misskeyApi } from '@/scripts/misskey-api.js';
+
+const XNoteSimple = defineAsyncComponent(() =>
+	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteSimple.vue') :
+	(defaultStore.state.noteDesign === 'sharkey') ? import('@/components/SkNoteSimple.vue') :
+	null
+);
 
 type SummalyResult = Awaited<ReturnType<typeof summaly>>;
 
@@ -99,10 +109,12 @@ const props = withDefaults(defineProps<{
 	url: string;
 	detail?: boolean;
 	compact?: boolean;
+	showAsQuote?: boolean;
 	showActions?: boolean;
 }>(), {
 	detail: false,
 	compact: false,
+	showAsQuote: false,
 	showActions: true,
 });
 
@@ -119,6 +131,7 @@ const thumbnail = ref<string | null>(null);
 const icon = ref<string | null>(null);
 const sitename = ref<string | null>(null);
 const sensitive = ref<boolean>(false);
+const activityPub = ref<string | null>(null);
 const player = ref({
 	url: null,
 	width: null,
@@ -130,9 +143,24 @@ const tweetExpanded = ref(props.detail);
 const embedId = `embed${Math.random().toString().replace(/\D/, '')}`;
 const tweetHeight = ref(150);
 const unknownUrl = ref(false);
+const theNote = ref<Misskey.entities.Note | null>(null);
 
 onDeactivated(() => {
 	playerEnabled.value = false;
+});
+
+watch(activityPub, async (uri) => {
+		if (!props.showAsQuote) return;
+		if (!uri) return;
+		try {
+			const response = await misskeyApi('ap/show', { uri });
+			if (response.type !== 'Note') return;
+			theNote.value = response['object'];
+		} catch (err) {
+			if (_DEV_) {
+				console.error(`failed to extract note for preview of ${uri}`, err);
+			}
+		}
 });
 
 const requestUrl = new URL(props.url);
@@ -152,15 +180,16 @@ requestUrl.hash = '';
 window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}`)
 	.then(res => {
 		if (!res.ok) {
-			fetching.value = false;
-			unknownUrl.value = true;
-			return;
+			if (_DEV_) {
+				console.warn(`[HTTP${res.status}] Failed to fetch url preview`);
+			}
+			return null;
 		}
 
 		return res.json();
 	})
-	.then((info: SummalyResult) => {
-		if (info.url == null) {
+	.then((info: SummalyResult | null) => {
+		if (!info || info.url == null) {
 			fetching.value = false;
 			unknownUrl.value = true;
 			return;
@@ -176,9 +205,10 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 		sitename.value = info.sitename;
 		player.value = info.player;
 		sensitive.value = info.sensitive ?? false;
+		activityPub.value = info.activityPub;
 	});
 
-function adjustTweetHeight(message: any) {
+function adjustTweetHeight(message: MessageEvent) {
 	if (message.origin !== 'https://platform.twitter.com') return;
 	const embed = message.data?.['twttr.embed'];
 	if (embed?.method !== 'twttr.private.resize') return;
@@ -187,16 +217,20 @@ function adjustTweetHeight(message: any) {
 	if (height) tweetHeight.value = height;
 }
 
-const openPlayer = (): void => {
-	os.popup(defineAsyncComponent(() => import('@/components/MkYouTubePlayer.vue')), {
+function openPlayer(): void {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkYouTubePlayer.vue')), {
 		url: requestUrl.href,
+	}, {
+		closed: () => {
+			dispose();
+		},
 	});
-};
+}
 
-(window as any).addEventListener('message', adjustTweetHeight);
+window.addEventListener('message', adjustTweetHeight);
 
 onUnmounted(() => {
-	(window as any).removeEventListener('message', adjustTweetHeight);
+	window.removeEventListener('message', adjustTweetHeight);
 });
 </script>
 
@@ -215,7 +249,7 @@ onUnmounted(() => {
 	height: 1.5em;
 	padding: 0;
 	margin: 0;
-	color: var(--fg);
+	color: var(--MI_THEME-fg);
 	background: rgba(128, 128, 128, 0.2);
 	opacity: 0.7;
 
@@ -236,8 +270,8 @@ onUnmounted(() => {
 	position: relative;
 	display: block;
 	font-size: 14px;
-	box-shadow: 0 0 0 1px var(--divider);
-	border-radius: var(--radius-sm);
+	box-shadow: 0 0 0 1px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 
 	&:hover {
@@ -266,7 +300,7 @@ onUnmounted(() => {
 	height: 100%;
 	background-position: center;
 	background-size: cover;
-	background-color: var(--bg);
+	background-color: var(--MI_THEME-bg);
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -313,7 +347,6 @@ onUnmounted(() => {
 .siteName {
 	display: inline-block;
 	margin: 0;
-	color: var(--urlPreviewInfo);
 	font-size: 0.8em;
 	line-height: 16px;
 	vertical-align: top;
@@ -349,11 +382,14 @@ onUnmounted(() => {
 				position: absolute;
 				width: 56px;
 				height: 100%;
+
+				& + .body {
+					left: 56px;
+					width: calc(100% - 56px);
+				}
 			}
 
 			> .body {
-				left: 56px;
-				width: calc(100% - 56px);
 				padding: 4px;
 
 				> .header {

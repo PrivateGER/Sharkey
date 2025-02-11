@@ -6,7 +6,6 @@
 import * as fs from 'node:fs';
 import * as stream from 'node:stream/promises';
 import { Inject, Injectable } from '@nestjs/common';
-import ipaddr from 'ipaddr.js';
 import chalk from 'chalk';
 import got, * as Got from 'got';
 import { parse } from 'content-disposition';
@@ -35,14 +34,14 @@ export class DownloadService {
 	}
 
 	@bindThis
-	public async downloadUrl(url: string, path: string): Promise<{
+	public async downloadUrl(url: string, path: string, options: { timeout?: number, operationTimeout?: number, maxSize?: number} = {} ): Promise<{
 		filename: string;
 	}> {
 		this.logger.info(`Downloading ${chalk.cyan(url)} to ${chalk.cyanBright(path)} ...`);
 
-		const timeout = 30 * 1000;
-		const operationTimeout = 60 * 1000;
-		const maxSize = this.config.maxFileSize ?? 262144000;
+		const timeout = options.timeout ?? 30 * 1000;
+		const operationTimeout = options.operationTimeout ?? 60 * 1000;
+		const maxSize = options.maxSize ?? this.config.maxFileSize;
 
 		const urlObj = new URL(url);
 		let filename = urlObj.pathname.split('/').pop() ?? 'untitled';
@@ -70,13 +69,6 @@ export class DownloadService {
 			},
 			enableUnixSockets: false,
 		}).on('response', (res: Got.Response) => {
-			if ((process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') && !this.config.proxy && res.ip) {
-				if (this.isPrivateIp(res.ip)) {
-					this.logger.warn(`Blocked address: ${res.ip}`);
-					req.destroy();
-				}
-			}
-
 			const contentLength = res.headers['content-length'];
 			if (contentLength != null) {
 				const size = Number(contentLength);
@@ -138,19 +130,5 @@ export class DownloadService {
 		} finally {
 			cleanup();
 		}
-	}
-
-	@bindThis
-	private isPrivateIp(ip: string): boolean {
-		const parsedIp = ipaddr.parse(ip);
-
-		for (const net of this.config.allowedPrivateNetworks ?? []) {
-			const cidr = ipaddr.parseCIDR(net);
-			if (cidr[0].kind() === parsedIp.kind() && parsedIp.match(ipaddr.parseCIDR(net))) {
-				return false;
-			}
-		}
-
-		return parsedIp.range() !== 'unicast';
 	}
 }

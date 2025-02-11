@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			class="file _button"
 		>
 			<div v-if="file.isSensitive" class="sensitive-label">{{ i18n.ts.sensitive }}</div>
-			<MkDriveFileThumbnail class="thumbnail" :file="file" fit="contain"/>
+			<MkDriveFileThumbnail class="thumbnail" :file="file" fit="contain" :highlightWhenSensitive="true"/>
 			<div v-if="viewMode === 'list'" class="body">
 				<div>
 					<small style="opacity: 0.7;">{{ file.name }}</small>
@@ -66,7 +66,7 @@ const props = defineProps<{
 			align-items: center;
 
 			&:hover {
-				color: var(--accent);
+				color: var(--MI_THEME-accent);
 			}
 
 			> .thumbnail {
@@ -108,7 +108,7 @@ const props = defineProps<{
 				padding: 2px 4px;
 				background: #ff0000bf;
 				color: #fff;
-				border-radius: var(--radius-xs);
+				border-radius: var(--MI-radius-xs);
 				font-size: 85%;
 				animation: sensitive-blink 1s infinite;
 			}

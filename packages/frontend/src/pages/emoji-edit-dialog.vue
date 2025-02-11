@@ -8,15 +8,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	ref="windowEl"
 	:initialWidth="400"
 	:initialHeight="500"
-	:canResize="false"
-	@close="windowEl.close()"
-	@closed="$emit('closed')"
+	:canResize="true"
+	@close="windowEl?.close()"
+	@closed="emit('closed')"
 >
 	<template v-if="emoji" #header>:{{ emoji.name }}:</template>
 	<template v-else #header>New emoji</template>
 
-	<div>
-		<MkSpacer :marginMin="20" :marginMax="28">
+	<div style="display: flex; flex-direction: column; min-height: 100%;">
+		<MkSpacer :marginMin="20" :marginMax="28" style="flex-grow: 1;">
 			<div class="_gaps_m">
 				<div v-if="imgUrl != null" :class="$style.imgs">
 					<div style="background: #000;" :class="$style.imgContainer">
@@ -54,12 +54,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #suffix>{{ rolesThatCanBeUsedThisEmojiAsReaction.length === 0 ? i18n.ts.all : rolesThatCanBeUsedThisEmojiAsReaction.length }}</template>
 
 					<div class="_gaps">
-						<MkButton rounded @click="addRole"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.add }}</MkButton>
+						<MkButton rounded @click="addRole"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 
 						<div v-for="role in rolesThatCanBeUsedThisEmojiAsReaction" :key="role.id" :class="$style.roleItem">
 							<MkRolePreview :class="$style.role" :role="role" :forModeration="true" :detailed="false" style="pointer-events: none;"/>
-							<button v-if="role.target === 'manual'" class="_button" :class="$style.roleUnassign" @click="removeRole(role, $event)"><i class="ph-x ph-bold ph-lg"></i></button>
-							<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ph-prohibit ph-bold ph-lg"></i></button>
+							<button v-if="role.target === 'manual'" class="_button" :class="$style.roleUnassign" @click="removeRole(role, $event)"><i class="ti ti-x"></i></button>
+							<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ti ti-ban"></i></button>
 						</div>
 
 						<MkInfo>{{ i18n.ts.rolesThatCanBeUsedThisEmojiAsReactionEmptyDescription }}</MkInfo>
@@ -68,11 +68,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkFolder>
 				<MkSwitch v-model="isSensitive">isSensitive</MkSwitch>
 				<MkSwitch v-model="localOnly">{{ i18n.ts.localOnly }}</MkSwitch>
-				<MkButton v-if="emoji" danger @click="del()"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.delete }}</MkButton>
+				<MkButton v-if="emoji" danger @click="del()"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 			</div>
 		</MkSpacer>
 		<div :class="$style.footer">
-			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ph-check ph-bold ph-lg"></i> {{ props.emoji ? i18n.ts.update : i18n.ts.create }}</MkButton>
+			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ti ti-check"></i> {{ props.emoji ? i18n.ts.update : i18n.ts.create }}</MkButton>
 		</div>
 	</div>
 </MkWindow>
@@ -95,14 +95,19 @@ import { selectFile } from '@/scripts/select-file.js';
 import MkRolePreview from '@/components/MkRolePreview.vue';
 
 const props = defineProps<{
-	emoji?: any,
+	emoji?: Misskey.entities.EmojiDetailed,
+}>();
+
+const emit = defineEmits<{
+	(ev: 'done', v: { deleted?: boolean; updated?: Misskey.entities.AdminEmojiUpdateRequest; created?: Misskey.entities.AdminEmojiUpdateRequest }): void,
+	(ev: 'closed'): void
 }>();
 
 const windowEl = ref<InstanceType<typeof MkWindow> | null>(null);
 const name = ref<string>(props.emoji ? props.emoji.name : '');
-const category = ref<string>(props.emoji ? props.emoji.category : '');
+const category = ref<string>(props.emoji?.category ? props.emoji.category : '');
 const aliases = ref<string>(props.emoji ? props.emoji.aliases.join(' ') : '');
-const license = ref<string>(props.emoji ? (props.emoji.license ?? '') : '');
+const license = ref<string>(props.emoji?.license ? props.emoji.license : '');
 const isSensitive = ref(props.emoji ? props.emoji.isSensitive : false);
 const localOnly = ref(props.emoji ? props.emoji.localOnly : false);
 const roleIdsThatCanBeUsedThisEmojiAsReaction = ref(props.emoji ? props.emoji.roleIdsThatCanBeUsedThisEmojiAsReaction : []);
@@ -115,12 +120,7 @@ watch(roleIdsThatCanBeUsedThisEmojiAsReaction, async () => {
 
 const imgUrl = computed(() => file.value ? file.value.url : props.emoji ? `/emoji/${props.emoji.name}.webp` : null);
 
-const emit = defineEmits<{
-	(ev: 'done', v: { deleted?: boolean; updated?: any; created?: any }): void,
-	(ev: 'closed'): void
-}>();
-
-async function changeImage(ev) {
+async function changeImage(ev: Event) {
 	file.value = await selectFile(ev.currentTarget ?? ev.target, null);
 	const candidate = file.value.name.replace(/\.(.+)$/, '');
 	if (candidate.match(/^[a-z0-9_]+$/)) {
@@ -140,7 +140,7 @@ async function addRole() {
 	rolesThatCanBeUsedThisEmojiAsReaction.value.push(role);
 }
 
-async function removeRole(role, ev) {
+async function removeRole(role: Misskey.entities.RoleLite, ev: Event) {
 	rolesThatCanBeUsedThisEmojiAsReaction.value = rolesThatCanBeUsedThisEmojiAsReaction.value.filter(x => x.id !== role.id);
 }
 
@@ -172,7 +172,7 @@ async function done() {
 			},
 		});
 
-		windowEl.value.close();
+		windowEl.value?.close();
 	} else {
 		const created = await os.apiWithDialog('admin/emoji/add', params);
 
@@ -180,11 +180,12 @@ async function done() {
 			created: created,
 		});
 
-		windowEl.value.close();
+		windowEl.value?.close();
 	}
 }
 
 async function del() {
+	if (!props.emoji) return;
 	const { canceled } = await os.confirm({
 		type: 'warning',
 		text: i18n.tsx.removeAreYouSure({ x: name.value }),
@@ -197,7 +198,7 @@ async function del() {
 		emit('done', {
 			deleted: true,
 		});
-		windowEl.value.close();
+		windowEl.value?.close();
 	});
 }
 </script>
@@ -212,7 +213,7 @@ async function del() {
 
 .imgContainer {
 	padding: 8px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .img {
@@ -239,11 +240,13 @@ async function del() {
 
 .footer {
 	position: sticky;
+	z-index: 10000;
 	bottom: 0;
 	left: 0;
 	padding: 12px;
-	border-top: solid 0.5px var(--divider);
-	-webkit-backdrop-filter: var(--blur, blur(15px));
-	backdrop-filter: var(--blur, blur(15px));
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	background: var(--MI_THEME-acrylicBg);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
 }
 </style>

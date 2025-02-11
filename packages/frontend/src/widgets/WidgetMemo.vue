@@ -5,11 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" data-cy-mkw-memo class="mkw-memo">
-	<template #icon><i class="ph-note ph-bold ph-lg"></i></template>
+	<template #icon><i class="ti ti-note"></i></template>
 	<template #header>{{ i18n.ts._widgets.memo }}</template>
 
 	<div :class="$style.root">
-		<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.placeholder" @input="onChange"></textarea>
+		<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" @input="onChange"></textarea>
 		<button :class="$style.save" :disabled="!changed" class="_buttonPrimary" @click="saveMemo">{{ i18n.ts.save }}</button>
 	</div>
 </MkContainer>
@@ -84,10 +84,10 @@ defineExpose<WidgetComponentExpose>({
 	max-width: 100%;
 	min-width: 100%;
 	padding: 16px;
-	color: var(--fg);
+	color: var(--MI_THEME-fg);
 	background: transparent;
 	border: none;
-	border-bottom: solid 0.5px var(--divider);
+	border-bottom: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 0;
 	box-sizing: border-box;
 	font: inherit;
@@ -107,7 +107,7 @@ defineExpose<WidgetComponentExpose>({
 	padding: 0 10px;
 	height: 28px;
 	outline: none;
-	border-radius: var(--radius-xs);
+	border-radius: var(--MI-radius-xs);
 
 	&:disabled {
 		opacity: 0.7;

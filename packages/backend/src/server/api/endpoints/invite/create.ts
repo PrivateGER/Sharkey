@@ -34,6 +34,12 @@ export const meta = {
 		optional: false, nullable: false,
 		ref: 'InviteCode',
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -66,13 +72,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			const ticket = await this.registrationTicketsRepository.insert({
+			const ticket = await this.registrationTicketsRepository.insertOne({
 				id: this.idService.gen(),
 				createdBy: me,
 				createdById: me.id,
 				expiresAt: policies.inviteExpirationTime ? new Date(Date.now() + (policies.inviteExpirationTime * 1000 * 60)) : null,
 				code: generateInviteCode(),
-			}).then(x => this.registrationTicketsRepository.findOneByOrFail(x.identifiers[0]));
+			});
 
 			return await this.inviteCodeEntityService.pack(ticket, me);
 		});

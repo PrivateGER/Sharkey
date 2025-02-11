@@ -34,7 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="selects">
 		<MkSelect v-model="lightThemeId" large class="select">
 			<template #label>{{ i18n.ts.themeForLightMode }}</template>
-			<template #prefix><i class="ph-sun ph-bold ph-lg"></i></template>
+			<template #prefix><i class="ti ti-sun"></i></template>
 			<option v-if="instanceLightTheme" :key="'instance:' + instanceLightTheme.id" :value="instanceLightTheme.id">{{ instanceLightTheme.name }}</option>
 			<optgroup v-if="installedLightThemes.length > 0" :label="i18n.ts._theme.installedThemes">
 				<option v-for="x in installedLightThemes" :key="'installed:' + x.id" :value="x.id">{{ x.name }}</option>
@@ -45,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkSelect>
 		<MkSelect v-model="darkThemeId" large class="select">
 			<template #label>{{ i18n.ts.themeForDarkMode }}</template>
-			<template #prefix><i class="ph-moon ph-bold ph-lg"></i></template>
+			<template #prefix><i class="ti ti-moon"></i></template>
 			<option v-if="instanceDarkTheme" :key="'instance:' + instanceDarkTheme.id" :value="instanceDarkTheme.id">{{ instanceDarkTheme.name }}</option>
 			<optgroup v-if="installedDarkThemes.length > 0" :label="i18n.ts._theme.installedThemes">
 				<option v-for="x in installedDarkThemes" :key="'installed:' + x.id" :value="x.id">{{ x.name }}</option>
@@ -58,10 +58,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<FormSection>
 		<div class="_formLinksGrid">
-			<FormLink to="/settings/theme/manage"><template #icon><i class="ph-wrench ph-bold ph-lg"></i></template>{{ i18n.ts._theme.manage }}<template #suffix>{{ themesCount }}</template></FormLink>
-			<FormLink to="https://assets.misskey.io/theme/list" external><template #icon><i class="ph-globe-hemisphere-west ph-bold ph-lg"></i></template>{{ i18n.ts._theme.explore }}</FormLink>
-			<FormLink to="/settings/theme/install"><template #icon><i class="ph-download ph-bold ph-lg"></i></template>{{ i18n.ts._theme.install }}</FormLink>
-			<FormLink to="/theme-editor"><template #icon><i class="ph-paint-roller ph-bold ph-lg"></i></template>{{ i18n.ts._theme.make }}</FormLink>
+			<FormLink to="/settings/theme/manage"><template #icon><i class="ti ti-tool"></i></template>{{ i18n.ts._theme.manage }}<template #suffix>{{ themesCount }}</template></FormLink>
+			<FormLink to="https://assets.misskey.io/theme/list" external><template #icon><i class="ti ti-world"></i></template>{{ i18n.ts._theme.explore }}</FormLink>
+			<FormLink to="/settings/theme/install"><template #icon><i class="ti ti-download"></i></template>{{ i18n.ts._theme.install }}</FormLink>
+			<FormLink to="/theme-editor"><template #icon><i class="ti ti-paint"></i></template>{{ i18n.ts._theme.make }}</FormLink>
 		</div>
 	</FormSection>
 
@@ -88,18 +88,8 @@ import { uniqueBy } from '@/scripts/array.js';
 import { fetchThemes, getThemes } from '@/theme-store.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { unisonReload } from '@/scripts/unison-reload.js';
+import { reloadAsk } from '@/scripts/reload-ask.js';
 import * as os from '@/os.js';
-
-async function reloadAsk() {
-	const { canceled } = await os.confirm({
-		type: 'info',
-		text: i18n.ts.reloadToApplySetting,
-	});
-	if (canceled) return;
-
-	unisonReload();
-}
 
 const installedThemes = ref(getThemes());
 const builtinThemes = getBuiltinThemesRef();
@@ -148,13 +138,13 @@ watch(syncDeviceDarkMode, () => {
 	}
 });
 
-watch(wallpaper, () => {
+watch(wallpaper, async () => {
 	if (wallpaper.value == null) {
 		miLocalStorage.removeItem('wallpaper');
 	} else {
 		miLocalStorage.setItem('wallpaper', wallpaper.value);
 	}
-	reloadAsk();
+	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
 });
 
 onActivated(() => {
@@ -179,13 +169,13 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.theme,
-	icon: 'ph-palette ph-bold ph-lg',
+	icon: 'ti ti-palette',
 }));
 </script>
 
 <style lang="scss" scoped>
 .rfqxtzch {
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 
 	> .toggle {
 		position: relative;
@@ -213,12 +203,18 @@ definePageMetadata(() => ({
 			}
 		}
 
+		.dn:focus-visible ~ .toggle {
+			outline: 2px solid var(--MI_THEME-focus);
+			outline-offset: 2px;
+		}
+
 		.toggle {
 			cursor: pointer;
 			display: inline-block;
 			position: relative;
 			width: 90px;
 			height: 50px;
+			margin: 4px; // focus用のアウトライン
 			background-color: #83D8FF;
 			border-radius: 90px - 6;
 			transition: background-color 200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) !important;
@@ -231,12 +227,12 @@ definePageMetadata(() => ({
 
 			> .before {
 				left: -70px;
-				color: var(--accent);
+				color: var(--MI_THEME-accent);
 			}
 
 			> .after {
 				right: -68px;
-				color: var(--fg);
+				color: var(--MI_THEME-fg);
 			}
 		}
 
@@ -259,7 +255,7 @@ definePageMetadata(() => ({
 				background-color: #E8CDA5;
 				opacity: 0;
 				transition: opacity 200ms ease-in-out !important;
-				border-radius: var(--radius-full);
+				border-radius: var(--MI-radius-full);
 			}
 
 			.crater--1 {
@@ -354,11 +350,11 @@ definePageMetadata(() => ({
 				background-color: #749DD6;
 
 				> .before {
-					color: var(--fg);
+					color: var(--MI_THEME-fg);
 				}
 
 				> .after {
-					color: var(--accent);
+					color: var(--MI_THEME-accent);
 				}
 
 				.toggle__handler {
@@ -409,14 +405,14 @@ definePageMetadata(() => ({
 
 	> .sync {
 		padding: 14px 16px;
-		border-top: solid 0.5px var(--divider);
+		border-top: solid 0.5px var(--MI_THEME-divider);
 	}
 }
 
 .rsljpzjq {
 	> .selects {
 		display: flex;
-		gap: 1.5em var(--margin);
+		gap: 1.5em var(--MI-margin);
 		flex-wrap: wrap;
 
 		> .select {

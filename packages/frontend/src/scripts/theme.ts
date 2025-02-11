@@ -5,11 +5,11 @@
 
 import { ref } from 'vue';
 import tinycolor from 'tinycolor2';
+import lightTheme from '@@/themes/_light.json5';
+import darkTheme from '@@/themes/_dark.json5';
 import { deepClone } from './clone.js';
-import type { BuiltinTheme } from 'shiki';
+import type { BundledTheme } from 'shiki/themes';
 import { globalEvents } from '@/events.js';
-import lightTheme from '@/themes/_light.json5';
-import darkTheme from '@/themes/_dark.json5';
 import { miLocalStorage } from '@/local-storage.js';
 
 export type Theme = {
@@ -20,7 +20,7 @@ export type Theme = {
 	base?: 'dark' | 'light';
 	props: Record<string, string>;
 	codeHighlighter?: {
-		base: BuiltinTheme;
+		base: BundledTheme;
 		overrides?: Record<string, any>;
 	} | {
 		base: '_none_';
@@ -54,7 +54,7 @@ export const getBuiltinThemes = () => Promise.all(
 		'd-u0',
 		'rosepine',
 		'rosepine-dawn',
-	].map(name => import(`@/themes/${name}.json5`).then(({ default: _default }): Theme => _default)),
+	].map(name => import(`@@/themes/${name}.json5`).then(({ default: _default }): Theme => _default)),
 );
 
 export const getBuiltinThemesRef = () => {
@@ -77,6 +77,8 @@ export function applyTheme(theme: Theme, persist = true) {
 	}, 1000);
 
 	const colorScheme = theme.base === 'dark' ? 'dark' : 'light';
+
+	document.documentElement.dataset.colorScheme = colorScheme;
 
 	// Deep copy
 	const _theme = deepClone(theme);
@@ -121,7 +123,7 @@ export function applyTheme(theme: Theme, persist = true) {
 
 	for (const [k, v] of Object.entries(props)) {
 		if (k.startsWith('font')) continue;
-		document.documentElement.style.setProperty(`--${k}`, v.toString());
+		document.documentElement.style.setProperty(`--MI_THEME-${k}`, v.toString());
 	}
 
 	document.documentElement.style.setProperty('color-scheme', colorScheme);

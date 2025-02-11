@@ -7,23 +7,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div ref="el" class="hiyeyicy" :class="{ wide: !narrow }">
 	<div v-if="!narrow || currentPage?.route.name == null" class="nav">
 		<MkSpacer :contentMax="700" :marginMin="16">
-			<div class="lxpfedzu">
+			<div class="lxpfedzu _gaps">
 				<div class="banner">
 					<img :src="instance.iconUrl || '/favicon.ico'" alt="" class="icon"/>
 				</div>
 
-				<MkInfo v-if="thereIsUnresolvedAbuseReport" warn class="info">{{ i18n.ts.thereIsUnresolvedAbuseReportWarning }} <MkA to="/admin/abuses" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
-				<MkInfo v-if="noMaintainerInformation" warn class="info">{{ i18n.ts.noMaintainerInformationWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-				<MkInfo v-if="noBotProtection" warn class="info">{{ i18n.ts.noBotProtectionWarning }} <MkA to="/admin/security" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-				<MkInfo v-if="noEmailServer" warn class="info">{{ i18n.ts.noEmailServerWarning }} <MkA to="/admin/email-settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-				<MkInfo v-if="pendingUserApprovals" warn class="info">{{ i18n.ts.pendingUserApprovals }} <MkA to="/admin/approvals" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
+				<div class="_gaps_s">
+					<MkInfo v-if="thereIsUnresolvedAbuseReport" warn class="info">{{ i18n.ts.thereIsUnresolvedAbuseReportWarning }} <MkA to="/admin/abuses" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
+					<MkInfo v-if="noMaintainerInformation" warn class="info">{{ i18n.ts.noMaintainerInformationWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+					<MkInfo v-if="noInquiryUrl" warn class="info">{{ i18n.ts.noInquiryUrlWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+					<MkInfo v-if="noBotProtection" warn class="info">{{ i18n.ts.noBotProtectionWarning }} <MkA to="/admin/security" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+					<MkInfo v-if="noEmailServer" warn class="info">{{ i18n.ts.noEmailServerWarning }} <MkA to="/admin/email-settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+					<MkInfo v-if="pendingUserApprovals" warn class="info">{{ i18n.ts.pendingUserApprovals }} <MkA to="/admin/approvals" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
+				</div>
 
 				<MkSuperMenu :def="menuDef" :grid="narrow"></MkSuperMenu>
 			</div>
 		</MkSpacer>
 	</div>
 	<div v-if="!(narrow && currentPage?.route.name == null)" class="main">
-		<RouterView/>
+		<RouterView nested/>
 	</div>
 </div>
 </template>
@@ -34,9 +37,10 @@ import { i18n } from '@/i18n.js';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { instance } from '@/instance.js';
+import { lookup } from '@/scripts/lookup.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
-import { lookupUser, lookupUserByEmail } from '@/scripts/lookup-user.js';
+import { lookupUser, lookupUserByEmail, lookupFile } from '@/scripts/admin-lookup.js';
 import { PageMetadata, definePageMetadata, provideMetadataReceiver, provideReactiveMetadata } from '@/scripts/page-metadata.js';
 import { useRouter } from '@/router/supplier.js';
 
@@ -46,7 +50,7 @@ const router = useRouter();
 
 const indexInfo = {
 	title: i18n.ts.controlPanel,
-	icon: 'ph-gear ph-bold ph-lg',
+	icon: 'ti ti-settings',
 	hideHeader: true,
 };
 
@@ -58,9 +62,10 @@ const narrow = ref(false);
 const view = ref(null);
 const el = ref<HTMLDivElement | null>(null);
 const pageProps = ref({});
-let noMaintainerInformation = isEmpty(instance.maintainerName) || isEmpty(instance.maintainerEmail);
-let noBotProtection = !instance.disableRegistration && !instance.enableHcaptcha && !instance.enableRecaptcha && !instance.enableMcaptcha && !instance.enableTurnstile;
-let noEmailServer = !instance.enableEmail;
+const noMaintainerInformation = computed(() => isEmpty(instance.maintainerName) || isEmpty(instance.maintainerEmail));
+const noBotProtection = computed(() => !instance.disableRegistration && !instance.enableHcaptcha && !instance.enableRecaptcha && !instance.enableTurnstile && !instance.enableMcaptcha && !instance.enableFC);
+const noEmailServer = computed(() => !instance.enableEmail);
+const noInquiryUrl = computed(() => isEmpty(instance.inquiryUrl));
 const thereIsUnresolvedAbuseReport = ref(false);
 const pendingUserApprovals = ref(false);
 const currentPage = computed(() => router.currentRef.value.child);
@@ -90,29 +95,29 @@ const menuDef = computed(() => [{
 	title: i18n.ts.quickAction,
 	items: [{
 		type: 'button',
-		icon: 'ph-magnifying-glass ph-bold ph-lg',
+		icon: 'ti ti-search',
 		text: i18n.ts.lookup,
-		action: lookup,
+		action: adminLookup,
 	}, ...(instance.disableRegistration ? [{
 		type: 'button',
-		icon: 'ph-user-plus ph-bold ph-lg',
+		icon: 'ti ti-user-plus',
 		text: i18n.ts.createInviteCode,
 		action: invite,
 	}] : [])],
 }, {
 	title: i18n.ts.administration,
 	items: [{
-		icon: 'ph-gauge ph-bold ph-lg',
+		icon: 'ti ti-dashboard',
 		text: i18n.ts.dashboard,
 		to: '/admin/overview',
 		active: currentPage.value?.route.name === 'overview',
 	}, {
-		icon: 'ph-users ph-bold ph-lg',
+		icon: 'ti ti-users',
 		text: i18n.ts.users,
 		to: '/admin/users',
 		active: currentPage.value?.route.name === 'users',
 	}, {
-		icon: 'ph-user-plus ph-bold ph-lg',
+		icon: 'ti ti-user-plus',
 		text: i18n.ts.invite,
 		to: '/admin/invites',
 		active: currentPage.value?.route.name === 'invites',
@@ -122,7 +127,7 @@ const menuDef = computed(() => [{
 		to: '/admin/approvals',
 		active: currentPage.value?.route.name === 'approvals',
 	}, {
-		icon: 'ph-seal-check ph-bold ph-lg',
+		icon: 'ti ti-badges',
 		text: i18n.ts.roles,
 		to: '/admin/roles',
 		active: currentPage.value?.route.name === 'roles',
@@ -132,42 +137,42 @@ const menuDef = computed(() => [{
 		to: '/admin/emojis',
 		active: currentPage.value?.route.name === 'emojis',
 	}, {
-		icon: 'ph-sparkle ph-bold ph-lg',
+		icon: 'ti ti-sparkles',
 		text: i18n.ts.avatarDecorations,
 		to: '/admin/avatar-decorations',
 		active: currentPage.value?.route.name === 'avatarDecorations',
 	}, {
-		icon: 'ph-globe-hemisphere-west ph-bold ph-lg',
+		icon: 'ti ti-whirl',
 		text: i18n.ts.federation,
 		to: '/admin/federation',
 		active: currentPage.value?.route.name === 'federation',
 	}, {
-		icon: 'ph-clock ph-bold ph-lg-play',
+		icon: 'ti ti-clock-play',
 		text: i18n.ts.jobQueue,
 		to: '/admin/queue',
 		active: currentPage.value?.route.name === 'queue',
 	}, {
-		icon: 'ph-cloud ph-bold ph-lg',
+		icon: 'ti ti-cloud',
 		text: i18n.ts.files,
 		to: '/admin/files',
 		active: currentPage.value?.route.name === 'files',
 	}, {
-		icon: 'ph-megaphone ph-bold ph-lg',
+		icon: 'ti ti-speakerphone',
 		text: i18n.ts.announcements,
 		to: '/admin/announcements',
 		active: currentPage.value?.route.name === 'announcements',
 	}, {
-		icon: 'ph-flag ph-bold ph-lg',
+		icon: 'ti ti-ad',
 		text: i18n.ts.ads,
 		to: '/admin/ads',
 		active: currentPage.value?.route.name === 'ads',
 	}, {
-		icon: 'ph-warning-circle ph-bold ph-lg',
+		icon: 'ti ti-exclamation-circle',
 		text: i18n.ts.abuseReports,
 		to: '/admin/abuses',
 		active: currentPage.value?.route.name === 'abuses',
 	}, {
-		icon: 'ph-list ph-bold ph-lg-search',
+		icon: 'ti ti-list-search',
 		text: i18n.ts.moderationLogs,
 		to: '/admin/modlog',
 		active: currentPage.value?.route.name === 'modlog',
@@ -175,90 +180,82 @@ const menuDef = computed(() => [{
 }, {
 	title: i18n.ts.settings,
 	items: [{
-		icon: 'ph-gear ph-bold ph-lg',
+		icon: 'ti ti-settings',
 		text: i18n.ts.general,
 		to: '/admin/settings',
 		active: currentPage.value?.route.name === 'settings',
 	}, {
-		icon: 'ph-paint-roller ph-bold ph-lg',
+		icon: 'ti ti-paint',
 		text: i18n.ts.branding,
 		to: '/admin/branding',
 		active: currentPage.value?.route.name === 'branding',
 	}, {
-		icon: 'ph-shield ph-bold ph-lg',
+		icon: 'ti ti-shield',
 		text: i18n.ts.moderation,
 		to: '/admin/moderation',
 		active: currentPage.value?.route.name === 'moderation',
 	}, {
-		icon: 'ph-envelope ph-bold ph-lg',
+		icon: 'ti ti-mail',
 		text: i18n.ts.emailServer,
 		to: '/admin/email-settings',
 		active: currentPage.value?.route.name === 'email-settings',
 	}, {
-		icon: 'ph-cloud ph-bold ph-lg',
+		icon: 'ti ti-cloud',
 		text: i18n.ts.objectStorage,
 		to: '/admin/object-storage',
 		active: currentPage.value?.route.name === 'object-storage',
 	}, {
-		icon: 'ph-lock ph-bold ph-lg',
+		icon: 'ti ti-lock',
 		text: i18n.ts.security,
 		to: '/admin/security',
 		active: currentPage.value?.route.name === 'security',
 	}, {
-		icon: 'ph-planet ph-bold ph-lg',
+		icon: 'ti ti-planet',
 		text: i18n.ts.relays,
 		to: '/admin/relays',
 		active: currentPage.value?.route.name === 'relays',
-	}, {
-		icon: 'ph-prohibit ph-bold ph-lg',
-		text: i18n.ts.instanceBlocking,
-		to: '/admin/instance-block',
-		active: currentPage.value?.route.name === 'instance-block',
-	}, {
-		icon: 'ph-ghost ph-bold ph-lg',
-		text: i18n.ts.proxyAccount,
-		to: '/admin/proxy-account',
-		active: currentPage.value?.route.name === 'proxy-account',
 	}, {
 		icon: 'ph-arrow-square-out ph-bold ph-lg',
 		text: i18n.ts.externalServices,
 		to: '/admin/external-services',
 		active: currentPage.value?.route.name === 'external-services',
 	}, {
-		icon: 'ph-faders ph-bold ph-lg',
-		text: i18n.ts.other,
-		to: '/admin/other-settings',
-		active: currentPage.value?.route.name === 'other-settings',
+		icon: 'ti ti-webhook',
+		text: 'Webhook',
+		to: '/admin/system-webhook',
+		active: currentPage.value?.route.name === 'system-webhook',
+	}, {
+		icon: 'ti ti-bolt',
+		text: i18n.ts.performance,
+		to: '/admin/performance',
+		active: currentPage.value?.route.name === 'performance',
 	}],
 }, {
 	title: i18n.ts.info,
 	items: [{
-		icon: 'ph-database ph-bold ph-lg',
+		icon: 'ti ti-database',
 		text: i18n.ts.database,
 		to: '/admin/database',
 		active: currentPage.value?.route.name === 'database',
 	}],
 }]);
 
-watch(narrow.value, () => {
-	if (currentPage.value?.route.name == null && !narrow.value) {
-		router.push('/admin/overview');
-	}
-});
-
 onMounted(() => {
-	ro.observe(el.value);
-
-	narrow.value = el.value.offsetWidth < NARROW_THRESHOLD;
+	if (el.value != null) {
+		ro.observe(el.value);
+		narrow.value = el.value.offsetWidth < NARROW_THRESHOLD;
+	}
 	if (currentPage.value?.route.name == null && !narrow.value) {
-		router.push('/admin/overview');
+		router.replace('/admin/overview');
 	}
 });
 
 onActivated(() => {
-	narrow.value = el.value.offsetWidth < NARROW_THRESHOLD;
+	if (el.value != null) {
+		narrow.value = el.value.offsetWidth < NARROW_THRESHOLD;
+	}
 	if (currentPage.value?.route.name == null && !narrow.value) {
-		router.push('/admin/overview');
+		router.replace('/admin/overview');
 	}
 });
 
@@ -297,36 +294,30 @@ function invite() {
 	});
 }
 
-function lookup(ev: MouseEvent) {
+function adminLookup(ev: MouseEvent) {
 	os.popupMenu([{
 		text: i18n.ts.user,
-		icon: 'ph-user ph-bold ph-lg',
+		icon: 'ti ti-user',
 		action: () => {
 			lookupUser();
 		},
 	}, {
 		text: `${i18n.ts.user} (${i18n.ts.email})`,
-		icon: 'ph-user ph-bold ph-lg',
+		icon: 'ti ti-user',
 		action: () => {
 			lookupUserByEmail();
 		},
 	}, {
-		text: i18n.ts.note,
-		icon: 'ph-pencil-simple ph-bold ph-lg',
-		action: () => {
-			alert('TODO');
-		},
-	}, {
 		text: i18n.ts.file,
-		icon: 'ph-cloud ph-bold ph-lg',
+		icon: 'ti ti-cloud',
 		action: () => {
-			alert('TODO');
+			lookupFile();
 		},
 	}, {
-		text: i18n.ts.instance,
-		icon: 'ph-planet ph-bold ph-lg',
+		text: i18n.ts.lookup,
+		icon: 'ti ti-world-search',
 		action: () => {
-			alert('TODO');
+			lookup();
 		},
 	}], ev.currentTarget ?? ev.target);
 }
@@ -355,7 +346,7 @@ defineExpose({
 			width: 32%;
 			max-width: 280px;
 			box-sizing: border-box;
-			border-right: solid 0.5px var(--divider);
+			border-right: solid 0.5px var(--MI_THEME-divider);
 			overflow: auto;
 			height: 100%;
 		}
@@ -368,10 +359,6 @@ defineExpose({
 
 	> .nav {
 		.lxpfedzu {
-			> .info {
-				margin: 16px 0;
-			}
-
 			> .banner {
 				margin: 16px;
 
@@ -379,7 +366,7 @@ defineExpose({
 					display: block;
 					margin: auto;
 					height: 42px;
-					border-radius: var(--radius-sm);
+					border-radius: var(--MI-radius-sm);
 				}
 			}
 		}

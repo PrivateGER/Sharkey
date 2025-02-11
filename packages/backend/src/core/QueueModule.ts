@@ -7,10 +7,18 @@ import { Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import * as Bull from 'bullmq';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import { QUEUE, baseQueueOptions } from '@/queue/const.js';
+import { baseQueueOptions, QUEUE } from '@/queue/const.js';
 import { allSettled } from '@/misc/promise-tracker.js';
+import {
+	DeliverJobData,
+	EndedPollNotificationJobData,
+	InboxJobData,
+	RelationshipJobData,
+	UserWebhookDeliverJobData,
+	SystemWebhookDeliverJobData,
+	ScheduleNotePostJobData,
+} from '../queue/types.js';
 import type { Provider } from '@nestjs/common';
-import type { DeliverJobData, InboxJobData, EndedPollNotificationJobData, WebhookDeliverJobData, RelationshipJobData } from '../queue/types.js';
 
 export type SystemQueue = Bull.Queue<Record<string, unknown>>;
 export type EndedPollNotificationQueue = Bull.Queue<EndedPollNotificationJobData>;
@@ -19,7 +27,9 @@ export type InboxQueue = Bull.Queue<InboxJobData>;
 export type DbQueue = Bull.Queue;
 export type RelationshipQueue = Bull.Queue<RelationshipJobData>;
 export type ObjectStorageQueue = Bull.Queue;
-export type WebhookDeliverQueue = Bull.Queue<WebhookDeliverJobData>;
+export type UserWebhookDeliverQueue = Bull.Queue<UserWebhookDeliverJobData>;
+export type SystemWebhookDeliverQueue = Bull.Queue<SystemWebhookDeliverJobData>;
+export type ScheduleNotePostQueue = Bull.Queue<ScheduleNotePostJobData>;
 
 const $system: Provider = {
 	provide: 'queue:system',
@@ -63,9 +73,21 @@ const $objectStorage: Provider = {
 	inject: [DI.config],
 };
 
-const $webhookDeliver: Provider = {
-	provide: 'queue:webhookDeliver',
-	useFactory: (config: Config) => new Bull.Queue(QUEUE.WEBHOOK_DELIVER, baseQueueOptions(config, QUEUE.WEBHOOK_DELIVER)),
+const $userWebhookDeliver: Provider = {
+	provide: 'queue:userWebhookDeliver',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.USER_WEBHOOK_DELIVER, baseQueueOptions(config, QUEUE.USER_WEBHOOK_DELIVER)),
+	inject: [DI.config],
+};
+
+const $systemWebhookDeliver: Provider = {
+	provide: 'queue:systemWebhookDeliver',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.SYSTEM_WEBHOOK_DELIVER, baseQueueOptions(config, QUEUE.SYSTEM_WEBHOOK_DELIVER)),
+	inject: [DI.config],
+};
+
+const $scheduleNotePost: Provider = {
+	provide: 'queue:scheduleNotePost',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.SCHEDULE_NOTE_POST, baseQueueOptions(config, QUEUE.SCHEDULE_NOTE_POST)),
 	inject: [DI.config],
 };
 
@@ -80,7 +102,9 @@ const $webhookDeliver: Provider = {
 		$db,
 		$relationship,
 		$objectStorage,
-		$webhookDeliver,
+		$userWebhookDeliver,
+		$systemWebhookDeliver,
+		$scheduleNotePost,
 	],
 	exports: [
 		$system,
@@ -90,7 +114,9 @@ const $webhookDeliver: Provider = {
 		$db,
 		$relationship,
 		$objectStorage,
-		$webhookDeliver,
+		$userWebhookDeliver,
+		$systemWebhookDeliver,
+		$scheduleNotePost,
 	],
 })
 export class QueueModule implements OnApplicationShutdown {
@@ -102,7 +128,9 @@ export class QueueModule implements OnApplicationShutdown {
 		@Inject('queue:db') public dbQueue: DbQueue,
 		@Inject('queue:relationship') public relationshipQueue: RelationshipQueue,
 		@Inject('queue:objectStorage') public objectStorageQueue: ObjectStorageQueue,
-		@Inject('queue:webhookDeliver') public webhookDeliverQueue: WebhookDeliverQueue,
+		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
+		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
+		@Inject('queue:scheduleNotePost') public scheduleNotePostQueue: ScheduleNotePostQueue,
 	) {}
 
 	public async dispose(): Promise<void> {
@@ -117,7 +145,9 @@ export class QueueModule implements OnApplicationShutdown {
 			this.dbQueue.close(),
 			this.relationshipQueue.close(),
 			this.objectStorageQueue.close(),
-			this.webhookDeliverQueue.close(),
+			this.userWebhookDeliverQueue.close(),
+			this.systemWebhookDeliverQueue.close(),
+			this.scheduleNotePostQueue.close(),
 		]);
 	}
 

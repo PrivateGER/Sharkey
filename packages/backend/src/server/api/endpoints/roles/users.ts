@@ -43,6 +43,12 @@ export const meta = {
 			required: ['id', 'user'],
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -92,9 +98,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit)
 				.getMany();
 
+			const _users = assigns.map(({ user, userId }) => user ?? userId);
+			const _userMap = await this.userEntityService.packMany(_users, me, { schema: 'UserDetailed' })
+				.then(users => new Map(users.map(u => [u.id, u])));
 			return await Promise.all(assigns.map(async assign => ({
 				id: assign.id,
-				user: await this.userEntityService.pack(assign.user!, me, { schema: 'UserDetailed' }),
+				user: _userMap.get(assign.userId) ?? await this.userEntityService.pack(assign.user!, me, { schema: 'UserDetailed' }),
 			})));
 		});
 	}

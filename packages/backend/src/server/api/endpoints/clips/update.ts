@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ClipEntityService } from '@/core/entities/ClipEntityService.js';
 import { ClipService } from '@/core/ClipService.js';
@@ -31,6 +31,12 @@ export const meta = {
 		optional: false, nullable: false,
 		ref: 'Clip',
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -41,7 +47,7 @@ export const paramDef = {
 		isPublic: { type: 'boolean' },
 		description: { type: 'string', nullable: true, minLength: 1, maxLength: 2048 },
 	},
-	required: ['clipId', 'name'],
+	required: ['clipId'],
 } as const;
 
 @Injectable()

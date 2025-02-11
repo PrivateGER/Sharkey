@@ -10,6 +10,7 @@ import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import { RoleService } from '@/core/RoleService.js';
 
 export const meta = {
 	tags: ['drive', 'notes'],
@@ -37,6 +38,12 @@ export const meta = {
 			id: 'c118ece3-2e4b-4296-99d1-51756e32d232',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -61,12 +68,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
+		private roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			// Fetch file
 			const file = await this.driveFilesRepository.findOneBy({
 				id: ps.fileId,
-				userId: me.id,
+				userId: await this.roleService.isModerator(me) ? undefined : me.id,
 			});
 
 			if (file == null) {

@@ -18,9 +18,10 @@ export const meta = {
 
 	kind: 'write:account',
 
+	// 60 calls per hour
 	limit: {
 		duration: ms('1hour'),
-		max: 20,
+		max: 60,
 	},
 
 	errors: {

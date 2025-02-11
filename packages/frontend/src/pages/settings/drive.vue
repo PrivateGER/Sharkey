@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<FormLink to="" @click="chooseUploadFolder()">
 				{{ i18n.ts.uploadFolder }}
 				<template #suffix>{{ uploadFolder ? uploadFolder.name : '-' }}</template>
-				<template #suffixIcon><i class="ph-folder ph-bold ph-lg"></i></template>
+				<template #suffixIcon><i class="ti ti-folder"></i></template>
 			</FormLink>
 			<FormLink to="/settings/drive/cleaner">
 				{{ i18n.ts.drivecleaner }}
@@ -44,7 +44,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.keepOriginalUploading }}</template>
 				<template #caption>{{ i18n.ts.keepOriginalUploadingDescription }}</template>
 			</MkSwitch>
-			<MkSwitch v-model="alwaysMarkNsfw" @update:modelValue="saveProfile()">
+			<MkSwitch v-model="keepOriginalFilename">
+				<template #label>{{ i18n.ts.keepOriginalFilename }}</template>
+				<template #caption>{{ i18n.ts.keepOriginalFilenameDescription }}</template>
+			</MkSwitch>
+			<MkSwitch v-model="defaultSensitive" @update:modelValue="saveProfile()">
 				<template #label>{{ i18n.ts.alwaysMarkSensitive }}</template>
 			</MkSwitch>
 		</div>
@@ -76,7 +80,7 @@ const fetching = ref(true);
 const usage = ref<number | null>(null);
 const capacity = ref<number | null>(null);
 const uploadFolder = ref<Misskey.entities.DriveFolder | null>(null);
-const alwaysMarkNsfw = ref($i.alwaysMarkNsfw);
+const defaultSensitive = ref($i.defaultSensitive);
 
 const meterStyle = computed(() => {
 	if (!capacity.value || !usage.value) return {};
@@ -86,11 +90,12 @@ const meterStyle = computed(() => {
 			h: 180 - (usage.value / capacity.value * 180),
 			s: 0.7,
 			l: 0.5,
-		}),
+		}).toHslString(),
 	};
 });
 
 const keepOriginalUploading = computed(defaultStore.makeGetterSetter('keepOriginalUploading'));
+const keepOriginalFilename = computed(defaultStore.makeGetterSetter('keepOriginalFilename'));
 
 misskeyApi('drive').then(info => {
 	capacity.value = info.capacity;
@@ -122,14 +127,14 @@ function chooseUploadFolder() {
 
 function saveProfile() {
 	misskeyApi('i/update', {
-		alwaysMarkNsfw: !!alwaysMarkNsfw.value,
+		defaultSensitive: !!defaultSensitive.value,
 	}).catch(err => {
 		os.alert({
 			type: 'error',
 			title: i18n.ts.error,
 			text: err.message,
 		});
-		alwaysMarkNsfw.value = true;
+		defaultSensitive.value = true;
 	});
 }
 
@@ -139,7 +144,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.drive,
-	icon: 'ph-cloud ph-bold ph-lg',
+	icon: 'ti ti-cloud',
 }));
 </script>
 
@@ -147,12 +152,12 @@ definePageMetadata(() => ({
 .meter {
 	height: 10px;
 	background: rgba(0, 0, 0, 0.1);
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	overflow: clip;
 }
 
 .meterValue {
 	height: 100%;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 }
 </style>

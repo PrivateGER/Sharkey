@@ -18,16 +18,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:style="columns.filter(c => ids.includes(c.id)).some(c => c.flexible) ? { flex: 1, minWidth: '350px' } : { width: Math.max(...columns.filter(c => ids.includes(c.id)).map(c => c.width)) + 'px' }"
 				@wheel.self="onWheel"
 			>
-				<component
-					:is="columnComponents[columns.find(c => c.id === id)!.type] ?? XTlColumn"
-					v-for="id in ids"
-					:ref="id"
-					:key="id"
-					:class="$style.column"
-					:column="columns.find(c => c.id === id)"
-					:isStacked="ids.length > 1"
-					@headerWheel="onWheel"
-				/>
+				<Suspense>
+					<component
+						:is="columnComponents[columns.find(c => c.id === id)!.type] ?? XTlColumn"
+						v-for="id in ids"
+						:ref="id"
+						:key="id"
+						:class="$style.column"
+						:column="columns.find(c => c.id === id)!"
+						:isStacked="ids.length > 1"
+						@headerWheel="onWheel"
+					/>
+					<template #fallback>
+						<MkLoading/>
+					</template>
+				</Suspense>
 			</section>
 			<div v-if="layout.length === 0" class="_panel" :class="$style.onboarding">
 				<div>{{ i18n.ts._deck.introduction }}</div>
@@ -36,29 +41,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<div :class="$style.sideMenu">
 				<div :class="$style.sideMenuTop">
-					<button v-tooltip.noDelay.left="`${i18n.ts._deck.profile}: ${deckStore.state.profile}`" :class="$style.sideMenuButton" class="_button" @click="changeProfile"><i class="ph-caret-down ph-bold ph-lg"></i></button>
-					<button v-tooltip.noDelay.left="i18n.ts._deck.deleteProfile" :class="$style.sideMenuButton" class="_button" @click="deleteProfile"><i class="ph-trash ph-bold ph-lg"></i></button>
+					<button v-tooltip.noDelay.left="`${i18n.ts._deck.profile}: ${deckStore.state.profile}`" :class="$style.sideMenuButton" class="_button" @click="changeProfile"><i class="ti ti-caret-down"></i></button>
+					<button v-tooltip.noDelay.left="i18n.ts._deck.deleteProfile" :class="$style.sideMenuButton" class="_button" @click="deleteProfile"><i class="ti ti-trash"></i></button>
 				</div>
 				<div :class="$style.sideMenuMiddle">
-					<button v-tooltip.noDelay.left="i18n.ts._deck.addColumn" :class="$style.sideMenuButton" class="_button" @click="addColumn"><i class="ph-plus ph-bold ph-lg"></i></button>
+					<button v-tooltip.noDelay.left="i18n.ts._deck.addColumn" :class="$style.sideMenuButton" class="_button" @click="addColumn"><i class="ti ti-plus"></i></button>
 				</div>
 				<div :class="$style.sideMenuBottom">
-					<button v-tooltip.noDelay.left="i18n.ts.settings" :class="$style.sideMenuButton" class="_button" @click="showSettings"><i class="ph-gear ph-bold ph-lg"></i></button>
+					<button v-tooltip.noDelay.left="i18n.ts.settings" :class="$style.sideMenuButton" class="_button" @click="showSettings"><i class="ti ti-settings"></i></button>
 				</div>
 			</div>
 		</div>
 	</div>
 
 	<div v-if="isMobile" :class="$style.nav">
-		<button :class="$style.navButton" class="_button" @click="drawerMenuShowing = true"><i :class="$style.navButtonIcon" class="ph-list ph-bold ph-lg-2"></i><span v-if="menuIndicated" :class="$style.navButtonIndicator"><i class="_indicatorCircle"></i></span></button>
-		<button :class="$style.navButton" class="_button" @click="mainRouter.push('/')"><i :class="$style.navButtonIcon" class="ph-house ph-bold ph-lg"></i></button>
+		<button :class="$style.navButton" class="_button" @click="drawerMenuShowing = true"><i :class="$style.navButtonIcon" class="ti ti-menu-2"></i><span v-if="menuIndicated" :class="$style.navButtonIndicator" class="_blink"><i class="_indicatorCircle"></i></span></button>
+		<button :class="$style.navButton" class="_button" @click="mainRouter.push('/')"><i :class="$style.navButtonIcon" class="ti ti-home"></i></button>
 		<button :class="$style.navButton" class="_button" @click="mainRouter.push('/my/notifications')">
-			<i :class="$style.navButtonIcon" class="ph-bell ph-bold ph-lg"></i>
-			<span v-if="$i?.hasUnreadNotification" :class="$style.navButtonIndicator">
+			<i :class="$style.navButtonIcon" class="ti ti-bell"></i>
+			<span v-if="$i?.hasUnreadNotification" :class="$style.navButtonIndicator" class="_blink">
 				<span class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
 			</span>
 		</button>
-		<button :class="$style.postButton" class="_button" @click="os.post()"><i :class="$style.navButtonIcon" class="ph-pencil-simple ph-bold ph-lg"></i></button>
+		<button :class="$style.postButton" class="_button" @click="os.post()"><i :class="$style.navButtonIcon" class="ti ti-pencil"></i></button>
 	</div>
 
 	<Transition
@@ -95,7 +100,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, defineAsyncComponent, ref, watch, shallowRef } from 'vue';
 import { v4 as uuid } from 'uuid';
 import XCommon from './_common_/common.vue';
-import { deckStore, addColumn as addColumnToStore, loadDeck, getProfiles, deleteProfile as deleteProfile_ } from './deck/deck-store.js';
+import { deckStore, columnTypes, addColumn as addColumnToStore, loadDeck, getProfiles, deleteProfile as deleteProfile_ } from './deck/deck-store.js';
+import type { ColumnType } from './deck/deck-store.js';
+import type { MenuItem } from '@/types/menu.js';
 import XSidebar from '@/ui/_common_/navbar.vue';
 import XDrawerMenu from '@/ui/_common_/navbar-for-mobile.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -116,8 +123,8 @@ import XWidgetsColumn from '@/ui/deck/widgets-column.vue';
 import XMentionsColumn from '@/ui/deck/mentions-column.vue';
 import XDirectColumn from '@/ui/deck/direct-column.vue';
 import XRoleTimelineColumn from '@/ui/deck/role-timeline-column.vue';
+import XFollowingColumn from '@/ui/deck/following-column.vue';
 import { mainRouter } from '@/router/main.js';
-import { MenuItem } from '@/types/menu.js';
 const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.vue'));
 const XAnnouncements = defineAsyncComponent(() => import('@/ui/_common_/announcements.vue'));
 
@@ -132,6 +139,7 @@ const columnComponents = {
 	mentions: XMentionsColumn,
 	direct: XDirectColumn,
 	roleTimeline: XRoleTimelineColumn,
+	following: XFollowingColumn,
 };
 
 mainRouter.navHook = (path, flag): boolean => {
@@ -152,10 +160,12 @@ window.addEventListener('resize', () => {
 const snapScroll = deviceKind === 'smartphone' || deviceKind === 'tablet';
 const drawerMenuShowing = ref(false);
 
+/*
 const route = 'TODO';
 watch(route, () => {
 	drawerMenuShowing.value = false;
 });
+*/
 
 const columns = deckStore.reactiveState.columns;
 const layout = deckStore.reactiveState.layout;
@@ -174,32 +184,20 @@ function showSettings() {
 const columnsEl = shallowRef<HTMLElement>();
 
 const addColumn = async (ev) => {
-	const columns = [
-		'main',
-		'widgets',
-		'notifications',
-		'tl',
-		'antenna',
-		'list',
-		'channel',
-		'mentions',
-		'direct',
-		'roleTimeline',
-	];
-
 	const { canceled, result: column } = await os.select({
 		title: i18n.ts._deck.addColumn,
-		items: columns.map(column => ({
+		items: columnTypes.map(column => ({
 			value: column, text: i18n.ts._deck._columns[column],
 		})),
 	});
-	if (canceled) return;
+	if (canceled || column == null) return;
 
 	addColumnToStore({
 		type: column,
 		id: uuid(),
 		name: i18n.ts._deck._columns[column],
 		width: 330,
+		soundSetting: { type: null, volume: 1 },
 	});
 };
 
@@ -211,7 +209,7 @@ const onContextmenu = (ev) => {
 };
 
 function onWheel(ev: WheelEvent) {
-	if (ev.deltaX === 0) {
+	if (ev.deltaX === 0 && columnsEl.value != null) {
 		columnsEl.value.scrollLeft += ev.deltaY;
 	}
 }
@@ -236,13 +234,13 @@ function changeProfile(ev: MouseEvent) {
 			},
 		}))), { type: 'divider' as const }, {
 			text: i18n.ts._deck.newProfile,
-			icon: 'ph-plus ph-bold ph-lg',
+			icon: 'ti ti-plus',
 			action: async () => {
 				const { canceled, result: name } = await os.inputText({
 					title: i18n.ts._deck.profile,
 					minLength: 1,
 				});
-				if (canceled) return;
+				if (canceled || name == null) return;
 
 				deckStore.set('profile', name);
 				unisonReload();
@@ -314,7 +312,7 @@ body {
 .root {
 	$nav-hide-threshold: 650px; // TODO: どこかに集約したい
 
-	--margin: var(--marginHalf);
+	--MI-margin: var(--MI-marginHalf);
 
 	--columnGap: 6px;
 
@@ -341,7 +339,7 @@ body {
 	overflow-x: auto;
 	overflow-y: clip;
 	overscroll-behavior: contain;
-	background: var(--deckBg);
+	background: var(--MI_THEME-deckBg);
 
 	&.center {
 		> .section:first-of-type {
@@ -423,7 +421,7 @@ body {
 	contain: strict;
 	overflow: auto;
 	overscroll-behavior: contain;
-	background: var(--navBg);
+	background: var(--MI_THEME-navBg);
 }
 
 .nav {
@@ -437,10 +435,10 @@ body {
 	grid-gap: 8px;
 	width: 100%;
 	box-sizing: border-box;
-	-webkit-backdrop-filter: var(--blur, blur(32px));
-	backdrop-filter: var(--blur, blur(32px));
-	background-color: var(--header);
-	border-top: solid 0.5px var(--divider);
+	-webkit-backdrop-filter: var(--MI-blur, blur(32px));
+	backdrop-filter: var(--MI-blur, blur(32px));
+	background-color: var(--MI_THEME-header);
+	border-top: solid 0.5px var(--MI_THEME-divider);
 }
 
 .navButton {
@@ -450,32 +448,33 @@ body {
 	width: 100%;
 	max-width: 60px;
 	margin: auto;
-	border-radius: var(--radius-lg);
+	border-radius: var(--MI-radius-lg);
 	background: transparent;
-	color: var(--fg);
+	color: var(--MI_THEME-fg);
 
 	&:hover {
-		color: var(--accent);
+		color: var(--MI_THEME-accent);
 	}
 
 	&:active {
-		color: var(--accent);
+		color: var(--MI_THEME-accent);
+		background: hsl(from var(--MI_THEME-panel) h s calc(l - 2));
 	}
 }
 
 .postButton {
 	composes: navButton;
-	background: linear-gradient(90deg, var(--buttonGradateA), var(--buttonGradateB));
-	color: var(--fgOnAccent);
+	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
+	color: var(--MI_THEME-fgOnAccent);
 
 	&:hover {
-		background: linear-gradient(90deg, var(--X8), var(--X8));
-		color: var(--fgOnAccent);
+		background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+		color: var(--MI_THEME-fgOnAccent);
 	}
 
 	&:active {
-		background: linear-gradient(90deg, var(--X8), var(--X8));
-		color: var(--fgOnAccent);
+		background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+		color: var(--MI_THEME-fgOnAccent);
 	}
 }
 
@@ -488,9 +487,8 @@ body {
 	position: absolute;
 	top: 0;
 	left: 0;
-	color: var(--indicator);
+	color: var(--MI_THEME-indicator);
 	font-size: 16px;
-	animation: global-blink 1s infinite;
 
 	&:has(.itemIndicateValueIcon) {
 		animation: none;

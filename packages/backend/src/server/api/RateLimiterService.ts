@@ -10,8 +10,10 @@ import { DI } from '@/di-symbols.js';
 import type Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
+import { LegacyRateLimit } from '@/misc/rate-limit-utils.js';
 import type { IEndpointMeta } from './endpoints.js';
 
+/** @deprecated Use SkRateLimiterService instead */
 @Injectable()
 export class RateLimiterService {
 	private logger: Logger;
@@ -31,12 +33,12 @@ export class RateLimiterService {
 	}
 
 	@bindThis
-	public limit(limitation: IEndpointMeta['limit'] & { key: NonNullable<string> }, actor: string, factor = 1) {
+	public limit(limitation: LegacyRateLimit & { key: NonNullable<string> }, actor: string, factor = 1) {
 		return new Promise<void>((ok, reject) => {
 			if (this.disabled) ok();
 
 			// Short-term limit
-			const min = (): void => {
+			const minP = (): void => {
 				const minIntervalLimiter = new Limiter({
 					id: `${actor}:${limitation.key}:min`,
 					duration: limitation.minInterval! * factor,
@@ -46,25 +48,25 @@ export class RateLimiterService {
 
 				minIntervalLimiter.get((err, info) => {
 					if (err) {
-						return reject('ERR');
+						return reject({ code: 'ERR', info });
 					}
 
 					this.logger.debug(`${actor} ${limitation.key} min remaining: ${info.remaining}`);
 
 					if (info.remaining === 0) {
-						reject('BRIEF_REQUEST_INTERVAL');
+						return reject({ code: 'BRIEF_REQUEST_INTERVAL', info });
 					} else {
 						if (hasLongTermLimit) {
-							max();
+							return maxP();
 						} else {
-							ok();
+							return ok();
 						}
 					}
 				});
 			};
 
 			// Long term limit
-			const max = (): void => {
+			const maxP = (): void => {
 				const limiter = new Limiter({
 					id: `${actor}:${limitation.key}`,
 					duration: limitation.duration! * factor,
@@ -74,15 +76,15 @@ export class RateLimiterService {
 
 				limiter.get((err, info) => {
 					if (err) {
-						return reject('ERR');
+						return reject({ code: 'ERR', info });
 					}
 
 					this.logger.debug(`${actor} ${limitation.key} max remaining: ${info.remaining}`);
 
 					if (info.remaining === 0) {
-						reject('RATE_LIMIT_EXCEEDED');
+						return reject({ code: 'RATE_LIMIT_EXCEEDED', info });
 					} else {
-						ok();
+						return ok();
 					}
 				});
 			};
@@ -94,9 +96,9 @@ export class RateLimiterService {
 				typeof limitation.max === 'number';
 
 			if (hasShortTermLimit) {
-				min();
+				minP();
 			} else if (hasLongTermLimit) {
-				max();
+				maxP();
 			} else {
 				ok();
 			}

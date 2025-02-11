@@ -41,6 +41,12 @@ export const meta = {
 			ref: 'Note',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -113,7 +119,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.leftJoinAndSelect('reply.user', 'replyUser')
 				.leftJoinAndSelect('renote.user', 'renoteUser');
 
-			this.queryService.generateVisibilityQuery(query, me);
+			await this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateMutedUserQuery(query, me);
 			this.queryService.generateBlockedUserQuery(query, me);
 

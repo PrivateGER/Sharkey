@@ -28,6 +28,66 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-report:notification-recipient*
+     */
+    request<E extends 'admin/abuse-report/notification-recipient/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-report:notification-recipient*
+     */
+    request<E extends 'admin/abuse-report/notification-recipient/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
+     */
+    request<E extends 'admin/abuse-report/notification-recipient/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
+     */
+    request<E extends 'admin/abuse-report/notification-recipient/update', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
+     */
+    request<E extends 'admin/abuse-report/notification-recipient/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'admin/accounts/create', P extends Endpoints[E]['req']>(
@@ -634,6 +694,28 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    request<E extends 'admin/forward-abuse-user-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    request<E extends 'admin/update-abuse-user-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:send-email*
      */
     request<E extends 'admin/send-email', P extends Endpoints[E]['req']>(
@@ -678,7 +760,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *Yes* / **Permission**: *read:admin:show-users*
+     * **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
      */
     request<E extends 'admin/show-users', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -747,6 +829,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *write:admin:approve-user*
      */
     request<E extends 'admin/approve-user', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:decline-user*
+     */
+    request<E extends 'admin/decline-user', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -898,9 +991,92 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/update', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:admin:system-webhook*
+     */
+    request<E extends 'admin/system-webhook/test', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'announcements', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'announcements/show', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -1736,7 +1912,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'federation/followers', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -1747,7 +1923,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'federation/following', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -1893,6 +2069,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:following*
      */
     request<E extends 'following/requests/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:following*
+     */
+    request<E extends 'following/requests/sent', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -2781,6 +2968,18 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'i/webhooks/test', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:invite-codes*
      */
     request<E extends 'invite/create', P extends Endpoints[E]['req']>(
@@ -3046,6 +3245,17 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'notes/following', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'notes/global-timeline', P extends Endpoints[E]['req']>(
@@ -3123,6 +3333,17 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *read:federation*
+     */
+    request<E extends 'notes/polls/refresh', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'notes/reactions', P extends Endpoints[E]['req']>(
@@ -3181,6 +3402,39 @@ declare module '../api.js' {
      * **Credential required**: *No*
      */
     request<E extends 'notes/replies', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:notes-schedule*
+     */
+    request<E extends 'notes/schedule/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:notes-schedule*
+     */
+    request<E extends 'notes/schedule/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:notes-schedule*
+     */
+    request<E extends 'notes/schedule/list', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -4127,7 +4381,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Get Sharkey GH Sponsors
+     * Get Sharkey Sponsors or Instance Sponsors
      * 
      * **Credential required**: *No*
      */

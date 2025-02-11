@@ -22,6 +22,12 @@ export const meta = {
 		optional: false, nullable: false,
 		ref: 'App',
 	},
+
+	// 3 calls per second
+	limit: {
+		duration: 1000,
+		max: 3,
+	},
 } as const;
 
 export const paramDef = {
@@ -54,7 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const permission = unique(ps.permission.map(v => v.replace(/^(.+)(\/|-)(read|write)$/, '$3:$1')));
 
 			// Create account
-			const app = await this.appsRepository.insert({
+			const app = await this.appsRepository.insertOne({
 				id: this.idService.gen(),
 				userId: me ? me.id : null,
 				name: ps.name,
@@ -62,7 +68,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				permission,
 				callbackUrl: ps.callbackUrl,
 				secret: secret,
-			}).then(x => this.appsRepository.findOneByOrFail(x.identifiers[0]));
+			});
 
 			return await this.appEntityService.pack(app, null, {
 				detail: true,

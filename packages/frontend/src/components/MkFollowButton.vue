@@ -12,20 +12,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template v-if="!wait">
 		<template v-if="hasPendingFollowRequestFromYou && user.isLocked">
-			<span v-if="full" :class="$style.text">{{ i18n.ts.followRequestPending }}</span><i class="ph-hourglass ph-bold ph-lg"></i>
+			<span v-if="full" :class="$style.text">{{ i18n.ts.followRequestPending }}</span><i class="ti ti-hourglass-empty"></i>
 		</template>
 		<template v-else-if="hasPendingFollowRequestFromYou && !user.isLocked">
 			<!-- つまりリモートフォローの場合。 -->
 			<span v-if="full" :class="$style.text">{{ i18n.ts.processing }}</span><MkLoading :em="true" :colored="false"/>
 		</template>
 		<template v-else-if="isFollowing">
-			<span v-if="full" :class="$style.text">{{ i18n.ts.unfollow }}</span><i class="ph-minus ph-bold ph-lg"></i>
+			<span v-if="full" :class="$style.text">{{ i18n.ts.youFollowing }}</span><i class="ti ti-minus"></i>
 		</template>
 		<template v-else-if="!isFollowing && user.isLocked">
-			<span v-if="full" :class="$style.text">{{ i18n.ts.followRequest }}</span><i class="ph-plus ph-bold ph-lg"></i>
+			<span v-if="full" :class="$style.text">{{ i18n.ts.followRequest }}</span><i class="ti ti-plus"></i>
 		</template>
 		<template v-else-if="!isFollowing && !user.isLocked">
-			<span v-if="full" :class="$style.text">{{ i18n.ts.follow }}</span><i class="ph-plus ph-bold ph-lg"></i>
+			<span v-if="full" :class="$style.text">{{ i18n.ts.follow }}</span><i class="ti ti-plus"></i>
 		</template>
 	</template>
 	<template v-else>
@@ -37,11 +37,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { host } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
 import { claimAchievement } from '@/scripts/achievements.js';
+import { pleaseLogin } from '@/scripts/please-login.js';
 import { $i } from '@/account.js';
 import { defaultStore } from '@/store.js';
 
@@ -63,7 +65,7 @@ const hasPendingFollowRequestFromYou = ref(props.user.hasPendingFollowRequestFro
 const wait = ref(false);
 const connection = useStream().useChannel('main');
 
-if (props.user.isFollowing == null) {
+if (props.user.isFollowing == null && $i) {
 	misskeyApi('users/show', {
 		userId: props.user.id,
 	})
@@ -78,6 +80,8 @@ function onFollowChange(user: Misskey.entities.UserDetailed) {
 }
 
 async function onClick() {
+	pleaseLogin({ openOnRemote: { type: 'web', path: `/@${props.user.username}@${props.user.host ?? host}` } });
+
 	wait.value = true;
 
 	try {
@@ -87,12 +91,27 @@ async function onClick() {
 				text: i18n.tsx.unfollowConfirm({ name: props.user.name || props.user.username }),
 			});
 
-			if (canceled) return;
+			if (canceled) {
+				wait.value = false;
+				return;
+			}
 
 			await misskeyApi('following/delete', {
 				userId: props.user.id,
 			});
 		} else {
+			if (defaultStore.state.alwaysConfirmFollow) {
+				const { canceled } = await os.confirm({
+					type: 'question',
+					text: i18n.tsx.followConfirm({ name: props.user.name || props.user.username }),
+				});
+
+				if (canceled) {
+					wait.value = false;
+					return;
+				}
+			}
+
 			if (hasPendingFollowRequestFromYou.value) {
 				await misskeyApi('following/requests/cancel', {
 					userId: props.user.id,
@@ -108,6 +127,11 @@ async function onClick() {
 					withReplies: defaultStore.state.defaultWithReplies,
 				});
 				hasPendingFollowRequestFromYou.value = true;
+
+				if ($i == null) {
+					wait.value = false;
+					return;
+				}
 
 				claimAchievement('following1');
 
@@ -147,12 +171,12 @@ onBeforeUnmount(() => {
 	position: relative;
 	display: inline-block;
 	font-weight: bold;
-	color: var(--fgOnWhite);
-	border: solid 1px var(--accent);
+	color: var(--MI_THEME-fgOnWhite);
+	border: solid 1px var(--MI_THEME-accent);
 	padding: 0;
 	height: 31px;
 	font-size: 16px;
-	border-radius: var(--radius-xl);
+	border-radius: var(--MI-radius-xl);
 	background: #fff;
 
 	&.full {
@@ -171,17 +195,7 @@ onBeforeUnmount(() => {
 	}
 
 	&:focus-visible {
-		&:after {
-			content: "";
-			pointer-events: none;
-			position: absolute;
-			top: -5px;
-			right: -5px;
-			bottom: -5px;
-			left: -5px;
-			border: 2px solid var(--focus);
-			border-radius: var(--radius-xl);
-		}
+		outline-offset: 2px;
 	}
 
 	&:hover {
@@ -193,17 +207,17 @@ onBeforeUnmount(() => {
 	}
 
 	&.active {
-		color: var(--fgOnAccent);
-		background: var(--accent);
+		color: var(--MI_THEME-fgOnAccent);
+		background: var(--MI_THEME-accent);
 
 		&:hover {
-			background: var(--accentLighten);
-			border-color: var(--accentLighten);
+			background: var(--MI_THEME-accentLighten);
+			border-color: var(--MI_THEME-accentLighten);
 		}
 
 		&:active {
-			background: var(--accentDarken);
-			border-color: var(--accentDarken);
+			background: var(--MI_THEME-accentDarken);
+			border-color: var(--MI_THEME-accentDarken);
 		}
 	}
 

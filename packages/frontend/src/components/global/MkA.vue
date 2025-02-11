@@ -4,27 +4,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<a :href="to" :class="active ? activeClass : null" @click.prevent="nav" @contextmenu.prevent.stop="onContextmenu" @click.stop>
+<a ref="el" :href="to" :class="active ? activeClass : null" @click.prevent="nav" @contextmenu.prevent.stop="onContextmenu" @click.stop>
 	<slot></slot>
 </a>
 </template>
 
+<script lang="ts">
+export type MkABehavior = 'window' | 'browser' | null;
+</script>
+
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, inject, shallowRef } from 'vue';
 import * as os from '@/os.js';
-import copyToClipboard from '@/scripts/copy-to-clipboard.js';
-import { url } from '@/config.js';
+import { copyToClipboard } from '@/scripts/copy-to-clipboard.js';
+import { url } from '@@/js/config.js';
 import { i18n } from '@/i18n.js';
 import { useRouter } from '@/router/supplier.js';
 
 const props = withDefaults(defineProps<{
 	to: string;
 	activeClass?: null | string;
-	behavior?: null | 'window' | 'browser';
+	behavior?: MkABehavior;
 }>(), {
 	activeClass: null,
 	behavior: null,
 });
+
+const behavior = props.behavior ?? inject<MkABehavior>('linkNavigationBehavior', null);
+
+const el = shallowRef<HTMLElement>();
+
+defineExpose({ $el: el });
 
 const router = useRouter();
 
@@ -45,25 +55,25 @@ function onContextmenu(ev) {
 		type: 'label',
 		text: props.to,
 	}, {
-		icon: 'ph-app-window ph-bold ph-lg',
+		icon: 'ti ti-app-window',
 		text: i18n.ts.openInWindow,
 		action: () => {
 			os.pageWindow(props.to);
 		},
 	}, {
-		icon: 'ph-eject ph-bold ph-lg',
+		icon: 'ti ti-player-eject',
 		text: i18n.ts.showInPage,
 		action: () => {
 			router.push(props.to, 'forcePage');
 		},
 	}, { type: 'divider' }, {
-		icon: 'ph-arrow-square-out ph-bold ph-lg',
+		icon: 'ti ti-external-link',
 		text: i18n.ts.openInNewTab,
 		action: () => {
 			window.open(props.to, '_blank', 'noopener');
 		},
 	}, {
-		icon: 'ph-link ph-bold ph-lg',
+		icon: 'ti ti-link',
 		text: i18n.ts.copyLink,
 		action: () => {
 			copyToClipboard(`${url}${props.to}`);
@@ -76,15 +86,13 @@ function openWindow() {
 }
 
 function nav(ev: MouseEvent) {
-	if (props.behavior === 'browser') {
+	if (behavior === 'browser') {
 		location.href = props.to;
 		return;
 	}
 
-	if (props.behavior) {
-		if (props.behavior === 'window') {
-			return openWindow();
-		}
+	if (behavior === 'window') {
+		return openWindow();
 	}
 
 	if (ev.shiftKey) {

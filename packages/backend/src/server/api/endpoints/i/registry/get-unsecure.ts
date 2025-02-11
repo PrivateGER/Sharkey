@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: marie and other Sharkey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { RegistryItemsRepository } from '@/models/_.js';
@@ -16,6 +21,12 @@ export const meta = {
 			code: 'NO_SUCH_KEY',
 			id: 'ac3ed68a-62f0-422b-a7bc-d5e09e8f6a6a',
 		},
+	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
 	},
 } as const;
 

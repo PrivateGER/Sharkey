@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #footer>
 			<div :class="$style.footer">
 				<MkSpacer :contentMax="600" :marginMin="16" :marginMax="16">
-					<MkButton primary rounded @click="save"><i class="ph-check ph-bold ph-lg"></i> {{ i18n.ts.save }}</MkButton>
+					<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 				</MkSpacer>
 			</div>
 		</template>
@@ -89,13 +89,13 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: role.value ? `${i18n.ts._role.edit}: ${role.value.name}` : i18n.ts._role.new,
-	icon: 'ph-seal-check ph-bold ph-lg',
+	icon: 'ti ti-badge',
 }));
 </script>
 
 <style lang="scss" module>
 .footer {
-	-webkit-backdrop-filter: var(--blur, blur(15px));
-	backdrop-filter: var(--blur, blur(15px));
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
 }
 </style>

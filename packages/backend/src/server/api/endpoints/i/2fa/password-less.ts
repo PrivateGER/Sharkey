@@ -10,6 +10,7 @@ import type { UserProfilesRepository, UserSecurityKeysRepository } from '@/model
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,
@@ -22,6 +23,12 @@ export const meta = {
 			code: 'NO_SECURITY_KEY',
 			id: 'f9c54d7f-d4c2-4d3c-9a8g-a70daac86512',
 		},
+	},
+
+	limit: {
+		duration: ms('1hour'),
+		max: 10,
+		minInterval: ms('1sec'),
 	},
 } as const;
 

@@ -10,6 +10,7 @@ import type { WebhooksRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
 
+// TODO: UserWebhook schemaの適用
 export const meta = {
 	tags: ['webhooks'],
 
@@ -50,6 +51,12 @@ export const meta = {
 			latestSentAt: { type: 'string', format: 'date-time', nullable: true },
 			latestStatus: { type: 'integer', nullable: true },
 		},
+	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
 	},
 } as const;
 

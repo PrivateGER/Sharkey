@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: marie and other Sharkey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 import { Ref, defineAsyncComponent } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
@@ -22,12 +27,13 @@ export async function getNoteVersionsMenu(props: {
 	const cleanups = [] as (() => void)[];
 
 	function openVersion(info): void {
-		os.popup(defineAsyncComponent(() => import('@/components/SkOldNoteWindow.vue')), {
+		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/SkOldNoteWindow.vue')), {
 			note: appearNote,
 			oldText: info.text,
 			updatedAt: info.oldDate ? info.oldDate : info.updatedAt,
 		}, {
-		}, 'closed');
+			closed: () => dispose(),
+		});
 	}
 
 	const menu: MenuItem[] = [];

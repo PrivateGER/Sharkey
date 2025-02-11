@@ -14,6 +14,8 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
+import { MfmService } from "@/core/MfmService.js";
+import { parse as mfmParse } from '@transfem-org/sfm-js';
 
 @Injectable()
 export class FeedService {
@@ -33,6 +35,7 @@ export class FeedService {
 		private userEntityService: UserEntityService,
 		private driveFileEntityService: DriveFileEntityService,
 		private idService: IdService,
+		private mfmService: MfmService,
 	) {
 	}
 
@@ -45,7 +48,7 @@ export class FeedService {
 
 		const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
 
-		const notes = await this.notesRepository.find({
+		const notes = user.requireSigninToViewContents ? [] : await this.notesRepository.find({
 			where: {
 				userId: user.id,
 				renoteId: IsNull(),
@@ -71,22 +74,45 @@ export class FeedService {
 			copyright: user.name ?? user.username,
 		});
 
+		const followersOnlyBefore = user.makeNotesFollowersOnlyBefore;
+		const hiddenBefore = user.makeNotesHiddenBefore;
+
 		for (const note of notes) {
+			const createdAt = new Date(this.idService.parse(note.id).date);
+
+			if (this.shouldHideNote(followersOnlyBefore, createdAt) || this.shouldHideNote(hiddenBefore, createdAt)) {
+				continue;
+			}
+
 			const files = note.fileIds.length > 0 ? await this.driveFilesRepository.findBy({
 				id: In(note.fileIds),
 			}) : [];
 			const file = files.find(file => file.type.startsWith('image/'));
+			const text = note.text;
 
 			feed.addItem({
 				title: `New note by ${author.name}`,
 				link: `${this.config.url}/notes/${note.id}`,
 				date: this.idService.parse(note.id).date,
 				description: note.cw ?? undefined,
-				content: note.text ?? undefined,
+				content: text ? this.mfmService.toHtml(mfmParse(text), JSON.parse(note.mentionedRemoteUsers)) ?? undefined : undefined,
 				image: file ? this.driveFileEntityService.getPublicUrl(file) : undefined,
 			});
 		}
 
 		return feed;
+	}
+
+	// this logic is copied from NoteEntityService.hideNote
+	private shouldHideNote(reference: number | null, createdAt: Date): boolean {
+		if ((reference !== null)
+				&& (
+					(reference <= 0 && (Date.now() - createdAt.getTime() > 0 - (reference * 1000)))
+						|| (reference > 0 && (createdAt.getTime() < reference * 1000))
+				)
+		) {
+			return true;
+		}
+		return false;
 	}
 }

@@ -9,6 +9,7 @@ import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import type { NoteFavoritesRepository } from '@/models/_.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['notes', 'favorites'],
@@ -29,6 +30,12 @@ export const meta = {
 			code: 'NOT_FAVORITED',
 			id: 'b625fc69-635e-45e9-86f4-dbefbef35af5',
 		},
+	},
+
+	// 20 calls per hour (match create)
+	limit: {
+		duration: ms('1hour'),
+		max: 20,
 	},
 } as const;
 

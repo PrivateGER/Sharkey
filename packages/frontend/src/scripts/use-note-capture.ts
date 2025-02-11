@@ -13,16 +13,16 @@ import { misskeyApi } from './misskey-api.js';
 export function useNoteCapture(props: {
 	rootEl: ShallowRef<HTMLElement | undefined>;
 	note: Ref<Misskey.entities.Note>;
-	pureNote: Ref<Misskey.entities.Note>;
+	pureNote?: Ref<Misskey.entities.Note>;
 	isDeletedRef: Ref<boolean>;
-	onReplyCallback: (replyNote: Misskey.entities.Note) => void | undefined;
-	onDeleteCallback: (id: Misskey.entities.Note['id']) => void | undefined;
+	onReplyCallback?: (replyNote: Misskey.entities.Note) => void | Promise<void>;
+	onDeleteCallback?: (id: Misskey.entities.Note['id']) => void | Promise<void>;
 }) {
 	const note = props.note;
 	const pureNote = props.pureNote !== undefined ? props.pureNote : props.note;
 	const connection = $i ? useStream() : null;
 
-	async function onStreamNoteUpdated(noteData): void {
+	async function onStreamNoteUpdated(noteData): Promise<void> {
 		const { type, id, body } = noteData;
 
 		if ((id !== note.value.id) && (id !== pureNote.value.id)) return;
@@ -39,7 +39,7 @@ export function useNoteCapture(props: {
 
 					await props.onReplyCallback(replyNote);
 				} catch { /* empty */ }
-				
+
 				break;
 			}
 
@@ -54,6 +54,7 @@ export function useNoteCapture(props: {
 				const currentCount = (note.value.reactions || {})[reaction] || 0;
 
 				note.value.reactions[reaction] = currentCount + 1;
+				note.value.reactionCount += 1;
 
 				if ($i && (body.userId === $i.id)) {
 					note.value.myReaction = reaction;
@@ -68,6 +69,7 @@ export function useNoteCapture(props: {
 				const currentCount = (note.value.reactions || {})[reaction] || 0;
 
 				note.value.reactions[reaction] = Math.max(0, currentCount - 1);
+				note.value.reactionCount = Math.max(0, note.value.reactionCount - 1);
 				if (note.value.reactions[reaction] === 0) delete note.value.reactions[reaction];
 
 				if ($i && (body.userId === $i.id)) {
@@ -79,7 +81,7 @@ export function useNoteCapture(props: {
 			case 'pollVoted': {
 				const choice = body.choice;
 
-				const choices = [...note.value.poll.choices];
+				const choices = [...note.value.poll!.choices];
 				choices[choice] = {
 					...choices[choice],
 					votes: choices[choice].votes + 1,
@@ -88,7 +90,7 @@ export function useNoteCapture(props: {
 					} : {}),
 				};
 
-				note.value.poll.choices = choices;
+				note.value.poll!.choices = choices;
 				break;
 			}
 
@@ -104,7 +106,7 @@ export function useNoteCapture(props: {
 					const editedNote = await misskeyApi('notes/show', {
 						noteId: id,
 					});
-					
+
 					const keys = new Set<string>();
 					Object.keys(editedNote)
 						.concat(Object.keys(note.value))

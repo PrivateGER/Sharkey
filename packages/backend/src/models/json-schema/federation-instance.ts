@@ -45,6 +45,11 @@ export const packedFederationInstanceSchema = {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
+		suspensionState: {
+			type: 'string',
+			nullable: false, optional: false,
+			enum: ['none', 'manuallySuspended', 'goneSuspended', 'autoSuspendedForNotResponding'],
+		},
 		isBlocked: {
 			type: 'boolean',
 			optional: false, nullable: false,
@@ -83,6 +88,10 @@ export const packedFederationInstanceSchema = {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
+		isMediaSilenced: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 		iconUrl: {
 			type: 'string',
 			optional: false, nullable: true,
@@ -108,6 +117,11 @@ export const packedFederationInstanceSchema = {
 			format: 'date-time',
 		},
 		isNSFW: {
+			type: 'boolean',
+			optional: false,
+			nullable: false,
+		},
+		rejectReports: {
 			type: 'boolean',
 			optional: false,
 			nullable: false,

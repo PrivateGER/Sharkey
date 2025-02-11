@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
 			<div :class="$style.content">
 				<p v-if="note.cw != null" :class="$style.cw">
-					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
+					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :isBlock="true" :author="note.user" :nyaize="'respect'"/>
 					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
 				</p>
 				<div v-show="note.cw == null || showContent">
@@ -28,10 +28,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button
 					v-if="canRenote"
 					ref="renoteButton"
+					v-tooltip="renoteTooltip"
 					class="_button"
 					:class="$style.noteFooterButton"
-					:style="renoted ? 'color: var(--accent) !important;' : ''"
-					@mousedown="renoted ? undoRenote() : boostVisibility()"
+					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
+					@mousedown="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 				>
 					<i class="ph-rocket-launch ph-bold ph-lg"></i>
 					<p v-if="note.renoteCount > 0" :class="$style.noteFooterButtonCount">{{ note.renoteCount }}</p>
@@ -68,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="$style.reply" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply"/>
 	</template>
 	<div v-else :class="$style.more">
-		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ph-caret-double-right ph-bold ph-lg"></i></MkA>
+		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ti ti-chevron-double-right"></i></MkA>
 	</div>
 </div>
 <div v-else :class="$style.muted" @click="muted = false">
@@ -98,14 +99,15 @@ import { $i } from '@/account.js';
 import { userPage } from '@/filters/user.js';
 import { checkWordMute } from '@/scripts/check-word-mute.js';
 import { defaultStore } from '@/store.js';
-import { pleaseLogin } from '@/scripts/please-login.js';
+import { host } from '@@/js/config.js';
+import { pleaseLogin, type OpenOnRemoteOptions } from '@/scripts/please-login.js';
 import { showMovedDialog } from '@/scripts/show-moved-dialog.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { reactionPicker } from '@/scripts/reaction-picker.js';
 import { claimAchievement } from '@/scripts/achievements.js';
 import { getNoteMenu } from '@/scripts/get-note-menu.js';
 import { useNoteCapture } from '@/scripts/use-note-capture.js';
-import { boostMenuItems, type Visibility } from '@/scripts/boost-quote.js';
+import { boostMenuItems, type Visibility, computeRenoteTooltip } from '@/scripts/boost-quote.js';
 
 const canRenote = computed(() => ['public', 'home'].includes(props.note.visibility) || props.note.userId === $i.id);
 
@@ -134,6 +136,8 @@ const quoteButton = shallowRef<HTMLElement>();
 const menuButton = shallowRef<HTMLElement>();
 const likeButton = shallowRef<HTMLElement>();
 
+const renoteTooltip = computeRenoteTooltip(computed);
+
 let appearNote = computed(() => isRenote ? props.note.renote as Misskey.entities.Note : props.note);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
 const replies = ref<Misskey.entities.Note[]>([]);
@@ -144,6 +148,11 @@ const isRenote = (
 	props.note.fileIds && props.note.fileIds.length === 0 &&
 	props.note.poll == null
 );
+
+const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
+	type: 'lookup',
+	url: `https://${host}/notes/${appearNote.value.id}`,
+}));
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
 	replies.value.unshift(replyNote);
@@ -182,7 +191,7 @@ function focus() {
 }
 
 function reply(viaKeyboard = false): void {
-	pleaseLogin();
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	os.post({
 		reply: props.note,
@@ -194,7 +203,7 @@ function reply(viaKeyboard = false): void {
 }
 
 function react(viaKeyboard = false): void {
-	pleaseLogin();
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
 	if (props.note.reactionAcceptance === 'likeOnly') {
@@ -207,7 +216,9 @@ function react(viaKeyboard = false): void {
 			const rect = el.getBoundingClientRect();
 			const x = rect.left + (el.offsetWidth / 2);
 			const y = rect.top + (el.offsetHeight / 2);
-			os.popup(MkRippleEffect, { x, y }, {}, 'end');
+			const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+				end: () => dispose(),
+			});
 		}
 	} else {
 		blur();
@@ -226,7 +237,7 @@ function react(viaKeyboard = false): void {
 }
 
 function like(): void {
-	pleaseLogin();
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
 	misskeyApi('notes/like', {
@@ -238,7 +249,9 @@ function like(): void {
 		const rect = el.getBoundingClientRect();
 		const x = rect.left + (el.offsetWidth / 2);
 		const y = rect.top + (el.offsetHeight / 2);
-		os.popup(MkRippleEffect, { x, y }, {}, 'end');
+		const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+			end: () => dispose(),
+		});
 	}
 }
 
@@ -263,7 +276,9 @@ function undoRenote() : void {
 		const rect = el.getBoundingClientRect();
 		const x = rect.left + (el.offsetWidth / 2);
 		const y = rect.top + (el.offsetHeight / 2);
-		os.popup(MkRippleEffect, { x, y }, {}, 'end');
+		const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+			end: () => dispose(),
+		});
 	}
 }
 
@@ -273,8 +288,8 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 	if (expandAllCws !== showContent.value) showContent.value = expandAllCws;
 });
 
-function boostVisibility() {
-	if (!defaultStore.state.showVisibilitySelectorOnBoost) {
+function boostVisibility(forceMenu: boolean = false) {
+	if (!defaultStore.state.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(defaultStore.state.visibilityOnBoost);
 	} else {
 		os.popupMenu(boostMenuItems(appearNote, renote), renoteButton.value);
@@ -282,7 +297,7 @@ function boostVisibility() {
 }
 
 function renote(visibility: Visibility, localOnly: boolean = false) {
-	pleaseLogin();
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
 	if (appearNote.value.channel) {
@@ -291,7 +306,9 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 			const rect = el.getBoundingClientRect();
 			const x = rect.left + (el.offsetWidth / 2);
 			const y = rect.top + (el.offsetHeight / 2);
-			os.popup(MkRippleEffect, { x, y }, {}, 'end');
+			const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+				end: () => dispose(),
+			});
 		}
 
 		misskeyApi('notes/create', {
@@ -307,7 +324,9 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 			const rect = el.getBoundingClientRect();
 			const x = rect.left + (el.offsetWidth / 2);
 			const y = rect.top + (el.offsetHeight / 2);
-			os.popup(MkRippleEffect, { x, y }, {}, 'end');
+			const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+				end: () => dispose(),
+			});
 		}
 
 		misskeyApi('notes/create', {
@@ -322,14 +341,15 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 }
 
 function quote() {
-	pleaseLogin();
+	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
 	if (appearNote.value.channel) {
 		os.post({
 			renote: appearNote.value,
 			channel: appearNote.value.channel,
-		}).then(() => {
+		}).then((cancelled) => {
+			if (cancelled) return;
 			misskeyApi('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
@@ -342,7 +362,9 @@ function quote() {
 					const rect = el.getBoundingClientRect();
 					const x = rect.left + (el.offsetWidth / 2);
 					const y = rect.top + (el.offsetHeight / 2);
-					os.popup(MkRippleEffect, { x, y }, {}, 'end');
+					const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+						end: () => dispose(),
+					});
 				}
 
 				os.toast(i18n.ts.quoted);
@@ -351,7 +373,8 @@ function quote() {
 	} else {
 		os.post({
 			renote: appearNote.value,
-		}).then(() => {
+		}).then((cancelled) => {
+			if (cancelled) return;
 			misskeyApi('notes/renotes', {
 				noteId: props.note.id,
 				userId: $i.id,
@@ -364,7 +387,9 @@ function quote() {
 					const rect = el.getBoundingClientRect();
 					const x = rect.left + (el.offsetWidth / 2);
 					const y = rect.top + (el.offsetHeight / 2);
-					os.popup(MkRippleEffect, { x, y }, {}, 'end');
+					const { dispose } = os.popup(MkRippleEffect, { x, y }, {
+						end: () => dispose(),
+					});
 				}
 
 				os.toast(i18n.ts.quoted);
@@ -422,7 +447,7 @@ if (props.detail) {
 	left: 8px;
 	width: 5px;
 	height: calc(100% - 8px);
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	pointer-events: none;
 }
 
@@ -432,7 +457,7 @@ if (props.detail) {
 	margin: 0 8px 0 0;
 	width: 38px;
 	height: 38px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .body {
@@ -459,7 +484,7 @@ if (props.detail) {
 	}
 
 	&:hover {
-		color: var(--fgHighlighted);
+		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 
@@ -477,7 +502,7 @@ if (props.detail) {
 	opacity: 0.7;
 
 	&.reacted {
-		color: var(--accent);
+		color: var(--MI_THEME-accent);
 	}
 }
 
@@ -494,7 +519,7 @@ if (props.detail) {
 }
 
 .reply, .more {
-	border-left: solid 0.5px var(--divider);
+	border-left: solid 0.5px var(--MI_THEME-divider);
 	margin-top: 10px;
 }
 
@@ -515,8 +540,8 @@ if (props.detail) {
 .muted {
 	text-align: center;
 	padding: 8px !important;
-	border: 1px solid var(--divider);
+	border: 1px solid var(--MI_THEME-divider);
 	margin: 8px 8px 0 8px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 </style>

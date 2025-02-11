@@ -10,6 +10,7 @@ import { DriveFolderEntityService } from '@/core/entities/DriveFolderEntityServi
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],
@@ -42,6 +43,12 @@ export const meta = {
 		type: 'object',
 		optional: false, nullable: false,
 		ref: 'DriveFolder',
+	},
+
+	// 100 calls per minute
+	limit: {
+		duration: 1000 * 60,
+		max: 100,
 	},
 } as const;
 
@@ -95,15 +102,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 					// Check if the circular reference will occur
 					const checkCircle = async (folderId: string): Promise<boolean> => {
-						// Fetch folder
-						const folder2 = await this.driveFoldersRepository.findOneBy({
+						const folder2 = await this.driveFoldersRepository.findOneByOrFail({
 							id: folderId,
 						});
 
-						if (folder2!.id === folder!.id) {
+						if (folder2.id === folder.id) {
 							return true;
-						} else if (folder2!.parentId) {
-							return await checkCircle(folder2!.parentId);
+						} else if (folder2.parentId) {
+							return await checkCircle(folder2.parentId);
 						} else {
 							return false;
 						}

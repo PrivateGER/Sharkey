@@ -14,7 +14,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	>
 		<div v-if="showing" class="_acrylic" :class="$style.root" :style="{ zIndex }">
 			<div style="padding: 16px 24px;">
-				{{ message }}
+				<Mfm v-if="renderMfm" :text="message" plain/>
+				<template v-else>{{ message }}</template>
 			</div>
 		</div>
 	</Transition>
@@ -26,9 +27,12 @@ import { onMounted, ref } from 'vue';
 import * as os from '@/os.js';
 import { defaultStore } from '@/store.js';
 
-defineProps<{
+withDefaults(defineProps<{
 	message: string;
-}>();
+	renderMfm: boolean;
+}>(), {
+	renderMfm: false,
+});
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
@@ -66,7 +70,7 @@ onMounted(() => {
 	max-width: calc(100% - 32px);
 	width: min-content;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	overflow: clip;
 	text-align: center;
 	pointer-events: none;

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" data-cy-mkw-aiscript class="mkw-aiscript">
-	<template #icon><i class="ph-terminal-window ph-bold ph-lg-2"></i></template>
+	<template #icon><i class="ti ti-terminal-2"></i></template>
 	<template #header>{{ i18n.ts._widgets.aiscript }}</template>
 
 	<div class="uylguesu _monospace">
@@ -126,10 +126,10 @@ defineExpose<WidgetComponentExpose>({
 		max-width: 100%;
 		min-width: 100%;
 		padding: 16px;
-		color: var(--fg);
+		color: var(--MI_THEME-fg);
 		background: transparent;
 		border: none;
-		border-bottom: solid 0.5px var(--divider);
+		border-bottom: solid 0.5px var(--MI_THEME-divider);
 		border-radius: 0;
 		box-sizing: border-box;
 		font: inherit;
@@ -145,7 +145,7 @@ defineExpose<WidgetComponentExpose>({
 		padding: 0 10px;
 		height: 28px;
 		outline: none;
-		border-radius: var(--radius-xs);
+		border-radius: var(--MI-radius-xs);
 
 		&:disabled {
 			opacity: 0.7;
@@ -154,7 +154,7 @@ defineExpose<WidgetComponentExpose>({
 	}
 
 	> .logs {
-		border-top: solid 0.5px var(--divider);
+		border-top: solid 0.5px var(--MI_THEME-divider);
 		text-align: left;
 		padding: 16px;
 

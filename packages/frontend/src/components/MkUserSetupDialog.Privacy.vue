@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkFolder>
 		<template #label>{{ i18n.ts.makeFollowManuallyApprove }}</template>
-		<template #icon><i class="ph-lock ph-bold ph-lg"></i></template>
+		<template #icon><i class="ti ti-lock"></i></template>
 		<template #suffix>{{ isLocked ? i18n.ts.on : i18n.ts.off }}</template>
 
 		<MkSwitch v-model="isLocked">{{ i18n.ts.makeFollowManuallyApprove }}<template #caption>{{ i18n.ts.lockedAccountInfo }}</template></MkSwitch>
@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkFolder>
 		<template #label>{{ i18n.ts.hideOnlineStatus }}</template>
-		<template #icon><i class="ph-eye-slash ph-bold ph-lg"></i></template>
+		<template #icon><i class="ti ti-eye-off"></i></template>
 		<template #suffix>{{ hideOnlineStatus ? i18n.ts.on : i18n.ts.off }}</template>
 
 		<MkSwitch v-model="hideOnlineStatus">{{ i18n.ts.hideOnlineStatus }}<template #caption>{{ i18n.ts.hideOnlineStatusDescription }}</template></MkSwitch>
@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkFolder>
 		<template #label>{{ i18n.ts.noCrawle }}</template>
-		<template #icon><i class="ph-planet ph-bold ph-lg"></i></template>
+		<template #icon><i class="ti ti-world-x"></i></template>
 		<template #suffix>{{ noCrawle ? i18n.ts.on : i18n.ts.off }}</template>
 
 		<MkSwitch v-model="noCrawle">{{ i18n.ts.noCrawle }}<template #caption>{{ i18n.ts.noCrawleDescription }}</template></MkSwitch>
@@ -44,7 +44,7 @@ import MkFolder from '@/components/MkFolder.vue';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 
 const isLocked = ref(false);
-const hideOnlineStatus = ref(false);
+const hideOnlineStatus = ref(true);
 const noCrawle = ref(false);
 
 watch([isLocked, hideOnlineStatus, noCrawle], () => {

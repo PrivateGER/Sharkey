@@ -22,6 +22,14 @@ export const meta = {
 			ref: 'Note',
 		},
 	},
+
+	// 120 calls per minute
+	// 200 ms between calls
+	limit: {
+		duration: 1000 * 60,
+		max: 120,
+		minInterval: 200,
+	},
 } as const;
 
 export const paramDef = {

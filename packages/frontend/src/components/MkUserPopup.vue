@@ -13,13 +13,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<div v-if="showing" :class="$style.root" class="_popup _shadow" :style="{ zIndex, top: top + 'px', left: left + 'px' }" @mouseover="() => { emit('mouseover'); }" @mouseleave="() => { emit('mouseleave'); }">
 		<div v-if="user != null">
-			<div :class="$style.banner" :style="user.bannerUrl ? `background-image: url(${user.bannerUrl})` : ''">
-				<span v-if="$i && $i.id != user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
+			<div :class="$style.banner" :style="user.bannerUrl ? `background-image: url(${defaultStore.state.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` : ''">
+				<span v-if="$i && $i.id != user.id && user.isFollowed && user.isFollowing" :class="$style.followed">{{ i18n.ts.mutuals }}</span>
+				<span v-else-if="$i && $i.id != user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
+				<span v-else-if="$i && $i.id != user.id && user.isFollowing" :class="$style.followed">{{ i18n.ts.following }}</span>
 				<span v-if="user.isLocked && $i && $i.id != user.id && !user.isFollowing" :title="i18n.ts.isLocked" :class="$style.locked"><i class="ph-lock ph-bold ph-lg"></i></span>
 			</div>
 			<svg viewBox="0 0 128 128" :class="$style.avatarBack">
 				<g transform="matrix(1.6,0,0,1.6,-38.4,-51.2)">
-					<path d="M64,32C81.661,32 96,46.339 96,64C95.891,72.184 104,72 104,72C104,72 74.096,80 64,80C52.755,80 24,72 24,72C24,72 31.854,72.018 32,64C32,46.339 46.339,32 64,32Z" style="fill: var(--popup);"/>
+					<path d="M64,32C81.661,32 96,46.339 96,64C95.891,72.184 104,72 104,72C104,72 74.096,80 64,80C52.755,80 24,72 24,72C24,72 31.854,72.018 32,64C32,46.339 46.339,32 64,32Z" style="fill: var(--MI_THEME-popup);"/>
 				</g>
 			</svg>
 			<MkAvatar :class="$style.avatar" :user="user" indicator/>
@@ -28,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.username"><MkAcct :user="user"/></div>
 			</div>
 			<div :class="$style.description">
-				<Mfm v-if="user.description" :nyaize="false" :class="$style.mfm" :text="user.description" :author="user"/>
+				<Mfm v-if="user.description" :nyaize="false" :class="$style.mfm" :text="user.description" :isBlock="true" :author="user"/>
 				<div v-else style="opacity: 0.7;">{{ i18n.ts.noAccountDescription }}</div>
 			</div>
 			<div v-if="user.fields.length > 0" :class="$style.fields">
@@ -56,7 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div>{{ number(user.followersCount) }}</div>
 				</div>
 			</div>
-			<button class="_button" :class="$style.menu" @click="showMenu"><i class="ph-dots-three ph-bold ph-lg"></i></button>
+			<button class="_button" :class="$style.menu" @click="showMenu"><i class="ti ti-dots"></i></button>
 			<MkFollowButton v-if="$i && user.id != $i.id" v-model:user="user" :class="$style.follow" mini/>
 		</div>
 		<div v-else>
@@ -79,6 +81,7 @@ import { i18n } from '@/i18n.js';
 import { defaultStore } from '@/store.js';
 import { $i } from '@/account.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/scripts/isFfVisibleForMe.js';
+import { getStaticImageUrl } from '@/scripts/media-proxy.js';
 
 const props = defineProps<{
 	showing: boolean;
@@ -118,8 +121,8 @@ onMounted(() => {
 	}
 
 	const rect = props.source.getBoundingClientRect();
-	const x = ((rect.left + (props.source.offsetWidth / 2)) - (300 / 2)) + window.pageXOffset;
-	const y = rect.top + props.source.offsetHeight + window.pageYOffset;
+	const x = Math.max(1, ((rect.left + (props.source.offsetWidth / 2)) - (300 / 2)) + window.scrollX);
+	const y = rect.top + props.source.offsetHeight + window.scrollY;
 
 	top.value = y;
 	left.value = x;
@@ -159,7 +162,7 @@ onMounted(() => {
 	color: #fff;
 	background: rgba(0, 0, 0, 0.7);
 	font-size: 0.7em;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .locked:first-child {
@@ -170,7 +173,7 @@ onMounted(() => {
 	color: #fff;
 	background: rgba(0, 0, 0, 0.7);
 	font-size: 0.7em;
-	border-radius: var(--radius-xs);
+	border-radius: var(--MI-radius-xs);
 }
 
 .locked:not(:first-child) {
@@ -181,7 +184,7 @@ onMounted(() => {
 	color: #fff;
 	background: rgba(0, 0, 0, 0.7);
 	font-size: 0.7em;
-	border-radius: var(--radius-xs);
+	border-radius: var(--MI-radius-xs);
 }
 
 .avatarBack {
@@ -201,8 +204,8 @@ onMounted(() => {
 	right: 0;
 	margin: 0 auto;
 	z-index: 2;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 }
 
 .title {
@@ -230,15 +233,15 @@ onMounted(() => {
 	padding: 16px 26px;
 	font-size: 0.8em;
 	text-align: center;
-	border-top: solid 1px var(--divider);
-	border-bottom: solid 1px var(--divider);
+	border-top: solid 1px var(--MI_THEME-divider);
+	border-bottom: solid 1px var(--MI_THEME-divider);
 }
 
 .fields {
 	font-size: 0.8em;
 	padding: 16px;
-	border-top: solid 1px var(--divider);
-	border-bottom: solid 1px var(--divider);
+	border-top: solid 1px var(--MI_THEME-divider);
+	border-bottom: solid 1px var(--MI_THEME-divider);
 }
 
 .field {
@@ -295,7 +298,7 @@ onMounted(() => {
 
 .statusItemLabel {
 	font-size: 0.7em;
-	color: var(--fgTransparentWeak);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .menu {
@@ -303,8 +306,8 @@ onMounted(() => {
 	top: 8px;
 	right: 44px;
 	padding: 6px;
-	background: var(--panel);
-	border-radius: var(--radius-ellipse);
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-ellipse);
 }
 
 .follow {

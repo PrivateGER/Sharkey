@@ -5,10 +5,11 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { RenoteMutingsRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { ApiError } from '../../error.js';
+import { UserRenoteMutingService } from "@/core/UserRenoteMutingService.js";
+import type { RenoteMutingsRepository } from '@/models/_.js';
 
 export const meta = {
 	tags: ['account'],
@@ -36,6 +37,12 @@ export const meta = {
 			id: '2e4ef874-8bf0-4b4b-b069-4598f6d05817',
 		},
 	},
+
+	// 20 calls per hour (match create)
+	limit: {
+		duration: 1000 * 60 * 60,
+		max: 20,
+	},
 } as const;
 
 export const paramDef = {
@@ -53,6 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private renoteMutingsRepository: RenoteMutingsRepository,
 
 		private getterService: GetterService,
+		private userRenoteMutingService: UserRenoteMutingService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const muter = me;
@@ -79,9 +87,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// Delete mute
-			await this.renoteMutingsRepository.delete({
-				id: exist.id,
-			});
+			await this.userRenoteMutingService.unmute([exist]);
 		});
 	}
 }

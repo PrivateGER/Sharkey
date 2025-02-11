@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkButton primary @click="createKey">{{ i18n.ts._registry.createKey }}</MkButton>
 
 			<FormSection v-if="keys">
-				<template #label>{{ i18n.ts.keys }}</template>
+				<template #label>{{ i18n.ts._registry.keys }}</template>
 				<div class="_gaps_s">
 					<FormLink v-for="key in keys" :to="`/registry/value/${props.domain}/${scope.join('/')}/${key[0]}`" class="_monospace">{{ key[0] }}<template #suffix>{{ key[1].toUpperCase() }}</template></FormLink>
 				</div>
@@ -52,7 +52,7 @@ const props = defineProps<{
 
 const scope = computed(() => props.path ? props.path.split('/') : []);
 
-const keys = ref<any>(null);
+const keys = ref<[string, string][]>([]);
 
 function fetchKeys() {
 	misskeyApi('i/registry/keys-with-type', {
@@ -98,6 +98,6 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.registry,
-	icon: 'ph-faders ph-bold ph-lg',
+	icon: 'ti ti-adjustments',
 }));
 </script>

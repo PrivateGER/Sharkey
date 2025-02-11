@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" :naked="widgetProps.transparent" :class="$style.root" :data-transparent="widgetProps.transparent ? true : null" data-cy-mkw-photos class="mkw-photos">
-	<template #icon><i class="ph-camera ph-bold ph-lg"></i></template>
+	<template #icon><i class="ti ti-camera"></i></template>
 	<template #header>{{ i18n.ts._widgets.photos }}</template>
 
 	<div class="">
@@ -68,10 +68,10 @@ const onDriveFileCreated = (file) => {
 	}
 };
 
-const thumbnail = (image: any): string => {
+const thumbnail = (image: Misskey.entities.DriveFile): string => {
 	return defaultStore.state.disableShowingAnimatedImages
 		? getStaticImageUrl(image.url)
-		: image.thumbnailUrl;
+		: image.thumbnailUrl ?? image.url;
 };
 
 misskeyApi('drive/stream', {
@@ -102,7 +102,7 @@ defineExpose<WidgetComponentExpose>({
 
 	.img {
 		border: solid 4px transparent;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 	}
 }
 
@@ -121,7 +121,7 @@ defineExpose<WidgetComponentExpose>({
 		background-size: cover;
 		background-clip: content-box;
 		border: solid 2px transparent;
-		border-radius: var(--radius-xs);
+		border-radius: var(--MI-radius-xs);
 	}
 }
 </style>

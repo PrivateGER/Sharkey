@@ -23,6 +23,12 @@ export const meta = {
 			id: 'abc2ffa6-25b2-4380-ba99-321ff3a94555',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {

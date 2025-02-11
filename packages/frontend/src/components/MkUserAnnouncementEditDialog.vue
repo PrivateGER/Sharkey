@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	ref="dialog"
 	:width="400"
 	@close="dialog?.close()"
-	@closed="$emit('closed')"
+	@closed="emit('closed')"
 >
 	<template v-if="announcement" #header>:{{ announcement.title }}:</template>
 	<template v-else #header>New announcement</template>
@@ -24,10 +24,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkTextarea>
 				<MkRadios v-model="icon">
 					<template #label>{{ i18n.ts.icon }}</template>
-					<option value="info"><i class="ph-info ph-bold ph-lg"></i></option>
-					<option value="warning"><i class="ph-warning ph-bold ph-lg" style="color: var(--warn);"></i></option>
-					<option value="error"><i class="ph-x-circle ph-bold ph-lg" style="color: var(--error);"></i></option>
-					<option value="success"><i class="ph-check ph-bold ph-lg" style="color: var(--success);"></i></option>
+					<option value="info"><i class="ti ti-info-circle"></i></option>
+					<option value="warning"><i class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i></option>
+					<option value="error"><i class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i></option>
+					<option value="success"><i class="ti ti-check" style="color: var(--MI_THEME-success);"></i></option>
 				</MkRadios>
 				<MkRadios v-model="display">
 					<template #label>{{ i18n.ts.display }}</template>
@@ -39,11 +39,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					{{ i18n.ts._announcement.needConfirmationToRead }}
 					<template #caption>{{ i18n.ts._announcement.needConfirmationToReadDescription }}</template>
 				</MkSwitch>
-				<MkButton v-if="announcement" danger @click="del()"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.delete }}</MkButton>
+				<MkButton v-if="announcement" danger @click="del()"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 			</div>
 		</MkSpacer>
 		<div :class="$style.footer">
-			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ph-check ph-bold ph-lg"></i> {{ props.announcement ? i18n.ts.update : i18n.ts.create }}</MkButton>
+			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ti ti-check"></i> {{ props.announcement ? i18n.ts.update : i18n.ts.create }}</MkButton>
 		</div>
 	</div>
 </MkModalWindow>
@@ -62,9 +62,16 @@ import MkTextarea from '@/components/MkTextarea.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkRadios from '@/components/MkRadios.vue';
 
+type AdminAnnouncementType = Misskey.entities.AdminAnnouncementsCreateRequest & { id: string; }
+
 const props = defineProps<{
 	user: Misskey.entities.User,
-	announcement?: Misskey.entities.Announcement,
+	announcement?: Required<AdminAnnouncementType>,
+}>();
+
+const emit = defineEmits<{
+	(ev: 'done', v: { deleted?: boolean; updated?: AdminAnnouncementType; created?: AdminAnnouncementType; }): void,
+	(ev: 'closed'): void
 }>();
 
 const dialog = ref<InstanceType<typeof MkModalWindow> | null>(null);
@@ -73,11 +80,6 @@ const text = ref(props.announcement ? props.announcement.text : '');
 const icon = ref(props.announcement ? props.announcement.icon : 'info');
 const display = ref(props.announcement ? props.announcement.display : 'dialog');
 const needConfirmationToRead = ref(props.announcement ? props.announcement.needConfirmationToRead : false);
-
-const emit = defineEmits<{
-	(ev: 'done', v: { deleted?: boolean; updated?: any; created?: any }): void,
-	(ev: 'closed'): void
-}>();
 
 async function done() {
 	const params = {
@@ -88,7 +90,7 @@ async function done() {
 		display: display.value,
 		needConfirmationToRead: needConfirmationToRead.value,
 		userId: props.user.id,
-	};
+	} satisfies Misskey.entities.AdminAnnouncementsCreateRequest;
 
 	if (props.announcement) {
 		await os.apiWithDialog('admin/announcements/update', {
@@ -141,8 +143,8 @@ async function del() {
 	bottom: 0;
 	left: 0;
 	padding: 12px;
-	border-top: solid 0.5px var(--divider);
-	-webkit-backdrop-filter: var(--blur, blur(15px));
-	backdrop-filter: var(--blur, blur(15px));
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
 }
 </style>

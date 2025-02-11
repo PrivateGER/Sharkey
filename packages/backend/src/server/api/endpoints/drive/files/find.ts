@@ -28,6 +28,12 @@ export const meta = {
 			ref: 'DriveFile',
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -54,7 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				folderId: ps.folderId ?? IsNull(),
 			});
 
-			return await Promise.all(files.map(file => this.driveFileEntityService.pack(file, { self: true })));
+			return await this.driveFileEntityService.packMany(files, { self: true });
 		});
 	}
 }

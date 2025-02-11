@@ -38,7 +38,7 @@
 # Option 3: If neither of the above applies to you.
 #           (In this case, the source code should be published
 #           on the Misskey interface.  IT IS NOT ENOUGH TO
-#           DISCLOSE THE SOURCE CODE WEHN A USER REQUESTS IT BY
+#           DISCLOSE THE SOURCE CODE WHEN A USER REQUESTS IT BY
 #           E-MAIL OR OTHER MEANS.  If you are not satisfied
 #           with this, it is recommended that you read the
 #           license again carefully.  Anyway, enabling this
@@ -58,6 +58,20 @@
 # Step 1: Uncomment the following line.
 #
 # publishTarballInsteadOfProvideRepositoryUrl: true
+
+#   ┌────────────────────────┐
+#───┘ Initial Setup Password └─────────────────────────────────────────────────────
+
+# Password to initiate setting up admin account.
+# It will not be used after the initial setup is complete.
+#
+# Be sure to change this when you set up Misskey via the Internet.
+#
+# The provider of the service who sets up Misskey on behalf of the customer should
+# set this value to something unique when generating the Misskey config file,
+# and provide it to the customer.
+#
+# setupPassword: example_password_please_change_this_or_you_will_get_hacked
 
 #   ┌─────┐
 #───┘ URL └─────────────────────────────────────────────────────
@@ -99,11 +113,13 @@ db:
   port: 5432
 
   # Database name
-  db: misskey
+  db: sharkey
 
   # Auth
-  user: example-misskey-user
+  user: sharkey
   pass: example-misskey-pass
+
+  pgroongaSearch: true
 
   # Whether disable Caching queries
   #disableCache: true
@@ -172,6 +188,16 @@ redis:
 #  # You can specify more ioredis options...
 #  #username: example-username
 
+#redisForReactions:
+#  host: localhost
+#  port: 6379
+#  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  #pass: example-pass
+#  #prefix: example-prefix
+#  #db: 1
+#  # You can specify more ioredis options...
+#  #username: example-username
+
 #   ┌───────────────────────────┐
 #───┘ MeiliSearch configuration └─────────────────────────────
 
@@ -205,6 +231,21 @@ redis:
 
 id: 'aidx'
 
+#   ┌────────────────┐
+#───┘ Error tracking └──────────────────────────────────────────
+
+# Sentry is available for error tracking.
+# See the Sentry documentation for more details on options.
+
+#sentryForBackend:
+#  enableNodeProfiling: true
+#  options:
+#    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
+
+#sentryForFrontend:
+#  options:
+#    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
+
 #   ┌─────────────────────┐
 #───┘ Other configuration └─────────────────────────────────────
 
@@ -236,8 +277,18 @@ id: 'aidx'
 # IP address family used for outgoing request (ipv4, ipv6 or dual)
 #outgoingAddressFamily: ipv4
 
-# Amount of characters that can be used when writing notes (maximum: 8192, minimum: 1)
-maxNoteLength: 3000
+# Amount of characters that can be used when writing notes. Longer notes will be rejected. (minimum: 1)
+#maxNoteLength: 3000
+# Amount of characters that will be saved for remote notes. Longer notes will be truncated to this length. (minimum: 1)
+#maxRemoteNoteLength: 100000
+# Amount of characters that can be used when writing content warnings. Longer warnings will be rejected. (minimum: 1)
+#maxCwLength: 500
+# Amount of characters that will be saved for remote content warnings. Longer warnings will be truncated to this length. (minimum: 1)
+#maxRemoteCwLength: 5000
+# Amount of characters that can be used when writing media descriptions (alt text). Longer descriptions will be rejected. (minimum: 1)
+#maxAltTextLength: 20000
+# Amount of characters that will be saved for remote media descriptions (alt text). Longer descriptions will be truncated to this length. (minimum: 1)
+#maxRemoteAltTextLength: 100000
 
 # Proxy for HTTP/HTTPS
 #proxy: http://127.0.0.1:3128
@@ -270,8 +321,13 @@ proxyRemoteFiles: true
 #   https://example.com/thumbnail.webp?thumbnail=1&url=https%3A%2F%2Fstorage.example.com%2Fpath%2Fto%2Fvideo.mp4
 #videoThumbnailGenerator: https://example.com
 
-# Sign to ActivityPub GET request (default: true)
+# Sign outgoing ActivityPub GET request (default: true)
 signToActivityPubGet: true
+# Sign outgoing ActivityPub Activities (default: true)
+# Linked Data signatures are cryptographic signatures attached to each activity to provide proof of authenticity.
+# When using authorized fetch, this is often undesired as any signed activity can be forwarded to a blocked instance by relays and other instances.
+# This setting allows admins to disable LD signatures for increased privacy, at the expense of fewer relayed activities and additional inbound fetch (GET) requests.
+attachLdSignatureForRelays: true
 # check that inbound ActivityPub GET requests are signed ("authorized fetch")
 checkActivityPubGetSignature: false
 
@@ -287,5 +343,24 @@ checkActivityPubGetSignature: false
 # Upload or download file size limits (bytes)
 #maxFileSize: 262144000
 
+# timeout (in milliseconds) and maximum size for imports (e.g. note imports)
+#import:
+#  downloadTimeout: 30000
+#  maxFileSize: 262144000
+
 # PID File of master process
 #pidFile: /tmp/misskey.pid
+
+# CHMod-style permission bits to apply to uploaded files.
+# Permission bits are specified as a base-8 string representing User/Group/Other permissions.
+# This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
+#filePermissionBits: '644'
+
+# openai:
+#    apiKey: 'apikey'
+#    baseUrl: 'https://openrouter.ai/api/v1'
+#    model: 'google/gemini-flash-1.5-8b'
+
+# imgproxyURL: https://imgproxy.example.com/
+# imgproxySalt: 'example-salt'
+# imgproxyKey: 'example'

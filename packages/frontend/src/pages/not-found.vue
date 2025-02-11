@@ -24,7 +24,7 @@ const props = defineProps<{
 }>();
 
 if (props.showLoginPopup) {
-	pleaseLogin('/');
+	pleaseLogin({ path: '/' });
 }
 
 const headerActions = computed(() => []);
@@ -33,6 +33,6 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.notFound,
-	icon: 'ph-warning ph-bold ph-lg',
+	icon: 'ti ti-alert-triangle',
 }));
 </script>

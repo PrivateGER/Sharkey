@@ -9,6 +9,7 @@ import { webhookEventTypes } from '@/models/Webhook.js';
 import type { WebhooksRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 
+// TODO: UserWebhook schemaの適用
 export const meta = {
 	tags: ['webhooks', 'account'],
 
@@ -44,6 +45,12 @@ export const meta = {
 				latestStatus: { type: 'integer', nullable: true },
 			},
 		},
+	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
 	},
 } as const;
 

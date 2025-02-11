@@ -21,18 +21,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 						v-if="element.type === '-' || navbarItemDef[element.type]"
 						:class="$style.item"
 					>
-						<button class="_button" :class="$style.itemHandle"><i class="ph-list ph-bold ph-lg"></i></button>
+						<button class="_button" :class="$style.itemHandle"><i class="ti ti-menu"></i></button>
 						<i class="ti-fw" :class="[$style.itemIcon, navbarItemDef[element.type]?.icon]"></i><span :class="$style.itemText">{{ navbarItemDef[element.type]?.title ?? i18n.ts.divider }}</span>
-						<button class="_button" :class="$style.itemRemove" @click="removeItem(index)"><i class="ph-x ph-bold ph-lg"></i></button>
+						<button class="_button" :class="$style.itemRemove" @click="removeItem(index)"><i class="ti ti-x"></i></button>
 					</div>
 				</template>
 			</Sortable>
 		</MkContainer>
 	</FormSlot>
 	<div class="_buttons">
-		<MkButton @click="addItem"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.addItem }}</MkButton>
-		<MkButton danger @click="reset"><i class="ph-arrow-clockwise ph-bold ph-lg"></i> {{ i18n.ts.default }}</MkButton>
-		<MkButton primary class="save" @click="save"><i class="ph-floppy-disk ph-bold ph-lg"></i> {{ i18n.ts.save }}</MkButton>
+		<MkButton @click="addItem"><i class="ti ti-plus"></i> {{ i18n.ts.addItem }}</MkButton>
+		<MkButton danger @click="reset"><i class="ti ti-reload"></i> {{ i18n.ts.default }}</MkButton>
+		<MkButton primary class="save" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 	</div>
 
 	<MkRadios v-model="menuDisplay">
@@ -54,7 +54,7 @@ import MkContainer from '@/components/MkContainer.vue';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { defaultStore } from '@/store.js';
-import { unisonReload } from '@/scripts/unison-reload.js';
+import { reloadAsk } from '@/scripts/reload-ask.js';
 import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 
@@ -66,16 +66,6 @@ const items = ref(defaultStore.state.menu.map(x => ({
 })));
 
 const menuDisplay = computed(defaultStore.makeGetterSetter('menuDisplay'));
-
-async function reloadAsk() {
-	const { canceled } = await os.confirm({
-		type: 'info',
-		text: i18n.ts.reloadToApplySetting,
-	});
-	if (canceled) return;
-
-	unisonReload();
-}
 
 async function addItem() {
 	const menu = Object.keys(navbarItemDef).filter(k => !defaultStore.state.menu.includes(k));
@@ -100,7 +90,7 @@ function removeItem(index: number) {
 
 async function save() {
 	defaultStore.set('menu', items.value.map(x => x.type));
-	await reloadAsk();
+	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
 }
 
 function reset() {
@@ -110,17 +100,13 @@ function reset() {
 	}));
 }
 
-watch(menuDisplay, async () => {
-	await reloadAsk();
-});
-
 const headerActions = computed(() => []);
 
 const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.navbar,
-	icon: 'ph-list ph-bold ph-lg',
+	icon: 'ti ti-list',
 }));
 </script>
 
@@ -132,7 +118,7 @@ definePageMetadata(() => ({
 	text-overflow: ellipsis;
 	overflow: hidden;
 	white-space: nowrap;
-	color: var(--navFg);
+	color: var(--MI_THEME-navFg);
 }
 
 .itemIcon {

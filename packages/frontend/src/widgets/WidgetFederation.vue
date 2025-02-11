@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" :foldable="foldable" :scrollable="scrollable" data-cy-mkw-federation class="mkw-federation">
-	<template #icon><i class="ph-globe-hemisphere-west ph-bold ph-lg"></i></template>
+	<template #icon><i class="ti ti-whirl"></i></template>
 	<template #header>{{ i18n.ts._widgets.federation }}</template>
 
 	<div class="wbrkwalb">
@@ -32,7 +32,7 @@ import { GetFormResultType } from '@/scripts/form.js';
 import MkContainer from '@/components/MkContainer.vue';
 import MkMiniChart from '@/components/MkMiniChart.vue';
 import { misskeyApi, misskeyApiGet } from '@/scripts/misskey-api.js';
-import { useInterval } from '@/scripts/use-interval.js';
+import { useInterval } from '@@/js/use-interval.js';
 import { i18n } from '@/i18n.js';
 import { getProxiedImageUrlNullable } from '@/scripts/media-proxy.js';
 import { defaultStore } from '@/store.js';
@@ -105,14 +105,14 @@ defineExpose<WidgetComponentExpose>({
 			display: flex;
 			align-items: center;
 			padding: 14px 16px;
-			border-bottom: solid 0.5px var(--divider);
+			border-bottom: solid 0.5px var(--MI_THEME-divider);
 
 			> img {
 				display: block;
 				width: ($bodyTitleHieght + $bodyInfoHieght);
 				height: ($bodyTitleHieght + $bodyInfoHieght);
 				object-fit: cover;
-				border-radius: var(--radius-xs);
+				border-radius: var(--MI-radius-xs);
 				margin-right: 8px;
 			}
 
@@ -120,7 +120,7 @@ defineExpose<WidgetComponentExpose>({
 				flex: 1;
 				overflow: hidden;
 				font-size: 0.9em;
-				color: var(--fg);
+				color: var(--MI_THEME-fg);
 				padding-right: 8px;
 
 				> .a {

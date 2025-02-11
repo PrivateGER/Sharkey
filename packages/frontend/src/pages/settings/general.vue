@@ -14,22 +14,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLink url="https://crowdin.com/project/misskey">Crowdin</MkLink>
 				</template>
 			</I18n>
+			<!--
+			<br />
+			<I18n :src="i18n.ts.i18nInfoSharkey" tag="span">
+				<template #link>
+					<MkLink url="https://crowdin.com/project/misskey">INSERT THINGY</MkLink>
+				</template>
+			</I18n>
+			-->
 		</template>
 	</MkSelect>
-
-	<MkRadios v-model="hemisphere">
-		<template #label>{{ i18n.ts.hemisphere }}</template>
-		<option value="N">{{ i18n.ts._hemisphere.N }}</option>
-		<option value="S">{{ i18n.ts._hemisphere.S }}</option>
-		<template #caption>{{ i18n.ts._hemisphere.caption }}</template>
-	</MkRadios>
 
 	<MkRadios v-model="overridedDeviceKind">
 		<template #label>{{ i18n.ts.overridedDeviceKind }}</template>
 		<option :value="null">{{ i18n.ts.auto }}</option>
-		<option value="smartphone"><i class="ph-device-mobile ph-bold ph-lg"/> {{ i18n.ts.smartphone }}</option>
-		<option value="tablet"><i class="ph-device-tablet ph-bold ph-lg"/> {{ i18n.ts.tablet }}</option>
-		<option value="desktop"><i class="ph-desktop ph-bold ph-lg"/> {{ i18n.ts.desktop }}</option>
+		<option value="smartphone"><i class="ti ti-device-mobile"/> {{ i18n.ts.smartphone }}</option>
+		<option value="tablet"><i class="ti ti-device-tablet"/> {{ i18n.ts.tablet }}</option>
+		<option value="desktop"><i class="ti ti-device-desktop"/> {{ i18n.ts.desktop }}</option>
 	</MkRadios>
 
 	<FormSection>
@@ -40,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.pinnedList }}</template>
 				<!-- 複数ピン止め管理できるようにしたいけどめんどいので一旦ひとつのみ -->
 				<MkButton v-if="defaultStore.reactiveState.pinnedUserLists.value.length === 0" @click="setPinnedList()">{{ i18n.ts.add }}</MkButton>
-				<MkButton v-else danger @click="removePinnedList()"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.remove }}</MkButton>
+				<MkButton v-else danger @click="removePinnedList()"><i class="ti ti-trash"></i> {{ i18n.ts.remove }}</MkButton>
 			</MkFolder>
 		</div>
 	</FormSection>
@@ -50,19 +51,47 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div class="_gaps_m">
 			<div class="_gaps_s">
+				<MkSwitch v-model="collapseRenotes">
+					<template #label>{{ i18n.ts.collapseRenotes }}</template>
+					<template #caption>{{ i18n.ts.collapseRenotesDescription }}</template>
+				</MkSwitch>
+				<MkSwitch v-model="collapseNotesRepliedTo">{{ i18n.ts.collapseNotesRepliedTo }}</MkSwitch>
+				<MkSwitch v-model="collapseFiles">{{ i18n.ts.collapseFiles }}</MkSwitch>
+				<MkSwitch v-model="uncollapseCW">{{ i18n.ts.uncollapseCW }}</MkSwitch>
+				<MkSwitch v-model="expandLongNote">{{ i18n.ts.expandLongNote }}</MkSwitch>
 				<MkSwitch v-model="showNoteActionsOnlyHover">{{ i18n.ts.showNoteActionsOnlyHover }}</MkSwitch>
 				<MkSwitch v-model="showClipButtonInNoteFooter">{{ i18n.ts.showClipButtonInNoteFooter }}</MkSwitch>
-				<MkSwitch v-model="collapseRenotes">{{ i18n.ts.collapseRenotes }}</MkSwitch>
-				<MkSwitch v-model="collapseFiles">{{ i18n.ts.collapseFiles }}</MkSwitch>
-				<MkSwitch v-model="uncollapseCW">Uncollapse CWs on notes</MkSwitch>
 				<MkSwitch v-model="autoloadConversation">{{ i18n.ts.autoloadConversation }}</MkSwitch>
-				<MkSwitch v-model="expandLongNote">Always expand long notes</MkSwitch>
 				<MkSwitch v-model="advancedMfm">{{ i18n.ts.enableAdvancedMfm }}</MkSwitch>
 				<MkSwitch v-if="advancedMfm" v-model="animatedMfm">{{ i18n.ts.enableAnimatedMfm }}</MkSwitch>
 				<MkSwitch v-if="advancedMfm" v-model="enableQuickAddMfmFunction">{{ i18n.ts.enableQuickAddMfmFunction }}</MkSwitch>
+				<MkSwitch v-model="showReactionsCount">{{ i18n.ts.showReactionsCount }}</MkSwitch>
 				<MkSwitch v-model="showGapBetweenNotesInTimeline">{{ i18n.ts.showGapBetweenNotesInTimeline }}</MkSwitch>
 				<MkSwitch v-model="loadRawImages">{{ i18n.ts.loadRawImages }}</MkSwitch>
-				<MkSwitch v-model="showTickerOnReplies">Show instance ticker on replies</MkSwitch>
+				<MkSwitch v-model="showTickerOnReplies">{{ i18n.ts.showTickerOnReplies }}</MkSwitch>
+				<MkSwitch v-model="disableCatSpeak">{{ i18n.ts.disableCatSpeak }}</MkSwitch>
+				<MkSelect v-model="searchEngine" placeholder="Other">
+					<template #label>{{ i18n.ts.searchEngine }}</template>
+					<option
+						v-for="[key, value] in Object.entries(searchEngineMap)" :key="key" :value="key"
+					>
+						{{ value }}
+					</option>
+					<!-- If the user is on Other and enters a domain add this one so that the dropdown doesnt go blank -->
+					<option v-if="useCustomSearchEngine" :value="searchEngine">
+						{{ i18n.ts.searchEngineOther }}
+					</option>
+					<!-- If one of the other options is selected show this as a blank other -->
+					<option v-if="!useCustomSearchEngine" value="">{{ i18n.ts.searchEngineOther }}</option>
+				</MkSelect>
+
+				<div v-if="useCustomSearchEngine">
+					<MkInput v-model="searchEngine" :max="300" :manualSave="true">
+						<template #label>{{ i18n.ts.searchEngineCusomURI }}</template>
+						<template #caption>{{ i18n.ts.searchEngineCustomURIDescription }}</template>
+					</MkInput>
+				</div>
+
 				<MkRadios v-model="reactionsDisplaySize">
 					<template #label>{{ i18n.ts.reactionsDisplaySize }}</template>
 					<option value="small">{{ i18n.ts.small }}</option>
@@ -71,8 +100,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkRadios>
 				<MkRadios v-model="noteDesign">
 					<template #label>Note Design</template>
-					<option value="sharkey"><i class="sk-icons sk-shark ph-bold" style="top: 2px;position: relative;"></i> Sharkey</option>
-					<option value="misskey"><i class="sk-icons sk-misskey ph-bold" style="top: 2px;position: relative;"></i> Misskey</option>
+					<option value="sharkey"><i class="sk-icons sk-shark sk-icons-lg" style="top: 2px;position: relative;"></i> Sharkey</option>
+					<option value="misskey"><i class="sk-icons sk-misskey sk-icons-lg" style="top: 2px;position: relative;"></i> Misskey</option>
 				</MkRadios>
 				<MkSwitch v-model="limitWidthOfReaction">{{ i18n.ts.limitWidthOfReaction }}</MkSwitch>
 			</div>
@@ -112,19 +141,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_m">
 			<MkSwitch v-model="useGroupedNotifications">{{ i18n.ts.useGroupedNotifications }}</MkSwitch>
 
+			<MkSwitch v-model="enableFaviconNotificationDot">
+				{{ i18n.ts.enableFaviconNotificationDot }}
+				<template #caption>
+					<I18n :src="i18n.ts.notificationDotNotWorkingAdvice" tag="span">
+						<template #link>
+							<MkLink url="https://docs.joinsharkey.org/docs/install/faqs/#ive-enabled-the-notification-dot-but-it-doesnt-show">{{ i18n.ts._mfm.link }}</MkLink>
+						</template>
+					</I18n>
+				</template>
+			</MkSwitch>
+
+			<!-- {{ i18n.ts.notificationDotNotWorkingAdvice }} -->
+
+			<!-- notificationDotNotWorkingAdvice -->
+			<MkButton @click="testNotificationDot">{{ i18n.ts.verifyNotificationDotWorkingButton }}</MkButton>
+			<!-- <p class="caption">Testing Testing</p> -->
 			<MkRadios v-model="notificationPosition">
 				<template #label>{{ i18n.ts.position }}</template>
-				<option value="leftTop"><i class="ph-arrow-up-left ph-bold ph-lg"></i> {{ i18n.ts.leftTop }}</option>
-				<option value="rightTop"><i class="ph-arrow-up-right ph-bold ph-lg"></i> {{ i18n.ts.rightTop }}</option>
-				<option value="leftBottom"><i class="ph-arrow-down-left ph-bold ph-lg"></i> {{ i18n.ts.leftBottom }}</option>
-				<option value="rightBottom"><i class="ph-arrow-down-right ph-bold ph-lg"></i> {{ i18n.ts.rightBottom }}</option>
+				<option value="leftTop"><i class="ti ti-align-box-left-top"></i> {{ i18n.ts.leftTop }}</option>
+				<option value="rightTop"><i class="ti ti-align-box-right-top"></i> {{ i18n.ts.rightTop }}</option>
+				<option value="leftBottom"><i class="ti ti-align-box-left-bottom"></i> {{ i18n.ts.leftBottom }}</option>
+				<option value="rightBottom"><i class="ti ti-align-box-right-bottom"></i> {{ i18n.ts.rightBottom }}</option>
 			</MkRadios>
 
 			<MkRadios v-model="notificationStackAxis">
 				<template #label>{{ i18n.ts.stackAxis }}</template>
-				<option value="vertical"><i class="ph-split-vertical ph-bold ph-lg"></i> {{ i18n.ts.vertical }}</option>
-				<option value="horizontal"><i class="ph-split-horizontal ph-bold ph-lg"></i> {{ i18n.ts.horizontal }}</option>
+				<option value="vertical"><i class="ti ti-carousel-vertical"></i> {{ i18n.ts.vertical }}</option>
+				<option value="horizontal"><i class="ti ti-carousel-horizontal"></i> {{ i18n.ts.horizontal }}</option>
 			</MkRadios>
+
+			<MkSwitch v-model="notificationClickable">{{ i18n.ts.allowClickingNotifications }}</MkSwitch>
 
 			<MkButton @click="testNotification">{{ i18n.ts._notification.checkNotificationBehavior }}</MkButton>
 		</div>
@@ -143,11 +190,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSwitch v-model="squareAvatars">{{ i18n.ts.squareAvatars }}</MkSwitch>
 				<MkSwitch v-model="showAvatarDecorations">{{ i18n.ts.showAvatarDecorations }}</MkSwitch>
 				<MkSwitch v-model="useSystemFont">{{ i18n.ts.useSystemFont }}</MkSwitch>
-				<MkSwitch v-model="disableDrawer">{{ i18n.ts.disableDrawer }}</MkSwitch>
 				<MkSwitch v-model="forceShowAds">{{ i18n.ts.forceShowAds }}</MkSwitch>
 				<MkSwitch v-model="oneko">{{ i18n.ts.oneko }}</MkSwitch>
 				<MkSwitch v-model="enableSeasonalScreenEffect">{{ i18n.ts.seasonalScreenEffect }}</MkSwitch>
+				<MkSwitch v-model="useNativeUIForVideoAudioPlayer">{{ i18n.ts.useNativeUIForVideoAudioPlayer }}</MkSwitch>
 			</div>
+
+			<MkSelect v-model="menuStyle">
+				<template #label>{{ i18n.ts.menuStyle }}</template>
+				<option value="auto">{{ i18n.ts.auto }}</option>
+				<option value="popup">{{ i18n.ts.popup }}</option>
+				<option value="drawer">{{ i18n.ts.drawer }}</option>
+			</MkSelect>
+
 			<div>
 				<MkRadios v-model="emojiStyle">
 					<template #label>{{ i18n.ts.emojiStyle }}</template>
@@ -169,8 +224,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkRadios v-model="cornerRadius">
 				<template #label>{{ i18n.ts.cornerRadius }}</template>
-				<option :value="null"><i class="sk-icons sk-shark ph-bold" style="top: 2px;position: relative;"></i> Sharkey</option>
-				<option value="misskey"><i class="sk-icons sk-misskey ph-bold" style="top: 2px;position: relative;"></i> Misskey</option>
+				<option :value="null"><i class="sk-icons sk-shark sk-icons-lg" style="top: 2px;position: relative;"></i> Sharkey</option>
+				<option value="misskey"><i class="sk-icons sk-misskey sk-icons-lg" style="top: 2px;position: relative;"></i> Misskey</option>
 			</MkRadios>
 		</div>
 	</FormSection>
@@ -186,15 +241,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSwitch v-model="enableInfiniteScroll">{{ i18n.ts.enableInfiniteScroll }}</MkSwitch>
 				<MkSwitch v-model="keepScreenOn">{{ i18n.ts.keepScreenOn }}</MkSwitch>
 				<MkSwitch v-model="clickToOpen">{{ i18n.ts.clickToOpen }}</MkSwitch>
-				<MkSwitch v-model="showBots">{{ i18n.ts.showBots }}</MkSwitch>
 				<MkSwitch v-model="disableStreamingTimeline">{{ i18n.ts.disableStreamingTimeline }}</MkSwitch>
 				<MkSwitch v-model="enableHorizontalSwipe">{{ i18n.ts.enableHorizontalSwipe }}</MkSwitch>
+				<MkSwitch v-model="alwaysConfirmFollow">{{ i18n.ts.alwaysConfirmFollow }}</MkSwitch>
+				<MkSwitch v-model="confirmWhenRevealingSensitiveMedia">{{ i18n.ts.confirmWhenRevealingSensitiveMedia }}</MkSwitch>
+				<MkSwitch v-model="warnExternalUrl">{{ i18n.ts.warnExternalUrl }}</MkSwitch>
 			</div>
 			<MkSelect v-model="serverDisconnectedBehavior">
 				<template #label>{{ i18n.ts.whenServerDisconnected }}</template>
 				<option value="dialog">{{ i18n.ts._serverDisconnectedBehavior.dialog }}</option>
 				<option value="quiet">{{ i18n.ts._serverDisconnectedBehavior.quiet }}</option>
 				<option value="disabled">{{ i18n.ts._serverDisconnectedBehavior.disabled }}</option>
+			</MkSelect>
+			<MkSelect v-model="contextMenu">
+				<template #label>{{ i18n.ts._contextMenu.title }}</template>
+				<option value="app">{{ i18n.ts._contextMenu.app }}</option>
+				<option value="appWithShift">{{ i18n.ts._contextMenu.appWithShift }}</option>
+				<option value="native">{{ i18n.ts._contextMenu.native }}</option>
 			</MkSelect>
 			<MkRange v-model="numberOfPageCache" :min="1" :max="10" :step="1" easing>
 				<template #label>{{ i18n.ts.numberOfPageCache }}</template>
@@ -254,28 +317,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #label>{{ i18n.ts.other }}</template>
 
 		<div class="_gaps">
+			<MkRadios v-model="hemisphere">
+				<template #label>{{ i18n.ts.hemisphere }}</template>
+				<option value="N">{{ i18n.ts._hemisphere.N }}</option>
+				<option value="S">{{ i18n.ts._hemisphere.S }}</option>
+				<template #caption>{{ i18n.ts._hemisphere.caption }}</template>
+			</MkRadios>
 			<MkFolder>
 				<template #label>{{ i18n.ts.additionalEmojiDictionary }}</template>
 				<div class="_buttons">
 					<template v-for="lang in emojiIndexLangs" :key="lang">
-						<MkButton v-if="defaultStore.reactiveState.additionalUnicodeEmojiIndexes.value[lang]" danger @click="removeEmojiIndex(lang)"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.remove }} ({{ getEmojiIndexLangName(lang) }})</MkButton>
-						<MkButton v-else @click="downloadEmojiIndex(lang)"><i class="ph-download ph-bold ph-lg"></i> {{ getEmojiIndexLangName(lang) }}{{ defaultStore.reactiveState.additionalUnicodeEmojiIndexes.value[lang] ? ` (${ i18n.ts.installed })` : '' }}</MkButton>
+						<MkButton v-if="defaultStore.reactiveState.additionalUnicodeEmojiIndexes.value[lang]" danger @click="removeEmojiIndex(lang)"><i class="ti ti-trash"></i> {{ i18n.ts.remove }} ({{ getEmojiIndexLangName(lang) }})</MkButton>
+						<MkButton v-else @click="downloadEmojiIndex(lang)"><i class="ti ti-download"></i> {{ getEmojiIndexLangName(lang) }}{{ defaultStore.reactiveState.additionalUnicodeEmojiIndexes.value[lang] ? ` (${ i18n.ts.installed })` : '' }}</MkButton>
 					</template>
 				</div>
 			</MkFolder>
 			<FormLink to="/settings/deck">{{ i18n.ts.deck }}</FormLink>
-			<FormLink to="/settings/custom-css"><template #icon><i class="ph-code ph-bold ph-lg"></i></template>{{ i18n.ts.customCss }}</FormLink>
+			<FormLink to="/settings/custom-css"><template #icon><i class="ti ti-code"></i></template>{{ i18n.ts.customCss }}</FormLink>
 		</div>
 	</FormSection>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import { langs } from '@@/js/config.js';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkRadios from '@/components/MkRadios.vue';
+import MkInput from '@/components/MkInput.vue';
 import MkRange from '@/components/MkRange.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -283,32 +354,24 @@ import FormSection from '@/components/form/section.vue';
 import FormLink from '@/components/form/link.vue';
 import MkLink from '@/components/MkLink.vue';
 import MkInfo from '@/components/MkInfo.vue';
-import { langs } from '@/config.js';
+import { searchEngineMap } from '@/scripts/search-engine-map.js';
 import { defaultStore } from '@/store.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
-import { unisonReload } from '@/scripts/unison-reload.js';
+import { reloadAsk } from '@/scripts/reload-ask.js';
 import { i18n } from '@/i18n.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { globalEvents } from '@/events.js';
 import { claimAchievement } from '@/scripts/achievements.js';
+import { deepMerge } from '@/scripts/merge.js';
+import { worksOnInstance } from '@/scripts/favicon-dot.js';
 
 const lang = ref(miLocalStorage.getItem('lang'));
 const fontSize = ref(miLocalStorage.getItem('fontSize'));
 const cornerRadius = ref(miLocalStorage.getItem('cornerRadius'));
 const useSystemFont = ref(miLocalStorage.getItem('useSystemFont') != null);
 const dataSaver = ref(defaultStore.state.dataSaver);
-
-async function reloadAsk() {
-	const { canceled } = await os.confirm({
-		type: 'info',
-		text: i18n.ts.reloadToApplySetting,
-	});
-	if (canceled) return;
-
-	unisonReload();
-}
 
 const hemisphere = computed(defaultStore.makeGetterSetter('hemisphere'));
 const overridedDeviceKind = computed(defaultStore.makeGetterSetter('overridedDeviceKind'));
@@ -318,8 +381,8 @@ const showClipButtonInNoteFooter = computed(defaultStore.makeGetterSetter('showC
 const reactionsDisplaySize = computed(defaultStore.makeGetterSetter('reactionsDisplaySize'));
 const limitWidthOfReaction = computed(defaultStore.makeGetterSetter('limitWidthOfReaction'));
 const collapseRenotes = computed(defaultStore.makeGetterSetter('collapseRenotes'));
+const collapseNotesRepliedTo = computed(defaultStore.makeGetterSetter('collapseNotesRepliedTo'));
 const clickToOpen = computed(defaultStore.makeGetterSetter('clickToOpen'));
-const showBots = computed(defaultStore.makeGetterSetter('tlWithBots'));
 const collapseFiles = computed(defaultStore.makeGetterSetter('collapseFiles'));
 const autoloadConversation = computed(defaultStore.makeGetterSetter('autoloadConversation'));
 const reduceAnimation = computed(defaultStore.makeGetterSetter('animation', v => !v, v => !v));
@@ -328,15 +391,18 @@ const useBlurEffect = computed(defaultStore.makeGetterSetter('useBlurEffect'));
 const showGapBetweenNotesInTimeline = computed(defaultStore.makeGetterSetter('showGapBetweenNotesInTimeline'));
 const animatedMfm = computed(defaultStore.makeGetterSetter('animatedMfm'));
 const advancedMfm = computed(defaultStore.makeGetterSetter('advancedMfm'));
+const showReactionsCount = computed(defaultStore.makeGetterSetter('showReactionsCount'));
 const enableQuickAddMfmFunction = computed(defaultStore.makeGetterSetter('enableQuickAddMfmFunction'));
 const emojiStyle = computed(defaultStore.makeGetterSetter('emojiStyle'));
-const disableDrawer = computed(defaultStore.makeGetterSetter('disableDrawer'));
+const menuStyle = computed(defaultStore.makeGetterSetter('menuStyle'));
 const disableShowingAnimatedImages = computed(defaultStore.makeGetterSetter('disableShowingAnimatedImages'));
 const forceShowAds = computed(defaultStore.makeGetterSetter('forceShowAds'));
 const oneko = computed(defaultStore.makeGetterSetter('oneko'));
 const loadRawImages = computed(defaultStore.makeGetterSetter('loadRawImages'));
+const disableCatSpeak = computed(defaultStore.makeGetterSetter('disableCatSpeak'));
 const highlightSensitiveMedia = computed(defaultStore.makeGetterSetter('highlightSensitiveMedia'));
 const imageNewTab = computed(defaultStore.makeGetterSetter('imageNewTab'));
+const enableFaviconNotificationDot = computed(defaultStore.makeGetterSetter('enableFaviconNotificationDot'));
 const warnMissingAltText = computed(defaultStore.makeGetterSetter('warnMissingAltText'));
 const nsfw = computed(defaultStore.makeGetterSetter('nsfw'));
 const showFixedPostForm = computed(defaultStore.makeGetterSetter('showFixedPostForm'));
@@ -351,10 +417,14 @@ const showAvatarDecorations = computed(defaultStore.makeGetterSetter('showAvatar
 const mediaListWithOneImageAppearance = computed(defaultStore.makeGetterSetter('mediaListWithOneImageAppearance'));
 const notificationPosition = computed(defaultStore.makeGetterSetter('notificationPosition'));
 const notificationStackAxis = computed(defaultStore.makeGetterSetter('notificationStackAxis'));
+const notificationClickable = computed(defaultStore.makeGetterSetter('notificationClickable'));
 const keepScreenOn = computed(defaultStore.makeGetterSetter('keepScreenOn'));
 const disableStreamingTimeline = computed(defaultStore.makeGetterSetter('disableStreamingTimeline'));
 const useGroupedNotifications = computed(defaultStore.makeGetterSetter('useGroupedNotifications'));
 const showTickerOnReplies = computed(defaultStore.makeGetterSetter('showTickerOnReplies'));
+//const searchEngine = computed(defaultStore.makeGetterSetter('searchEngine'));
+const searchEngine = computed(defaultStore.makeGetterSetter('searchEngine'));
+
 const noteDesign = computed(defaultStore.makeGetterSetter('noteDesign'));
 const uncollapseCW = computed(defaultStore.makeGetterSetter('uncollapseCW'));
 const expandLongNote = computed(defaultStore.makeGetterSetter('expandLongNote'));
@@ -362,6 +432,11 @@ const enableSeasonalScreenEffect = computed(defaultStore.makeGetterSetter('enabl
 const showVisibilitySelectorOnBoost = computed(defaultStore.makeGetterSetter('showVisibilitySelectorOnBoost'));
 const visibilityOnBoost = computed(defaultStore.makeGetterSetter('visibilityOnBoost'));
 const enableHorizontalSwipe = computed(defaultStore.makeGetterSetter('enableHorizontalSwipe'));
+const useNativeUIForVideoAudioPlayer = computed(defaultStore.makeGetterSetter('useNativeUIForVideoAudioPlayer'));
+const alwaysConfirmFollow = computed(defaultStore.makeGetterSetter('alwaysConfirmFollow'));
+const confirmWhenRevealingSensitiveMedia = computed(defaultStore.makeGetterSetter('confirmWhenRevealingSensitiveMedia'));
+const contextMenu = computed(defaultStore.makeGetterSetter('contextMenu'));
+const warnExternalUrl = computed(defaultStore.makeGetterSetter('warnExternalUrl'));
 
 watch(lang, () => {
 	miLocalStorage.setItem('lang', lang.value as string);
@@ -420,8 +495,12 @@ watch([
 	enableSeasonalScreenEffect,
 	showVisibilitySelectorOnBoost,
 	visibilityOnBoost,
+	alwaysConfirmFollow,
+	confirmWhenRevealingSensitiveMedia,
+	contextMenu,
+	warnExternalUrl,
 ], async () => {
-	await reloadAsk();
+	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
 });
 
 const emojiIndexLangs = ['en-US', 'ja-JP', 'ja-JP_hira'] as const;
@@ -512,6 +591,16 @@ function testNotification(): void {
 	}, 300);
 }
 
+async function testNotificationDot() {
+	const success = await worksOnInstance();
+
+	if (success) {
+		os.toast(i18n.ts.notificationDotWorking);
+	} else {
+		os.toast(i18n.ts.notificationDotNotWorking);
+	}
+}
+
 function enableAllDataSaver() {
 	const g = { ...defaultStore.state.dataSaver };
 
@@ -540,6 +629,8 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.general,
-	icon: 'ph-faders ph-bold ph-lg',
+	icon: 'ti ti-adjustments',
 }));
+
+const useCustomSearchEngine = computed(() => !Object.keys(searchEngineMap).includes(searchEngine.value));
 </script>

@@ -6,15 +6,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkStickyContainer>
 	<template #header><MkPageHeader :actions="headerActions" :tabs="headerTabs"/></template>
-	<MKSpacer v-if="!(typeof error === 'undefined')" :contentMax="1200">
+	<MkSpacer v-if="error != null" :contentMax="1200">
 		<div :class="$style.root">
 			<img :class="$style.img" :src="serverErrorImageUrl" class="_ghost"/>
 			<p :class="$style.text">
-				<i class="ph-warning ph-bold ph-lg"></i>
+				<i class="ti ti-alert-triangle"></i>
 				{{ i18n.ts.nothing }}
 			</p>
 		</div>
-	</MKSpacer>
+	</MkSpacer>
 	<MkSpacer v-else-if="list" :contentMax="700" :class="$style.main">
 		<div v-if="list" class="members _margin">
 			<div :class="$style.member_text">{{ i18n.ts.members }}</div>
@@ -26,9 +26,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 		</div>
-		<MkButton v-if="list.isLiked" v-tooltip="i18n.ts.unlike" inline :class="$style.button" asLike primary @click="unlike()"><i class="ph-heart-break ph-bold ph-lg"></i><span v-if="list.likedCount > 0" class="count">{{ list.likedCount }}</span></MkButton>
-		<MkButton v-if="!list.isLiked" v-tooltip="i18n.ts.like" inline :class="$style.button" asLike @click="like()"><i class="ph-heart ph-bold ph-lg"></i><span v-if="1 > 0" class="count">{{ list.likedCount }}</span></MkButton>
-		<MkButton inline @click="create()"><i class="ph-download ph-bold ph-lg" :class="$style.import"></i>{{ i18n.ts.import }}</MkButton>
+		<MkButton v-if="list.isLiked" v-tooltip="i18n.ts.unlike" inline :class="$style.button" asLike primary @click="unlike()"><i class="ti ti-heart-off"></i><span v-if="list.likedCount > 0" class="count">{{ list.likedCount }}</span></MkButton>
+		<MkButton v-if="!list.isLiked" v-tooltip="i18n.ts.like" inline :class="$style.button" asLike @click="like()"><i class="ti ti-heart"></i><span v-if="1 > 0" class="count">{{ list.likedCount }}</span></MkButton>
+		<MkButton inline @click="create()"><i class="ti ti-download" :class="$style.import"></i>{{ i18n.ts.import }}</MkButton>
 	</MkSpacer>
 </MkStickyContainer>
 </template>
@@ -50,7 +50,7 @@ const props = defineProps<{
 }>();
 
 const list = ref<Misskey.entities.UserList | null>(null);
-const error = ref();
+const error = ref<unknown | null>(null);
 const users = ref<Misskey.entities.UserDetailed[]>([]);
 
 function fetchList(): void {
@@ -103,12 +103,12 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: list.value ? list.value.name : i18n.ts.lists,
-	icon: 'ph-list ph-bold ph-lg',
+	icon: 'ti ti-list',
 }));
 </script>
 <style lang="scss" module>
 .main {
-	min-height: calc(100cqh - (var(--stickyTop, 0px) + var(--stickyBottom, 0px)));
+	min-height: calc(100cqh - (var(--MI-stickyTop, 0px) + var(--MI-stickyBottom, 0px)));
 }
 
 .userItem {
@@ -143,7 +143,7 @@ definePageMetadata(() => ({
   width: 128px;
 	height: 128px;
 	margin-bottom: 16px;
-	border-radius: var(--radius-md);
+	border-radius: var(--MI-radius-md);
 }
 
 .button {

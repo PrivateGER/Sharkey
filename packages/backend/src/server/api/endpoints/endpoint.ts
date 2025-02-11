@@ -28,6 +28,15 @@ export const meta = {
 			},
 		},
 	},
+
+	// 1000 max @ 1/10ms drip = 10/sec average.
+	// Large bucket is ok because this is a fairly lightweight endpoint.
+	limit: {
+		type: 'bucket',
+
+		size: 1000,
+		dripRate: 10,
+	},
 } as const;
 
 export const paramDef = {

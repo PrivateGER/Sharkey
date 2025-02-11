@@ -5,7 +5,7 @@
 
 import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
-import type { NotesRepository, ChannelFollowingsRepository } from '@/models/_.js';
+import type { NotesRepository, ChannelFollowingsRepository, MiMeta } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import ActiveUsersChart from '@/core/chart/charts/active-users.js';
@@ -15,7 +15,6 @@ import { IdService } from '@/core/IdService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { MiLocalUser } from '@/models/User.js';
-import { MetaService } from '@/core/MetaService.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 
 export const meta = {
@@ -32,6 +31,12 @@ export const meta = {
 			optional: false, nullable: false,
 			ref: 'Note',
 		},
+	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
 	},
 } as const;
 
@@ -57,6 +62,9 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.meta)
+		private serverSettings: MiMeta,
+
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
@@ -70,15 +78,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
 		private userFollowingService: UserFollowingService,
 		private queryService: QueryService,
-		private metaService: MetaService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
 			const sinceId = ps.sinceId ?? (ps.sinceDate ? this.idService.gen(ps.sinceDate!) : null);
 
-			const serverSettings = await this.metaService.fetch();
-
-			if (!serverSettings.enableFanoutTimeline) {
+			if (!this.serverSettings.enableFanoutTimeline) {
 				const timeline = await this.getFromDb({
 					untilId,
 					sinceId,
@@ -110,13 +115,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				limit: ps.limit,
 				allowPartial: ps.allowPartial,
 				me,
-				useDbFallback: serverSettings.enableFanoutTimelineDbFallback,
+				useDbFallback: this.serverSettings.enableFanoutTimelineDbFallback,
 				redisTimelines: ps.withFiles ? [`homeTimelineWithFiles:${me.id}`] : [`homeTimeline:${me.id}`],
 				alwaysIncludeMyNotes: true,
 				excludePureRenotes: !ps.withRenotes,
 				noteFilter: note => {
 					if (note.reply && note.reply.visibility === 'followers') {
-						if (!Object.hasOwn(followings, note.reply.userId)) return false;
+						if (!Object.hasOwn(followings, note.reply.userId) && note.reply.userId !== me.id) return false;
 					}
 					if (!ps.withBots && note.user?.isBot) return false;
 
@@ -203,7 +208,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}));
 		}));
 
-		this.queryService.generateVisibilityQuery(query, me);
+		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateMutedUserQuery(query, me);
 		this.queryService.generateBlockedUserQuery(query, me);
 		this.queryService.generateMutedUserRenotesQueryForNotes(query, me);

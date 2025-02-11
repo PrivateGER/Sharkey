@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: marie and other Sharkey contributors
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <template>
 <MkWindow ref="window" :initialWidth="500" :initialHeight="300" :canResize="true" @closed="emit('closed')">
 	<template #header>
@@ -29,19 +34,19 @@
 			</header>
 			<div :class="$style.noteContent">
 				<p v-if="appearNote.cw != null" :class="$style.cw">
-					<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :author="appearNote.user" :nyaize="'account'"/>
+					<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :isBlock="true" :author="appearNote.user" :nyaize="'account'"/>
 					<MkCwButton v-model="showContent" :text="appearNote.text" :files="appearNote.files" :poll="appearNote.poll"/>
 				</p>
 				<div v-show="appearNote.cw == null || showContent">
 					<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 					<MkA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ph-arrow-bend-left-up ph-bold ph-lg"></i></MkA>
-					<Mfm v-if="appearNote.text" :text="appearNote.text" :author="appearNote.user" :nyaize="'account'" :emojiUrls="appearNote.emojis"/>
+					<Mfm v-if="appearNote.text" :text="appearNote.text" :isBlock="true" :author="appearNote.user" :nyaize="'account'" :emojiUrls="appearNote.emojis"/>
 					<a v-if="appearNote.renote != null" :class="$style.rn">RN:</a>
 					<div v-if="translating || translation" :class="$style.translation">
 						<MkLoading v-if="translating" mini/>
 						<div v-else>
 							<b>{{ i18n.t('translatedFrom', { x: translation.sourceLang }) }}: </b>
-							<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'account'" :emojiUrls="appearNote.emojis"/>
+							<Mfm :text="translation.text" :isBlock="true" :author="appearNote.user" :nyaize="'account'" :emojiUrls="appearNote.emojis"/>
 						</div>
 					</div>
 					<div v-if="appearNote.files.length > 0">
@@ -177,8 +182,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 .noteHeaderAvatar {
 	display: block;
 	flex-shrink: 0;
-	width: var(--avatar);
-	height: var(--avatar);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
 }
 
 .noteHeaderBody {
@@ -201,8 +206,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 	padding: 4px 6px;
 	font-size: 80%;
 	line-height: 1;
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius-xs);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius-xs);
 }
 
 .noteHeaderInfo {
@@ -235,19 +240,19 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 }
 
 .noteReplyTarget {
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
 }
 
 .rn {
 	margin-left: 4px;
 	font-style: oblique;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 }
 
 .translation {
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
 }
@@ -262,8 +267,8 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 
 .quoteNote {
 	padding: 16px;
-	border: dashed 1px var(--renote);
-	border-radius: var(--radius-xs);
+	border: dashed 1px var(--MI_THEME-renote);
+	border-radius: var(--MI-radius-xs);
 	overflow: clip;
 }
 
@@ -282,7 +287,7 @@ const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultS
 	}
 
 	&:hover {
-		color: var(--fgHighlighted);
+		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 

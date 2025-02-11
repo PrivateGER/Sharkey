@@ -47,6 +47,12 @@ export const meta = {
 			id: 'e6965129-7b2a-40a4-bae2-cd84cd434822',
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -118,12 +124,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const repliedUsersSorted = Object.keys(repliedUsers).sort((a, b) => repliedUsers[b] - repliedUsers[a]);
 
 			// Extract top replied users
-			const topRepliedUsers = repliedUsersSorted.slice(0, ps.limit);
+			const topRepliedUserIds = repliedUsersSorted.slice(0, ps.limit);
 
 			// Make replies object (includes weights)
-			const repliesObj = await Promise.all(topRepliedUsers.map(async (user) => ({
-				user: await this.userEntityService.pack(user, me, { schema: 'UserDetailed' }),
-				weight: repliedUsers[user] / peak,
+			const _userMap = await this.userEntityService.packMany(topRepliedUserIds, me, { schema: 'UserDetailed' })
+				.then(users => new Map(users.map(u => [u.id, u])));
+			const repliesObj = await Promise.all(topRepliedUserIds.map(async (userId) => ({
+				user: _userMap.get(userId) ?? await this.userEntityService.pack(userId, me, { schema: 'UserDetailed' }),
+				weight: repliedUsers[userId] / peak,
 			})));
 
 			return repliesObj;

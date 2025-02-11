@@ -15,14 +15,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="main">
 		<div v-if="!isRoot" class="header">
 			<div v-if="narrow === false" class="wide">
-				<MkA to="/" class="link" activeClass="active"><i class="ph-house ph-bold ph-lg icon"></i> {{ i18n.ts.home }}</MkA>
+				<MkA to="/" class="link" activeClass="active"><i class="ti ti-home icon"></i> {{ i18n.ts.home }}</MkA>
 				<MkA v-if="isTimelineAvailable" to="/timeline" class="link" activeClass="active"><i class="ph-chat-text ph-bold ph-lg icon"></i> {{ i18n.ts.timeline }}</MkA>
-				<MkA to="/explore" class="link" activeClass="active"><i class="ph-hash ph-bold ph-lg icon"></i> {{ i18n.ts.explore }}</MkA>
-				<MkA to="/channels" class="link" activeClass="active"><i class="ph-television ph-bold ph-lg icon"></i> {{ i18n.ts.channel }}</MkA>
+				<MkA to="/explore" class="link" activeClass="active"><i class="ti ti-hash icon"></i> {{ i18n.ts.explore }}</MkA>
+				<MkA to="/channels" class="link" activeClass="active"><i class="ti ti-device-tv icon"></i> {{ i18n.ts.channel }}</MkA>
 			</div>
 			<div v-else-if="narrow === true" class="narrow">
 				<button class="menu _button" @click="showMenu = true">
-					<i class="ph-list ph-bold ph-lg-2 icon"></i>
+					<i class="ti ti-menu-2 icon"></i>
 				</button>
 			</div>
 		</div>
@@ -47,14 +47,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<Transition :name="'tray'">
 		<div v-if="showMenu" class="menu">
-			<MkA to="/" class="link" activeClass="active"><i class="ph-house ph-bold ph-lg icon"></i>{{ i18n.ts.home }}</MkA>
+			<MkA to="/" class="link" activeClass="active"><i class="ti ti-home icon"></i>{{ i18n.ts.home }}</MkA>
 			<MkA v-if="isTimelineAvailable" to="/timeline" class="link" activeClass="active"><i class="ph-chat-text ph-bold ph-lg icon"></i>{{ i18n.ts.timeline }}</MkA>
-			<MkA to="/explore" class="link" activeClass="active"><i class="ph-hash ph-bold ph-lg icon"></i>{{ i18n.ts.explore }}</MkA>
-			<MkA to="/announcements" class="link" activeClass="active"><i class="ph-megaphone ph-bold ph-lg icon"></i>{{ i18n.ts.announcements }}</MkA>
-			<MkA to="/channels" class="link" activeClass="active"><i class="ph-television ph-bold ph-lg icon"></i>{{ i18n.ts.channel }}</MkA>
+			<MkA to="/explore" class="link" activeClass="active"><i class="ti ti-hash icon"></i>{{ i18n.ts.explore }}</MkA>
+			<MkA to="/announcements" class="link" activeClass="active"><i class="ti ti-speakerphone icon"></i>{{ i18n.ts.announcements }}</MkA>
+			<MkA to="/channels" class="link" activeClass="active"><i class="ti ti-device-tv icon"></i>{{ i18n.ts.channel }}</MkA>
 			<div class="divider"></div>
-			<MkA to="/pages" class="link" activeClass="active"><i class="ph-newspaper ph-bold ph-lg icon"></i>{{ i18n.ts.pages }}</MkA>
-			<MkA to="/play" class="link" activeClass="active"><i class="ph-play ph-bold ph-lg icon"></i>Play</MkA>
+			<MkA to="/pages" class="link" activeClass="active"><i class="ti ti-news icon"></i>{{ i18n.ts.pages }}</MkA>
+			<MkA to="/play" class="link" activeClass="active"><i class="ti ti-player-play icon"></i>Play</MkA>
 			<MkA to="/gallery" class="link" activeClass="active"><i class="ph-images-square ph-bold ph-lgs icon"></i>{{ i18n.ts.gallery }}</MkA>
 			<div class="action">
 				<button class="_buttonPrimary" @click="signup()">{{ i18n.ts.signup }}</button>
@@ -68,11 +68,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { onMounted, provide, ref, computed } from 'vue';
-import * as Misskey from 'misskey-js';
 import XCommon from './_common_/common.vue';
-import { instanceName } from '@/config.js';
+import { instanceName } from '@@/js/config.js';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/scripts/misskey-api.js';
 import { instance } from '@/instance.js';
 import XSigninDialog from '@/components/MkSigninDialog.vue';
 import XSignupDialog from '@/components/MkSignupDialog.vue';
@@ -112,7 +110,6 @@ const isTimelineAvailable = ref(instance.policies?.ltlAvailable || instance.poli
 const showMenu = ref(false);
 const isDesktop = ref(window.innerWidth >= DESKTOP_THRESHOLD);
 const narrow = ref(window.innerWidth < 1280);
-const meta = ref<Misskey.entities.MetaResponse>();
 
 const keymap = computed(() => {
 	return {
@@ -126,20 +123,20 @@ const keymap = computed(() => {
 	};
 });
 
-misskeyApi('meta', { detail: true }).then(res => {
-	meta.value = res;
-});
-
 function signin() {
-	os.popup(XSigninDialog, {
+	const { dispose } = os.popup(XSigninDialog, {
 		autoSet: true,
-	}, {}, 'closed');
+	}, {
+		closed: () => dispose(),
+	});
 }
 
 function signup() {
-	os.popup(XSignupDialog, {
+	const { dispose } = os.popup(XSignupDialog, {
 		autoSet: true,
-	}, {}, 'closed');
+	}, {
+		closed: () => dispose(),
+	});
 }
 
 onMounted(() => {
@@ -192,7 +189,7 @@ defineExpose({
 		left: 0;
 		width: 500px;
 		height: 100vh;
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 		z-index: 1;
 
 		> .banner {
@@ -221,7 +218,7 @@ defineExpose({
 		min-width: 0;
 
 		> .header {
-			background: var(--panel);
+			background: var(--MI_THEME-panel);
 			position: relative;
 			z-index: 1;
 
@@ -258,7 +255,7 @@ defineExpose({
 		left: 0;
 		width: 240px;
 		height: 100vh;
-		background: var(--panel);
+		background: var(--MI_THEME-panel);
 
 		> .link {
 			display: block;
@@ -272,7 +269,7 @@ defineExpose({
 		> .divider {
 			margin: 8px auto;
 			width: calc(100% - 32px);
-			border-top: solid 0.5px var(--divider);
+			border-top: solid 0.5px var(--MI_THEME-divider);
 		}
 
 		> .action {
@@ -284,10 +281,10 @@ defineExpose({
 				padding: 10px;
 				box-sizing: border-box;
 				text-align: center;
-				border-radius: var(--radius-ellipse);
+				border-radius: var(--MI-radius-ellipse);
 
 				&._button {
-					background: var(--panel);
+					background: var(--MI_THEME-panel);
 				}
 
 				&:first-child {

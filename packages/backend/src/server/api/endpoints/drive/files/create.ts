@@ -4,14 +4,15 @@
  */
 
 import ms from 'ms';
-import { Injectable } from '@nestjs/common';
-import { DB_MAX_IMAGE_COMMENT_LENGTH } from '@/const.js';
+import { Inject, Injectable } from '@nestjs/common';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
-import { MetaService } from '@/core/MetaService.js';
 import { DriveService } from '@/core/DriveService.js';
+import type { Config } from '@/config.js';
 import { ApiError } from '../../../error.js';
+import { MiMeta } from '@/models/_.js';
+import { DI } from '@/di-symbols.js';
 
 export const meta = {
 	tags: ['drive'],
@@ -55,6 +56,12 @@ export const meta = {
 			code: 'NO_FREE_SPACE',
 			id: 'd08dbc37-a6a9-463a-8c47-96c32ab5f064',
 		},
+
+		commentTooLong: {
+			message: 'Cannot upload the file because the comment exceeds the instance limit.',
+			code: 'COMMENT_TOO_LONG',
+			id: '333652d9-0826-40f5-a2c3-e2bedcbb9fe5',
+		},
 	},
 } as const;
 
@@ -63,7 +70,7 @@ export const paramDef = {
 	properties: {
 		folderId: { type: 'string', format: 'misskey:id', nullable: true, default: null },
 		name: { type: 'string', nullable: true, default: null },
-		comment: { type: 'string', nullable: true, maxLength: DB_MAX_IMAGE_COMMENT_LENGTH, default: null },
+		comment: { type: 'string', nullable: true, default: null },
 		isSensitive: { type: 'boolean', default: false },
 		force: { type: 'boolean', default: false },
 	},
@@ -73,8 +80,13 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.meta)
+		private serverSettings: MiMeta,
+
+		@Inject(DI.config)
+		private config: Config,
+
 		private driveFileEntityService: DriveFileEntityService,
-		private metaService: MetaService,
 		private driveService: DriveService,
 	) {
 		super(meta, paramDef, async (ps, me, _, file, cleanup, ip, headers) => {
@@ -91,7 +103,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			const instance = await this.metaService.fetch();
+			if (ps.comment && ps.comment.length > this.config.maxAltTextLength) {
+				throw new ApiError(meta.errors.commentTooLong);
+			}
 
 			try {
 				// Create file
@@ -103,8 +117,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					folderId: ps.folderId,
 					force: ps.force,
 					sensitive: ps.isSensitive,
-					requestIp: instance.enableIpLogging ? ip : null,
-					requestHeaders: instance.enableIpLogging ? headers : null,
+					requestIp: this.serverSettings.enableIpLogging ? ip : null,
+					requestHeaders: this.serverSettings.enableIpLogging ? headers : null,
 				});
 				return await this.driveFileEntityService.pack(driveFile, { self: true });
 			} catch (err) {

@@ -14,10 +14,7 @@ export function secureRndstr(length = 32, { chars = LU_CHARS } = {}): string {
 	let str = '';
 
 	for (let i = 0; i < length; i++) {
-		let rand = Math.floor((crypto.randomBytes(1).readUInt8(0) / 0xFF) * chars_len);
-		if (rand === chars_len) {
-			rand = chars_len - 1;
-		}
+		const rand = crypto.randomInt(0, chars_len);
 		str += chars.charAt(rand);
 	}
 

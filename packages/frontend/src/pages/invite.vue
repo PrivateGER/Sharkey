@@ -5,22 +5,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkStickyContainer>
-	<template #header>
-		<MkPageHeader/>
-	</template>
-	<MKSpacer v-if="!instance.disableRegistration || !($i && ($i.isAdmin || $i.policies.canInvite))" :contentMax="1200">
+	<template #header><MkPageHeader/></template>
+	<MkSpacer v-if="!instance.disableRegistration || !($i && ($i.isAdmin || $i.policies.canInvite))" :contentMax="1200">
 		<div :class="$style.root">
 			<img :class="$style.img" :src="serverErrorImageUrl" class="_ghost"/>
 			<div :class="$style.text">
-				<i class="ph-warning ph-bold ph-lg"></i>
+				<i class="ti ti-alert-triangle"></i>
 				{{ i18n.ts.nothing }}
 			</div>
 		</div>
-	</MKSpacer>
+	</MkSpacer>
 	<MkSpacer v-else :contentMax="800">
 		<div class="_gaps_m" style="text-align: center;">
 			<div v-if="resetCycle && inviteLimit">{{ i18n.tsx.inviteLimitResetCycle({ time: resetCycle, limit: inviteLimit }) }}</div>
-			<MkButton inline primary rounded :disabled="currentInviteLimit !== null && currentInviteLimit <= 0" @click="create"><i class="ph-user-plus ph-bold ph-lg"></i> {{ i18n.ts.createInviteCode }}</MkButton>
+			<MkButton inline primary rounded :disabled="currentInviteLimit !== null && currentInviteLimit <= 0" @click="create"><i class="ti ti-user-plus"></i> {{ i18n.ts.createInviteCode }}</MkButton>
 			<div v-if="currentInviteLimit !== null">{{ i18n.tsx.createLimitRemaining({ limit: currentInviteLimit }) }}</div>
 
 			<MkPagination ref="pagingComponent" :pagination="pagination">
@@ -95,7 +93,7 @@ update();
 
 definePageMetadata(() => ({
 	title: i18n.ts.invite,
-	icon: 'ph-user-plus ph-bold ph-lg',
+	icon: 'ti ti-user-plus',
 }));
 </script>
 
@@ -115,6 +113,6 @@ definePageMetadata(() => ({
 	width: 128px;
 	height: 128px;
 	margin-bottom: 16px;
-	border-radius: var(--radius-md);
+	border-radius: var(--MI-radius-md);
 }
 </style>

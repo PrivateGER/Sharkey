@@ -9,18 +9,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkSpacer :contentMax="700">
 		<MkHorizontalSwipe v-model:tab="tab" :tabs="headerTabs">
 			<div v-if="tab === 'my'" key="my" class="_gaps">
-				<MkButton primary rounded class="add" @click="create"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.add }}</MkButton>
+				<MkButton primary rounded class="add" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 
-				<MkPagination v-slot="{items}" ref="pagingComponent" :pagination="pagination" class="_gaps">
-					<MkA v-for="item in items" :key="item.id" :to="`/clips/${item.id}`">
-						<MkClipPreview :clip="item"/>
-					</MkA>
+				<MkPagination v-slot="{ items }" ref="pagingComponent" :pagination="pagination" class="_gaps">
+					<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="true"/>
 				</MkPagination>
 			</div>
 			<div v-else-if="tab === 'favorites'" key="favorites" class="_gaps">
-				<MkA v-for="item in favorites" :key="item.id" :to="`/clips/${item.id}`">
-					<MkClipPreview :clip="item"/>
-				</MkA>
+				<MkClipPreview v-for="item in favorites" :key="item.id" :clip="item"/>
 			</div>
 		</MkHorizontalSwipe>
 	</MkSpacer>
@@ -81,15 +77,15 @@ async function create() {
 
 	clipsCache.delete();
 
-	pagingComponent.value.reload();
+	pagingComponent.value?.reload();
 }
 
 function onClipCreated() {
-	pagingComponent.value.reload();
+	pagingComponent.value?.reload();
 }
 
 function onClipDeleted() {
-	pagingComponent.value.reload();
+	pagingComponent.value?.reload();
 }
 
 const headerActions = computed(() => []);
@@ -97,16 +93,16 @@ const headerActions = computed(() => []);
 const headerTabs = computed(() => [{
 	key: 'my',
 	title: i18n.ts.myClips,
-	icon: 'ph-paperclip ph-bold ph-lg',
+	icon: 'ti ti-paperclip',
 }, {
 	key: 'favorites',
 	title: i18n.ts.favorites,
-	icon: 'ph-heart ph-bold ph-lg',
+	icon: 'ti ti-heart',
 }]);
 
 definePageMetadata(() => ({
 	title: i18n.ts.clip,
-	icon: 'ph-paperclip ph-bold ph-lg',
+	icon: 'ti ti-paperclip',
 }));
 </script>
 

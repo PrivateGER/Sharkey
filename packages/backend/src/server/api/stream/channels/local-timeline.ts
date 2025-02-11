@@ -4,13 +4,13 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { checkWordMute } from '@/misc/check-word-mute.js';
-import { isUserRelated } from '@/misc/is-user-related.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { MetaService } from '@/core/MetaService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
+import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
+import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 class LocalTimelineChannel extends Channel {
@@ -35,14 +35,14 @@ class LocalTimelineChannel extends Channel {
 	}
 
 	@bindThis
-	public async init(params: any) {
+	public async init(params: JsonObject) {
 		const policies = await this.roleService.getUserPolicies(this.user ? this.user.id : null);
 		if (!policies.ltlAvailable) return;
 
-		this.withRenotes = params.withRenotes ?? true;
-		this.withReplies = params.withReplies ?? false;
-		this.withBots = params.withBots ?? true;
-		this.withFiles = params.withFiles ?? false;
+		this.withRenotes = !!(params.withRenotes ?? true);
+		this.withReplies = !!(params.withReplies ?? false);
+		this.withFiles = !!(params.withFiles ?? false);
+		this.withBots = !!(params.withBots ?? true);
 
 		// Subscribe events
 		this.subscriber.on('notesStream', this.onNote);
@@ -66,28 +66,15 @@ class LocalTimelineChannel extends Channel {
 
 		if (note.user.isSilenced && !this.following[note.userId] && note.userId !== this.user!.id) return;
 
-		if (note.renote && note.text == null && (note.fileIds == null || note.fileIds.length === 0) && !this.withRenotes) return;
+		if (isRenotePacked(note) && !isQuotePacked(note) && !this.withRenotes) return;
 
-		// 流れてきたNoteがミュートしているユーザーが関わるものだったら無視する
-		if (isUserRelated(note, this.userIdsWhoMeMuting)) return;
-		// 流れてきたNoteがブロックされているユーザーが関わるものだったら無視する
-		if (isUserRelated(note, this.userIdsWhoBlockingMe)) return;
+		if (this.isNoteMutedOrBlocked(note)) return;
 
-		if (note.renote && !note.text && note.renote.mentions?.some(mention => this.userIdsWhoMeMuting.has(mention))) return;
-		if (note.mentions?.some(mention => this.userIdsWhoMeMuting.has(mention))) return;
+		const clonedNote = await this.assignMyReaction(note, this.noteEntityService);
 
-		if (note.renote && !note.text && isUserRelated(note, this.userIdsWhoMeMutingRenotes)) return;
+		this.connection.cacheNote(clonedNote);
 
-		if (this.user && note.renoteId && !note.text) {
-			if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-				const myRenoteReaction = await this.noteEntityService.populateMyReaction(note.renote, this.user.id);
-				note.renote.myReaction = myRenoteReaction;
-			}
-		}
-
-		this.connection.cacheNote(note);
-
-		this.send('note', note);
+		this.send('note', clonedNote);
 	}
 
 	@bindThis

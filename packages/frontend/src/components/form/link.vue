@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span :class="$style.text"><slot></slot></span>
 		<span :class="$style.suffix">
 			<span :class="$style.suffixText"><slot name="suffix"></slot></span>
-			<i class="ph-arrow-square-out ph-bold ph-lg"></i>
+			<i class="ti ti-external-link"></i>
 		</span>
 	</a>
 	<a v-else-if="onClick" :class="[$style.main, { [$style.active]: active }]" class="_button" :behavior="behavior" @click="onClick">
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span :class="$style.text"><slot></slot></span>
 		<span :class="$style.suffix">
 			<span :class="$style.suffixText"><slot name="suffix"></slot></span>
-			<i class="ph-caret-right ph-bold ph-lg"></i>
+			<i class="ti ti-chevron-right"></i>
 		</span>
 	</MkA>
 </div>
@@ -60,18 +60,18 @@ const props = defineProps<{
 	width: 100%;
 	box-sizing: border-box;
 	padding: 10px 14px;
-	background: var(--buttonBg);
-	border-radius: var(--radius-sm);
+	background: var(--MI_THEME-folderHeaderBg);
+	border-radius: var(--MI-radius-sm);
 	font-size: 0.9em;
 
 	&:hover {
 		text-decoration: none;
-		background: var(--buttonHoverBg);
+		background: var(--MI_THEME-folderHeaderHoverBg);
 	}
 
 	&.active {
-		color: var(--accent);
-		background: var(--buttonHoverBg);
+		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-folderHeaderHoverBg);
 	}
 }
 
@@ -79,7 +79,7 @@ const props = defineProps<{
 	margin-right: 0.75em;
 	flex-shrink: 0;
 	text-align: center;
-	color: var(--fgTransparentWeak);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;

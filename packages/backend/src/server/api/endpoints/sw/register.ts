@@ -5,9 +5,8 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { IdService } from '@/core/IdService.js';
-import type { SwSubscriptionsRepository } from '@/models/_.js';
+import type { MiMeta, SwSubscriptionsRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { MetaService } from '@/core/MetaService.js';
 import { DI } from '@/di-symbols.js';
 import { PushNotificationService } from '@/core/PushNotificationService.js';
 
@@ -46,6 +45,12 @@ export const meta = {
 			},
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -62,11 +67,13 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.meta)
+		private serverSettings: MiMeta,
+
 		@Inject(DI.swSubscriptionsRepository)
 		private swSubscriptionsRepository: SwSubscriptionsRepository,
 
 		private idService: IdService,
-		private metaService: MetaService,
 		private pushNotificationService: PushNotificationService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -78,12 +85,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				publickey: ps.publickey,
 			});
 
-			const instance = await this.metaService.fetch(true);
-
 			if (exist != null) {
 				return {
 					state: 'already-subscribed' as const,
-					key: instance.swPublicKey,
+					key: this.serverSettings.swPublicKey,
 					userId: me.id,
 					endpoint: exist.endpoint,
 					sendReadMessage: exist.sendReadMessage,
@@ -103,7 +108,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			return {
 				state: 'subscribed' as const,
-				key: instance.swPublicKey,
+				key: this.serverSettings.swPublicKey,
 				userId: me.id,
 				endpoint: ps.endpoint,
 				sendReadMessage: ps.sendReadMessage,

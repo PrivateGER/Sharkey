@@ -34,6 +34,13 @@ export const meta = {
 			id: '12908022-2e21-46cd-ba6a-3edaf6093f46',
 		},
 	},
+
+	// 100 calls per 10 seconds.
+	// This is high because the frontend calls this in a tight loop while loading timelines.
+	limit: {
+		duration: 1000 * 10,
+		max: 100,
+	},
 } as const;
 
 export const paramDef = {
@@ -72,7 +79,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.leftJoinAndSelect('note.renote', 'renote')
 				.leftJoinAndSelect('reply.user', 'replyUser')
 				.leftJoinAndSelect('renote.user', 'renoteUser');
-			
+
 			if (ps.userId) {
 				query.andWhere("user.id = :userId", { userId: ps.userId });
 			}
@@ -83,7 +90,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				query.andWhere("note.text IS NULL");
 			}
 
-			this.queryService.generateVisibilityQuery(query, me);
+			await this.queryService.generateVisibilityQuery(query, me);
 			if (me) this.queryService.generateMutedUserQuery(query, me);
 			if (me) this.queryService.generateBlockedUserQuery(query, me);
 

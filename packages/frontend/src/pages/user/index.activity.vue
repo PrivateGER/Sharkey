@@ -4,12 +4,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkContainer>
-	<template #icon><i class="ph-chart-line ph-bold ph-lg"></i></template>
+<MkContainer :foldable="true" :expanded="!collapsed">
+	<template #icon><i class="ti ti-chart-line"></i></template>
 	<template #header>{{ i18n.ts.activity }}</template>
 	<template #func="{ buttonStyleClass }">
 		<button class="_button" :class="buttonStyleClass" @click="showMenu">
-			<i class="ph-dots-three ph-bold ph-lg"></i>
+			<i class="ti ti-dots"></i>
 		</button>
 	</template>
 
@@ -30,8 +30,10 @@ import { i18n } from '@/i18n.js';
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.User;
 	limit?: number;
+	collapsed?: boolean;
 }>(), {
 	limit: 50,
+	collapsed: false,
 });
 
 const chartSrc = ref('per-user-notes');

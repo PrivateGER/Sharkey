@@ -5,17 +5,18 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { IsNull, Not } from 'typeorm';
+import { UnrecoverableError } from 'bullmq';
 import type { MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import { InstanceActorService } from '@/core/InstanceActorService.js';
-import type { NotesRepository, PollsRepository, NoteReactionsRepository, UsersRepository, FollowRequestsRepository } from '@/models/_.js';
+import type { NotesRepository, PollsRepository, NoteReactionsRepository, UsersRepository, FollowRequestsRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
-import { MetaService } from '@/core/MetaService.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
+import { fromTuple } from '@/misc/from-tuple.js';
 import { isCollectionOrOrderedCollection } from './type.js';
 import { ApDbResolverService } from './ApDbResolverService.js';
 import { ApRendererService } from './ApRendererService.js';
@@ -29,6 +30,7 @@ export class Resolver {
 
 	constructor(
 		private config: Config,
+		private meta: MiMeta,
 		private usersRepository: UsersRepository,
 		private notesRepository: NotesRepository,
 		private pollsRepository: PollsRepository,
@@ -36,13 +38,12 @@ export class Resolver {
 		private followRequestsRepository: FollowRequestsRepository,
 		private utilityService: UtilityService,
 		private instanceActorService: InstanceActorService,
-		private metaService: MetaService,
 		private apRequestService: ApRequestService,
 		private httpRequestService: HttpRequestService,
 		private apRendererService: ApRendererService,
 		private apDbResolverService: ApDbResolverService,
 		private loggerService: LoggerService,
-		private recursionLimit = 100,
+		private recursionLimit = 256,
 	) {
 		this.history = new Set();
 		this.logger = this.loggerService.getLogger('ap-resolve');
@@ -54,6 +55,11 @@ export class Resolver {
 	}
 
 	@bindThis
+	public getRecursionLimit(): number {
+		return this.recursionLimit;
+	}
+
+	@bindThis
 	public async resolveCollection(value: string | IObject): Promise<ICollection | IOrderedCollection> {
 		const collection = typeof value === 'string'
 			? await this.resolve(value)
@@ -62,12 +68,15 @@ export class Resolver {
 		if (isCollectionOrOrderedCollection(collection)) {
 			return collection;
 		} else {
-			throw new Error(`unrecognized collection type: ${collection.type}`);
+			throw new UnrecoverableError(`unrecognized collection type: ${collection.type}`);
 		}
 	}
 
 	@bindThis
-	public async resolve(value: string | IObject): Promise<IObject> {
+	public async resolve(value: string | IObject | [string | IObject]): Promise<IObject> {
+		// eslint-disable-next-line no-param-reassign
+		value = fromTuple(value);
+
 		if (typeof value !== 'string') {
 			return value;
 		}
@@ -76,15 +85,15 @@ export class Resolver {
 			// URLs with fragment parts cannot be resolved correctly because
 			// the fragment part does not get transmitted over HTTP(S).
 			// Avoid strange behaviour by not trying to resolve these at all.
-			throw new Error(`cannot resolve URL with fragment: ${value}`);
+			throw new UnrecoverableError(`cannot resolve URL with fragment: ${value}`);
 		}
 
 		if (this.history.has(value)) {
-			throw new Error('cannot resolve already resolved one');
+			throw new Error(`cannot resolve already resolved URL: ${value}`);
 		}
 
 		if (this.history.size > this.recursionLimit) {
-			throw new Error(`hit recursion limit: ${this.utilityService.extractDbHost(value)}`);
+			throw new Error(`hit recursion limit: ${value}`);
 		}
 
 		this.history.add(value);
@@ -94,9 +103,8 @@ export class Resolver {
 			return await this.resolveLocal(value);
 		}
 
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, host)) {
-			throw new Error('Instance is blocked');
+		if (!this.utilityService.isFederationAllowedHost(host)) {
+			throw new UnrecoverableError(`cannot fetch AP object ${value}: blocked instance ${host}`);
 		}
 
 		if (this.config.signToActivityPubGet && !this.user) {
@@ -112,15 +120,28 @@ export class Resolver {
 				!(object['@context'] as unknown[]).includes('https://www.w3.org/ns/activitystreams') :
 				object['@context'] !== 'https://www.w3.org/ns/activitystreams'
 		) {
-			throw new Error('invalid response');
+			throw new UnrecoverableError(`invalid AP object ${value}: does not have ActivityStreams context`);
 		}
 
-		// HttpRequestService / ApRequestService have already checked that
-		// `object.id` or `object.url` matches the URL used to fetch the
-		// object after redirects; here we double-check that no redirects
-		// bounced between hosts
-		if (object.id && (this.utilityService.punyHost(object.id) !== this.utilityService.punyHost(value))) {
-			throw new Error(`invalid AP object ${value}: id ${object.id} has different host`);
+		// Since redirects are allowed, we cannot safely validate an anonymous object.
+		// Reject any responses without an ID, as all other checks depend on that value.
+		if (object.id == null) {
+			throw new UnrecoverableError(`invalid AP object ${value}: missing id`);
+		}
+
+		// We allow some limited cross-domain redirects, which means the host may have changed during fetch.
+		// Additional checks are needed to validate the scope of cross-domain redirects.
+		const finalHost = this.utilityService.extractDbHost(object.id);
+		if (finalHost !== host) {
+			// Make sure the redirect stayed within the same authority.
+			if (this.utilityService.punyHostPSLDomain(object.id) !== this.utilityService.punyHostPSLDomain(value)) {
+				throw new UnrecoverableError(`invalid AP object ${value}: id ${object.id} has different host`);
+			}
+
+			// Check if the redirect bounce from [allowed domain] to [blocked domain].
+			if (!this.utilityService.isFederationAllowedHost(finalHost)) {
+				throw new UnrecoverableError(`cannot fetch AP object ${value}: redirected to blocked instance ${finalHost}`);
+			}
 		}
 
 		return object;
@@ -129,7 +150,7 @@ export class Resolver {
 	@bindThis
 	private resolveLocal(url: string): Promise<IObject> {
 		const parsed = this.apDbResolverService.parseUri(url);
-		if (!parsed.local) throw new Error('resolveLocal: not local');
+		if (!parsed.local) throw new UnrecoverableError(`resolveLocal - not a local URL: ${url}`);
 
 		switch (parsed.type) {
 			case 'notes':
@@ -158,7 +179,7 @@ export class Resolver {
 			case 'follows':
 				return this.followRequestsRepository.findOneBy({ id: parsed.id })
 					.then(async followRequest => {
-						if (followRequest == null) throw new Error('resolveLocal: invalid follow request ID');
+						if (followRequest == null) throw new UnrecoverableError(`resolveLocal - invalid follow request ID ${parsed.id}: ${url}`);
 						const [follower, followee] = await Promise.all([
 							this.usersRepository.findOneBy({
 								id: followRequest.followerId,
@@ -170,12 +191,12 @@ export class Resolver {
 							}),
 						]);
 						if (follower == null || followee == null) {
-							throw new Error('resolveLocal: follower or followee does not exist');
+							throw new Error(`resolveLocal - follower or followee does not exist: ${url}`);
 						}
 						return this.apRendererService.addContext(this.apRendererService.renderFollow(follower as MiLocalUser | MiRemoteUser, followee as MiLocalUser | MiRemoteUser, url));
 					});
 			default:
-				throw new Error(`resolveLocal: type ${parsed.type} unhandled`);
+				throw new UnrecoverableError(`resolveLocal: type ${parsed.type} unhandled: ${url}`);
 		}
 	}
 }
@@ -185,6 +206,9 @@ export class ApResolverService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
@@ -203,7 +227,6 @@ export class ApResolverService {
 
 		private utilityService: UtilityService,
 		private instanceActorService: InstanceActorService,
-		private metaService: MetaService,
 		private apRequestService: ApRequestService,
 		private httpRequestService: HttpRequestService,
 		private apRendererService: ApRendererService,
@@ -216,6 +239,7 @@ export class ApResolverService {
 	public createResolver(): Resolver {
 		return new Resolver(
 			this.config,
+			this.meta,
 			this.usersRepository,
 			this.notesRepository,
 			this.pollsRepository,
@@ -223,7 +247,6 @@ export class ApResolverService {
 			this.followRequestsRepository,
 			this.utilityService,
 			this.instanceActorService,
-			this.metaService,
 			this.apRequestService,
 			this.httpRequestService,
 			this.apRendererService,

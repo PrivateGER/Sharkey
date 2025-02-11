@@ -43,16 +43,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 								{{ i18n.ts._delivery._type[suspensionState] }}
 							</template>
 						</MkKeyValue>
-						<MkButton :disabled="!instance" danger @click="deleteAllFiles">{{ i18n.ts.deleteAllFilesConfirm }}</MkButton>
-						<MkButton :disabled="!instance" danger @click="severAllFollowRelations">{{ i18n.ts.severAllFollowRelations }}</MkButton>
-						<MkButton v-if="suspensionState === 'none'" :disabled="!instance" danger @click="stopDelivery">{{ i18n.ts._delivery.stop }}</MkButton>
-						<MkButton v-if="suspensionState !== 'none'" :disabled="!instance" @click="resumeDelivery">{{ i18n.ts._delivery.resume }}</MkButton>
-						<MkSwitch v-model="isBlocked" :disabled="!meta || !instance" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
-						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
-						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">Mark as NSFW</MkSwitch>
-						<MkButton @click="refreshMetadata"><i class="ph-arrows-clockwise ph-bold ph-lg"></i> Refresh metadata</MkButton>
+						<div class="_buttons">
+							<MkButton inline :disabled="!instance" danger @click="deleteAllFiles">{{ i18n.ts.deleteAllFiles }}</MkButton>
+							<MkButton inline :disabled="!instance" danger @click="severAllFollowRelations">{{ i18n.ts.severAllFollowRelations }}</MkButton>
+						</div>
+						<MkSwitch v-model="isSuspended" :disabled="!instance" @update:modelValue="toggleSuspended">{{ i18n.ts._delivery.stop }}</MkSwitch>
+						<MkInfo v-if="isBaseBlocked" warn>{{ i18n.ts.blockedByBase }}</MkInfo>
+						<MkSwitch v-model="isBlocked" :disabled="!meta || !instance || isBaseBlocked" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
+						<MkInfo v-if="isBaseSilenced" warn>{{ i18n.ts.silencedByBase }}</MkInfo>
+						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance || isBaseSilenced" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
+						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">{{ i18n.ts.markInstanceAsNSFW }}</MkSwitch>
+						<MkSwitch v-model="rejectReports" :disabled="!instance" @update:modelValue="toggleRejectReports">{{ i18n.ts.rejectReports }}</MkSwitch>
+						<MkInfo v-if="isBaseMediaSilenced" warn>{{ i18n.ts.mediaSilencedByBase }}</MkInfo>
+						<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance || isBaseMediaSilenced" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
+						<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
 						<MkTextarea v-model="moderationNote" manualSave>
 							<template #label>{{ i18n.ts.moderationNote }}</template>
+							<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
 						</MkTextarea>
 					</div>
 				</FormSection>
@@ -124,6 +131,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkA>
 				</MkPagination>
 			</div>
+			<div v-else-if="tab === 'following'" key="following" class="_gaps_m">
+				<MkPagination v-slot="{items}" :pagination="followingPagination">
+					<div class="follow-relations-list">
+						<div v-for="followRelationship in items" :key="followRelationship.id" class="follow-relation">
+							<MkA v-tooltip.mfm="`Last posted: ${dateString(followRelationship.followee.updatedAt)}`" :to="`/admin/user/${followRelationship.followee.id}`" class="user">
+								<MkUserCardMini :user="followRelationship.followee" :withChart="false"/>
+							</MkA>
+							<span class="arrow">→</span>
+							<MkA v-tooltip.mfm="`Last posted: ${dateString(followRelationship.follower.updatedAt)}`" :to="`/admin/user/${followRelationship.follower.id}`" class="user">
+								<MkUserCardMini :user="followRelationship.follower" :withChart="false"/>
+							</MkA>
+						</div>
+					</div>
+				</MkPagination>
+			</div>
+			<div v-else-if="tab === 'followers'" key="followers" class="_gaps_m">
+				<MkPagination v-slot="{items}" :pagination="followersPagination">
+					<div class="follow-relations-list">
+						<div v-for="followRelationship in items" :key="followRelationship.id" class="follow-relation">
+							<MkA v-tooltip.mfm="`Last posted: ${dateString(followRelationship.followee.updatedAt)}`" :to="`/admin/user/${followRelationship.followee.id}`" class="user">
+								<MkUserCardMini :user="followRelationship.followee" :withChart="false"/>
+							</MkA>
+							<span class="arrow">←</span>
+							<MkA v-tooltip.mfm="`Last posted: ${dateString(followRelationship.follower.updatedAt)}`" :to="`/admin/user/${followRelationship.follower.id}`" class="user">
+								<MkUserCardMini :user="followRelationship.follower" :withChart="false"/>
+							</MkA>
+						</div>
+					</div>
+				</MkPagination>
+			</div>
 			<div v-else-if="tab === 'raw'" key="raw" class="_gaps_m">
 				<MkObjectView tall :value="instance">
 				</MkObjectView>
@@ -136,7 +173,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
 import * as Misskey from 'misskey-js';
-import MkChart from '@/components/MkChart.vue';
+import MkChart, { type ChartSrc } from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
 import FormLink from '@/components/form/link.vue';
 import MkLink from '@/components/MkLink.vue';
@@ -152,11 +189,13 @@ import { iAmModerator, iAmAdmin } from '@/account.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
-import MkPagination from '@/components/MkPagination.vue';
+import MkPagination, { type Paging } from '@/components/MkPagination.vue';
 import MkHorizontalSwipe from '@/components/MkHorizontalSwipe.vue';
 import { getProxiedImageUrlNullable } from '@/scripts/media-proxy.js';
 import { dateString } from '@/filters/date.js';
 import MkTextarea from '@/components/MkTextarea.vue';
+import MkInfo from '@/components/MkInfo.vue';
+import { $i } from '@/account.js';
 
 const props = defineProps<{
 	host: string;
@@ -164,18 +203,36 @@ const props = defineProps<{
 
 const tab = ref('overview');
 
-const chartSrc = ref('instance-requests');
+const chartSrc = ref<ChartSrc>('instance-requests');
 const meta = ref<Misskey.entities.AdminMetaResponse | null>(null);
 const instance = ref<Misskey.entities.FederationInstance | null>(null);
-const suspended = ref(false);
+const suspensionState = ref<'none' | 'manuallySuspended' | 'goneSuspended' | 'autoSuspendedForNotResponding'>('none');
+const isSuspended = ref(false);
 const isBlocked = ref(false);
 const isSilenced = ref(false);
 const isNSFW = ref(false);
+const rejectReports = ref(false);
+const isMediaSilenced = ref(false);
 const faviconUrl = ref<string | null>(null);
 const moderationNote = ref('');
 
+const baseDomains = computed(() => {
+	const domains: string[] = [];
+
+	const parts = props.host.toLowerCase().split('.');
+	for (let s = 1; s < parts.length; s++) {
+		const domain = parts.slice(s).join('.');
+		domains.push(domain);
+	}
+
+	return domains;
+});
+const isBaseBlocked = computed(() => meta.value && baseDomains.value.some(d => meta.value?.blockedHosts.includes(d)));
+const isBaseSilenced = computed(() => meta.value && baseDomains.value.some(d => meta.value?.silencedHosts.includes(d)));
+const isBaseMediaSilenced = computed(() => meta.value && baseDomains.value.some(d => meta.value?.mediaSilencedHosts.includes(d)));
+
 const usersPagination = {
-	endpoint: iAmModerator ? 'admin/show-users' : 'users' as const,
+	endpoint: iAmModerator ? 'admin/show-users' : 'users',
 	limit: 10,
 	params: {
 		sort: '+updatedAt',
@@ -183,11 +240,34 @@ const usersPagination = {
 		hostname: props.host,
 	},
 	offsetMode: true,
+} satisfies Paging;
+
+const followingPagination = {
+	endpoint: 'federation/following' as const,
+	limit: 10,
+	params: {
+		host: props.host,
+		includeFollower: true,
+	},
+	offsetMode: false,
 };
 
-watch(moderationNote, async () => {
-	await misskeyApi('admin/federation/update-instance', { host: instance.value.host, moderationNote: moderationNote.value });
-});
+const followersPagination = {
+	endpoint: 'federation/followers' as const,
+	limit: 10,
+	params: {
+		host: props.host,
+		includeFollower: true,
+	},
+	offsetMode: false,
+};
+
+if (iAmModerator) {
+	watch(moderationNote, async () => {
+		if (instance.value == null) return;
+		await misskeyApi('admin/federation/update-instance', { host: instance.value.host, moderationNote: moderationNote.value });
+	});
+}
 
 async function fetch(): Promise<void> {
 	if (iAmAdmin) {
@@ -196,15 +276,19 @@ async function fetch(): Promise<void> {
 	instance.value = await misskeyApi('federation/show-instance', {
 		host: props.host,
 	});
-	suspended.value = instance.value?.isSuspended ?? false;
+	suspensionState.value = instance.value?.suspensionState ?? 'none';
+	isSuspended.value = suspensionState.value !== 'none';
 	isBlocked.value = instance.value?.isBlocked ?? false;
 	isSilenced.value = instance.value?.isSilenced ?? false;
 	isNSFW.value = instance.value?.isNSFW ?? false;
+	rejectReports.value = instance.value?.rejectReports ?? false;
+	isMediaSilenced.value = instance.value?.isMediaSilenced ?? false;
 	faviconUrl.value = getProxiedImageUrlNullable(instance.value?.faviconUrl, 'preview') ?? getProxiedImageUrlNullable(instance.value?.iconUrl, 'preview');
-	moderationNote.value = instance.value?.moderationNote;
+	moderationNote.value = instance.value?.moderationNote ?? '';
 }
 
 async function toggleBlock(): Promise<void> {
+	if (!iAmAdmin) return;
 	if (!meta.value) throw new Error('No meta?');
 	if (!instance.value) throw new Error('No instance?');
 	const { host } = instance.value;
@@ -214,6 +298,7 @@ async function toggleBlock(): Promise<void> {
 }
 
 async function toggleSilenced(): Promise<void> {
+	if (!iAmAdmin) return;
 	if (!meta.value) throw new Error('No meta?');
 	if (!instance.value) throw new Error('No instance?');
 	const { host } = instance.value;
@@ -223,15 +308,29 @@ async function toggleSilenced(): Promise<void> {
 	});
 }
 
-async function toggleSuspend(): Promise<void> {
+async function toggleMediaSilenced(): Promise<void> {
+	if (!iAmAdmin) return;
+	if (!meta.value) throw new Error('No meta?');
 	if (!instance.value) throw new Error('No instance?');
+	const { host } = instance.value;
+	const mediaSilencedHosts = meta.value.mediaSilencedHosts ?? [];
+	await misskeyApi('admin/update-meta', {
+		mediaSilencedHosts: isMediaSilenced.value ? mediaSilencedHosts.concat([host]) : mediaSilencedHosts.filter(x => x !== host),
+	});
+}
+
+async function toggleSuspended(): Promise<void> {
+	if (!iAmModerator) return;
+	if (!instance.value) throw new Error('No instance?');
+	suspensionState.value = isSuspended.value ? 'manuallySuspended' : 'none';
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
-		isSuspended: suspended.value,
+		isSuspended: isSuspended.value,
 	});
 }
 
 async function toggleNSFW(): Promise<void> {
+	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
@@ -239,7 +338,17 @@ async function toggleNSFW(): Promise<void> {
 	});
 }
 
+async function toggleRejectReports(): Promise<void> {
+	if (!iAmModerator) return;
+	if (!instance.value) throw new Error('No instance?');
+	await misskeyApi('admin/federation/update-instance', {
+		host: instance.value.host,
+		rejectReports: rejectReports.value,
+	});
+}
+
 function refreshMetadata(): void {
+	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
 	misskeyApi('admin/federation/refresh-remote-instance-metadata', {
 		host: instance.value.host,
@@ -249,42 +358,55 @@ function refreshMetadata(): void {
 	});
 }
 
-async function deleteAllFiles(): void {
+async function deleteAllFiles(): Promise<void> {
+	if (!iAmModerator) return;
+	if (!instance.value) throw new Error('No instance?');
+
 	const confirm = await os.confirm({
-		type: 'danger',
+		type: 'warning',
 		text: i18n.ts.deleteAllFilesConfirm,
 	});
-	if (!confirm) return;
-	if (!instance.value) throw new Error('No instance?');
-	await misskeyApi('admin/federation/delete-all-files', {
-		host: instance.value.host,
-	});
-	await os.alert({
-		text: 'Deletion of all files queued',
-	});
+	if (confirm.canceled) return;
+
+	await Promise.all([
+		misskeyApi('admin/federation/delete-all-files', {
+			host: instance.value.host,
+		}),
+		os.alert({
+			text: i18n.ts.deleteAllFilesQueued,
+		}),
+	]);
 }
 
-async function severAllFollowRelations(): void {
+async function severAllFollowRelations(): Promise<void> {
+	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
 
 	const confirm = await os.confirm({
-		type: 'danger',
-		text: i18n.ts.severAllFollowRelationsConfirm,
+		type: 'warning',
+		text: i18n.tsx.severAllFollowRelationsConfirm({
+			instanceName: instance.value.name ?? instance.value.host,
+			followingCount: instance.value.followingCount,
+			followersCount: instance.value.followersCount,
+		}),
 	});
-	if (!confirm) return;
-	await misskeyApi('admin/federation/remove-all-following', {
-		host: instance.value.host,
-	});
-	await os.alert({
-		text: 'Severing all follow relations queued',
-	});
+	if (confirm.canceled) return;
+
+	await Promise.all([
+		misskeyApi('admin/federation/remove-all-following', {
+			host: instance.value.host,
+		}),
+		os.alert({
+			text: i18n.tsx.severAllFollowRelationsQueued({ host: instance.value.host }),
+		}),
+	]);
 }
 
 fetch();
 
 const headerActions = computed(() => [{
 	text: `https://${props.host}`,
-	icon: 'ph-arrow-square-out ph-bold ph-lg',
+	icon: 'ti ti-external-link',
 	handler: () => {
 		window.open(`https://${props.host}`, '_blank', 'noopener');
 	},
@@ -293,24 +415,40 @@ const headerActions = computed(() => [{
 const headerTabs = computed(() => [{
 	key: 'overview',
 	title: i18n.ts.overview,
-	icon: 'ph-info ph-bold ph-lg',
+	icon: 'ti ti-info-circle',
 }, {
 	key: 'chart',
 	title: i18n.ts.charts,
-	icon: 'ph-chart-line ph-bold ph-lg',
+	icon: 'ti ti-chart-line',
 }, {
 	key: 'users',
 	title: i18n.ts.users,
-	icon: 'ph-users ph-bold ph-lg',
-}, {
+	icon: 'ti ti-users',
+}, ...getFollowingTabs(), {
 	key: 'raw',
 	title: 'Raw',
-	icon: 'ph-code ph-bold ph-lg',
+	icon: 'ti ti-code',
 }]);
+
+function getFollowingTabs() {
+	if (!$i) return [];
+	return [
+		{
+			key: 'following',
+			title: i18n.ts.following,
+			icon: 'ti ti-arrow-right',
+		},
+		{
+			key: 'followers',
+			title: i18n.ts.followers,
+			icon: 'ti ti-arrow-left',
+		},
+	];
+}
 
 definePageMetadata(() => ({
 	title: props.host,
-	icon: 'ph-hard-drives ph-bold ph-lg',
+	icon: 'ti ti-server',
 }));
 </script>
 
@@ -323,7 +461,7 @@ definePageMetadata(() => ({
 		display: block;
 		margin: 0 16px 0 0;
 		height: 64px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--MI-radius-sm);
 	}
 
 	> .name {
@@ -343,5 +481,32 @@ definePageMetadata(() => ({
 			font-weight: bold;
 		}
 	}
+}
+
+.follow-relations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .follow-relation {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+
+    .user {
+      flex: 1;
+      max-width: 45%;
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .arrow {
+      font-size: 1.5em;
+      flex-shrink: 0;
+    }
+  }
 }
 </style>

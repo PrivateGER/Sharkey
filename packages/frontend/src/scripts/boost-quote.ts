@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
 */
 
-import { ref, Ref } from 'vue';
+import { ref, Ref, computed, ComputedRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { defaultStore } from '@/store.js';
@@ -78,4 +78,12 @@ export function boostMenuItems(appearNote: Ref<Misskey.entities.Note>, renote: (
 			ref: localOnly,
 		} as MenuItem,
 	];
+}
+
+export function computeRenoteTooltip(renoted: Ref<boolean>): ComputedRef<string> {
+	return computed(() => {
+		if (renoted.value) return i18n.ts.unrenote;
+		if (defaultStore.state.showVisibilitySelectorOnBoost) return i18n.ts.renote;
+		return i18n.ts.renoteShift;
+	});
 }

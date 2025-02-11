@@ -28,6 +28,12 @@ export const meta = {
 		optional: false, nullable: false,
 		ref: 'GalleryPost',
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {

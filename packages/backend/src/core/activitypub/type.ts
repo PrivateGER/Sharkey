@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { UnrecoverableError } from 'bullmq';
+import { fromTuple } from '@/misc/from-tuple.js';
+
 export type Obj = { [x: string]: any };
 export type ApObject = IObject | string | (IObject | string)[];
 
@@ -13,6 +16,10 @@ export interface IObject {
 	name?: string | null;
 	summary?: string | null;
 	_misskey_summary?: string;
+	_misskey_followedMessage?: string | null;
+	_misskey_requireSigninToViewContents?: boolean;
+	_misskey_makeNotesFollowersOnlyBefore?: number | null;
+	_misskey_makeNotesHiddenBefore?: number | null;
 	published?: string;
 	cc?: ApObject;
 	to?: ApObject;
@@ -25,6 +32,7 @@ export interface IObject {
 	endTime?: Date;
 	icon?: any;
 	image?: any;
+	mediaType?: string;
 	url?: ApObject | string;
 	href?: string;
 	tag?: IObject | IObject[];
@@ -51,19 +59,37 @@ export function getOneApId(value: ApObject): string {
 /**
  * Get ActivityStreams Object id
  */
-export function getApId(value: string | IObject): string {
+export function getApId(value: string | IObject | [string | IObject]): string {
+	// eslint-disable-next-line no-param-reassign
+	value = fromTuple(value);
+
 	if (typeof value === 'string') return value;
 	if (typeof value.id === 'string') return value.id;
-	throw new Error('cannot detemine id');
+	throw new UnrecoverableError('cannot determine id');
+}
+
+/**
+ * Get ActivityStreams Object id, or null if not present
+ */
+export function getNullableApId(value: string | IObject | [string | IObject]): string | null {
+	// eslint-disable-next-line no-param-reassign
+	value = fromTuple(value);
+
+	if (typeof value === 'string') return value;
+	if (typeof value.id === 'string') return value.id;
+	return null;
 }
 
 /**
  * Get ActivityStreams Object type
+ *
+ * タイプ判定ができなかった場合に、あえてエラーではなくnullを返すようにしている。
+ * 詳細: https://github.com/misskey-dev/misskey/issues/14239
  */
-export function getApType(value: IObject): string {
+export function getApType(value: IObject): string | null {
 	if (typeof value.type === 'string') return value.type;
 	if (Array.isArray(value.type) && typeof value.type[0] === 'string') return value.type[0];
-	throw new Error('cannot detect type');
+	return null;
 }
 
 export function getOneApHrefNullable(value: ApObject | undefined): string | undefined {
@@ -80,7 +106,9 @@ export function getApHrefNullable(value: string | IObject | undefined): string |
 export interface IActivity extends IObject {
 	//type: 'Activity';
 	actor: IObject | string;
-	object: IObject | string;
+	// ActivityPub spec allows for arrays: https://www.w3.org/TR/activitystreams-vocabulary/#properties
+	// Misskey can only handle one value, so we use a tuple for that case.
+	object: IObject | string | [IObject | string] ;
 	target?: IObject | string;
 	/** LD-Signature */
 	signature?: {
@@ -96,19 +124,23 @@ export interface IActivity extends IObject {
 export interface ICollection extends IObject {
 	type: 'Collection';
 	totalItems: number;
-	items: ApObject;
+	first?: IObject | string;
+	items?: ApObject;
 }
 
 export interface IOrderedCollection extends IObject {
 	type: 'OrderedCollection';
 	totalItems: number;
-	orderedItems: ApObject;
+	first?: IObject | string;
+	orderedItems?: ApObject;
 }
 
 export const validPost = ['Note', 'Question', 'Article', 'Audio', 'Document', 'Image', 'Page', 'Video', 'Event'];
 
-export const isPost = (object: IObject): object is IPost =>
-	validPost.includes(getApType(object));
+export const isPost = (object: IObject): object is IPost => {
+	const type = getApType(object);
+	return type != null && validPost.includes(type);
+};
 
 export interface IPost extends IObject {
 	type: 'Note' | 'Question' | 'Article' | 'Audio' | 'Document' | 'Image' | 'Page' | 'Video' | 'Event';
@@ -158,8 +190,10 @@ export const isTombstone = (object: IObject): object is ITombstone =>
 
 export const validActor = ['Person', 'Service', 'Group', 'Organization', 'Application'];
 
-export const isActor = (object: IObject): object is IActor =>
-	validActor.includes(getApType(object));
+export const isActor = (object: IObject): object is IActor => {
+	const type = getApType(object);
+	return type != null && validActor.includes(type);
+};
 
 export interface IActor extends IObject {
 	type: 'Person' | 'Service' | 'Organization' | 'Group' | 'Application';
@@ -168,7 +202,7 @@ export interface IActor extends IObject {
 	manuallyApprovesFollowers?: boolean;
 	movedTo?: string;
 	alsoKnownAs?: string[];
-	discoverable?: boolean;
+	discoverable?: boolean | null;
 	inbox: string;
 	sharedInbox?: string;	// 後方互換性のため
 	publicKey?: {
@@ -184,7 +218,9 @@ export interface IActor extends IObject {
 	};
 	'vcard:bday'?: string;
 	'vcard:Address'?: string;
+	hideOnlineStatus?: boolean;
 	noindex?: boolean;
+	enableRss?: boolean;
 	listenbrainz?: string;
 	backgroundUrl?: string;
 }
@@ -245,15 +281,19 @@ export interface IKey extends IObject {
 	publicKeyPem: string | Buffer;
 }
 
+export const validDocumentTypes = ['Audio', 'Document', 'Image', 'Page', 'Video'];
+
 export interface IApDocument extends IObject {
-	type: 'Document';
-	name: string | null;
-	mediaType: string;
+	type: 'Audio' | 'Document' | 'Image' | 'Page' | 'Video';
 }
 
-export interface IApImage extends IObject {
+export const isDocument = (object: IObject): object is IApDocument => {
+	const type = getApType(object);
+	return type != null && validDocumentTypes.includes(type);
+};
+
+export interface IApImage extends IApDocument {
 	type: 'Image';
-	name: string | null;
 }
 
 export interface ICreate extends IActivity {
@@ -301,6 +341,10 @@ export interface ILike extends IActivity {
 	_misskey_reaction?: string;
 }
 
+export interface IDislike extends IActivity {
+	type: 'Dislike';
+}
+
 export interface IAnnounce extends IActivity {
 	type: 'Announce';
 }
@@ -318,6 +362,7 @@ export interface IMove extends IActivity {
 	target: IObject | string;
 }
 
+export const isApObject = (object: string | IObject): object is IObject => typeof(object) === 'object';
 export const isCreate = (object: IObject): object is ICreate => getApType(object) === 'Create';
 export const isDelete = (object: IObject): object is IDelete => getApType(object) === 'Delete';
 export const isUpdate = (object: IObject): object is IUpdate => getApType(object) === 'Update';
@@ -328,8 +373,13 @@ export const isAccept = (object: IObject): object is IAccept => getApType(object
 export const isReject = (object: IObject): object is IReject => getApType(object) === 'Reject';
 export const isAdd = (object: IObject): object is IAdd => getApType(object) === 'Add';
 export const isRemove = (object: IObject): object is IRemove => getApType(object) === 'Remove';
-export const isLike = (object: IObject): object is ILike => getApType(object) === 'Like' || getApType(object) === 'EmojiReaction' || getApType(object) === 'EmojiReact';
+export const isLike = (object: IObject): object is ILike => {
+	const type = getApType(object);
+	return type != null && ['Like', 'EmojiReaction', 'EmojiReact'].includes(type);
+};
+export const isDislike = (object: IObject): object is IDislike => getApType(object) === 'Dislike';
 export const isAnnounce = (object: IObject): object is IAnnounce => getApType(object) === 'Announce';
 export const isBlock = (object: IObject): object is IBlock => getApType(object) === 'Block';
 export const isFlag = (object: IObject): object is IFlag => getApType(object) === 'Flag';
 export const isMove = (object: IObject): object is IMove => getApType(object) === 'Move';
+export const isNote = (object: IObject): object is IPost => getApType(object) === 'Note';

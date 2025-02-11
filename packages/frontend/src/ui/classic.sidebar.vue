@@ -10,18 +10,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</button>
 	<div class="post" data-cy-open-post-form @click="os.post">
 		<MkButton class="button" gradate full rounded>
-			<i class="ph-pencil-simple ph-bold ph-lg ti-fw"></i><span v-if="!iconOnly" class="text">{{ i18n.ts.note }}</span>
+			<i class="ti ti-pencil ti-fw"></i><span v-if="!iconOnly" class="text">{{ i18n.ts.note }}</span>
 		</MkButton>
 	</div>
 	<div class="divider"></div>
 	<MkA v-click-anime class="item index" activeClass="active" to="/" exact>
-		<i class="ph-house ph-bold ph-lg ti-fw"></i><span class="text">{{ i18n.ts.timeline }}</span>
+		<i class="ti ti-home ti-fw"></i><span class="text">{{ i18n.ts.timeline }}</span>
 	</MkA>
 	<template v-for="item in menu">
 		<div v-if="item === '-'" class="divider"></div>
 		<component :is="navbarItemDef[item].to ? 'MkA' : 'button'" v-else-if="navbarItemDef[item] && (navbarItemDef[item].show !== false)" v-click-anime class="item _button" :class="item" activeClass="active" :to="navbarItemDef[item].to" v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}">
 			<i class="ti-fw" :class="navbarItemDef[item].icon"></i><span class="text">{{ navbarItemDef[item].title }}</span>
-			<span v-if="navbarItemDef[item].indicated" class="indicator">
+			<span v-if="navbarItemDef[item].indicated" class="indicator _blink">
 				<span v-if="navbarItemDef[item].indicateValue" class="_indicateCounter itemIndicateValueIcon">{{ navbarItemDef[item].indicateValue }}</span>
 				<i v-else class="_indicatorCircle"></i>
 			</span>
@@ -29,19 +29,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<div class="divider"></div>
 	<MkA v-if="$i.isAdmin || $i.isModerator" v-click-anime class="item" activeClass="active" to="/admin" :behavior="settingsWindowed ? 'window' : null">
-		<i class="ph-gauge ph-bold ph-lg ti-fw"></i><span class="text">{{ i18n.ts.controlPanel }}</span>
+		<i class="ti ti-dashboard ti-fw"></i><span class="text">{{ i18n.ts.controlPanel }}</span>
 	</MkA>
 	<button v-click-anime class="item _button" @click="more">
-		<i class="ph-dots-three ph-bold ph-lg ti-fw"></i><span class="text">{{ i18n.ts.more }}</span>
-		<span v-if="otherNavItemIndicated" class="indicator"><i class="_indicatorCircle"></i></span>
+		<i class="ti ti-dots ti-fw"></i><span class="text">{{ i18n.ts.more }}</span>
+		<span v-if="otherNavItemIndicated" class="indicator _blink"><i class="_indicatorCircle"></i></span>
 	</button>
 	<MkA v-click-anime class="item" activeClass="active" to="/settings" :behavior="settingsWindowed ? 'window' : null">
-		<i class="ph-gear ph-bold ph-lg ti-fw"></i><span class="text">{{ i18n.ts.settings }}</span>
+		<i class="ti ti-settings ti-fw"></i><span class="text">{{ i18n.ts.settings }}</span>
 	</MkA>
 	<div class="divider"></div>
 	<div class="about">
 		<button v-click-anime class="item _button" @click="openInstanceMenu">
-			<img :src="instance.iconUrl ?? instance.faviconUrl ?? '/favicon.ico'" class="_ghost"/>
+			<img :src="instance.sidebarLogoUrl && !iconOnly ? instance.sidebarLogoUrl : instance.iconUrl ?? instance.faviconUrl ?? '/favicon.ico'" :class="{ wideIcon: instance.sidebarLogoUrl && !iconOnly }" class="_ghost" />
 		</button>
 	</div>
 	<!--<MisskeyLogo class="misskey"/>-->
@@ -51,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { defineAsyncComponent, computed, watch, ref, shallowRef } from 'vue';
 import { openInstanceMenu } from './_common_/common.js';
-// import { host } from '@/config.js';
+// import { host } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { openAccountMenu as openAccountMenu_, $i } from '@/account.js';
@@ -66,7 +66,6 @@ import { i18n } from '@/i18n.js';
 const WINDOW_THRESHOLD = 1400;
 
 const menu = ref(defaultStore.state.menu);
-const menuDisplay = computed(defaultStore.makeGetterSetter('menuDisplay'));
 const otherNavItemIndicated = computed<boolean>(() => {
 	for (const def in navbarItemDef) {
 		if (menu.value.includes(def)) continue;
@@ -81,14 +80,18 @@ const iconOnly = ref(false);
 const settingsWindowed = ref(false);
 
 function calcViewState() {
-	iconOnly.value = (window.innerWidth <= WINDOW_THRESHOLD) || (menuDisplay.value === 'sideIcon');
+	iconOnly.value = (window.innerWidth <= WINDOW_THRESHOLD) || (defaultStore.state.menuDisplay === 'sideIcon');
 	settingsWindowed.value = (window.innerWidth > WINDOW_THRESHOLD);
 }
 
+calcViewState();
+
 function more(ev: MouseEvent) {
-	os.popup(defineAsyncComponent(() => import('@/components/MkLaunchPad.vue')), {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkLaunchPad.vue')), {
 		src: ev.currentTarget ?? ev.target,
-	}, {}, 'closed');
+	}, {
+		closed: () => dispose(),
+	});
 }
 
 function openAccountMenu(ev: MouseEvent) {
@@ -156,7 +159,7 @@ watch(defaultStore.reactiveState.menuDisplay, () => {
 
 	> .divider {
 		margin: 10px 0;
-		border-top: solid 0.5px var(--divider);
+		border-top: solid 0.5px var(--MI_THEME-divider);
 	}
 
 	> .post {
@@ -164,7 +167,6 @@ watch(defaultStore.reactiveState.menuDisplay, () => {
 		top: 0;
 		z-index: 1;
 		padding: 16px 0;
-		background: var(--bg);
 
 		> .button {
 			min-width: 0;
@@ -178,12 +180,15 @@ watch(defaultStore.reactiveState.menuDisplay, () => {
 
 		> .item {
 			display: block;
-			width: 32px;
 			margin: 0 auto;
 
 			img {
 				display: block;
-				width: 100%;
+				width: 32px;
+				&.wideIcon {
+					width: 80%;
+					margin: 0 auto;
+				}
 			}
 		}
 	}
@@ -219,9 +224,8 @@ watch(defaultStore.reactiveState.menuDisplay, () => {
 			position: absolute;
 			top: 0;
 			left: 0;
-			color: var(--navIndicator);
+			color: var(--MI_THEME-navIndicator);
 			font-size: 8px;
-			animation: global-blink 1s infinite;
 
 			&:has(.itemIndicateValueIcon) {
 				animation: none;
@@ -232,11 +236,11 @@ watch(defaultStore.reactiveState.menuDisplay, () => {
 
 		&:hover {
 			text-decoration: none;
-			color: var(--navHoverFg);
+			color: var(--MI_THEME-navHoverFg);
 		}
 
 		&.active {
-			color: var(--navActive);
+			color: var(--MI_THEME-navActive);
 		}
 	}
 }

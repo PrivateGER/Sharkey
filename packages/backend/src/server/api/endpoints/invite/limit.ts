@@ -28,6 +28,12 @@ export const meta = {
 			},
 		},
 	},
+
+	// 5 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -49,7 +55,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const policies = await this.roleService.getUserPolicies(me.id);
 
 			const count = policies.inviteLimit ? await this.registrationTicketsRepository.countBy({
-				id: MoreThan(this.idService.gen(Date.now() - (policies.inviteExpirationTime * 60 * 1000))),
+				id: MoreThan(this.idService.gen(Date.now() - (policies.inviteLimitCycle * 60 * 1000))),
 				createdById: me.id,
 			}) : null;
 

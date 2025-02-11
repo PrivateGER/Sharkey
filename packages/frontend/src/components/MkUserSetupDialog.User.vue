@@ -13,13 +13,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.description">
 		<div v-if="user.description" :class="$style.mfm">
-			<Mfm :text="user.description" :author="user"/>
+			<Mfm :text="user.description" :isBlock="true" :author="user"/>
 		</div>
 		<span v-else style="opacity: 0.7;">{{ i18n.ts.noAccountDescription }}</span>
 	</div>
 	<div :class="$style.footer">
-		<MkButton v-if="!isFollowing" primary gradate rounded full @click="follow"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.follow }}</MkButton>
-		<div v-else style="opacity: 0.7; text-align: center;">{{ i18n.ts.youFollowing }} <i class="ph-check ph-bold ph-lg"></i></div>
+		<MkButton v-if="!isFollowing" primary gradate rounded full @click="follow"><i class="ti ti-plus"></i> {{ i18n.ts.follow }}</MkButton>
+		<div v-else style="opacity: 0.7; text-align: center;">{{ i18n.ts.youFollowing }} <i class="ti ti-check"></i></div>
 	</div>
 </div>
 </template>
@@ -59,9 +59,9 @@ async function follow() {
 	top: 30px;
 	left: 13px;
 	z-index: 2;
-	width: var(--avatar);
-	height: var(--avatar);
-	border: solid 4px var(--panel);
+	width: var(--MI-avatar);
+	height: var(--MI-avatar);
+	border: solid 4px var(--MI_THEME-panel);
 }
 
 .title {
@@ -82,7 +82,7 @@ async function follow() {
 	margin: 0;
 	line-height: 16px;
 	font-size: 0.8em;
-	color: var(--fg);
+	color: var(--MI_THEME-fg);
 	opacity: 0.7;
 }
 
@@ -99,7 +99,7 @@ async function follow() {
 }
 
 .footer {
-	border-top: solid 0.5px var(--divider);
+	border-top: solid 0.5px var(--MI_THEME-divider);
 	padding: 16px;
 }
 </style>

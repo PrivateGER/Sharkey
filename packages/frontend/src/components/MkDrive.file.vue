@@ -112,21 +112,21 @@ function onDragend() {
 	position: relative;
 	padding: 8px 0 0 0;
 	min-height: 180px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	cursor: pointer;
 
 	&:hover {
 		background: rgba(#000, 0.05);
 
 		> .label {
-			&:before,
-			&:after {
+			&::before,
+			&::after {
 				background: #0b65a5;
 			}
 
 			&.red {
-				&:before,
-				&:after {
+				&::before,
+				&::after {
 					background: #c12113;
 				}
 			}
@@ -137,14 +137,14 @@ function onDragend() {
 		background: rgba(#000, 0.1);
 
 		> .label {
-			&:before,
-			&:after {
+			&::before,
+			&::after {
 				background: #0b588c;
 			}
 
 			&.red {
-				&:before,
-				&:after {
+				&::before,
+				&::after {
 					background: #ce2212;
 				}
 			}
@@ -152,19 +152,19 @@ function onDragend() {
 	}
 
 	&.isSelected {
-		background: var(--accent);
+		background: var(--MI_THEME-accent);
 
 		&:hover {
-			background: var(--accentLighten);
+			background: var(--MI_THEME-accentLighten);
 		}
 
 		&:active {
-			background: var(--accentDarken);
+			background: var(--MI_THEME-accentDarken);
 		}
 
 		> .label {
-			&:before,
-			&:after {
+			&::before,
+			&::after {
 				display: none;
 			}
 		}
@@ -185,8 +185,8 @@ function onDragend() {
 	left: 0;
 	pointer-events: none;
 
-	&:before,
-	&:after {
+	&::before,
+	&::after {
 		content: "";
 		display: block;
 		position: absolute;
@@ -194,14 +194,14 @@ function onDragend() {
 		background: #0c7ac9;
 	}
 
-	&:before {
+	&::before {
 		top: 0;
 		left: 57px;
 		width: 28px;
 		height: 8px;
 	}
 
-	&:after {
+	&::after {
 		top: 57px;
 		left: 0;
 		width: 8px;
@@ -209,8 +209,8 @@ function onDragend() {
 	}
 
 	&.red {
-		&:before,
-		&:after {
+		&::before,
+		&::after {
 			background: #c12113;
 		}
 	}
@@ -248,7 +248,7 @@ function onDragend() {
 	font-size: 0.8em;
 	text-align: center;
 	word-break: break-all;
-	color: var(--fg);
+	color: var(--MI_THEME-fg);
 	overflow: hidden;
 }
 </style>

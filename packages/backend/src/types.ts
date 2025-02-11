@@ -16,6 +16,8 @@
  * followRequestAccepted - 自分の送ったフォローリクエストが承認された
  * roleAssigned - ロールが付与された
  * achievementEarned - 実績を獲得
+ * exportCompleted - エクスポートが完了
+ * login - ログイン
  * app - アプリ通知
  * test - テスト通知（サーバー側）
  */
@@ -33,6 +35,10 @@ export const notificationTypes = [
 	'followRequestAccepted',
 	'roleAssigned',
 	'achievementEarned',
+	'exportCompleted',
+	'login',
+	'scheduledNoteFailed',
+	'scheduledNotePosted',
 	'app',
 	'test',
 ] as const;
@@ -52,10 +58,25 @@ export const mutedNoteReasons = ['word', 'manual', 'spam', 'other'] as const;
 export const followingVisibilities = ['public', 'followers', 'private'] as const;
 export const followersVisibilities = ['public', 'followers', 'private'] as const;
 
+/**
+ * ユーザーがエクスポートできるものの種類
+ *
+ * （主にエクスポート完了通知で使用するものであり、既存のDBの名称等と必ずしも一致しない）
+ */
+export const userExportableEntities = ['antenna', 'blocking', 'clip', 'customEmoji', 'favorite', 'following', 'muting', 'note', 'userList'] as const;
+
+/**
+ * ユーザーがインポートできるものの種類
+ *
+ * （主にインポート完了通知で使用するものであり、既存のDBの名称等と必ずしも一致しない）
+ */
+export const userImportableEntities = ['antenna', 'blocking', 'customEmoji', 'following', 'muting', 'userList'] as const;
+
 export const moderationLogTypes = [
 	'updateServerSettings',
 	'suspend',
 	'approve',
+	'decline',
 	'unsuspend',
 	'updateUserNote',
 	'addCustomEmoji',
@@ -77,12 +98,18 @@ export const moderationLogTypes = [
 	'deleteGlobalAnnouncement',
 	'deleteUserAnnouncement',
 	'resetPassword',
+	'setRemoteInstanceNSFW',
+	'unsetRemoteInstanceNSFW',
 	'suspendRemoteInstance',
 	'unsuspendRemoteInstance',
+	'rejectRemoteInstanceReports',
+	'acceptRemoteInstanceReports',
 	'updateRemoteInstanceNote',
 	'markSensitiveDriveFile',
 	'unmarkSensitiveDriveFile',
 	'resolveAbuseReport',
+	'forwardAbuseReport',
+	'updateAbuseReportNote',
 	'createInvitation',
 	'createAd',
 	'updateAd',
@@ -92,6 +119,16 @@ export const moderationLogTypes = [
 	'deleteAvatarDecoration',
 	'unsetUserAvatar',
 	'unsetUserBanner',
+	'createSystemWebhook',
+	'updateSystemWebhook',
+	'deleteSystemWebhook',
+	'createAbuseReportNotificationRecipient',
+	'updateAbuseReportNotificationRecipient',
+	'deleteAbuseReportNotificationRecipient',
+	'deleteAccount',
+	'deletePage',
+	'deleteFlash',
+	'deleteGalleryPost',
 ] as const;
 
 export type ModerationLogPayloads = {
@@ -105,6 +142,11 @@ export type ModerationLogPayloads = {
 		userHost: string | null;
 	};
 	approve: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+	};
+	decline: {
 		userId: string;
 		userUsername: string;
 		userHost: string | null;
@@ -217,11 +259,27 @@ export type ModerationLogPayloads = {
 		userUsername: string;
 		userHost: string | null;
 	};
+	setRemoteInstanceNSFW: {
+		id: string;
+		host: string;
+	};
+	unsetRemoteInstanceNSFW: {
+		id: string;
+		host: string;
+	};
 	suspendRemoteInstance: {
 		id: string;
 		host: string;
 	};
 	unsuspendRemoteInstance: {
+		id: string;
+		host: string;
+	};
+	rejectRemoteInstanceReports: {
+		id: string;
+		host: string;
+	};
+	acceptRemoteInstanceReports: {
 		id: string;
 		host: string;
 	};
@@ -246,7 +304,18 @@ export type ModerationLogPayloads = {
 	resolveAbuseReport: {
 		reportId: string;
 		report: any;
-		forwarded: boolean;
+		forwarded?: boolean;
+		resolvedAs?: string | null;
+	};
+	forwardAbuseReport: {
+		reportId: string;
+		report: any;
+	};
+	updateAbuseReportNote: {
+		reportId: string;
+		report: any;
+		before: string;
+		after: string;
 	};
 	createInvitation: {
 		invitations: any[];
@@ -288,6 +357,55 @@ export type ModerationLogPayloads = {
 		userUsername: string;
 		userHost: string | null;
 		fileId: string;
+	};
+	createSystemWebhook: {
+		systemWebhookId: string;
+		webhook: any;
+	};
+	updateSystemWebhook: {
+		systemWebhookId: string;
+		before: any;
+		after: any;
+	};
+	deleteSystemWebhook: {
+		systemWebhookId: string;
+		webhook: any;
+	};
+	createAbuseReportNotificationRecipient: {
+		recipientId: string;
+		recipient: any;
+	};
+	updateAbuseReportNotificationRecipient: {
+		recipientId: string;
+		before: any;
+		after: any;
+	};
+	deleteAbuseReportNotificationRecipient: {
+		recipientId: string;
+		recipient: any;
+	};
+	deleteAccount: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+	};
+	deletePage: {
+		pageId: string;
+		pageUserId: string;
+		pageUserUsername: string;
+		page: any;
+	};
+	deleteFlash: {
+		flashId: string;
+		flashUserId: string;
+		flashUserUsername: string;
+		flash: any;
+	};
+	deleteGalleryPost: {
+		postId: string;
+		postUserId: string;
+		postUserUsername: string;
+		post: any;
 	};
 };
 

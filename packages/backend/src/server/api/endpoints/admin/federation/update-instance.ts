@@ -25,6 +25,7 @@ export const paramDef = {
 		host: { type: 'string' },
 		isSuspended: { type: 'boolean' },
 		isNSFW: { type: 'boolean' },
+		rejectReports: { type: 'boolean' },
 		moderationNote: { type: 'string' },
 	},
 	required: ['host'],
@@ -47,13 +48,21 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new Error('instance not found');
 			}
 
+			const isSuspendedBefore = instance.suspensionState !== 'none';
+			let suspensionState: undefined | 'manuallySuspended' | 'none';
+
+			if (ps.isSuspended != null && isSuspendedBefore !== ps.isSuspended) {
+				suspensionState = ps.isSuspended ? 'manuallySuspended' : 'none';
+			}
+
 			await this.federatedInstanceService.update(instance.id, {
-				isSuspended: ps.isSuspended,
+				suspensionState,
 				isNSFW: ps.isNSFW,
+				rejectReports: ps.rejectReports,
 				moderationNote: ps.moderationNote,
 			});
 
-			if (ps.isSuspended != null && instance.isSuspended !== ps.isSuspended) {
+			if (ps.isSuspended != null && isSuspendedBefore !== ps.isSuspended) {
 				if (ps.isSuspended) {
 					this.moderationLogService.log(me, 'suspendRemoteInstance', {
 						id: instance.id,
@@ -65,6 +74,22 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						host: instance.host,
 					});
 				}
+			}
+
+			if (ps.isNSFW != null && instance.isNSFW !== ps.isNSFW) {
+				const message = ps.rejectReports ? 'setRemoteInstanceNSFW' : 'unsetRemoteInstanceNSFW';
+				this.moderationLogService.log(me, message, {
+					id: instance.id,
+					host: instance.host,
+				});
+			}
+
+			if (ps.rejectReports != null && instance.rejectReports !== ps.rejectReports) {
+				const message = ps.rejectReports ? 'rejectRemoteInstanceReports' : 'acceptRemoteInstanceReports';
+				this.moderationLogService.log(me, message, {
+					id: instance.id,
+					host: instance.host,
+				});
 			}
 
 			if (ps.moderationNote != null && instance.moderationNote !== ps.moderationNote) {

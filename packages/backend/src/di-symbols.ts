@@ -6,11 +6,13 @@
 export const DI = {
 	config: Symbol('config'),
 	db: Symbol('db'),
+	meta: Symbol('meta'),
 	meilisearch: Symbol('meilisearch'),
 	redis: Symbol('redis'),
 	redisForPub: Symbol('redisForPub'),
 	redisForSub: Symbol('redisForSub'),
 	redisForTimelines: Symbol('redisForTimelines'),
+	redisForReactions: Symbol('redisForReactions'),
 
 	//#region Repositories
 	usersRepository: Symbol('usersRepository'),
@@ -19,6 +21,7 @@ export const DI = {
 	announcementReadsRepository: Symbol('announcementReadsRepository'),
 	appsRepository: Symbol('appsRepository'),
 	avatarDecorationsRepository: Symbol('avatarDecorationsRepository'),
+	latestNotesRepository: Symbol('latestNotesRepository'),
 	noteFavoritesRepository: Symbol('noteFavoritesRepository'),
 	noteThreadMutingsRepository: Symbol('noteThreadMutingsRepository'),
 	noteReactionsRepository: Symbol('noteReactionsRepository'),
@@ -49,6 +52,7 @@ export const DI = {
 	swSubscriptionsRepository: Symbol('swSubscriptionsRepository'),
 	hashtagsRepository: Symbol('hashtagsRepository'),
 	abuseUserReportsRepository: Symbol('abuseUserReportsRepository'),
+	abuseReportNotificationRecipientRepository: Symbol('abuseReportNotificationRecipientRepository'),
 	registrationTicketsRepository: Symbol('registrationTicketsRepository'),
 	authSessionsRepository: Symbol('authSessionsRepository'),
 	accessTokensRepository: Symbol('accessTokensRepository'),
@@ -70,6 +74,7 @@ export const DI = {
 	channelFavoritesRepository: Symbol('channelFavoritesRepository'),
 	registryItemsRepository: Symbol('registryItemsRepository'),
 	webhooksRepository: Symbol('webhooksRepository'),
+	systemWebhooksRepository: Symbol('systemWebhooksRepository'),
 	adsRepository: Symbol('adsRepository'),
 	passwordResetRequestsRepository: Symbol('passwordResetRequestsRepository'),
 	retentionAggregationsRepository: Symbol('retentionAggregationsRepository'),
@@ -81,5 +86,6 @@ export const DI = {
 	noteEditRepository: Symbol('noteEditRepository'),
 	bubbleGameRecordsRepository: Symbol('bubbleGameRecordsRepository'),
 	reversiGamesRepository: Symbol('reversiGamesRepository'),
+	noteScheduleRepository: Symbol('noteScheduleRepository'),
 	//#endregion
 };

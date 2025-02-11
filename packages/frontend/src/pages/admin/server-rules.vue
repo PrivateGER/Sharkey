@@ -23,16 +23,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div :class="$style.item">
 							<div :class="$style.itemHeader">
 								<div :class="$style.itemNumber" v-text="String(index + 1)"/>
-								<span :class="$style.itemHandle"><i class="ph-list ph-bold ph-lg"/></span>
-								<button class="_button" :class="$style.itemRemove" @click="remove(index)"><i class="ph-x ph-bold ph-lg"></i></button>
+								<span :class="$style.itemHandle"><i class="ti ti-menu"/></span>
+								<button class="_button" :class="$style.itemRemove" @click="remove(index)"><i class="ti ti-x"></i></button>
 							</div>
 							<MkInput v-model="serverRules[index]"/>
 						</div>
 					</template>
 				</Sortable>
 				<div :class="$style.commands">
-					<MkButton rounded @click="serverRules.push('')"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.add }}</MkButton>
-					<MkButton primary rounded @click="save"><i class="ph-check ph-bold ph-lg"></i> {{ i18n.ts.save }}</MkButton>
+					<MkButton rounded @click="serverRules.push('')"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+					<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 				</div>
 			</div>
 		</MkSpacer>
@@ -69,14 +69,14 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.serverRules,
-	icon: 'ph-check ph-bold ph-lg',
+	icon: 'ti ti-checkbox',
 }));
 </script>
 
 <style lang="scss" module>
 .item {
 	display: block;
-	color: var(--navFg);
+	color: var(--MI_THEME-navFg);
 }
 
 .itemHeader {
@@ -96,15 +96,15 @@ definePageMetadata(() => ({
 
 .itemNumber {
 	display: flex;
-	background-color: var(--accentedBg);
-	color: var(--accent);
+	background-color: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
 	font-size: 14px;
 	font-weight: bold;
 	width: 28px;
 	height: 28px;
 	align-items: center;
 	justify-content: center;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	margin-right: 8px;
 }
 
@@ -117,12 +117,12 @@ definePageMetadata(() => ({
 .itemRemove {
 	width: 40px;
 	height: 40px;
-	color: var(--error);
+	color: var(--MI_THEME-error);
 	margin-left: auto;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 
 	&:hover {
-		background: var(--X5);
+		background: var(--MI_THEME-X5);
 	}
 }
 

@@ -6,7 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <component
 	:is="self ? 'MkA' : 'a'" ref="el" :class="$style.root" class="_link" :[attr]="self ? props.url.substring(local.length) : props.url" :rel="rel ?? 'nofollow noopener'" :target="target"
+	:behavior="props.navigationBehavior"
 	@contextmenu.stop="() => {}"
+	@click.prevent="self ? true : warningExternalWebsite(props.url)"
 	@click.stop
 >
 	<template v-if="!self">
@@ -20,22 +22,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<span v-if="pathname != ''" :class="$style.pathname">{{ self ? pathname.substring(1) : pathname }}</span>
 	<span :class="$style.query">{{ query }}</span>
 	<span :class="$style.hash">{{ hash }}</span>
-	<i v-if="target === '_blank'" :class="$style.icon" class="ph-arrow-square-out ph-bold ph-lg"></i>
+	<i v-if="target === '_blank'" :class="$style.icon" class="ti ti-external-link"></i>
 </component>
 </template>
 
 <script lang="ts" setup>
 import { defineAsyncComponent, ref } from 'vue';
 import { toUnicode as decodePunycode } from 'punycode/';
-import { url as local } from '@/config.js';
+import { url as local } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { useTooltip } from '@/scripts/use-tooltip.js';
-import { safeURIDecode } from '@/scripts/safe-uri-decode.js';
+import { isEnabledUrlPreview } from '@/instance.js';
+import { MkABehavior } from '@/components/global/MkA.vue';
+import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
+
+function safeURIDecode(str: string): string {
+	try {
+		return decodeURIComponent(str);
+	} catch {
+		return str;
+	}
+}
 
 const props = withDefaults(defineProps<{
 	url: string;
 	rel?: string;
 	showUrlPreview?: boolean;
+	navigationBehavior?: MkABehavior;
 }>(), {
 	showUrlPreview: true,
 });
@@ -45,13 +58,15 @@ const url = new URL(props.url);
 if (!['http:', 'https:'].includes(url.protocol)) throw new Error('invalid url');
 const el = ref();
 
-if (props.showUrlPreview) {
+if (props.showUrlPreview && isEnabledUrlPreview.value) {
 	useTooltip(el, (showing) => {
-		os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
+		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
 			url: props.url,
-			source: el.value,
-		}, {}, 'closed');
+			source: el.value instanceof HTMLElement ? el.value : el.value?.$el,
+		}, {
+			closed: () => dispose(),
+		});
 	});
 }
 

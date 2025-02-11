@@ -12,6 +12,7 @@ import { QueueStatsService } from '@/daemons/QueueStatsService.js';
 import { ServerStatsService } from '@/daemons/ServerStatsService.js';
 import { ServerService } from '@/server/ServerService.js';
 import { MainModule } from '@/MainModule.js';
+import { envOption } from '@/env.js';
 
 export async function server() {
 	const app = await NestFactory.createApplicationContext(MainModule, {
@@ -23,6 +24,8 @@ export async function server() {
 
 	if (process.env.NODE_ENV !== 'test') {
 		app.get(ChartManagementService).start();
+	}
+	if (!envOption.noDaemons) {
 		app.get(QueueStatsService).start();
 		app.get(ServerStatsService).start();
 	}

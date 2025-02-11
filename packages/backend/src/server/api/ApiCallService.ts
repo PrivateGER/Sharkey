@@ -7,18 +7,20 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as stream from 'node:stream/promises';
 import { Inject, Injectable } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { DI } from '@/di-symbols.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
 import type { MiAccessToken } from '@/models/AccessToken.js';
 import type Logger from '@/logger.js';
-import type { UserIpsRepository } from '@/models/_.js';
-import { MetaService } from '@/core/MetaService.js';
+import type { MiMeta, UserIpsRepository } from '@/models/_.js';
 import { createTemp } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
+import type { Config } from '@/config.js';
+import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
 import { ApiError } from './error.js';
-import { RateLimiterService } from './RateLimiterService.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
@@ -38,12 +40,17 @@ export class ApiCallService implements OnApplicationShutdown {
 	private userIpHistoriesClearIntervalId: NodeJS.Timeout;
 
 	constructor(
+		@Inject(DI.meta)
+		private meta: MiMeta,
+
+		@Inject(DI.config)
+		private config: Config,
+
 		@Inject(DI.userIpsRepository)
 		private userIpsRepository: UserIpsRepository,
 
-		private metaService: MetaService,
 		private authenticateService: AuthenticateService,
-		private rateLimiterService: RateLimiterService,
+		private rateLimiterService: SkRateLimiterService,
 		private roleService: RoleService,
 		private apiLoggerService: ApiLoggerService,
 	) {
@@ -88,6 +95,51 @@ export class ApiCallService implements OnApplicationShutdown {
 		}
 	}
 
+	#onExecError(ep: IEndpoint, data: any, err: Error, userId?: MiUser['id']): void {
+		if (err instanceof ApiError || err instanceof AuthenticationError) {
+			throw err;
+		} else {
+			const errId = randomUUID();
+			this.logger.error(`Internal error occurred in ${ep.name}: ${err.message}`, {
+				ep: ep.name,
+				ps: data,
+				e: {
+					message: err.message,
+					code: err.name,
+					stack: err.stack,
+					id: errId,
+				},
+			});
+
+			if (this.config.sentryForBackend) {
+				Sentry.captureMessage(`Internal error occurred in ${ep.name}: ${err.message}`, {
+					level: 'error',
+					user: {
+						id: userId,
+					},
+					extra: {
+						ep: ep.name,
+						ps: data,
+						e: {
+							message: err.message,
+							code: err.name,
+							stack: err.stack,
+							id: errId,
+						},
+					},
+				});
+			}
+
+			throw new ApiError(null, {
+				e: {
+					message: err.message,
+					code: err.name,
+					id: errId,
+				},
+			});
+		}
+	}
+
 	@bindThis
 	public handleRequest(
 		endpoint: IEndpoint & { exec: any },
@@ -107,7 +159,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			return;
 		}
 		this.authenticateService.authenticate(token).then(([user, app]) => {
-			this.call(endpoint, user, app, body, null, request).then((res) => {
+			this.call(endpoint, user, app, body, null, request, reply).then((res) => {
 				if (request.method === 'GET' && endpoint.meta.cacheSec && !token && !user) {
 					reply.header('Cache-Control', `public, max-age=${endpoint.meta.cacheSec}`);
 				}
@@ -139,8 +191,17 @@ export class ApiCallService implements OnApplicationShutdown {
 			return;
 		}
 
-		const [path] = await createTemp();
+		const [path, cleanup] = await createTemp();
 		await stream.pipeline(multipartData.file, fs.createWriteStream(path));
+
+		// ファイルサイズが制限を超えていた場合
+		// なお truncated はストリームを読み切ってからでないと機能しないため、stream.pipeline より後にある必要がある
+		if (multipartData.file.truncated) {
+			cleanup();
+			reply.code(413);
+			reply.send();
+			return;
+		}
 
 		const fields = {} as Record<string, unknown>;
 		for (const [k, v] of Object.entries(multipartData.fields)) {
@@ -159,7 +220,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			this.call(endpoint, user, app, fields, {
 				name: multipartData.filename,
 				path: path,
-			}, request).then((res) => {
+			}, request, reply).then((res) => {
 				this.send(reply, res);
 			}).catch((err: ApiError) => {
 				this.#sendApiError(reply, err);
@@ -196,10 +257,14 @@ export class ApiCallService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async logIp(request: FastifyRequest, user: MiLocalUser) {
-		const meta = await this.metaService.fetch();
-		if (!meta.enableIpLogging) return;
+	private logIp(request: FastifyRequest, user: MiLocalUser) {
+		if (!this.meta.enableIpLogging) return;
 		const ip = request.ip;
+		if (!ip) {
+			this.logger.warn(`user ${user.id} has a null IP address; please check your network configuration.`);
+			return;
+		}
+
 		const ips = this.userIpHistories.get(user.id);
 		if (ips == null || !ips.has(ip)) {
 			if (ips == null) {
@@ -230,6 +295,7 @@ export class ApiCallService implements OnApplicationShutdown {
 			path: string;
 		} | null,
 		request: FastifyRequest<{ Body: Record<string, unknown> | undefined, Querystring: Record<string, unknown> }>,
+		reply: FastifyReply,
 	) {
 		const isSecure = user != null && token == null;
 
@@ -237,7 +303,15 @@ export class ApiCallService implements OnApplicationShutdown {
 			throw new ApiError(accessDenied);
 		}
 
-		if (ep.meta.limit) {
+		// For endpoints without a limit, the default is 10 calls per second
+		const endpointLimit = ep.meta.limit ?? {
+			duration: 1000,
+			max: 10,
+		};
+
+		// We don't need this check, but removing it would cause a big merge conflict.
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+		if (endpointLimit) {
 			// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
 			let limitActor: string;
 			if (user) {
@@ -246,25 +320,28 @@ export class ApiCallService implements OnApplicationShutdown {
 				limitActor = getIpHash(request.ip);
 			}
 
-			const limit = Object.assign({}, ep.meta.limit);
-
-			if (limit.key == null) {
-				(limit as any).key = ep.name;
-			}
-
 			// TODO: 毎リクエスト計算するのもあれだしキャッシュしたい
 			const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
 
 			if (factor > 0) {
+				const limit = {
+					key: ep.name,
+					...endpointLimit,
+				};
+
 				// Rate limit
-				await this.rateLimiterService.limit(limit as IEndpointMeta['limit'] & { key: NonNullable<string> }, limitActor, factor).catch(err => {
+				const info = await this.rateLimiterService.limit(limit, limitActor, factor);
+
+				sendRateLimitHeaders(reply, info);
+
+				if (info.blocked) {
 					throw new ApiError({
 						message: 'Rate limit exceeded. Please try again later.',
 						code: 'RATE_LIMIT_EXCEEDED',
 						id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
 						httpStatusCode: 429,
-					});
-				});
+					}, info);
+				}
 			}
 		}
 
@@ -362,31 +439,15 @@ export class ApiCallService implements OnApplicationShutdown {
 		}
 
 		// API invoking
-		return await ep.exec(data, user, token, file, request.ip, request.headers).catch((err: Error) => {
-			if (err instanceof ApiError || err instanceof AuthenticationError) {
-				throw err;
-			} else {
-				const errId = randomUUID();
-				this.logger.error(`Internal error occurred in ${ep.name}: ${err.message}`, {
-					ep: ep.name,
-					ps: data,
-					e: {
-						message: err.message,
-						code: err.name,
-						stack: err.stack,
-						id: errId,
-					},
-				});
-				console.error(err, errId);
-				throw new ApiError(null, {
-					e: {
-						message: err.message,
-						code: err.name,
-						id: errId,
-					},
-				});
-			}
-		});
+		if (this.config.sentryForBackend) {
+			return await Sentry.startSpan({
+				name: 'API: ' + ep.name,
+			}, () => ep.exec(data, user, token, file, request.ip, request.headers)
+				.catch((err: Error) => this.#onExecError(ep, data, err, user?.id)));
+		} else {
+			return await ep.exec(data, user, token, file, request.ip, request.headers)
+				.catch((err: Error) => this.#onExecError(ep, data, err, user?.id));
+		}
 	}
 
 	@bindThis

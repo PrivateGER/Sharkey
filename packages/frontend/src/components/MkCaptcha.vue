@@ -10,6 +10,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div id="mcaptcha__widget-container" class="m-captcha-style"></div>
 		<div ref="captchaEl"></div>
 	</div>
+	<div v-if="props.provider == 'testcaptcha'" style="background: #eee; border: solid 1px #888; padding: 8px; color: #000; max-width: 320px; display: flex; gap: 10px; align-items: center; box-shadow: 2px 2px 6px #0004; border-radius: 4px;">
+		<img src="/client-assets/testcaptcha.png" style="width: 60px; height: 60px; "/>
+		<div v-if="testcaptchaPassed">
+			<div style="color: green;">Test captcha passed!</div>
+		</div>
+		<div v-else>
+			<div style="font-size: 13px; margin-bottom: 4px;">Type "ai-chan-kawaii" to pass captcha</div>
+			<input v-model="testcaptchaInput" data-cy-testcaptcha-input/>
+			<button type="button" data-cy-testcaptcha-submit @click="testcaptchaSubmit">Submit</button>
+		</div>
+	</div>
 	<div v-else ref="captchaEl"></div>
 </div>
 </template>
@@ -27,9 +38,12 @@ export type Captcha = {
 	execute(id: string): void;
 	reset(id?: string): void;
 	getResponse(id: string): string;
+	WidgetInstance(container: string | Node, options: {
+		readonly [_ in 'sitekey' | 'doneCallback' | 'errorCallback' | 'puzzleEndpoint']?: unknown;
+	}): void;
 };
 
-export type CaptchaProvider = 'hcaptcha' | 'recaptcha' | 'turnstile' | 'mcaptcha';
+export type CaptchaProvider = 'hcaptcha' | 'recaptcha' | 'turnstile' | 'mcaptcha' | 'fc' | 'testcaptcha';
 
 type CaptchaContainer = {
 	readonly [_ in CaptchaProvider]?: Captcha;
@@ -54,12 +68,17 @@ const available = ref(false);
 
 const captchaEl = shallowRef<HTMLDivElement | undefined>();
 
+const testcaptchaInput = ref('');
+const testcaptchaPassed = ref(false);
+
 const variable = computed(() => {
 	switch (props.provider) {
 		case 'hcaptcha': return 'hcaptcha';
 		case 'recaptcha': return 'grecaptcha';
 		case 'turnstile': return 'turnstile';
 		case 'mcaptcha': return 'mcaptcha';
+		case 'fc': return 'friendlyChallenge';
+		case 'testcaptcha': return 'testcaptcha';
 	}
 });
 
@@ -70,7 +89,9 @@ const src = computed(() => {
 		case 'hcaptcha': return 'https://js.hcaptcha.com/1/api.js?render=explicit&recaptchacompat=off';
 		case 'recaptcha': return 'https://www.recaptcha.net/recaptcha/api.js?render=explicit';
 		case 'turnstile': return 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+		case 'fc': return 'https://cdn.jsdelivr.net/npm/friendly-challenge@0.9.18/widget.min.js';
 		case 'mcaptcha': return null;
+		case 'testcaptcha': return null;
 	}
 });
 
@@ -78,7 +99,7 @@ const scriptId = computed(() => `script-${props.provider}`);
 
 const captcha = computed<Captcha>(() => window[variable.value] || {} as unknown as Captcha);
 
-if (loaded || props.provider === 'mcaptcha') {
+if (loaded || props.provider === 'mcaptcha' || props.provider === 'testcaptcha') {
 	available.value = true;
 } else if (src.value !== null) {
 	(document.getElementById(scriptId.value) ?? document.head.appendChild(Object.assign(document.createElement('script'), {
@@ -91,6 +112,8 @@ if (loaded || props.provider === 'mcaptcha') {
 
 function reset() {
 	if (captcha.value.reset) captcha.value.reset();
+	testcaptchaPassed.value = false;
+	testcaptchaInput.value = '';
 }
 
 async function requestRender() {
@@ -99,18 +122,25 @@ async function requestRender() {
 			sitekey: props.sitekey,
 			theme: defaultStore.state.darkMode ? 'dark' : 'light',
 			callback: callback,
-			'expired-callback': callback,
-			'error-callback': callback,
+			'expired-callback': () => callback(undefined),
+			'error-callback': () => callback(undefined),
 		});
 	} else if (props.provider === 'mcaptcha' && props.instanceUrl && props.sitekey) {
 		const { default: Widget } = await import('@mcaptcha/vanilla-glue');
-		// @ts-expect-error avoid typecheck error
 		new Widget({
 			siteKey: {
 				instanceUrl: new URL(props.instanceUrl),
 				key: props.sitekey,
 			},
 		});
+	} else if (variable.value === 'friendlyChallenge' && captchaEl.value instanceof Element) {
+		new captcha.value.WidgetInstance(captchaEl.value, {
+			sitekey: props.sitekey,
+			doneCallback: callback,
+			errorCallback: callback,
+		});
+		// The following line is needed so that the design gets applied without it the captcha will look broken
+		captchaEl.value.className = 'frc-captcha';
 	} else {
 		window.setTimeout(requestRender, 1);
 	}
@@ -126,6 +156,12 @@ function onReceivedMessage(message: MessageEvent) {
 			callback(message.data.token);
 		}
 	}
+}
+
+function testcaptchaSubmit() {
+	testcaptchaPassed.value = testcaptchaInput.value === 'ai-chan-kawaii';
+	callback(testcaptchaPassed.value ? 'testcaptcha-passed' : undefined);
+	if (!testcaptchaPassed.value) testcaptchaInput.value = '';
 }
 
 onMounted(() => {

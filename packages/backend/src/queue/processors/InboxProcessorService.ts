@@ -4,11 +4,10 @@
  */
 
 import { URL } from 'node:url';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import httpSignature from '@peertube/http-signature';
 import * as Bull from 'bullmq';
 import type Logger from '@/logger.js';
-import { MetaService } from '@/core/MetaService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataService.js';
 import InstanceChart from '@/core/chart/charts/instance.js';
@@ -22,32 +21,50 @@ import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { StatusError } from '@/misc/status-error.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
-import { LdSignatureService } from '@/core/activitypub/LdSignatureService.js';
+import { JsonLdService } from '@/core/activitypub/JsonLdService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
+import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
+import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import type { UsersRepository } from '@/models/_.js';
+import { IdService } from '@/core/IdService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { CollapsedQueue } from '@/misc/collapsed-queue.js';
+import { MiNote } from '@/models/Note.js';
+import { MiMeta } from '@/models/Meta.js';
+import { DI } from '@/di-symbols.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type { InboxJobData } from '../types.js';
 
+type UpdateInstanceJob = {
+	latestRequestReceivedAt: Date,
+	shouldUnsuspend: boolean,
+};
+
 @Injectable()
-export class InboxProcessorService {
+export class InboxProcessorService implements OnApplicationShutdown {
 	private logger: Logger;
+	private updateInstanceQueue: CollapsedQueue<MiNote['id'], UpdateInstanceJob>;
 
 	constructor(
+		@Inject(DI.meta)
+		private meta: MiMeta,
+
 		private utilityService: UtilityService,
-		private metaService: MetaService,
 		private apInboxService: ApInboxService,
 		private federatedInstanceService: FederatedInstanceService,
 		private fetchInstanceMetadataService: FetchInstanceMetadataService,
-		private ldSignatureService: LdSignatureService,
+		private jsonLdService: JsonLdService,
 		private apPersonService: ApPersonService,
 		private apDbResolverService: ApDbResolverService,
 		private instanceChart: InstanceChart,
 		private apRequestChart: ApRequestChart,
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
+		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
+		this.updateInstanceQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseUpdateInstanceJobs, this.performUpdateInstance);
 	}
 
 	@bindThis
@@ -63,9 +80,7 @@ export class InboxProcessorService {
 
 		const host = this.utilityService.toPuny(new URL(signature.keyId).hostname);
 
-		// ブロックしてたら中断
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, host)) {
+		if (!this.utilityService.isFederationAllowedHost(host)) {
 			return `Blocked request: ${host}`;
 		}
 
@@ -108,34 +123,32 @@ export class InboxProcessorService {
 		// HTTP-Signatureの検証
 		let httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 
-		// また、signatureのsignerは、activity.actorと一致する必要がある
-		if (!httpSignatureValidated || authUser.user.uri !== activity.actor) {
-			let renewKeyFailed = true;
-			
-			if (!httpSignatureValidated) {
-				authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
-
-				if (authUser.key != null) {
-					httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
-					renewKeyFailed = false;
-				}
+		// maybe they changed their key? refetch it
+		if (!httpSignatureValidated) {
+			authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
+			if (authUser.key != null) {
+				httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 			}
+		}
 
+		// また、signatureのsignerは、activity.actorと一致する必要がある
+		if (!httpSignatureValidated || authUser.user.uri !== getApId(activity.actor)) {
 			// 一致しなくても、でもLD-Signatureがありそうならそっちも見る
-			if (activity.signature && renewKeyFailed) {
-				if (activity.signature.type !== 'RsaSignature2017') {
-					throw new Bull.UnrecoverableError(`skip: unsupported LD-signature type ${activity.signature.type}`);
+			const ldSignature = activity.signature;
+			if (ldSignature) {
+				if (ldSignature.type !== 'RsaSignature2017') {
+					throw new Bull.UnrecoverableError(`skip: unsupported LD-signature type ${ldSignature.type}`);
 				}
 
-				// activity.signature.creator: https://example.oom/users/user#main-key
+				// ldSignature.creator: https://example.oom/users/user#main-key
 				// みたいになっててUserを引っ張れば公開キーも入ることを期待する
-				if (activity.signature.creator) {
-					const candicate = activity.signature.creator.replace(/#.*/, '');
+				if (ldSignature.creator) {
+					const candicate = ldSignature.creator.replace(/#.*/, '');
 					await this.apPersonService.resolvePerson(candicate).catch(() => null);
 				}
 
 				// keyIdからLD-Signatureのユーザーを取得
-				authUser = await this.apDbResolverService.getAuthUserFromKeyId(activity.signature.creator);
+				authUser = await this.apDbResolverService.getAuthUserFromKeyId(ldSignature.creator);
 				if (authUser == null) {
 					throw new Bull.UnrecoverableError('skip: LD-Signatureのユーザーが取得できませんでした');
 				}
@@ -144,9 +157,10 @@ export class InboxProcessorService {
 					throw new Bull.UnrecoverableError('skip: LD-SignatureのユーザーはpublicKeyを持っていませんでした');
 				}
 
+				const jsonLd = this.jsonLdService.use();
+
 				// LD-Signature検証
-				const ldSignature = this.ldSignatureService.use();
-				const verified = await ldSignature.verifyRsaSignature2017(activity, authUser.key.keyPem).catch(() => false);
+				const verified = await jsonLd.verifyRsaSignature2017(activity, authUser.key.keyPem).catch(() => false);
 				if (!verified) {
 					throw new Bull.UnrecoverableError('skip: LD-Signatureの検証に失敗しました');
 				}
@@ -154,7 +168,7 @@ export class InboxProcessorService {
 				// アクティビティを正規化
 				delete activity.signature;
 				try {
-					activity = await ldSignature.compact(activity) as IActivity;
+					activity = await jsonLd.compact(activity) as IActivity;
 				} catch (e) {
 					throw new Bull.UnrecoverableError(`skip: failed to compact activity: ${e}`);
 				}
@@ -167,9 +181,8 @@ export class InboxProcessorService {
 					throw new Bull.UnrecoverableError(`skip: LD-Signature user(${authUser.user.uri}) !== activity.actor(${activity.actor})`);
 				}
 
-				// ブロックしてたら中断
 				const ldHost = this.utilityService.extractDbHost(authUser.user.uri);
-				if (this.utilityService.isBlockedHost(meta.blockedHosts, ldHost)) {
+				if (!this.utilityService.isFederationAllowedHost(ldHost)) {
 					throw new Bull.UnrecoverableError(`Blocked request: ${ldHost}`);
 				}
 			} else {
@@ -184,37 +197,103 @@ export class InboxProcessorService {
 			if (signerHost !== activityIdHost) {
 				throw new Bull.UnrecoverableError(`skip: signerHost(${signerHost}) !== activity.id host(${activityIdHost}`);
 			}
+		} else {
+			// Activity ID should only be string or undefined.
+			delete activity.id;
 		}
 
-		// Update stats
-		this.federatedInstanceService.fetch(authUser.user.host).then(i => {
-			this.federatedInstanceService.update(i.id, {
+		this.apRequestChart.inbox();
+		this.federationChart.inbox(authUser.user.host);
+
+		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
+		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);
+		const rewrittenActivity = mMrfResponse.data;
+		if (mMrfResponse.action === MMrfAction.RejectNote) {
+			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
+		}
+
+		// Update instance stats
+		process.nextTick(async () => {
+			const i = await (this.meta.enableStatsForFederatedInstances
+				? this.federatedInstanceService.fetchOrRegister(authUser.user.host)
+				: this.federatedInstanceService.fetch(authUser.user.host));
+
+			if (i == null) return;
+
+			this.updateInstanceQueue.enqueue(i.id, {
 				latestRequestReceivedAt: new Date(),
-				isNotResponding: false,
+				shouldUnsuspend: i.suspensionState === 'autoSuspendedForNotResponding',
 			});
 
-			this.fetchInstanceMetadataService.fetchInstanceMetadata(i);
-
-			this.apRequestChart.inbox();
-			this.federationChart.inbox(i.host);
-
-			if (meta.enableChartsForFederatedInstances) {
+			if (this.meta.enableChartsForFederatedInstances) {
 				this.instanceChart.requestReceived(i.host);
 			}
+
+			this.fetchInstanceMetadataService.fetchInstanceMetadata(i);
 		});
 
 		// アクティビティを処理
 		try {
-			await this.apInboxService.performActivity(authUser.user, activity);
+			const result = await this.apInboxService.performActivity(authUser.user, rewrittenActivity);
+			if (result && !result.startsWith('ok')) {
+				if (result.startsWith('skip:')) {
+					this.logger.info(`inbox activity ignored: id=${activity.id} reason=${result}`);
+				} else {
+					this.logger.warn(`inbox activity failed: id=${activity.id} reason=${result}`);
+				}
+				return result;
+			}
 		} catch (e) {
 			if (e instanceof IdentifiableError) {
 				if (e.id === '689ee33f-f97c-479a-ac49-1b9f8140af99') {
 					return 'blocked notes with prohibited words';
 				}
-				if (e.id === '85ab9bd7-3a41-4530-959d-f07073900109') return 'actor has been suspended';
+				if (e.id === '85ab9bd7-3a41-4530-959d-f07073900109') {
+					return 'actor has been suspended';
+				}
+				if (e.id === 'd450b8a9-48e4-4dab-ae36-f4db763fda7c') { // invalid Note
+					return e.message;
+				}
 			}
+
+			if (e instanceof StatusError && !e.isRetryable) {
+				return `skip: permanent error ${e.statusCode}`;
+			}
+
 			throw e;
 		}
 		return 'ok';
+	}
+
+	@bindThis
+	public collapseUpdateInstanceJobs(oldJob: UpdateInstanceJob, newJob: UpdateInstanceJob) {
+		const latestRequestReceivedAt = oldJob.latestRequestReceivedAt < newJob.latestRequestReceivedAt
+			? newJob.latestRequestReceivedAt
+			: oldJob.latestRequestReceivedAt;
+		const shouldUnsuspend = oldJob.shouldUnsuspend || newJob.shouldUnsuspend;
+		return {
+			latestRequestReceivedAt,
+			shouldUnsuspend,
+		};
+	}
+
+	@bindThis
+	public async performUpdateInstance(id: string, job: UpdateInstanceJob) {
+		await this.federatedInstanceService.update(id, {
+			latestRequestReceivedAt: new Date(),
+			isNotResponding: false,
+			// もしサーバーが死んでるために配信が止まっていた場合には自動的に復活させてあげる
+			suspensionState: job.shouldUnsuspend ? 'none' : undefined,
+		});
+	}
+
+	@bindThis
+	public async dispose(): Promise<void> {
+		await this.updateInstanceQueue.performAllNow();
+	}
+
+	@bindThis
+	async onApplicationShutdown(signal?: string) {
+		await this.dispose();
 	}
 }

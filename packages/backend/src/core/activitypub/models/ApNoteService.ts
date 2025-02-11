@@ -4,16 +4,15 @@
  */
 
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
-import promiseLimit from 'promise-limit';
 import { In } from 'typeorm';
+import { UnrecoverableError } from 'bullmq';
 import { DI } from '@/di-symbols.js';
-import type { PollsRepository, EmojisRepository, NotesRepository } from '@/models/_.js';
+import type { UsersRepository, PollsRepository, EmojisRepository, NotesRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
 import { toArray, toSingle, unique } from '@/misc/prelude/array.js';
 import type { MiEmoji } from '@/models/Emoji.js';
-import { MetaService } from '@/core/MetaService.js';
 import { AppLockService } from '@/core/AppLockService.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
@@ -26,7 +25,6 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import { checkHttps } from '@/misc/check-https.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
-import { isNotNull } from '@/misc/is-not-null.js';
 import { getOneApId, getApId, getOneApHrefNullable, validPost, isEmoji, getApType } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
@@ -48,6 +46,12 @@ export class ApNoteService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
+
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
 
 		@Inject(DI.pollsRepository)
 		private pollsRepository: PollsRepository,
@@ -71,7 +75,6 @@ export class ApNoteService {
 		private apMentionService: ApMentionService,
 		private apImageService: ApImageService,
 		private apQuestionService: ApQuestionService,
-		private metaService: MetaService,
 		private appLockService: AppLockService,
 		private pollService: PollService,
 		private noteCreateService: NoteCreateService,
@@ -83,24 +86,48 @@ export class ApNoteService {
 	}
 
 	@bindThis
-	public validateNote(object: IObject, uri: string): Error | null {
+	public validateNote(
+		object: IObject,
+		uri: string,
+		actor?: MiRemoteUser,
+		user?: MiRemoteUser,
+		note?: MiNote,
+	): Error | null {
 		const expectHost = this.utilityService.extractDbHost(uri);
+		const apType = getApType(object);
 
-		if (!validPost.includes(getApType(object))) {
-			return new Error(`invalid Note: invalid object type ${getApType(object)}`);
+		if (apType == null || !validPost.includes(apType)) {
+			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: invalid object type ${apType ?? 'undefined'}`);
 		}
 
 		if (object.id && this.utilityService.extractDbHost(object.id) !== expectHost) {
-			return new Error(`invalid Note: id has different host. expected: ${expectHost}, actual: ${this.utilityService.extractDbHost(object.id)}`);
+			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: id has different host. expected: ${expectHost}, actual: ${this.utilityService.extractDbHost(object.id)}`);
 		}
 
 		const actualHost = object.attributedTo && this.utilityService.extractDbHost(getOneApId(object.attributedTo));
 		if (object.attributedTo && actualHost !== expectHost) {
-			return new Error(`invalid Note: attributedTo has different host. expected: ${expectHost}, actual: ${actualHost}`);
+			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: attributedTo has different host. expected: ${expectHost}, actual: ${actualHost}`);
 		}
 
 		if (object.published && !this.idService.isSafeT(new Date(object.published).valueOf())) {
-			return new Error('invalid Note: published timestamp is malformed');
+			return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', 'invalid Note: published timestamp is malformed');
+		}
+
+		if (actor) {
+			const attribution = (object.attributedTo) ? getOneApId(object.attributedTo) : actor.uri;
+			if (attribution !== actor.uri) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: attribution does not match the actor that send it. attribution: ${attribution}, actor: ${actor.uri}`);
+			}
+			if (user && attribution !== user.uri) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: updated attribution does not match original attribution. updated attribution: ${user.uri}, original attribution: ${attribution}`);
+			}
+		}
+
+		if (note) {
+			const url = (object.url) ? getOneApId(object.url) : note.url;
+			if (url && url !== note.url) {
+				return new IdentifiableError('d450b8a9-48e4-4dab-ae36-f4db763fda7c', `invalid Note: updated url does not match original url. updated url: ${url}, original url: ${note.url}`);
+			}
 		}
 
 		return null;
@@ -117,53 +144,82 @@ export class ApNoteService {
 	}
 
 	/**
+	 * Returns true if the provided object / ID exists in the local database.
+	 */
+	@bindThis
+	public async hasNote(object: string | IObject | [string | IObject]): Promise<boolean> {
+		const uri = getApId(object);
+		return await this.notesRepository.existsBy({ uri });
+	}
+
+	/**
 	 * Noteを作成します。
 	 */
 	@bindThis
-	public async createNote(value: string | IObject, resolver?: Resolver, silent = false): Promise<MiNote | null> {
+	public async createNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
 
 		const object = await resolver.resolve(value);
 
 		const entryUri = getApId(value);
-		const err = this.validateNote(object, entryUri);
+		const err = this.validateNote(object, entryUri, actor);
 		if (err) {
-			this.logger.error(err.message, {
-				resolver: { history: resolver.getHistory() },
-				value,
-				object,
-			});
-			throw new Error('invalid note');
+			// Avoid extreme error spam caused by Lemmy
+			if (object.type !== 'Announce' && object.type !== 'Like' && object.type === 'Dislike') {
+				this.logger.error(err.message, {
+					resolver: { history: resolver.getHistory() },
+					value,
+					object,
+				});
+			}
+			throw err;
 		}
 
 		const note = object as IPost;
 
 		this.logger.debug(`Note fetched: ${JSON.stringify(note, null, 2)}`);
 
-		if (note.id && !checkHttps(note.id)) {
-			throw new Error('unexpected schema of note.id: ' + note.id);
+		if (note.id == null) {
+			throw new UnrecoverableError(`Refusing to create note without id: ${entryUri}`);
+		}
+
+		if (!checkHttps(note.id)) {
+			throw new UnrecoverableError(`unexpected schema of note.id ${note.id} in ${entryUri}`);
 		}
 
 		const url = getOneApHrefNullable(note.url);
 
-		if (url && !checkHttps(url)) {
-			throw new Error('unexpected schema of note url: ' + url);
+		if (url != null) {
+			if (!checkHttps(url)) {
+				throw new UnrecoverableError(`unexpected schema of note.url ${url} in ${entryUri}`);
+			}
+
+			if (this.utilityService.punyHostPSLDomain(url) !== this.utilityService.punyHostPSLDomain(note.id)) {
+				throw new UnrecoverableError(`note url <> uri host mismatch: ${url} <> ${note.id} in ${entryUri}`);
+			}
+		}
+
+		if (url) {
+			if (url.includes("relay.fedi.buzz") || url.includes("relay.kitsu.life") || url.includes("relay.publicsquare.global")) {
+				silent = true;
+			}
 		}
 
 		this.logger.info(`Creating the Note: ${note.id}`);
 
 		// 投稿者をフェッチ
 		if (note.attributedTo == null) {
-			throw new Error('invalid note.attributedTo: ' + note.attributedTo);
+			throw new UnrecoverableError(`invalid note.attributedTo ${note.attributedTo} in ${entryUri}`);
 		}
 
 		const uri = getOneApId(note.attributedTo);
 
 		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
-		const cachedActor = await this.apPersonService.fetchPerson(uri) as MiRemoteUser;
-		if (cachedActor && cachedActor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
+		// eslint-disable-next-line no-param-reassign
+		actor ??= await this.apPersonService.fetchPerson(uri) as MiRemoteUser | undefined;
+		if (actor && actor.isSuspended) {
+			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `actor ${uri} has been suspended: ${entryUri}`);
 		}
 
 		const apMentions = await this.apMentionService.extractApMentions(note.tag, resolver);
@@ -188,17 +244,18 @@ export class ApNoteService {
 		/**
 		 * 禁止ワードチェック
 		 */
-		const hasProhibitedWords = await this.noteCreateService.checkProhibitedWordsContain({ cw, text, pollChoices: poll?.choices });
+		const hasProhibitedWords = this.noteCreateService.checkProhibitedWordsContain({ cw, text, pollChoices: poll?.choices });
 		if (hasProhibitedWords) {
-			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', 'Note contains prohibited words');
+			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', `Note contains prohibited words: ${entryUri}`);
 		}
 		//#endregion
 
-		const actor = cachedActor ?? await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
+		// eslint-disable-next-line no-param-reassign
+		actor ??= await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
 
 		// 解決した投稿者が凍結されていたらスキップ
 		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
+			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `actor has been suspended: ${entryUri}`);
 		}
 
 		const noteAudience = await this.apAudienceService.parseAudience(actor, note.to, note.cc, resolver);
@@ -214,15 +271,13 @@ export class ApNoteService {
 		}
 
 		// 添付ファイル
-		// TODO: attachmentは必ずしもImageではない
-		// TODO: attachmentは必ずしも配列ではない
-		const limit = promiseLimit<MiDriveFile>(2);
-		const files = (await Promise.all(toArray(note.attachment).map(attach => (
-			limit(() => this.apImageService.resolveImage(actor, {
-				...attach,
-				sensitive: note.sensitive, // Noteがsensitiveなら添付もsensitiveにする
-			}))
-		))));
+		const files: MiDriveFile[] = [];
+
+		for (const attach of toArray(note.attachment)) {
+			attach.sensitive ??= note.sensitive;
+			const file = await this.apImageService.resolveImage(actor, attach);
+			if (file) files.push(file);
+		}
 
 		// リプライ
 		const reply: MiNote | null = note.inReplyTo
@@ -230,13 +285,13 @@ export class ApNoteService {
 				.then(x => {
 					if (x == null) {
 						this.logger.warn('Specified inReplyTo, but not found');
-						throw new Error('inReplyTo not found');
+						throw new Error(`could not fetch inReplyTo ${note.inReplyTo} for note ${entryUri}`);
 					}
 
 					return x;
 				})
 				.catch(async err => {
-					this.logger.warn(`Error in inReplyTo ${note.inReplyTo} - ${err.statusCode ?? err}`);
+					this.logger.warn(`error ${err.statusCode ?? err} fetching inReplyTo ${note.inReplyTo} for note ${entryUri}`);
 					throw err;
 				})
 			: null;
@@ -245,29 +300,38 @@ export class ApNoteService {
 		let quote: MiNote | undefined | null = null;
 
 		if (note._misskey_quote ?? note.quoteUrl ?? note.quoteUri) {
-			const tryResolveNote = async (uri: string): Promise<
+			const tryResolveNote = async (uri: unknown): Promise<
 				| { status: 'ok'; res: MiNote }
 				| { status: 'permerror' | 'temperror' }
 			> => {
-				if (typeof uri !== 'string' || !/^https?:/.test(uri)) return { status: 'permerror' };
+				if (typeof uri !== 'string' || !/^https?:/.test(uri)) {
+					this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: URI is invalid`);
+					return { status: 'permerror' };
+				}
 				try {
-					const res = await this.resolveNote(uri);
-					if (res == null) return { status: 'permerror' };
+					const res = await this.resolveNote(uri, { resolver });
+					if (res == null) {
+						this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: resolution error`);
+						return { status: 'permerror' };
+					}
 					return { status: 'ok', res };
 				} catch (e) {
+					const error = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+					this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: ${error}`);
+
 					return {
 						status: (e instanceof StatusError && !e.isRetryable) ? 'permerror' : 'temperror',
 					};
 				}
 			};
 
-			const uris = unique([note._misskey_quote, note.quoteUrl, note.quoteUri].filter(isNotNull));
+			const uris = unique([note._misskey_quote, note.quoteUrl, note.quoteUri].filter(x => x != null));
 			const results = await Promise.all(uris.map(tryResolveNote));
 
 			quote = results.filter((x): x is { status: 'ok', res: MiNote } => x.status === 'ok').map(x => x.res).at(0);
 			if (!quote) {
 				if (results.some(x => x.status === 'temperror')) {
-					throw new Error('quote resolve failed');
+					throw new Error(`temporary error resolving quote for ${entryUri}`);
 				}
 			}
 		}
@@ -327,7 +391,7 @@ export class ApNoteService {
 			this.logger.info('The note is already inserted while creating itself, reading again');
 			const duplicate = await this.fetchNote(value);
 			if (!duplicate) {
-				throw new Error('The note creation failed with duplication error even when there is no duplication');
+				throw new Error(`The note creation failed with duplication error even when there is no duplication: ${entryUri}`);
 			}
 			return duplicate;
 		}
@@ -337,16 +401,18 @@ export class ApNoteService {
 	 * Noteを作成します。
 	 */
 	@bindThis
-	public async updateNote(value: string | IObject, resolver?: Resolver, silent = false): Promise<MiNote | null> {
-		const noteUri = typeof value === 'string' ? value : value.id;
-		if (noteUri == null) throw new Error('uri is null');
+	public async updateNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
+		const noteUri = getApId(value);
 
 		// URIがこのサーバーを指しているならスキップ
-		if (noteUri.startsWith(this.config.url + '/')) throw new Error('uri points local');
+		if (noteUri.startsWith(this.config.url + '/')) throw new UnrecoverableError(`uri points local: ${noteUri}`);
 
 		//#region このサーバーに既に登録されているか
-		const UpdatedNote = await this.notesRepository.findOneBy({ uri: noteUri });
-		if (UpdatedNote == null) throw new Error('Note is not registered');
+		const updatedNote = await this.notesRepository.findOneBy({ uri: noteUri });
+		if (updatedNote == null) throw new Error(`Note is not registered (no note): ${noteUri}`);
+
+		const user = await this.usersRepository.findOneBy({ id: updatedNote.userId }) as MiRemoteUser | null;
+		if (user == null) throw new Error(`Note is not registered (no user): ${noteUri}`);
 
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
@@ -354,43 +420,48 @@ export class ApNoteService {
 		const object = await resolver.resolve(value);
 
 		const entryUri = getApId(value);
-		const err = this.validateNote(object, entryUri);
+		const err = this.validateNote(object, entryUri, actor, user, updatedNote);
 		if (err) {
 			this.logger.error(err.message, {
 				resolver: { history: resolver.getHistory() },
 				value,
 				object,
 			});
-			throw new Error('invalid note');
+			throw err;
 		}
+
+		// `validateNote` checks that the actor and user are one and the same
+		// eslint-disable-next-line no-param-reassign
+		actor ??= user;
 
 		const note = object as IPost;
 
 		this.logger.debug(`Note fetched: ${JSON.stringify(note, null, 2)}`);
 
-		if (note.id && !checkHttps(note.id)) {
-			throw new Error('unexpected schema of note.id: ' + note.id);
+		if (note.id == null) {
+			throw new UnrecoverableError(`Refusing to update note without id: ${noteUri}`);
+		}
+
+		if (!checkHttps(note.id)) {
+			throw new UnrecoverableError(`unexpected schema of note.id ${note.id} in ${noteUri}`);
 		}
 
 		const url = getOneApHrefNullable(note.url);
 
-		if (url && !checkHttps(url)) {
-			throw new Error('unexpected schema of note url: ' + url);
+		if (url != null) {
+			if (!checkHttps(url)) {
+				throw new UnrecoverableError(`unexpected schema of note.url ${url} in ${noteUri}`);
+			}
+
+			if (this.utilityService.punyHostPSLDomain(url) !== this.utilityService.punyHostPSLDomain(note.id)) {
+				throw new UnrecoverableError(`note url <> id host mismatch: ${url} <> ${note.id} in ${noteUri}`);
+			}
 		}
 
 		this.logger.info(`Creating the Note: ${note.id}`);
 
-		// 投稿者をフェッチ
-		if (note.attributedTo == null) {
-			throw new Error('invalid note.attributedTo: ' + note.attributedTo);
-		}
-
-		const uri = getOneApId(note.attributedTo);
-
-		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
-		const cachedActor = await this.apPersonService.fetchPerson(uri) as MiRemoteUser;
-		if (cachedActor && cachedActor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
+		if (actor.isSuspended) {
+			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `actor ${actor.id} has been suspended: ${noteUri}`);
 		}
 
 		const apMentions = await this.apMentionService.extractApMentions(note.tag, resolver);
@@ -417,16 +488,9 @@ export class ApNoteService {
 		 */
 		const hasProhibitedWords = await this.noteCreateService.checkProhibitedWordsContain({ cw, text, pollChoices: poll?.choices });
 		if (hasProhibitedWords) {
-			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', 'Note contains prohibited words');
+			throw new IdentifiableError('689ee33f-f97c-479a-ac49-1b9f8140af99', `Note contains prohibited words: ${noteUri}`);
 		}
 		//#endregion
-
-		const actor = cachedActor ?? await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
-
-		// 投稿者が凍結されていたらスキップ
-		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', 'actor has been suspended');
-		}
 
 		const noteAudience = await this.apAudienceService.parseAudience(actor, note.to, note.cc, resolver);
 		let visibility = noteAudience.visibility;
@@ -441,15 +505,13 @@ export class ApNoteService {
 		}
 
 		// 添付ファイル
-		// TODO: attachmentは必ずしもImageではない
-		// TODO: attachmentは必ずしも配列ではない
-		const limit = promiseLimit<MiDriveFile>(2);
-		const files = (await Promise.all(toArray(note.attachment).map(attach => (
-			limit(() => this.apImageService.resolveImage(actor, {
-				...attach,
-				sensitive: note.sensitive, // Noteがsensitiveなら添付もsensitiveにする
-			}))
-		))));
+		const files: MiDriveFile[] = [];
+
+		for (const attach of toArray(note.attachment)) {
+			attach.sensitive ??= note.sensitive;
+			const file = await this.apImageService.resolveImage(actor, attach);
+			if (file) files.push(file);
+		}
 
 		// リプライ
 		const reply: MiNote | null = note.inReplyTo
@@ -457,13 +519,13 @@ export class ApNoteService {
 				.then(x => {
 					if (x == null) {
 						this.logger.warn('Specified inReplyTo, but not found');
-						throw new Error('inReplyTo not found');
+						throw new Error(`could not fetch inReplyTo ${note.inReplyTo}: ${entryUri}`);
 					}
 
 					return x;
 				})
 				.catch(async err => {
-					this.logger.warn(`Error in inReplyTo ${note.inReplyTo} - ${err.statusCode ?? err}`);
+					this.logger.warn(`error ${err.statusCode ?? err} fetching inReplyTo ${note.inReplyTo}: ${entryUri}`);
 					throw err;
 				})
 			: null;
@@ -472,39 +534,48 @@ export class ApNoteService {
 		let quote: MiNote | undefined | null = null;
 
 		if (note._misskey_quote ?? note.quoteUrl ?? note.quoteUri) {
-			const tryResolveNote = async (uri: string): Promise<
+			const tryResolveNote = async (uri: unknown): Promise<
 				| { status: 'ok'; res: MiNote }
 				| { status: 'permerror' | 'temperror' }
 			> => {
-				if (!/^https?:/.test(uri)) return { status: 'permerror' };
+				if (typeof uri !== 'string' || !/^https?:/.test(uri)) {
+					this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: URI is invalid`);
+					return { status: 'permerror' };
+				}
 				try {
-					const res = await this.resolveNote(uri);
-					if (res == null) return { status: 'permerror' };
+					const res = await this.resolveNote(uri, { resolver });
+					if (res == null) {
+						this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: resolution error`);
+						return { status: 'permerror' };
+					}
 					return { status: 'ok', res };
 				} catch (e) {
+					const error = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+					this.logger.warn(`Failed to resolve quote ${uri} for note ${entryUri}: ${error}`);
+
 					return {
-						status: (e instanceof StatusError && e.isClientError) ? 'permerror' : 'temperror',
+						status: (e instanceof StatusError && !e.isRetryable) ? 'permerror' : 'temperror',
 					};
 				}
 			};
 
-			const uris = unique([note._misskey_quote, note.quoteUrl, note.quoteUri].filter((x): x is string => typeof x === 'string'));
+			const uris = unique([note._misskey_quote, note.quoteUrl, note.quoteUri].filter(x => x != null));
 			const results = await Promise.all(uris.map(tryResolveNote));
 
 			quote = results.filter((x): x is { status: 'ok', res: MiNote } => x.status === 'ok').map(x => x.res).at(0);
 			if (!quote) {
 				if (results.some(x => x.status === 'temperror')) {
-					throw new Error('quote resolve failed');
+					throw new Error(`temporary error resolving quote for ${entryUri}`);
 				}
 			}
 		}
 
 		// vote
 		if (reply && reply.hasPoll) {
-			const replyPoll = await this.pollsRepository.findOneByOrFail({ noteId: reply.id });
+			const poll = await this.pollsRepository.findOneByOrFail({ noteId: reply.id });
 
 			const tryCreateVote = async (name: string, index: number): Promise<null> => {
-				if (replyPoll.expiresAt && Date.now() > new Date(replyPoll.expiresAt).getTime()) {
+				if (poll.expiresAt && Date.now() > new Date(poll.expiresAt).getTime()) {
 					this.logger.warn(`vote to expired poll from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 				} else if (index >= 0) {
 					this.logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
@@ -517,7 +588,7 @@ export class ApNoteService {
 			};
 
 			if (note.name) {
-				return await tryCreateVote(note.name, replyPoll.choices.findIndex(x => x === note.name));
+				return await tryCreateVote(note.name, poll.choices.findIndex(x => x === note.name));
 			}
 		}
 
@@ -529,7 +600,7 @@ export class ApNoteService {
 		const apEmojis = emojis.map(emoji => emoji.name);
 
 		try {
-			return await this.noteEditService.edit(actor, UpdatedNote.id, {
+			return await this.noteEditService.edit(actor, updatedNote.id, {
 				createdAt: note.published ? new Date(note.published) : null,
 				files,
 				reply,
@@ -554,7 +625,7 @@ export class ApNoteService {
 			this.logger.info('The note is already inserted while creating itself, reading again');
 			const duplicate = await this.fetchNote(value);
 			if (!duplicate) {
-				throw new Error('The note creation failed with duplication error even when there is no duplication');
+				throw new Error(`The note creation failed with duplication error even when there is no duplication: ${noteUri}`);
 			}
 			return duplicate;
 		}
@@ -570,10 +641,8 @@ export class ApNoteService {
 	public async resolveNote(value: string | IObject, options: { sentFrom?: URL, resolver?: Resolver } = {}): Promise<MiNote | null> {
 		const uri = getApId(value);
 
-		// ブロックしていたら中断
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, this.utilityService.extractDbHost(uri))) {
-			throw new StatusError('blocked host', 451);
+		if (!this.utilityService.isFederationAllowedUri(uri)) {
+			throw new StatusError(`blocked host: ${uri}`, 451, 'blocked host');
 		}
 
 		const unlock = await this.appLockService.getApLock(uri);
@@ -584,15 +653,15 @@ export class ApNoteService {
 			if (exist) return exist;
 			//#endregion
 
-			if (uri.startsWith(this.config.url)) {
-				throw new StatusError('cannot resolve local note', 400, 'cannot resolve local note');
+			if (this.utilityService.isUriLocal(uri)) {
+				throw new StatusError(`cannot resolve local note: ${uri}`, 400, 'cannot resolve local note');
 			}
 
 			// リモートサーバーからフェッチしてきて登録
 			// ここでuriの代わりに添付されてきたNote Objectが指定されていると、サーバーフェッチを経ずにノートが生成されるが
 			// 添付されてきたNote Objectは偽装されている可能性があるため、常にuriを指定してサーバーフェッチを行う。
 			const createFrom = options.sentFrom?.origin === new URL(uri).origin ? value : uri;
-			return await this.createNote(createFrom, options.resolver, true);
+			return await this.createNote(createFrom, undefined, options.resolver, false);
 		} finally {
 			unlock();
 		}
@@ -633,7 +702,7 @@ export class ApNoteService {
 					});
 
 					const emoji = await this.emojisRepository.findOneBy({ host, name });
-					if (emoji == null) throw new Error('emoji update failed');
+					if (emoji == null) throw new Error(`emoji update failed: ${name}:${host}`);
 					return emoji;
 				}
 
@@ -642,7 +711,7 @@ export class ApNoteService {
 
 			this.logger.info(`register emoji host=${host}, name=${name}`);
 
-			return await this.emojisRepository.insert({
+			return await this.emojisRepository.insertOne({
 				id: this.idService.gen(),
 				host,
 				name,
@@ -651,7 +720,7 @@ export class ApNoteService {
 				publicUrl: tag.icon.url,
 				updatedAt: new Date(),
 				aliases: [],
-			}).then(x => this.emojisRepository.findOneByOrFail(x.identifiers[0]));
+			});
 		}));
 	}
 }

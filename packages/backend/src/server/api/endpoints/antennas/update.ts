@@ -32,12 +32,24 @@ export const meta = {
 			code: 'NO_SUCH_USER_LIST',
 			id: '1c6b35c9-943e-48c2-81e4-2844989407f7',
 		},
+
+		emptyKeyword: {
+			message: 'Either keywords or excludeKeywords is required.',
+			code: 'EMPTY_KEYWORD',
+			id: '721aaff6-4e1b-4d88-8de6-877fae9f68c4',
+		},
 	},
 
 	res: {
 		type: 'object',
 		optional: false, nullable: false,
 		ref: 'Antenna',
+	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
 	},
 } as const;
 
@@ -63,11 +75,11 @@ export const paramDef = {
 		} },
 		caseSensitive: { type: 'boolean' },
 		localOnly: { type: 'boolean' },
+		excludeBots: { type: 'boolean' },
 		withReplies: { type: 'boolean' },
 		withFile: { type: 'boolean' },
-		notify: { type: 'boolean' },
 	},
-	required: ['antennaId', 'name', 'src', 'keywords', 'excludeKeywords', 'users', 'caseSensitive', 'withReplies', 'withFile', 'notify'],
+	required: ['antennaId'],
 } as const;
 
 @Injectable()
@@ -83,8 +95,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private globalEventService: GlobalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			if (ps.keywords.flat().every(x => x === '') && ps.excludeKeywords.flat().every(x => x === '')) {
-				throw new Error('either keywords or excludeKeywords is required.');
+			if (ps.keywords && ps.excludeKeywords) {
+				if (ps.keywords.flat().every(x => x === '') && ps.excludeKeywords.flat().every(x => x === '')) {
+					throw new ApiError(meta.errors.emptyKeyword);
+				}
 			}
 			// Fetch the antenna
 			const antenna = await this.antennasRepository.findOneBy({
@@ -98,7 +112,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			let userList;
 
-			if (ps.src === 'list' && ps.userListId) {
+			if ((ps.src === 'list' || antenna.src === 'list') && ps.userListId) {
 				userList = await this.userListsRepository.findOneBy({
 					id: ps.userListId,
 					userId: me.id,
@@ -112,15 +126,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.antennasRepository.update(antenna.id, {
 				name: ps.name,
 				src: ps.src,
-				userListId: userList ? userList.id : null,
+				userListId: ps.userListId !== undefined ? userList ? userList.id : null : undefined,
 				keywords: ps.keywords,
 				excludeKeywords: ps.excludeKeywords,
 				users: ps.users,
 				caseSensitive: ps.caseSensitive,
 				localOnly: ps.localOnly,
+				excludeBots: ps.excludeBots,
 				withReplies: ps.withReplies,
 				withFile: ps.withFile,
-				notify: ps.notify,
 				isActive: true,
 				lastUsedAt: new Date(),
 			});

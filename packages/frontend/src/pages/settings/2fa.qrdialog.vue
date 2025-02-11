@@ -25,6 +25,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div style="height: 100cqh; overflow: auto; text-align: center;">
 					<MkSpacer :marginMin="20" :marginMax="28">
 						<div class="_gaps">
+							<MkInfo><MkLink url="https://misskey-hub.net/docs/for-users/stepped-guides/how-to-enable-2fa/" target="_blank">{{ i18n.ts._2fa.moreDetailedGuideHere }}</MkLink></MkInfo>
+
 							<I18n :src="i18n.ts._2fa.step1" tag="div">
 								<template #a>
 									<a href="https://authy.com/" rel="noopener" target="_blank" class="_link">Authy</a>
@@ -33,8 +35,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<a href="https://support.google.com/accounts/answer/1066447" rel="noopener" target="_blank" class="_link">Google Authenticator</a>
 								</template>
 							</I18n>
-							<div>{{ i18n.ts._2fa.step2 }}<br>{{ i18n.ts._2fa.step2Click }}</div>
-							<a :href="twoFactorData.url"><img :class="$style.qr" :src="twoFactorData.qr"></a>
+							<div>{{ i18n.ts._2fa.step2 }}</div>
+							<div>
+								<a :class="$style.qrRoot" :href="twoFactorData.url"><img :class="$style.qr" :src="twoFactorData.qr"></a>
+								<!-- QRコード側にマージンが入っているので直下でOK -->
+								<div><MkButton inline rounded link :to="twoFactorData.url" :linkBehavior="'browser'">{{ i18n.ts.launchApp }}</MkButton></div>
+							</div>
 							<MkKeyValue :copy="twoFactorData.url">
 								<template #key>{{ i18n.ts._2fa.step2Uri }}</template>
 								<template #value>{{ twoFactorData.url }}</template>
@@ -42,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div class="_buttonsCenter" style="margin-top: 16px;">
 							<MkButton rounded @click="cancel">{{ i18n.ts.cancel }}</MkButton>
-							<MkButton primary rounded gradate @click="page++">{{ i18n.ts.continue }} <i class="ph-arrow-right ph-bold ph-lg"></i></MkButton>
+							<MkButton primary rounded gradate @click="page++">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
 						</div>
 					</MkSpacer>
 				</div>
@@ -52,12 +58,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSpacer :marginMin="20" :marginMax="28">
 						<div class="_gaps">
 							<div>{{ i18n.ts._2fa.step3Title }}</div>
-							<MkInput v-model="token" autocomplete="one-time-code"></MkInput>
+							<MkInput v-model="token" autocomplete="one-time-code" inputmode="numeric"></MkInput>
 							<div>{{ i18n.ts._2fa.step3 }}</div>
 						</div>
 						<div class="_buttonsCenter" style="margin-top: 16px;">
-							<MkButton rounded @click="page--"><i class="ph-arrow-left ph-bold ph-lg"></i> {{ i18n.ts.goBack }}</MkButton>
-							<MkButton primary rounded gradate @click="tokenDone">{{ i18n.ts.continue }} <i class="ph-arrow-right ph-bold ph-lg"></i></MkButton>
+							<MkButton rounded @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
+							<MkButton primary rounded gradate @click="tokenDone">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
 						</div>
 					</MkSpacer>
 				</div>
@@ -71,7 +77,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div style="text-align: center; font-weight: bold;">{{ i18n.ts._2fa.checkBackupCodesBeforeCloseThisWizard }}</div>
 
 							<MkFolder :defaultOpen="true">
-								<template #icon><i class="ph-key ph-bold ph-lg"></i></template>
+								<template #icon><i class="ti ti-key"></i></template>
 								<template #label>{{ i18n.ts._2fa.backupCodes }}</template>
 
 								<div class="_gaps">
@@ -84,7 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 										</MkKeyValue>
 									</div>
 
-									<MkButton primary rounded gradate @click="downloadBackupCodes"><i class="ph-download ph-bold ph-lg"></i> {{ i18n.ts.download }}</MkButton>
+									<MkButton primary rounded gradate @click="downloadBackupCodes"><i class="ti ti-download"></i> {{ i18n.ts.download }}</MkButton>
 								</div>
 							</MkFolder>
 						</div>
@@ -109,6 +115,7 @@ import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkFolder from '@/components/MkFolder.vue';
 import MkInfo from '@/components/MkInfo.vue';
+import MkLink from '@/components/MkLink.vue';
 import { confetti } from '@/scripts/confetti.js';
 import { signinRequired } from '@/account.js';
 
@@ -131,12 +138,13 @@ const token = ref<string | number | null>(null);
 const backupCodes = ref<string[]>();
 
 function cancel() {
-	dialog.value.close();
+	dialog.value?.close();
 }
 
 async function tokenDone() {
+	if (token.value == null) return;
 	const res = await os.apiWithDialog('i/2fa/done', {
-		token: token.value.toString(),
+		token: typeof token.value === 'string' ? token.value : token.value.toString(),
 	});
 
 	backupCodes.value = res.backupCodes;
@@ -159,7 +167,7 @@ function downloadBackupCodes() {
 }
 
 function allDone() {
-	dialog.value.close();
+	dialog.value?.close();
 }
 </script>
 
@@ -177,8 +185,14 @@ function allDone() {
 	transform: translateX(-50px);
 }
 
-.qr {
+.qrRoot {
+	display: block;
+	margin: 0 auto;
 	width: 200px;
 	max-width: 100%;
+}
+
+.qr {
+	width: 100%;
 }
 </style>

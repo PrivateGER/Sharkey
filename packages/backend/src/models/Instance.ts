@@ -81,13 +81,22 @@ export class MiInstance {
 	public isNotResponding: boolean;
 
 	/**
-	 * このインスタンスへの配信を停止するか
+	 * このインスタンスと不通になった日時
+	 */
+	@Column('timestamp with time zone', {
+		nullable: true,
+	})
+	public notRespondingSince: Date | null;
+
+	/**
+	 * このインスタンスへの配信状態
 	 */
 	@Index()
-	@Column('boolean', {
-		default: false,
+	@Column('enum', {
+		default: 'none',
+		enum: ['none', 'manuallySuspended', 'goneSuspended', 'autoSuspendedForNotResponding'],
 	})
-	public isSuspended: boolean;
+	public suspensionState: 'none' | 'manuallySuspended' | 'goneSuspended' | 'autoSuspendedForNotResponding';
 
 	@Column('varchar', {
 		length: 64, nullable: true,
@@ -149,7 +158,12 @@ export class MiInstance {
 		default: false,
 	})
 	public isNSFW: boolean;
-	
+
+	@Column('boolean', {
+		default: false,
+	})
+	public rejectReports: boolean;
+
 	@Column('varchar', {
 		length: 16384, default: '',
 	})

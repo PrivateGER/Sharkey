@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<h1>{{ i18n.ts._auth.denied }}</h1>
 			</div>
 			<div v-if="state == 'accepted' && session">
-				<h1>{{ session.app.isAuthorized ? i18n.ts['already-authorized'] : i18n.ts.allowed }}</h1>
+				<h1>{{ session.app.isAuthorized ? i18n.ts['already-authorized'] : i18n.ts._auth.allowed }}</h1>
 				<p v-if="session.app.callbackUrl">
 					{{ i18n.ts._auth.callback }}
 					<MkEllipsis/>
@@ -83,7 +83,7 @@ function accepted() {
 		location.href = callbackUrl.toString();
 	} else if (session.value && session.value.app.callbackUrl) {
 		const url = new URL(session.value.app.callbackUrl);
-		if (['javascript:', 'file:', 'data:', 'mailto:', 'tel:'].includes(url.protocol)) throw new Error('invalid url');
+		if (['javascript:', 'file:', 'data:', 'mailto:', 'tel:', 'vbscript:'].includes(url.protocol)) throw new Error('invalid url');
 		location.href = `${session.value.app.callbackUrl}?token=${session.value.token}`;
 	}
 }
@@ -120,7 +120,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts._auth.shareAccessTitle,
-	icon: 'ph-squares-four ph-bold ph-lg',
+	icon: 'ti ti-apps',
 }));
 </script>
 

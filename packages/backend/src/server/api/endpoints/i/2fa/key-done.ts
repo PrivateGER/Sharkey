@@ -14,11 +14,18 @@ import type { UserProfilesRepository, UserSecurityKeysRepository } from '@/model
 import { WebAuthnService } from '@/core/WebAuthnService.js';
 import { ApiError } from '@/server/api/error.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
+import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,
 
 	secure: true,
+
+	limit: {
+		duration: ms('1hour'),
+		max: 10,
+		minInterval: ms('1sec'),
+	},
 
 	errors: {
 		incorrectPassword: {
@@ -97,10 +104,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 			}
 
 			const keyInfo = await this.webAuthnService.verifyRegistration(me.id, ps.credential);
+			const keyId = keyInfo.credentialID;
 
-			const credentialId = Buffer.from(keyInfo.credentialID).toString('base64url');
 			await this.userSecurityKeysRepository.insert({
-				id: credentialId,
+				id: keyId,
 				userId: me.id,
 				name: ps.name,
 				publicKey: Buffer.from(keyInfo.credentialPublicKey).toString('base64url'),
@@ -117,7 +124,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 			}));
 
 			return {
-				id: credentialId,
+				id: keyId,
 				name: ps.name,
 			};
 		});

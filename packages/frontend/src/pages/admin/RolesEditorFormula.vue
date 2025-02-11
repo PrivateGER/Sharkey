@@ -9,6 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkSelect v-model="type" :class="$style.typeSelect">
 			<option value="isLocal">{{ i18n.ts._role._condition.isLocal }}</option>
 			<option value="isRemote">{{ i18n.ts._role._condition.isRemote }}</option>
+			<option value="isSuspended">{{ i18n.ts._role._condition.isSuspended }}</option>
+			<option value="isLocked">{{ i18n.ts._role._condition.isLocked }}</option>
+			<option value="isBot">{{ i18n.ts._role._condition.isBot }}</option>
+			<option value="isCat">{{ i18n.ts._role._condition.isCat }}</option>
+			<option value="isExplorable">{{ i18n.ts._role._condition.isExplorable }}</option>
 			<option value="roleAssignedTo">{{ i18n.ts._role._condition.roleAssignedTo }}</option>
 			<option value="createdLessThan">{{ i18n.ts._role._condition.createdLessThan }}</option>
 			<option value="createdMoreThan">{{ i18n.ts._role._condition.createdMoreThan }}</option>
@@ -23,10 +28,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<option value="not">{{ i18n.ts._role._condition.not }}</option>
 		</MkSelect>
 		<button v-if="draggable" class="drag-handle _button" :class="$style.dragHandle">
-			<i class="ph-list ph-bold ph-lg-2"></i>
+			<i class="ti ti-menu-2"></i>
 		</button>
 		<button v-if="draggable" class="_button" :class="$style.remove" @click="removeSelf">
-			<i class="ph-x ph-bold ph-lg"></i>
+			<i class="ti ti-x"></i>
 		</button>
 	</div>
 
@@ -39,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</template>
 		</Sortable>
-		<MkButton rounded style="margin: 0 auto;" @click="addValue"><i class="ph-plus ph-bold ph-lg"></i> {{ i18n.ts.add }}</MkButton>
+		<MkButton rounded style="margin: 0 auto;" @click="addValue"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 	</div>
 
 	<div v-else-if="type === 'not'" :class="$style.item">
@@ -150,12 +155,12 @@ function removeSelf() {
 }
 
 .item {
-	border: solid 2px var(--divider);
-	border-radius: var(--radius);
+	border: solid 2px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 
 	&:hover {
-		border-color: var(--accent);
+		border-color: var(--MI_THEME-accent);
 	}
 }
 </style>

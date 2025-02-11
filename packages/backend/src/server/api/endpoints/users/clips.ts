@@ -24,6 +24,12 @@ export const meta = {
 			ref: 'Clip',
 		},
 	},
+
+	// 5 calls per second
+	limit: {
+		duration: 1000,
+		max: 5,
+	},
 } as const;
 
 export const paramDef = {

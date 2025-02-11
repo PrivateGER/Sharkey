@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<MkFolder :defaultOpen="false">
-				<template #icon><i class="ph-code ph-bold ph-lg"></i></template>
+				<template #icon><i class="ti ti-code"></i></template>
 				<template #label>{{ i18n.ts.editCode }}</template>
 
 				<div class="_gaps_m">
@@ -79,6 +79,8 @@ import tinycolor from 'tinycolor2';
 import { v4 as uuid } from 'uuid';
 import JSON5 from 'json5';
 
+import lightTheme from '@@/themes/_light.json5';
+import darkTheme from '@@/themes/_dark.json5';
 import MkButton from '@/components/MkButton.vue';
 import MkCodeEditor from '@/components/MkCodeEditor.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
@@ -86,9 +88,7 @@ import MkFolder from '@/components/MkFolder.vue';
 
 import { $i } from '@/account.js';
 import { Theme, applyTheme } from '@/scripts/theme.js';
-import lightTheme from '@/themes/_light.json5';
-import darkTheme from '@/themes/_dark.json5';
-import { host } from '@/config.js';
+import { host } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { ColdDeviceStorage, defaultStore } from '@/store.js';
 import { addTheme } from '@/theme-store.js';
@@ -212,7 +212,7 @@ watch(theme, apply, { deep: true });
 
 const headerActions = computed(() => [{
 	asFullButton: true,
-	icon: 'ph-check ph-bold ph-lg',
+	icon: 'ti ti-check',
 	text: i18n.ts.saveAs,
 	handler: saveAs,
 }]);
@@ -221,7 +221,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.themeEditor,
-	icon: 'ph-palette ph-bold ph-lg',
+	icon: 'ti ti-palette',
 }));
 </script>
 
@@ -236,7 +236,7 @@ definePageMetadata(() => ({
 				position: relative;
 				width: 64px;
 				height: 64px;
-				border-radius: var(--radius-sm);
+				border-radius: var(--MI-radius-sm);
 
 				> .preview {
 					position: absolute;
@@ -247,7 +247,7 @@ definePageMetadata(() => ({
 					margin: auto;
 					width: 42px;
 					height: 42px;
-					border-radius: var(--radius-xs);
+					border-radius: var(--MI-radius-xs);
 					box-shadow: 0 2px 4px rgb(0 0 0 / 30%);
 					transition: transform 0.15s ease;
 				}
@@ -259,14 +259,14 @@ definePageMetadata(() => ({
 				}
 
 				&.active {
-					box-shadow: 0 0 0 2px var(--divider) inset;
+					box-shadow: 0 0 0 2px var(--MI_THEME-divider) inset;
 				}
 
 				&.rounded {
-					border-radius: var(--radius-ellipse);
+					border-radius: var(--MI-radius-ellipse);
 
 					> .preview {
-						border-radius: var(--radius-ellipse);
+						border-radius: var(--MI-radius-ellipse);
 					}
 				}
 

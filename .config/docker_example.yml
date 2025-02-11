@@ -63,6 +63,7 @@
 #───┘ URL └─────────────────────────────────────────────────────
 
 # Final accessible URL seen by a user.
+# You can set url from an environment variable instead.
 url: https://example.tld/
 
 # ONCE YOU HAVE STARTED THE INSTANCE, DO NOT CHANGE THE
@@ -95,9 +96,11 @@ db:
   port: 5432
 
   # Database name
+  # You can set db from an environment variable instead.
   db: misskey
 
   # Auth
+  # You can set user and pass from environment variables instead.
   user: example-misskey-user
   pass: example-misskey-pass
 
@@ -160,10 +163,18 @@ redis:
 #  #prefix: example-prefix
 #  #db: 1
 
+#redisForReactions:
+#  host: redis
+#  port: 6379
+#  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  #pass: example-pass
+#  #prefix: example-prefix
+#  #db: 1
+
 #   ┌───────────────────────────┐
 #───┘ MeiliSearch configuration └─────────────────────────────
 
-# You can set scope to local (default value) or global 
+# You can set scope to local (default value) or global
 # (include notes from remote).
 
 #meilisearch:
@@ -192,6 +203,21 @@ redis:
 # ID SETTINGS AFTER THAT!
 
 id: 'aidx'
+
+#   ┌────────────────┐
+#───┘ Error tracking └──────────────────────────────────────────
+
+# Sentry is available for error tracking.
+# See the Sentry documentation for more details on options.
+
+#sentryForBackend:
+#  enableNodeProfiling: true
+#  options:
+#    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
+
+#sentryForFrontend:
+#  options:
+#    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
 
 #   ┌─────────────────────┐
 #───┘ Other configuration └─────────────────────────────────────
@@ -224,8 +250,18 @@ id: 'aidx'
 # IP address family used for outgoing request (ipv4, ipv6 or dual)
 #outgoingAddressFamily: ipv4
 
-# Amount of characters that can be used when writing notes (maximum: 8192, minimum: 1)
-maxNoteLength: 3000
+# Amount of characters that can be used when writing notes. Longer notes will be rejected. (minimum: 1)
+#maxNoteLength: 3000
+# Amount of characters that will be saved for remote notes. Longer notes will be truncated to this length. (minimum: 1)
+#maxRemoteNoteLength: 100000
+# Amount of characters that can be used when writing content warnings. Longer warnings will be rejected. (minimum: 1)
+#maxCwLength: 500
+# Amount of characters that will be saved for remote content warnings. Longer warnings will be truncated to this length. (minimum: 1)
+#maxRemoteCwLength: 5000
+# Amount of characters that can be used when writing media descriptions (alt text). Longer descriptions will be rejected. (minimum: 1)
+#maxAltTextLength: 20000
+# Amount of characters that will be saved for remote media descriptions (alt text). Longer descriptions will be truncated to this length. (minimum: 1)
+#maxRemoteAltTextLength: 100000
 
 # Proxy for HTTP/HTTPS
 #proxy: http://127.0.0.1:3128
@@ -255,13 +291,18 @@ proxyRemoteFiles: true
 #   https://example.com/thumbnail.webp?thumbnail=1&url=https%3A%2F%2Fstorage.example.com%2Fpath%2Fto%2Fvideo.mp4
 #videoThumbnailGenerator: https://example.com
 
-# Sign to ActivityPub GET request (default: true)
+# Sign outgoing ActivityPub GET request (default: true)
 signToActivityPubGet: true
+# Sign outgoing ActivityPub Activities (default: true)
+# Linked Data signatures are cryptographic signatures attached to each activity to provide proof of authenticity.
+# When using authorized fetch, this is often undesired as any signed activity can be forwarded to a blocked instance by relays and other instances.
+# This setting allows admins to disable LD signatures for increased privacy, at the expense of fewer relayed activities and additional inbound fetch (GET) requests.
+attachLdSignatureForRelays: true
 # check that inbound ActivityPub GET requests are signed ("authorized fetch")
 checkActivityPubGetSignature: false
 
 # For security reasons, uploading attachments from the intranet is prohibited,
-# but exceptions can be made from the following settings. Default value is "undefined". 
+# but exceptions can be made from the following settings. Default value is "undefined".
 # Read changelog to learn more (Improvements of 12.90.0 (2021/09/04)).
 #allowedPrivateNetworks: [
 #  '127.0.0.1/32'
@@ -271,3 +312,8 @@ checkActivityPubGetSignature: false
 
 # Upload or download file size limits (bytes)
 #maxFileSize: 262144000
+
+# CHMod-style permission bits to apply to uploaded files.
+# Permission bits are specified as a base-8 string representing User/Group/Other permissions.
+# This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
+#filePermissionBits: '644'

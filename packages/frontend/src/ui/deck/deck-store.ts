@@ -4,11 +4,13 @@
  */
 
 import { throttle } from 'throttle-debounce';
-import { markRaw } from 'vue';
+import { computed, markRaw, Ref } from 'vue';
 import { notificationTypes } from 'misskey-js';
+import type { BasicTimelineType } from '@/timelines.js';
 import { Storage } from '@/pizzax.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { deepClone } from '@/scripts/clone.js';
+import { SoundStore } from '@/store.js';
 
 type ColumnWidget = {
 	name: string;
@@ -16,9 +18,25 @@ type ColumnWidget = {
 	data: Record<string, any>;
 };
 
+export const columnTypes = [
+	'main',
+	'widgets',
+	'notifications',
+	'tl',
+	'antenna',
+	'list',
+	'channel',
+	'mentions',
+	'direct',
+	'roleTimeline',
+	'following',
+] as const;
+
+export type ColumnType = typeof columnTypes[number];
+
 export type Column = {
 	id: string;
-	type: 'main' | 'widgets' | 'notifications' | 'tl' | 'antenna' | 'channel' | 'list' | 'mentions' | 'direct';
+	type: ColumnType;
 	name: string | null;
 	width: number;
 	widgets?: ColumnWidget[];
@@ -29,10 +47,12 @@ export type Column = {
 	channelId?: string;
 	roleId?: string;
 	excludeTypes?: typeof notificationTypes[number][];
-	tl?: 'home' | 'local' | 'social' | 'global' | 'bubble';
+	tl?: BasicTimelineType;
 	withRenotes?: boolean;
 	withReplies?: boolean;
+	withSensitive?: boolean;
 	onlyFiles?: boolean;
+	soundSetting: SoundStore;
 };
 
 export const deckStore = markRaw(new Storage('deck', {
@@ -94,8 +114,8 @@ export const loadDeck = async () => {
 };
 
 // TODO: deckがloadされていない状態でsaveすると意図せず上書きが発生するので対策する
-export const saveDeck = throttle(1000, () => {
-	misskeyApi('i/registry/set', {
+export const saveDeck = throttle(1000, async () => {
+	await misskeyApi('i/registry/set', {
 		scope: ['client', 'deck', 'profiles'],
 		key: deckStore.state.profile,
 		value: {
@@ -263,7 +283,7 @@ export function removeColumnWidget(id: Column['id'], widget: ColumnWidget) {
 	const columns = deepClone(deckStore.state.columns);
 	const columnIndex = deckStore.state.columns.findIndex(c => c.id === id);
 	const column = deepClone(deckStore.state.columns[columnIndex]);
-	if (column == null) return;
+	if (column == null || column.widgets == null) return;
 	column.widgets = column.widgets.filter(w => w.id !== widget.id);
 	columns[columnIndex] = column;
 	deckStore.set('columns', columns);
@@ -285,7 +305,7 @@ export function updateColumnWidget(id: Column['id'], widgetId: string, widgetDat
 	const columns = deepClone(deckStore.state.columns);
 	const columnIndex = deckStore.state.columns.findIndex(c => c.id === id);
 	const column = deepClone(deckStore.state.columns[columnIndex]);
-	if (column == null) return;
+	if (column == null || column.widgets == null) return;
 	column.widgets = column.widgets.map(w => w.id === widgetId ? {
 		...w,
 		data: widgetData,
@@ -295,7 +315,7 @@ export function updateColumnWidget(id: Column['id'], widgetId: string, widgetDat
 	saveDeck();
 }
 
-export function updateColumn(id: Column['id'], column: Partial<Column>) {
+export async function updateColumn<TColumn>(id: Column['id'], column: Partial<TColumn>) {
 	const columns = deepClone(deckStore.state.columns);
 	const columnIndex = deckStore.state.columns.findIndex(c => c.id === id);
 	const currentColumn = deepClone(deckStore.state.columns[columnIndex]);
@@ -304,6 +324,18 @@ export function updateColumn(id: Column['id'], column: Partial<Column>) {
 		currentColumn[k] = v;
 	}
 	columns[columnIndex] = currentColumn;
-	deckStore.set('columns', columns);
-	saveDeck();
+	await Promise.all([
+		deckStore.set('columns', columns),
+		saveDeck(),
+	]);
+}
+
+export function getColumn<TColumn extends Column>(id: Column['id']): TColumn {
+	return deckStore.state.columns.find(c => c.id === id) as TColumn;
+}
+
+export function getReactiveColumn<TColumn extends Column>(id: Column['id']): Ref<TColumn> {
+	return computed(() => {
+		return deckStore.reactiveState.columns.value.find(c => c.id === id) as TColumn;
+	});
 }

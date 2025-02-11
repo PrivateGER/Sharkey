@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="isPullStart" :class="$style.frame" :style="`--frame-min-height: ${pullDistance / (PULL_BRAKE_BASE + (pullDistance / PULL_BRAKE_FACTOR))}px;`">
 		<div :class="$style.frameContent">
 			<MkLoading v-if="isRefreshing" :class="$style.loader" :em="true"/>
-			<i v-else class="ph-arrow-line-down ph-bold ph-lg" :class="[$style.icon, { [$style.refresh]: isPullEnd }]"></i>
+			<i v-else class="ti ti-arrow-bar-to-down" :class="[$style.icon, { [$style.refresh]: isPullEnd }]"></i>
 			<div :class="$style.text">
 				<template v-if="isPullEnd">{{ i18n.ts.releaseToRefresh }}</template>
 				<template v-else-if="isRefreshing">{{ i18n.ts.refreshing }}</template>
@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { i18n } from '@/i18n.js';
-import { getScrollContainer } from '@/scripts/scroll.js';
+import { getScrollContainer } from '@@/js/scroll.js';
 import { isHorizontalSwipeSwiping } from '@/scripts/touch.js';
 
 const SCROLL_STOP = 10;

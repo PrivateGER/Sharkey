@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-show="loaded" :class="$style.root">
 		<img :src="serverErrorImageUrl" class="_ghost" :class="$style.img"/>
 		<div class="_gaps">
-			<div><b><i class="ph-warning ph-bold ph-lg"></i> {{ i18n.ts.pageLoadError }}</b></div>
+			<div><b><i class="ti ti-alert-triangle"></i> {{ i18n.ts.pageLoadError }}</b></div>
 			<div v-if="meta && (version === meta.version)">{{ i18n.ts.pageLoadErrorDescription }}</div>
 			<div v-else-if="serverIsDead">{{ i18n.ts.serverIsDead }}</div>
 			<template v-else>
@@ -29,7 +29,7 @@ import { ref, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkLink from '@/components/MkLink.vue';
-import { version } from '@/config.js';
+import { version } from '@@/js/config.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { unisonReload } from '@/scripts/unison-reload.js';
 import { i18n } from '@/i18n.js';
@@ -69,7 +69,7 @@ const headerTabs = computed(() => []);
 
 definePageMetadata(() => ({
 	title: i18n.ts.error,
-	icon: 'ph-warning ph-bold ph-lg',
+	icon: 'ti ti-alert-triangle',
 }));
 </script>
 
@@ -83,6 +83,6 @@ definePageMetadata(() => ({
 	vertical-align: bottom;
 	height: 128px;
 	margin-bottom: 24px;
-	border-radius: var(--radius-md);
+	border-radius: var(--MI-radius-md);
 }
 </style>

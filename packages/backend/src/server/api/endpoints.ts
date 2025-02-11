@@ -5,9 +5,20 @@
 
 import { permissions } from 'misskey-js';
 import type { KeyOf, Schema } from '@/misc/json-schema.js';
+import type { RateLimit } from '@/misc/rate-limit-utils.js';
 
-import * as ep___admin_meta from './endpoints/admin/meta.js';
+import * as ep___admin_abuseReport_notificationRecipient_list
+	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/list.js';
+import * as ep___admin_abuseReport_notificationRecipient_show
+	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/show.js';
+import * as ep___admin_abuseReport_notificationRecipient_create
+	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/create.js';
+import * as ep___admin_abuseReport_notificationRecipient_update
+	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/update.js';
+import * as ep___admin_abuseReport_notificationRecipient_delete
+	from '@/server/api/endpoints/admin/abuse-report/notification-recipient/delete.js';
 import * as ep___admin_abuseUserReports from './endpoints/admin/abuse-user-reports.js';
+import * as ep___admin_meta from './endpoints/admin/meta.js';
 import * as ep___admin_accounts_create from './endpoints/admin/accounts/create.js';
 import * as ep___admin_accounts_delete from './endpoints/admin/accounts/delete.js';
 import * as ep___admin_accounts_findByEmail from './endpoints/admin/accounts/find-by-email.js';
@@ -44,7 +55,8 @@ import * as ep___admin_emoji_setCategoryBulk from './endpoints/admin/emoji/set-c
 import * as ep___admin_emoji_setLicenseBulk from './endpoints/admin/emoji/set-license-bulk.js';
 import * as ep___admin_emoji_update from './endpoints/admin/emoji/update.js';
 import * as ep___admin_federation_deleteAllFiles from './endpoints/admin/federation/delete-all-files.js';
-import * as ep___admin_federation_refreshRemoteInstanceMetadata from './endpoints/admin/federation/refresh-remote-instance-metadata.js';
+import * as ep___admin_federation_refreshRemoteInstanceMetadata
+	from './endpoints/admin/federation/refresh-remote-instance-metadata.js';
 import * as ep___admin_federation_removeAllFollowing from './endpoints/admin/federation/remove-all-following.js';
 import * as ep___admin_federation_updateInstance from './endpoints/admin/federation/update-instance.js';
 import * as ep___admin_getIndexStats from './endpoints/admin/get-index-stats.js';
@@ -63,6 +75,8 @@ import * as ep___admin_relays_list from './endpoints/admin/relays/list.js';
 import * as ep___admin_relays_remove from './endpoints/admin/relays/remove.js';
 import * as ep___admin_resetPassword from './endpoints/admin/reset-password.js';
 import * as ep___admin_resolveAbuseUserReport from './endpoints/admin/resolve-abuse-user-report.js';
+import * as ep___admin_forwardAbuseUserReport from './endpoints/admin/forward-abuse-user-report.js';
+import * as ep___admin_updateAbuseUserReport from './endpoints/admin/update-abuse-user-report.js';
 import * as ep___admin_sendEmail from './endpoints/admin/send-email.js';
 import * as ep___admin_serverInfo from './endpoints/admin/server-info.js';
 import * as ep___admin_showModerationLogs from './endpoints/admin/show-moderation-logs.js';
@@ -74,6 +88,7 @@ import * as ep___admin_silenceUser from './endpoints/admin/silence-user.js';
 import * as ep___admin_unsilenceUser from './endpoints/admin/unsilence-user.js';
 import * as ep___admin_suspendUser from './endpoints/admin/suspend-user.js';
 import * as ep___admin_approveUser from './endpoints/admin/approve-user.js';
+import * as ep___admin_declineUser from './endpoints/admin/decline-user.js';
 import * as ep___admin_unsuspendUser from './endpoints/admin/unsuspend-user.js';
 import * as ep___admin_updateMeta from './endpoints/admin/update-meta.js';
 import * as ep___admin_deleteAccount from './endpoints/admin/delete-account.js';
@@ -87,7 +102,14 @@ import * as ep___admin_roles_assign from './endpoints/admin/roles/assign.js';
 import * as ep___admin_roles_unassign from './endpoints/admin/roles/unassign.js';
 import * as ep___admin_roles_updateDefaultPolicies from './endpoints/admin/roles/update-default-policies.js';
 import * as ep___admin_roles_users from './endpoints/admin/roles/users.js';
+import * as ep___admin_systemWebhook_create from './endpoints/admin/system-webhook/create.js';
+import * as ep___admin_systemWebhook_delete from './endpoints/admin/system-webhook/delete.js';
+import * as ep___admin_systemWebhook_list from './endpoints/admin/system-webhook/list.js';
+import * as ep___admin_systemWebhook_show from './endpoints/admin/system-webhook/show.js';
+import * as ep___admin_systemWebhook_update from './endpoints/admin/system-webhook/update.js';
+import * as ep___admin_systemWebhook_test from './endpoints/admin/system-webhook/test.js';
 import * as ep___announcements from './endpoints/announcements.js';
+import * as ep___announcements_show from './endpoints/announcements/show.js';
 import * as ep___antennas_create from './endpoints/antennas/create.js';
 import * as ep___antennas_delete from './endpoints/antennas/delete.js';
 import * as ep___antennas_list from './endpoints/antennas/list.js';
@@ -150,6 +172,7 @@ import * as ep___drive_files_delete from './endpoints/drive/files/delete.js';
 import * as ep___drive_files_findByHash from './endpoints/drive/files/find-by-hash.js';
 import * as ep___drive_files_find from './endpoints/drive/files/find.js';
 import * as ep___drive_files_show from './endpoints/drive/files/show.js';
+import * as ep___drive_files_generate_alt from './endpoints/drive/files/generate-alt.js';
 import * as ep___drive_files_update from './endpoints/drive/files/update.js';
 import * as ep___drive_files_uploadFromUrl from './endpoints/drive/files/upload-from-url.js';
 import * as ep___drive_folders from './endpoints/drive/folders.js';
@@ -178,6 +201,7 @@ import * as ep___following_invalidate from './endpoints/following/invalidate.js'
 import * as ep___following_requests_accept from './endpoints/following/requests/accept.js';
 import * as ep___following_requests_cancel from './endpoints/following/requests/cancel.js';
 import * as ep___following_requests_list from './endpoints/following/requests/list.js';
+import * as ep___following_requests_sent from './endpoints/following/requests/sent.js';
 import * as ep___following_requests_reject from './endpoints/following/requests/reject.js';
 import * as ep___gallery_featured from './endpoints/gallery/featured.js';
 import * as ep___gallery_popular from './endpoints/gallery/popular.js';
@@ -255,6 +279,7 @@ import * as ep___i_webhooks_show from './endpoints/i/webhooks/show.js';
 import * as ep___i_webhooks_list from './endpoints/i/webhooks/list.js';
 import * as ep___i_webhooks_update from './endpoints/i/webhooks/update.js';
 import * as ep___i_webhooks_delete from './endpoints/i/webhooks/delete.js';
+import * as ep___i_webhooks_test from './endpoints/i/webhooks/test.js';
 import * as ep___invite_create from './endpoints/invite/create.js';
 import * as ep___invite_delete from './endpoints/invite/delete.js';
 import * as ep___invite_list from './endpoints/invite/list.js';
@@ -279,6 +304,7 @@ import * as ep___notes_delete from './endpoints/notes/delete.js';
 import * as ep___notes_favorites_create from './endpoints/notes/favorites/create.js';
 import * as ep___notes_favorites_delete from './endpoints/notes/favorites/delete.js';
 import * as ep___notes_featured from './endpoints/notes/featured.js';
+import * as ep___notes_following from './endpoints/notes/following.js';
 import * as ep___notes_globalTimeline from './endpoints/notes/global-timeline.js';
 import * as ep___notes_bubbleTimeline from './endpoints/notes/bubble-timeline.js';
 import * as ep___notes_hybridTimeline from './endpoints/notes/hybrid-timeline.js';
@@ -286,12 +312,16 @@ import * as ep___notes_localTimeline from './endpoints/notes/local-timeline.js';
 import * as ep___notes_mentions from './endpoints/notes/mentions.js';
 import * as ep___notes_polls_recommendation from './endpoints/notes/polls/recommendation.js';
 import * as ep___notes_polls_vote from './endpoints/notes/polls/vote.js';
+import * as ep___notes_polls_refresh from './endpoints/notes/polls/refresh.js';
 import * as ep___notes_reactions from './endpoints/notes/reactions.js';
 import * as ep___notes_reactions_create from './endpoints/notes/reactions/create.js';
 import * as ep___notes_reactions_delete from './endpoints/notes/reactions/delete.js';
 import * as ep___notes_like from './endpoints/notes/like.js';
 import * as ep___notes_renotes from './endpoints/notes/renotes.js';
 import * as ep___notes_replies from './endpoints/notes/replies.js';
+import * as ep___notes_schedule_create from './endpoints/notes/schedule/create.js';
+import * as ep___notes_schedule_delete from './endpoints/notes/schedule/delete.js';
+import * as ep___notes_schedule_list from './endpoints/notes/schedule/list.js';
 import * as ep___notes_searchByTag from './endpoints/notes/search-by-tag.js';
 import * as ep___notes_search from './endpoints/notes/search.js';
 import * as ep___notes_show from './endpoints/notes/show.js';
@@ -391,6 +421,11 @@ import * as ep___reversi_verify from './endpoints/reversi/verify.js';
 const eps = [
 	['admin/meta', ep___admin_meta],
 	['admin/abuse-user-reports', ep___admin_abuseUserReports],
+	['admin/abuse-report/notification-recipient/list', ep___admin_abuseReport_notificationRecipient_list],
+	['admin/abuse-report/notification-recipient/show', ep___admin_abuseReport_notificationRecipient_show],
+	['admin/abuse-report/notification-recipient/create', ep___admin_abuseReport_notificationRecipient_create],
+	['admin/abuse-report/notification-recipient/update', ep___admin_abuseReport_notificationRecipient_update],
+	['admin/abuse-report/notification-recipient/delete', ep___admin_abuseReport_notificationRecipient_delete],
 	['admin/accounts/create', ep___admin_accounts_create],
 	['admin/accounts/delete', ep___admin_accounts_delete],
 	['admin/accounts/find-by-email', ep___admin_accounts_findByEmail],
@@ -446,6 +481,8 @@ const eps = [
 	['admin/relays/remove', ep___admin_relays_remove],
 	['admin/reset-password', ep___admin_resetPassword],
 	['admin/resolve-abuse-user-report', ep___admin_resolveAbuseUserReport],
+	['admin/forward-abuse-user-report', ep___admin_forwardAbuseUserReport],
+	['admin/update-abuse-user-report', ep___admin_updateAbuseUserReport],
 	['admin/send-email', ep___admin_sendEmail],
 	['admin/server-info', ep___admin_serverInfo],
 	['admin/show-moderation-logs', ep___admin_showModerationLogs],
@@ -457,6 +494,7 @@ const eps = [
 	['admin/unsilence-user', ep___admin_unsilenceUser],
 	['admin/suspend-user', ep___admin_suspendUser],
 	['admin/approve-user', ep___admin_approveUser],
+	['admin/decline-user', ep___admin_declineUser],
 	['admin/unsuspend-user', ep___admin_unsuspendUser],
 	['admin/update-meta', ep___admin_updateMeta],
 	['admin/delete-account', ep___admin_deleteAccount],
@@ -470,7 +508,14 @@ const eps = [
 	['admin/roles/unassign', ep___admin_roles_unassign],
 	['admin/roles/update-default-policies', ep___admin_roles_updateDefaultPolicies],
 	['admin/roles/users', ep___admin_roles_users],
+	['admin/system-webhook/create', ep___admin_systemWebhook_create],
+	['admin/system-webhook/delete', ep___admin_systemWebhook_delete],
+	['admin/system-webhook/list', ep___admin_systemWebhook_list],
+	['admin/system-webhook/show', ep___admin_systemWebhook_show],
+	['admin/system-webhook/update', ep___admin_systemWebhook_update],
+	['admin/system-webhook/test', ep___admin_systemWebhook_test],
 	['announcements', ep___announcements],
+	['announcements/show', ep___announcements_show],
 	['antennas/create', ep___antennas_create],
 	['antennas/delete', ep___antennas_delete],
 	['antennas/list', ep___antennas_list],
@@ -533,6 +578,7 @@ const eps = [
 	['drive/files/find-by-hash', ep___drive_files_findByHash],
 	['drive/files/find', ep___drive_files_find],
 	['drive/files/show', ep___drive_files_show],
+	['drive/files/generate-alt-text', ep___drive_files_generate_alt],
 	['drive/files/update', ep___drive_files_update],
 	['drive/files/upload-from-url', ep___drive_files_uploadFromUrl],
 	['drive/folders', ep___drive_folders],
@@ -561,6 +607,7 @@ const eps = [
 	['following/requests/accept', ep___following_requests_accept],
 	['following/requests/cancel', ep___following_requests_cancel],
 	['following/requests/list', ep___following_requests_list],
+	['following/requests/sent', ep___following_requests_sent],
 	['following/requests/reject', ep___following_requests_reject],
 	['gallery/featured', ep___gallery_featured],
 	['gallery/popular', ep___gallery_popular],
@@ -638,6 +685,7 @@ const eps = [
 	['i/webhooks/show', ep___i_webhooks_show],
 	['i/webhooks/update', ep___i_webhooks_update],
 	['i/webhooks/delete', ep___i_webhooks_delete],
+	['i/webhooks/test', ep___i_webhooks_test],
 	['invite/create', ep___invite_create],
 	['invite/delete', ep___invite_delete],
 	['invite/list', ep___invite_list],
@@ -662,6 +710,7 @@ const eps = [
 	['notes/favorites/create', ep___notes_favorites_create],
 	['notes/favorites/delete', ep___notes_favorites_delete],
 	['notes/featured', ep___notes_featured],
+	['notes/following', ep___notes_following],
 	['notes/global-timeline', ep___notes_globalTimeline],
 	['notes/bubble-timeline', ep___notes_bubbleTimeline],
 	['notes/hybrid-timeline', ep___notes_hybridTimeline],
@@ -669,12 +718,16 @@ const eps = [
 	['notes/mentions', ep___notes_mentions],
 	['notes/polls/recommendation', ep___notes_polls_recommendation],
 	['notes/polls/vote', ep___notes_polls_vote],
+	['notes/polls/refresh', ep___notes_polls_refresh],
 	['notes/reactions', ep___notes_reactions],
 	['notes/reactions/create', ep___notes_reactions_create],
 	['notes/reactions/delete', ep___notes_reactions_delete],
 	['notes/like', ep___notes_like],
 	['notes/renotes', ep___notes_renotes],
 	['notes/replies', ep___notes_replies],
+	['notes/schedule/create', ep___notes_schedule_create],
+	['notes/schedule/delete', ep___notes_schedule_delete],
+	['notes/schedule/list', ep___notes_schedule_list],
 	['notes/search-by-tag', ep___notes_searchByTag],
 	['notes/search', ep___notes_search],
 	['notes/show', ep___notes_show],
@@ -815,30 +868,7 @@ interface IEndpointMetaBase {
 	 * エンドポイントのリミテーションに関するやつ
 	 * 省略した場合はリミテーションは無いものとして解釈されます。
 	 */
-	readonly limit?: {
-
-		/**
-		 * 複数のエンドポイントでリミットを共有したい場合に指定するキー
-		 */
-		readonly key?: string;
-
-		/**
-		 * リミットを適用する期間(ms)
-		 * このプロパティを設定する場合、max プロパティも設定する必要があります。
-		 */
-		readonly duration?: number;
-
-		/**
-		 * durationで指定した期間内にいくつまでリクエストできるのか
-		 * このプロパティを設定する場合、duration プロパティも設定する必要があります。
-		 */
-		readonly max?: number;
-
-		/**
-		 * 最低でもどれくらいの間隔を開けてリクエストしなければならないか(ms)
-		 */
-		readonly minInterval?: number;
-	};
+	readonly limit?: Readonly<RateLimit>;
 
 	/**
 	 * ファイルの添付を必要とするか否か
@@ -897,8 +927,12 @@ export interface IEndpoint {
 const endpoints: IEndpoint[] = (eps as [string, any]).map(([name, ep]) => {
 	return {
 		name: name,
-		get meta() { return ep.meta ?? {}; },
-		get params() { return ep.paramDef; },
+		get meta() {
+			return ep.meta ?? {};
+		},
+		get params() {
+			return ep.paramDef;
+		},
 	};
 });
 

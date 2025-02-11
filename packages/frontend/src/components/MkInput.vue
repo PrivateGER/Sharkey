@@ -22,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:autocomplete="autocomplete"
 			:autocapitalize="autocapitalize"
 			:spellcheck="spellcheck"
+			:inputmode="inputmode"
 			:step="step"
 			:list="id"
 			:min="min"
@@ -38,21 +39,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 
-	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ph-check ph-bold ph-lg"></i> {{ i18n.ts.save }}</MkButton>
+	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, nextTick, ref, shallowRef, watch, computed, toRefs } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, shallowRef, watch, computed, toRefs, InputHTMLAttributes } from 'vue';
 import { debounce } from 'throttle-debounce';
 import MkButton from '@/components/MkButton.vue';
-import { useInterval } from '@/scripts/use-interval.js';
+import { useInterval } from '@@/js/use-interval.js';
 import { i18n } from '@/i18n.js';
 import { Autocomplete, SuggestionType } from '@/scripts/autocomplete.js';
 
 const props = defineProps<{
 	modelValue: string | number | null;
-	type?: 'text' | 'number' | 'password' | 'email' | 'url' | 'date' | 'time' | 'search' | 'datetime-local';
+	type?: InputHTMLAttributes['type'];
 	required?: boolean;
 	readonly?: boolean;
 	disabled?: boolean;
@@ -63,7 +64,8 @@ const props = defineProps<{
 	mfmAutocomplete?: boolean | SuggestionType[],
 	autocapitalize?: string;
 	spellcheck?: boolean;
-	step?: any;
+	inputmode?: InputHTMLAttributes['inputmode'];
+	step?: InputHTMLAttributes['step'];
 	datalist?: string[];
 	min?: number;
 	max?: number | string;
@@ -77,7 +79,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(ev: 'change', _ev: KeyboardEvent): void;
 	(ev: 'keydown', _ev: KeyboardEvent): void;
-	(ev: 'enter'): void;
+	(ev: 'enter', _ev: KeyboardEvent): void;
 	(ev: 'update:modelValue', value: string | number): void;
 }>();
 
@@ -109,7 +111,7 @@ const onKeydown = (ev: KeyboardEvent) => {
 	emit('keydown', ev);
 
 	if (ev.code === 'Enter') {
-		emit('enter');
+		emit('enter', ev);
 	}
 };
 
@@ -197,7 +199,7 @@ defineExpose({
 .caption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: var(--fgTransparentWeak);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
@@ -214,8 +216,8 @@ defineExpose({
 
 	&.focused {
 		> .inputCore {
-			border-color: var(--accent) !important;
-			//box-shadow: 0 0 0 4px var(--focus);
+			border-color: var(--MI_THEME-accent) !important;
+			//box-shadow: 0 0 0 4px var(--MI_THEME-focus);
 		}
 	}
 
@@ -240,17 +242,17 @@ defineExpose({
 	font: inherit;
 	font-weight: normal;
 	font-size: 1em;
-	color: var(--fg);
-	background: var(--panel);
-	border: solid 1px var(--panel);
-	border-radius: var(--radius-sm);
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	border: solid 1px var(--MI_THEME-panel);
+	border-radius: var(--MI-radius-sm);
 	outline: none;
 	box-shadow: none;
 	box-sizing: border-box;
 	transition: border-color 0.1s ease-out;
 
 	&:hover {
-		border-color: var(--inputBorderHover) !important;
+		border-color: var(--MI_THEME-inputBorderHover) !important;
 	}
 }
 

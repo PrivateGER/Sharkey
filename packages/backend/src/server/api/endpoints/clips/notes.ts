@@ -35,6 +35,12 @@ export const meta = {
 			ref: 'Note',
 		},
 	},
+
+	// 10 calls per 5 seconds
+	limit: {
+		duration: 1000 * 5,
+		max: 10,
+	},
 } as const;
 
 export const paramDef = {
@@ -86,7 +92,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.andWhere('clipNote.clipId = :clipId', { clipId: clip.id });
 
 			if (me) {
-				this.queryService.generateVisibilityQuery(query, me);
+				await this.queryService.generateVisibilityQuery(query, me);
 				this.queryService.generateMutedUserQuery(query, me);
 				this.queryService.generateBlockedUserQuery(query, me);
 			}

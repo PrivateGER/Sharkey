@@ -4,6 +4,7 @@
  */
 
 import * as fs from 'node:fs';
+import { copyFile, unlink, writeFile, chmod } from 'node:fs/promises';
 import * as Path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -23,6 +24,8 @@ export class InternalStorageService {
 		@Inject(DI.config)
 		private config: Config,
 	) {
+		// No one should erase the working directory *while the server is running*.
+		fs.mkdirSync(path, { recursive: true });
 	}
 
 	@bindThis
@@ -36,21 +39,27 @@ export class InternalStorageService {
 	}
 
 	@bindThis
-	public saveFromPath(key: string, srcPath: string) {
-		fs.mkdirSync(path, { recursive: true });
-		fs.copyFileSync(srcPath, this.resolvePath(key));
+	public async saveFromPath(key: string, srcPath: string): Promise<string> {
+		await copyFile(srcPath, this.resolvePath(key));
+		return await this.finalizeSavedFile(key);
+	}
+
+	@bindThis
+	public async saveFromBuffer(key: string, data: Buffer): Promise<string> {
+		await writeFile(this.resolvePath(key), data);
+		return await this.finalizeSavedFile(key);
+	}
+
+	private async finalizeSavedFile(key: string): Promise<string> {
+		if (this.config.filePermissionBits) {
+			const path = this.resolvePath(key);
+			await chmod(path, this.config.filePermissionBits);
+		}
 		return `${this.config.url}/files/${key}`;
 	}
 
 	@bindThis
-	public saveFromBuffer(key: string, data: Buffer) {
-		fs.mkdirSync(path, { recursive: true });
-		fs.writeFileSync(this.resolvePath(key), data);
-		return `${this.config.url}/files/${key}`;
-	}
-
-	@bindThis
-	public del(key: string) {
-		fs.unlink(this.resolvePath(key), () => {});
+	public async del(key: string): Promise<void> {
+		await unlink(this.resolvePath(key));
 	}
 }

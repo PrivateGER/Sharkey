@@ -9,14 +9,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 		<span v-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
 		<MkA v-if="note.replyId" :class="$style.reply" :to="`/notes/${note.replyId}`" @click.stop><i class="ph-arrow-bend-left-up ph-bold ph-lg"></i></MkA>
-		<Mfm v-if="note.text" :text="note.text" :author="note.user" :nyaize="'respect'" :isAnim="allowAnim" :emojiUrls="note.emojis"/>
+		<Mfm v-if="note.text" :text="note.text" :isBlock="true" :author="note.user" :nyaize="'respect'" :isAnim="allowAnim" :emojiUrls="note.emojis"/>
 		<MkButton v-if="!allowAnim && animated && !hideFiles" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 		<MkButton v-else-if="!defaultStore.state.animatedMfm && allowAnim && animated && !hideFiles" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
 		<div v-if="note.text && translating || note.text && translation" :class="$style.translation">
 			<MkLoading v-if="translating" mini/>
 			<div v-else>
 				<b>{{ i18n.tsx.translatedFrom({ x: translation.sourceLang }) }}: </b>
-				<Mfm :text="translation.text" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
+				<Mfm :text="translation.text" :isBlock="true" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
 			</div>
 		</div>
 		<MkA v-if="note.renoteId" :class="$style.rp" :to="`/notes/${note.renoteId}`" @click.stop>RN: ...</MkA>
@@ -46,7 +46,7 @@ import MkMediaList from '@/components/MkMediaList.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
-import { shouldCollapsed } from '@/scripts/collapsed.js';
+import { shouldCollapsed } from '@@/js/collapsed.js';
 import { defaultStore } from '@/store.js';
 import { useRouter } from '@/router/supplier.js';
 import * as os from '@/os.js';
@@ -110,20 +110,20 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 			left: 0;
 			width: 100%;
 			height: 64px;
-			//background: linear-gradient(0deg, var(--panel), var(--X15));
+			// background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
 
 			> .fadeLabel {
 				display: inline-block;
-				background: var(--panel);
+				background: var(--MI_THEME-panel);
 				padding: 6px 10px;
 				font-size: 0.8em;
-				border-radius: var(--radius-ellipse);
+				border-radius: var(--MI-radius-ellipse);
 				box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 			}
 
 			&:hover {
 				> .fadeLabel {
-					background: var(--panelHighlight);
+					background: var(--MI_THEME-panelHighlight);
 				}
 			}
 		}
@@ -132,18 +132,18 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 
 .reply {
 	margin-right: 6px;
-	color: var(--accent);
+	color: var(--MI_THEME-accent);
 }
 
 .rp {
 	margin-left: 4px;
 	font-style: oblique;
-	color: var(--renote);
+	color: var(--MI_THEME-renote);
 }
 
 .translation {
-	border: solid 0.5px var(--divider);
-	border-radius: var(--radius);
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
 }
@@ -152,7 +152,7 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 	width: 100%;
 	margin-top: 14px;
 	position: sticky;
-	bottom: calc(var(--stickyBottom, 0px) - 100px);
+	bottom: calc(var(--MI-stickyBottom, 0px) - 100px);
 }
 
 .playMFMButton {
@@ -161,10 +161,10 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 
 .showLessLabel {
 	display: inline-block;
-	background: var(--popup);
+	background: var(--MI_THEME-popup);
 	padding: 6px 10px;
 	font-size: 0.8em;
-	border-radius: var(--radius-ellipse);
+	border-radius: var(--MI-radius-ellipse);
 	box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 }
 

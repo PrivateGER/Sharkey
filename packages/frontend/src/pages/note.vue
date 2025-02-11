@@ -16,28 +16,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<div class="_margin">
 						<div v-if="!showNext" class="_buttons" :class="$style.loadNext">
-							<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showNext = 'channel'"><i class="ph-caret-up ph-bold ph-lg"></i> <i class="ph-television-simple ph-bold ph-lg"></i></MkButton>
-							<MkButton rounded :class="$style.loadButton" @click="showNext = 'user'"><i class="ph-caret-up ph-bold ph-lg"></i> <i class="ph-user ph-bold ph-lg"></i></MkButton>
+							<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showNext = 'channel'"><i class="ti ti-chevron-up"></i> <i class="ti ti-device-tv"></i></MkButton>
+							<MkButton rounded :class="$style.loadButton" @click="showNext = 'user'"><i class="ti ti-chevron-up"></i> <i class="ti ti-user"></i></MkButton>
 						</div>
-						<div v-if="defaultStore.state.noteDesign === 'misskey'" class="_margin _gaps_s">
+						<div class="_margin _gaps_s">
 							<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
-							<MkNoteDetailed :key="note.id" v-model:note="note" :class="$style.note" :expandAllCws="expandAllCws"/>
-						</div>
-						<div v-else-if="defaultStore.state.noteDesign === 'sharkey'" class="_margin _gaps_s">
-							<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
-							<SkNoteDetailed :key="note.id" v-model:note="note" :class="$style.note" :expandAllCws="expandAllCws"/>
+							<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="$style.note" :expandAllCws="expandAllCws"/>
 						</div>
 						<div v-if="clips && clips.length > 0" class="_margin">
 							<div style="font-weight: bold; padding: 12px;">{{ i18n.ts.clip }}</div>
 							<div class="_gaps">
-								<MkA v-for="item in clips" :key="item.id" :to="`/clips/${item.id}`">
-									<MkClipPreview :clip="item"/>
-								</MkA>
+								<MkClipPreview v-for="item in clips" :key="item.id" :clip="item"/>
 							</div>
 						</div>
 						<div v-if="!showPrev" class="_buttons" :class="$style.loadPrev">
-							<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showPrev = 'channel'"><i class="ph-caret-down ph-bold ph-lg"></i> <i class="ph-television-simple ph-bold ph-lg"></i></MkButton>
-							<MkButton rounded :class="$style.loadButton" @click="showPrev = 'user'"><i class="ph-caret-down ph-bold ph-lg"></i> <i class="ph-user ph-bold ph-lg"></i></MkButton>
+							<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showPrev = 'channel'"><i class="ti ti-chevron-down"></i> <i class="ti ti-device-tv"></i></MkButton>
+							<MkButton rounded :class="$style.loadButton" @click="showPrev = 'user'"><i class="ti ti-chevron-down"></i> <i class="ti ti-user"></i></MkButton>
 						</div>
 					</div>
 
@@ -54,12 +48,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref } from 'vue';
+import { defineAsyncComponent, computed, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { Paging } from '@/components/MkPagination.vue';
-import MkNoteDetailed from '@/components/MkNoteDetailed.vue';
 import MkNotes from '@/components/MkNotes.vue';
-import SkNoteDetailed from '@/components/SkNoteDetailed.vue';
 import MkRemoteCaution from '@/components/MkRemoteCaution.vue';
 import MkButton from '@/components/MkButton.vue';
 import { misskeyApi } from '@/scripts/misskey-api.js';
@@ -68,12 +60,23 @@ import { i18n } from '@/i18n.js';
 import { dateString } from '@/filters/date.js';
 import MkClipPreview from '@/components/MkClipPreview.vue';
 import { defaultStore } from '@/store.js';
+import { pleaseLogin } from '@/scripts/please-login.js';
+import { getServerContext } from '@/server-context.js';
+
+const CTX_NOTE = getServerContext('note');
+
+const MkNoteDetailed = defineAsyncComponent(() =>
+	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteDetailed.vue') :
+	(defaultStore.state.noteDesign === 'sharkey') ? import('@/components/SkNoteDetailed.vue') :
+	null
+);
 
 const props = defineProps<{
 	noteId: string;
+	initialTab?: string;
 }>();
 
-const note = ref<null | Misskey.entities.Note>();
+const note = ref<null | Misskey.entities.Note>(CTX_NOTE);
 const clips = ref<Misskey.entities.Clip[]>();
 const showPrev = ref<'user' | 'channel' | false>(false);
 const showNext = ref<'user' | 'channel' | false>(false);
@@ -122,6 +125,12 @@ function fetchNote() {
 	showPrev.value = false;
 	showNext.value = false;
 	note.value = null;
+
+	if (CTX_NOTE && CTX_NOTE.id === props.noteId) {
+		note.value = CTX_NOTE;
+		return;
+	}
+
 	misskeyApi('notes/show', {
 		noteId: props.noteId,
 	}).then(res => {
@@ -135,6 +144,11 @@ function fetchNote() {
 			});
 		}
 	}).catch(err => {
+		if (err.id === '8e75455b-738c-471d-9f80-62693f33372e') {
+			pleaseLogin({
+				message: i18n.ts.thisContentsAreMarkedAsSigninRequiredByAuthor,
+			});
+		}
 		error.value = err;
 	});
 }
@@ -183,11 +197,11 @@ definePageMetadata(() => ({
 }
 
 .loadNext {
-	margin-bottom: var(--margin);
+	margin-bottom: var(--MI-margin);
 }
 
 .loadPrev {
-	margin-top: var(--margin);
+	margin-top: var(--MI-margin);
 }
 
 .loadButton {
@@ -195,7 +209,7 @@ definePageMetadata(() => ({
 }
 
 .note {
-	border-radius: var(--radius);
-	background: var(--panel);
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panel);
 }
 </style>

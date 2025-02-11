@@ -9,7 +9,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { DataSource, IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { UsedUsernamesRepository, UsersRepository } from '@/models/_.js';
+import type { MiMeta, UsedUsernamesRepository, UsersRepository } from '@/models/_.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
 import { IdService } from '@/core/IdService.js';
@@ -21,13 +21,16 @@ import { InstanceActorService } from '@/core/InstanceActorService.js';
 import { bindThis } from '@/decorators.js';
 import UsersChart from '@/core/chart/charts/users.js';
 import { UtilityService } from '@/core/UtilityService.js';
-import { MetaService } from '@/core/MetaService.js';
+import { UserService } from '@/core/UserService.js';
 
 @Injectable()
 export class SignupService {
 	constructor(
 		@Inject(DI.db)
 		private db: DataSource,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
@@ -36,9 +39,9 @@ export class SignupService {
 		private usedUsernamesRepository: UsedUsernamesRepository,
 
 		private utilityService: UtilityService,
+		private userService: UserService,
 		private userEntityService: UserEntityService,
 		private idService: IdService,
-		private metaService: MetaService,
 		private instanceActorService: InstanceActorService,
 		private usersChart: UsersChart,
 	) {
@@ -52,10 +55,10 @@ export class SignupService {
 		host?: string | null;
 		reason?: string | null;
 		ignorePreservedUsernames?: boolean;
+		approved?: boolean;
 	}) {
 		const { username, password, passwordHash, host, reason } = opts;
 		let hash = passwordHash;
-		const instance = await this.metaService.fetch(true);
 
 		// Validate username
 		if (!this.userEntityService.validateLocalUsername(username)) {
@@ -89,7 +92,7 @@ export class SignupService {
 		const isTheFirstUser = !await this.instanceActorService.realLocalUsersPresent();
 
 		if (!opts.ignorePreservedUsernames && !isTheFirstUser) {
-			const isPreserved = instance.preservedUsernames.map(x => x.toLowerCase()).includes(username.toLowerCase());
+			const isPreserved = this.meta.preservedUsernames.map(x => x.toLowerCase()).includes(username.toLowerCase());
 			if (isPreserved) {
 				throw new Error('USED_USERNAME');
 			}
@@ -113,9 +116,6 @@ export class SignupService {
 			));
 
 		let account!: MiUser;
-		let defaultApproval = false;
-
-		if (!instance.approvalRequiredForSignup) defaultApproval = true;
 
 		// Start transaction
 		await this.db.transaction(async transactionalEntityManager => {
@@ -133,8 +133,9 @@ export class SignupService {
 				host: this.utilityService.toPunyNullable(host),
 				token: secret,
 				isRoot: isTheFirstUser,
-				approved: defaultApproval,
+				approved: isTheFirstUser || (opts.approved ?? !this.meta.approvalRequiredForSignup),
 				signupReason: reason,
+				enableRss: false,
 			}));
 
 			await transactionalEntityManager.save(new MiUserKeypair({
@@ -156,8 +157,8 @@ export class SignupService {
 		});
 
 		this.usersChart.update(account, true);
+		this.userService.notifySystemWebhook(account, 'userCreated');
 
 		return { account, secret };
 	}
 }
-

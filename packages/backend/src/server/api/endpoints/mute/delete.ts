@@ -10,6 +10,7 @@ import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { UserMutingService } from '@/core/UserMutingService.js';
 import { ApiError } from '../../error.js';
+import ms from 'ms';
 
 export const meta = {
 	tags: ['account'],
@@ -36,6 +37,12 @@ export const meta = {
 			code: 'NOT_MUTING',
 			id: '5467d020-daa9-4553-81e1-135c0c35a96d',
 		},
+	},
+
+	// 20 calls per hour (match create)
+	limit: {
+		duration: ms('1hour'),
+		max: 20,
 	},
 } as const;
 

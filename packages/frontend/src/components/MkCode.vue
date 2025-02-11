@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.codeBlockRoot">
-	<button :class="$style.codeBlockCopyButton" class="_button" @click="copy">
-		<i class="ph-copy ph-bold ph-lg"></i>
+	<button v-if="copyButton" :class="$style.codeBlockCopyButton" class="_button" @click="copy">
+		<i class="ti ti-copy"></i>
 	</button>
 	<Suspense>
 		<template #fallback>
@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<pre v-else-if="show" :class="$style.codeBlockFallbackRoot"><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
 		<button v-else :class="$style.codePlaceholderRoot" @click="show = true">
 			<div :class="$style.codePlaceholderContainer">
-				<div><i class="ph-code ph-bold ph-lg"></i> {{ i18n.ts.code }}</div>
+				<div><i class="ti ti-code"></i> {{ i18n.ts.code }}</div>
 				<div>{{ i18n.ts.clickToShow }}</div>
 			</div>
 		</button>
@@ -30,14 +30,19 @@ import * as os from '@/os.js';
 import MkLoading from '@/components/global/MkLoading.vue';
 import { defaultStore } from '@/store.js';
 import { i18n } from '@/i18n.js';
-import copyToClipboard from '@/scripts/copy-to-clipboard.js';
+import { copyToClipboard } from '@/scripts/copy-to-clipboard.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	code: string;
+	forceShow?: boolean;
+	copyButton?: boolean;
 	lang?: string;
-}>();
+}>(), {
+	copyButton: true,
+	forceShow: false,
+});
 
-const show = ref(!defaultStore.state.dataSaver.code);
+const show = ref(props.forceShow === true ? true : !defaultStore.state.dataSaver.code);
 
 const XCode = defineAsyncComponent(() => import('@/components/MkCode.core.vue'));
 
@@ -66,11 +71,11 @@ function copy() {
 .codeBlockFallbackRoot {
 	display: block;
 	overflow-wrap: anywhere;
-	background: var(--bg);
+	background: var(--MI_THEME-bg);
 	padding: 1em;
 	margin: .5em 0;
 	overflow: auto;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 }
 
 .codeBlockFallbackCode {
@@ -80,19 +85,17 @@ function copy() {
 .codePlaceholderRoot {
 	display: block;
 	width: 100%;
-	background: none;
 	border: none;
 	outline: none;
   font: inherit;
-  color: inherit;
 	cursor: pointer;
 
 	box-sizing: border-box;
-	border-radius: var(--radius-sm);
+	border-radius: var(--MI-radius-sm);
 	padding: 24px;
 	margin-top: 4px;
-	color: var(--fg);
-	background: var(--bg);
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-bg);
 }
 
 .codePlaceholderContainer {

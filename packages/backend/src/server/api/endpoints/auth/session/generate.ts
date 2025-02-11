@@ -40,6 +40,12 @@ export const meta = {
 			id: '92f93e63-428e-4f2f-a5a4-39e1407fe998',
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -78,11 +84,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const token = randomUUID();
 
 			// Create session token document
-			const doc = await this.authSessionsRepository.insert({
+			const doc = await this.authSessionsRepository.insertOne({
 				id: this.idService.gen(),
 				appId: app.id,
 				token: token,
-			}).then(x => this.authSessionsRepository.findOneByOrFail(x.identifiers[0]));
+			});
 
 			return {
 				token: doc.token,

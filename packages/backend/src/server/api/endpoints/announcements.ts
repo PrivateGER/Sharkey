@@ -7,9 +7,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Brackets } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
-import { AnnouncementService } from '@/core/AnnouncementService.js';
+import { AnnouncementEntityService } from '@/core/entities/AnnouncementEntityService.js';
 import { DI } from '@/di-symbols.js';
-import type { AnnouncementReadsRepository, AnnouncementsRepository } from '@/models/_.js';
+import type { AnnouncementsRepository } from '@/models/_.js';
 
 export const meta = {
 	tags: ['meta'],
@@ -24,6 +24,12 @@ export const meta = {
 			optional: false, nullable: false,
 			ref: 'Announcement',
 		},
+	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
 	},
 } as const;
 
@@ -44,11 +50,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.announcementsRepository)
 		private announcementsRepository: AnnouncementsRepository,
 
-		@Inject(DI.announcementReadsRepository)
-		private announcementReadsRepository: AnnouncementReadsRepository,
-
 		private queryService: QueryService,
-		private announcementService: AnnouncementService,
+		private announcementEntityService: AnnouncementEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.queryService.makePaginationQuery(this.announcementsRepository.createQueryBuilder('announcement'), ps.sinceId, ps.untilId)
@@ -60,7 +63,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const announcements = await query.limit(ps.limit).getMany();
 
-			return this.announcementService.packMany(announcements, me);
+			return this.announcementEntityService.packMany(announcements, me);
 		});
 	}
 }

@@ -23,6 +23,9 @@ packages/sw/.yarn/cache
 # pnpm
 .pnpm-store
 
+# eslint
+**/.eslintcache
+
 # Cypress
 cypress/screenshots
 cypress/videos
@@ -33,15 +36,20 @@ coverage
 # config
 /.config/*
 !/.config/example.yml
+!/.config/test-example.yml
 !/.config/docker_example.yml
 !/.config/docker_example.env
+!/.config/cypress-devcontainer.yml
 docker-compose.yml
-!/.devcontainer/docker-compose.yml
+./compose.yml
+.devcontainer/compose.yml
+!/.devcontainer/compose.yml
 
 # misskey
 /build
 built
 built-test
+js-built
 /data
 /.cache-loader
 /db
@@ -59,9 +67,13 @@ ormconfig.json
 temp
 /packages/frontend/src/**/*.stories.ts
 tsdoc-metadata.json
+misskey-assets
 
-# Sharkey
-/packages/megalodon/lib
+# Vite temporary files
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+vite.config.local-dev.js.timestamp-*
+vite.config.local-dev.ts.timestamp-*
 
 # blender backups
 *.blend1
@@ -72,3 +84,6 @@ tsdoc-metadata.json
 
 # VSCode addon
 .favorites.json
+
+# Sharkey
+/packages/megalodon/lib

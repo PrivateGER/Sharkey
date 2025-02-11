@@ -2,10 +2,9 @@
  * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
+import * as Misskey from 'misskey-js';
 
-import type { Note, MeDetailed } from "misskey-js/entities.js";
-
-export function checkWordMute(note: Note, me: MeDetailed | null | undefined, mutedWords: Array<string | string[]>): boolean {
+export function checkWordMute(note: Misskey.entities.Note, me: Misskey.entities.UserLite | null | undefined, mutedWords: Array<string | string[]>): boolean {
 	// 自分自身
 	if (me && (note.userId === me.id)) return false;
 
@@ -46,21 +45,21 @@ export function checkWordMute(note: Note, me: MeDetailed | null | undefined, mut
 function getNoteText(note: Note): string {
 	const textParts: string[] = [];
 
-	if (note.cw)
-		textParts.push(note.cw);
+	if (note.cw) textParts.push(note.cw);
 
-	if (note.text)
-		textParts.push(note.text);
+	if (note.text) textParts.push(note.text);
 
-	if (note.files)
-		for (const file of note.files)
-			if (file.comment)
-				textParts.push(file.comment);
+	if (note.files) {
+		for (const file of note.files) {
+			if (file.comment) textParts.push(file.comment);
+		}
+	}
 
-	if (note.poll)
-		for (const choice of note.poll.choices)
-			if (choice.text)
-				textParts.push(choice.text);
+	if (note.poll) {
+		for (const choice of note.poll.choices) {
+			if (choice.text) textParts.push(choice.text);
+		}
+	}
 
 	return textParts.join('\n').trim();
 }

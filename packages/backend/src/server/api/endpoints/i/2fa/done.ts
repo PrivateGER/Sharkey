@@ -10,6 +10,7 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import type { UserProfilesRepository } from '@/models/_.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
+import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,
@@ -27,6 +28,12 @@ export const meta = {
 				},
 			},
 		},
+	},
+
+	limit: {
+		duration: ms('1hour'),
+		max: 10,
+		minInterval: ms('1sec'),
 	},
 } as const;
 

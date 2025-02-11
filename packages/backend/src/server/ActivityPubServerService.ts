@@ -21,7 +21,6 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { QueueService } from '@/core/QueueService.js';
 import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
-import { MetaService } from '@/core/MetaService.js';
 import { UserKeypairService } from '@/core/UserKeypairService.js';
 import { InstanceActorService } from '@/core/InstanceActorService.js';
 import type { MiUserPublickey } from '@/models/UserPublickey.js';
@@ -33,7 +32,8 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { IActivity } from '@/core/activitypub/type.js';
-import { isPureRenote } from '@/misc/is-pure-renote.js';
+import { isQuote, isRenote } from '@/misc/is-renote.js';
+import * as Acct from '@/misc/acct.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
 import type { FindOptionsWhere } from 'typeorm';
 import type Logger from '@/logger.js';
@@ -75,7 +75,6 @@ export class ActivityPubServerService {
 		@Inject(DI.followRequestsRepository)
 		private followRequestsRepository: FollowRequestsRepository,
 
-		private metaService: MetaService,
 		private utilityService: UtilityService,
 		private userEntityService: UserEntityService,
 		private instanceActorService: InstanceActorService,
@@ -107,7 +106,7 @@ export class ActivityPubServerService {
 	 */
 	@bindThis
 	private async packActivity(note: MiNote): Promise<any> {
-		if (isPureRenote(note)) {
+		if (isRenote(note) && !isQuote(note)) {
 			const renote = await this.notesRepository.findOneByOrFail({ id: note.renoteId });
 			return this.apRendererService.renderAnnounce(renote.uri ? renote.uri : `${this.config.url}/notes/${renote.id}`, note);
 		}
@@ -154,7 +153,7 @@ export class ActivityPubServerService {
 		let signature;
 
 		try {
-			signature = httpSignature.parseRequest(request.raw, { 'headers': [] });
+			signature = httpSignature.parseRequest(request.raw, { 'headers': ['(request-target)', 'host', 'date'], authorizationHeaderName: 'signature' });
 		} catch (e) {
 			// not signed, or malformed signature: refuse
 			this.authlogger.warn(`${request.id} ${request.url} not signed, or malformed signature: refuse`);
@@ -175,8 +174,7 @@ export class ActivityPubServerService {
 			return true;
 		}
 
-		const meta = await this.metaService.fetch();
-		if (this.utilityService.isBlockedHost(meta.blockedHosts, keyHost)) {
+		if (!this.utilityService.isFederationAllowedHost(keyHost)) {
 			/* blocked instance: refuse (we don't care if the signature is
 				 good, if they even pretend to be from a blocked instance,
 				 they're out) */
@@ -208,15 +206,11 @@ export class ActivityPubServerService {
 
 		let httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 
+		// maybe they changed their key? refetch it
 		if (!httpSignatureValidated) {
-			this.authlogger.info(`${logPrefix} failed to validate signature, re-fetching the key for ${authUser.user.uri}`);
-			// maybe they changed their key? refetch it
 			authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
-
 			if (authUser.key != null) {
 				httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
-			} else {
-				this.authlogger.warn(`${logPrefix} failed to re-fetch key for ${authUser.user}`);
 			}
 		}
 
@@ -236,7 +230,7 @@ export class ActivityPubServerService {
 		let signature;
 
 		try {
-			signature = httpSignature.parseRequest(request.raw, { 'headers': [] });
+			signature = httpSignature.parseRequest(request.raw, { 'headers': ['(request-target)', 'host', 'date'], authorizationHeaderName: 'signature' });
 		} catch (e) {
 			reply.code(401);
 			return;
@@ -626,7 +620,18 @@ export class ActivityPubServerService {
 			return;
 		}
 
+		// リモートだったらリダイレクト
+		if (user.host != null) {
+			if (user.uri == null || this.utilityService.isSelfHost(user.host)) {
+				reply.code(500);
+				return;
+			}
+			reply.redirect(user.uri, 301);
+			return;
+		}
+
 		if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
+
 		this.setResponseType(request, reply);
 		return (this.apRendererService.addContext(await this.apRendererService.renderPerson(user as MiLocalUser)));
 	}
@@ -795,28 +800,29 @@ export class ActivityPubServerService {
 
 		fastify.get<{ Params: { user: string; } }>('/users/:user', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
 			if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
-			
+
 			vary(reply.raw, 'Accept');
 
 			const userId = request.params.user;
 
 			const user = await this.usersRepository.findOneBy({
 				id: userId,
-				host: IsNull(),
 				isSuspended: false,
 			});
 
 			return await this.userInfo(request, reply, user);
 		});
 
-		fastify.get<{ Params: { user: string; } }>('/@:user', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
-			
+		fastify.get<{ Params: { acct: string; } }>('/@:acct', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
+			if (await this.shouldRefuseGetRequest(request, reply, request.params.acct)) return;
+
 			vary(reply.raw, 'Accept');
 
+			const acct = Acct.parse(request.params.acct);
+
 			const user = await this.usersRepository.findOneBy({
-				usernameLower: request.params.user.toLowerCase(),
-				host: IsNull(),
+				usernameLower: acct.username,
+				host: acct.host ?? IsNull(),
 				isSuspended: false,
 			});
 

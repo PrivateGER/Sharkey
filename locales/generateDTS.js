@@ -3,10 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import * as yaml from 'js-yaml';
 import ts from 'typescript';
+import { merge } from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const parameterRegExp = /\{(\w+)\}/g;
+// braces preceded by backslashes are literal, they don't represent
+// parameters; they get cleaned up by `locales/index.js` before
+// getting shipped to the browser
+const parameterRegExp = /(?<!\\)\{(\w+)\}/g;
 
 function createMemberType(item) {
 	if (typeof item !== 'string') {
@@ -53,7 +57,10 @@ function createMembers(record) {
 }
 
 export default function generateDTS() {
-	const locale = yaml.load(fs.readFileSync(`${__dirname}/ja-JP.yml`, 'utf-8'));
+	const sharkeyLocale = yaml.load(fs.readFileSync(`${__dirname}/../sharkey-locales/en-US.yml`, 'utf-8'));
+	const misskeyLocale = yaml.load(fs.readFileSync(`${__dirname}/ja-JP.yml`, 'utf-8'));
+	const locale = merge(misskeyLocale, sharkeyLocale);
+
 	const members = createMembers(locale);
 	const elements = [
 		ts.factory.createVariableStatement(

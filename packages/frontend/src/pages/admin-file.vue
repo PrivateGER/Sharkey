@@ -41,8 +41,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div>
-				<MkButton danger @click="del"><i class="ph-trash ph-bold ph-lg"></i> {{ i18n.ts.delete }}</MkButton>
+				<MkButton danger @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 			</div>
+		</div>
+		<div v-else-if="tab === 'notes' && info" class="_gaps_m">
+			<XNotes :fileId="fileId"/>
 		</div>
 		<div v-else-if="tab === 'ip' && info" class="_gaps_m">
 			<MkInfo v-if="!iAmAdmin" warn>{{ i18n.ts.requireAdminForView }}</MkInfo>
@@ -67,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -88,6 +91,7 @@ const tab = ref('overview');
 const file = ref<Misskey.entities.DriveFile | null>(null);
 const info = ref<Misskey.entities.AdminDriveShowFileResponse | null>(null);
 const isSensitive = ref<boolean>(false);
+const XNotes = defineAsyncComponent(() => import('./drive.file.notes.vue'));
 
 const props = defineProps<{
 	fileId: string,
@@ -120,7 +124,7 @@ async function toggleIsSensitive(v) {
 
 const headerActions = computed(() => [{
 	text: i18n.ts.openInNewTab,
-	icon: 'ph-arrow-square-out ph-bold ph-lg',
+	icon: 'ti ti-external-link',
 	handler: () => {
 		window.open(file.value.url, '_blank', 'noopener');
 	},
@@ -129,20 +133,24 @@ const headerActions = computed(() => [{
 const headerTabs = computed(() => [{
 	key: 'overview',
 	title: i18n.ts.overview,
-	icon: 'ph-info ph-bold ph-lg',
+	icon: 'ti ti-info-circle',
 }, iAmModerator ? {
+	key: 'notes',
+	title: i18n.ts._fileViewer.attachedNotes,
+	icon: 'ti ti-pencil',
+} : null, iAmModerator ? {
 	key: 'ip',
 	title: 'IP',
-	icon: 'ph-password ph-bold ph-lg',
+	icon: 'ti ti-password',
 } : null, {
 	key: 'raw',
 	title: 'Raw data',
-	icon: 'ph-code ph-bold ph-lg',
+	icon: 'ti ti-code',
 }]);
 
 definePageMetadata(() => ({
 	title: file.value ? `${i18n.ts.file}: ${file.value.name}` : i18n.ts.file,
-	icon: 'ph-file ph-bold ph-lg',
+	icon: 'ti ti-file',
 }));
 </script>
 

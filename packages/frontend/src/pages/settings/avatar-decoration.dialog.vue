@@ -29,6 +29,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkRange v-model="offsetY" continuousUpdate :min="-0.25" :max="0.25" :step="0.025" :textConverter="(v) => `${Math.floor(v * 100)}%`">
 					<template #label>Y {{ i18n.ts.position }}</template>
 				</MkRange>
+				<MkSwitch v-model="showBelow">
+					<template #label>{{ i18n.ts.showBelowAvatar }}</template>
+				</MkSwitch>
 				<MkSwitch v-model="flipH">
 					<template #label>{{ i18n.ts.flip }}</template>
 				</MkSwitch>
@@ -36,9 +39,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkSpacer>
 
 		<div :class="$style.footer" class="_buttonsCenter">
-			<MkButton v-if="usingIndex != null" primary rounded @click="update"><i class="ph-check ph-bold ph-lg"></i> {{ i18n.ts.update }}</MkButton>
-			<MkButton v-if="usingIndex != null" rounded @click="detach"><i class="ph-x ph-bold ph-lg"></i> {{ i18n.ts.detach }}</MkButton>
-			<MkButton v-else :disabled="exceeded" primary rounded @click="attach"><i class="ph-check ph-bold ph-lg"></i> {{ i18n.ts.attach }}</MkButton>
+			<MkButton v-if="usingIndex != null" primary rounded @click="update"><i class="ti ti-check"></i> {{ i18n.ts.update }}</MkButton>
+			<MkButton v-if="usingIndex != null" rounded @click="detach"><i class="ti ti-x"></i> {{ i18n.ts.detach }}</MkButton>
+			<MkButton v-else :disabled="exceeded || locked" primary rounded @click="attach"><i class="ti ti-check"></i> {{ i18n.ts.attach }}</MkButton>
 		</div>
 	</div>
 </MkModalWindow>
@@ -61,6 +64,7 @@ const props = defineProps<{
 		id: string;
 		url: string;
 		name: string;
+		roleIdsThatCanBeUsedThisDecoration: string[];
 	};
 }>();
 
@@ -71,22 +75,26 @@ const emit = defineEmits<{
 		flipH: boolean;
 		offsetX: number;
 		offsetY: number;
+		showBelow: boolean;
 	}): void;
 	(ev: 'update', payload: {
 		angle: number;
 		flipH: boolean;
 		offsetX: number;
 		offsetY: number;
+		showBelow: boolean;
 	}): void;
 	(ev: 'detach'): void;
 }>();
 
 const dialog = shallowRef<InstanceType<typeof MkModalWindow>>();
 const exceeded = computed(() => ($i.policies.avatarDecorationLimit - $i.avatarDecorations.length) <= 0);
+const locked = computed(() => props.decoration.roleIdsThatCanBeUsedThisDecoration.length > 0 && !$i.roles.some(r => props.decoration.roleIdsThatCanBeUsedThisDecoration.includes(r.id)));
 const angle = ref((props.usingIndex != null ? $i.avatarDecorations[props.usingIndex].angle : null) ?? 0);
 const flipH = ref((props.usingIndex != null ? $i.avatarDecorations[props.usingIndex].flipH : null) ?? false);
 const offsetX = ref((props.usingIndex != null ? $i.avatarDecorations[props.usingIndex].offsetX : null) ?? 0);
 const offsetY = ref((props.usingIndex != null ? $i.avatarDecorations[props.usingIndex].offsetY : null) ?? 0);
+const showBelow = ref((props.usingIndex != null ? $i.avatarDecorations[props.usingIndex].showBelow : null) ?? false);
 
 const decorationsForPreview = computed(() => {
 	const decoration = {
@@ -96,6 +104,8 @@ const decorationsForPreview = computed(() => {
 		flipH: flipH.value,
 		offsetX: offsetX.value,
 		offsetY: offsetY.value,
+		showBelow: showBelow.value,
+		blink: true,
 	};
 	const decorations = [...$i.avatarDecorations];
 	if (props.usingIndex != null) {
@@ -107,7 +117,7 @@ const decorationsForPreview = computed(() => {
 });
 
 function cancel() {
-	dialog.value.close();
+	dialog.value?.close();
 }
 
 async function update() {
@@ -116,8 +126,9 @@ async function update() {
 		flipH: flipH.value,
 		offsetX: offsetX.value,
 		offsetY: offsetY.value,
+		showBelow: showBelow.value,
 	});
-	dialog.value.close();
+	dialog.value?.close();
 }
 
 async function attach() {
@@ -126,13 +137,14 @@ async function attach() {
 		flipH: flipH.value,
 		offsetX: offsetX.value,
 		offsetY: offsetY.value,
+		showBelow: showBelow.value,
 	});
-	dialog.value.close();
+	dialog.value?.close();
 }
 
 async function detach() {
 	emit('detach');
-	dialog.value.close();
+	dialog.value?.close();
 }
 </script>
 
@@ -149,8 +161,8 @@ async function detach() {
 	bottom: 0;
 	left: 0;
 	padding: 12px;
-	border-top: solid 0.5px var(--divider);
-	-webkit-backdrop-filter: var(--blur, blur(15px));
-	backdrop-filter: var(--blur, blur(15px));
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
 }
 </style>

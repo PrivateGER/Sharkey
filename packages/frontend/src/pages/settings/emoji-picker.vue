@@ -6,13 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps_m">
 	<MkFolder :defaultOpen="true">
-		<template #icon><i class="ph-pin ph-bold ph-lg"></i></template>
+		<template #icon><i class="ti ti-pin"></i></template>
 		<template #label>{{ i18n.ts.pinned }} ({{ i18n.ts.reaction }})</template>
 		<template #caption>{{ i18n.ts.pinnedEmojisForReactionSettingDescription }}</template>
 
 		<div class="_gaps">
 			<div>
-				<div v-panel style="border-radius: var(--radius-sm);">
+				<div v-panel style="border-radius: var(--MI-radius-sm);">
 					<Sortable
 						v-model="pinnedEmojisForReaction"
 						:class="$style.emojis"
@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</template>
 						<template #footer>
 							<button class="_button" :class="$style.emojisAdd" @click="chooseReaction">
-								<i class="ph-plus ph-bold ph-lg"></i>
+								<i class="ti ti-plus"></i>
 							</button>
 						</template>
 					</Sortable>
@@ -38,21 +38,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div class="_buttons">
-				<MkButton inline @click="previewReaction"><i class="ph-eye ph-bold ph-lg"></i> {{ i18n.ts.preview }}</MkButton>
-				<MkButton inline danger @click="setDefaultReaction"><i class="ph-arrow-counter-clockwise ph-bold ph-lg"></i> {{ i18n.ts.default }}</MkButton>
-				<MkButton inline danger @click="overwriteFromPinnedEmojis"><i class="ph-copy ph-bold ph-lg"></i> {{ i18n.ts.overwriteFromPinnedEmojis }}</MkButton>
+				<MkButton inline @click="previewReaction"><i class="ti ti-eye"></i> {{ i18n.ts.preview }}</MkButton>
+				<MkButton inline danger @click="setDefaultReaction"><i class="ti ti-reload"></i> {{ i18n.ts.default }}</MkButton>
+				<MkButton inline danger @click="overwriteFromPinnedEmojis"><i class="ti ti-copy"></i> {{ i18n.ts.overwriteFromPinnedEmojis }}</MkButton>
 			</div>
 		</div>
 	</MkFolder>
 
 	<MkFolder>
-		<template #icon><i class="ph-pin ph-bold ph-lg"></i></template>
+		<template #icon><i class="ti ti-pin"></i></template>
 		<template #label>{{ i18n.ts.pinned }} ({{ i18n.ts.general }})</template>
 		<template #caption>{{ i18n.ts.pinnedEmojisSettingDescription }}</template>
 
 		<div class="_gaps">
 			<div>
-				<div v-panel style="border-radius: var(--radius-sm);">
+				<div v-panel style="border-radius: var(--MI-radius-sm);">
 					<Sortable
 						v-model="pinnedEmojis"
 						:class="$style.emojis"
@@ -69,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</template>
 						<template #footer>
 							<button class="_button" :class="$style.emojisAdd" @click="chooseEmoji">
-								<i class="ph-plus ph-bold ph-lg"></i>
+								<i class="ti ti-plus"></i>
 							</button>
 						</template>
 					</Sortable>
@@ -78,9 +78,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div class="_buttons">
-				<MkButton inline @click="previewEmoji"><i class="ph-eye ph-bold ph-lg"></i> {{ i18n.ts.preview }}</MkButton>
-				<MkButton inline danger @click="setDefaultEmoji"><i class="ph-arrow-counter-clockwise ph-bold ph-lg"></i> {{ i18n.ts.default }}</MkButton>
-				<MkButton inline danger @click="overwriteFromPinnedEmojisForReaction"><i class="ph-copy ph-bold ph-lg"></i> {{ i18n.ts.overwriteFromPinnedEmojisForReaction }}</MkButton>
+				<MkButton inline @click="previewEmoji"><i class="ti ti-eye"></i> {{ i18n.ts.preview }}</MkButton>
+				<MkButton inline danger @click="setDefaultEmoji"><i class="ti ti-reload"></i> {{ i18n.ts.default }}</MkButton>
+				<MkButton inline danger @click="overwriteFromPinnedEmojisForReaction"><i class="ti ti-copy"></i> {{ i18n.ts.overwriteFromPinnedEmojisForReaction }}</MkButton>
 			</div>
 		</div>
 	</MkFolder>
@@ -124,10 +124,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<option :value="4">{{ i18n.ts.large }}+</option>
 			</MkRadios>
 
-			<MkSwitch v-model="emojiPickerUseDrawerForMobile">
-				{{ i18n.ts.useDrawerReactionPickerForMobile }}
+			<MkSelect v-model="emojiPickerStyle">
+				<template #label>{{ i18n.ts.style }}</template>
 				<template #caption>{{ i18n.ts.needReloadToApply }}</template>
-			</MkSwitch>
+				<option value="auto">{{ i18n.ts.auto }}</option>
+				<option value="popup">{{ i18n.ts.popup }}</option>
+				<option value="drawer">{{ i18n.ts.drawer }}</option>
+			</MkSelect>
 		</div>
 	</FormSection>
 </div>
@@ -140,7 +143,7 @@ import MkRadios from '@/components/MkRadios.vue';
 import MkButton from '@/components/MkButton.vue';
 import FormSection from '@/components/form/section.vue';
 import FromSlot from '@/components/form/slot.vue';
-import MkSwitch from '@/components/MkSwitch.vue';
+import MkSelect from '@/components/MkSelect.vue';
 import * as os from '@/os.js';
 import { defaultStore } from '@/store.js';
 import { i18n } from '@/i18n.js';
@@ -159,7 +162,7 @@ const pinnedEmojis: Ref<string[]> = ref(deepClone(defaultStore.state.pinnedEmoji
 const emojiPickerScale = computed(defaultStore.makeGetterSetter('emojiPickerScale'));
 const emojiPickerWidth = computed(defaultStore.makeGetterSetter('emojiPickerWidth'));
 const emojiPickerHeight = computed(defaultStore.makeGetterSetter('emojiPickerHeight'));
-const emojiPickerUseDrawerForMobile = computed(defaultStore.makeGetterSetter('emojiPickerUseDrawerForMobile'));
+const emojiPickerStyle = computed(defaultStore.makeGetterSetter('emojiPickerStyle'));
 
 const removeReaction = (reaction: string, ev: MouseEvent) => remove(pinnedEmojisForReaction, reaction, ev);
 const chooseReaction = (ev: MouseEvent) => pickEmoji(pinnedEmojisForReaction, ev);
@@ -278,15 +281,15 @@ watch(pinnedEmojis, () => {
 
 definePageMetadata(() => ({
 	title: i18n.ts.emojiPicker,
-	icon: 'ph-smiley ph-bold ph-lg',
+	icon: 'ti ti-mood-happy',
 }));
 </script>
 
 <style lang="scss" module>
 .tab {
-	margin: calc(var(--margin) / 2) 0;
-	padding: calc(var(--margin) / 2) 0;
-	background: var(--bg);
+	margin: calc(var(--MI-margin) / 2) 0;
+	padding: calc(var(--MI-margin) / 2) 0;
+	background: var(--MI_THEME-bg);
 }
 
 .emojis {
@@ -308,6 +311,6 @@ definePageMetadata(() => ({
 .editorCaption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: var(--fgTransparentWeak);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

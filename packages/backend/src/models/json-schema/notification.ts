@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { notificationTypes } from '@/types.js';
+import { ACHIEVEMENT_TYPES } from '@/core/AchievementService.js';
+import { notificationTypes, userExportableEntities } from '@/types.js';
 
 const baseSchema = {
 	type: 'object',
@@ -266,6 +267,10 @@ export const packedNotificationSchema = {
 				optional: false, nullable: false,
 				format: 'id',
 			},
+			message: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
 		},
 	}, {
 		type: 'object',
@@ -294,6 +299,37 @@ export const packedNotificationSchema = {
 			achievement: {
 				type: 'string',
 				optional: false, nullable: false,
+				enum: ACHIEVEMENT_TYPES,
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['exportCompleted'],
+			},
+			exportedEntity: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: userExportableEntities,
+			},
+			fileId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['login'],
 			},
 		},
 	}, {
@@ -311,9 +347,48 @@ export const packedNotificationSchema = {
 			},
 			header: {
 				type: 'string',
-				optional: false, nullable: false,
+				optional: false, nullable: true,
 			},
 			icon: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['edited'],
+			},
+			user: {
+				type: 'object',
+				ref: 'UserLite',
+				optional: false, nullable: false,
+			},
+			userId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+			note: {
+				type: 'object',
+				ref: 'Note',
+				optional: false, nullable: false,
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['scheduledNoteFailed'],
+			},
+			reason: {
 				type: 'string',
 				optional: false, nullable: false,
 			},
@@ -325,7 +400,7 @@ export const packedNotificationSchema = {
 			type: {
 				type: 'string',
 				optional: false, nullable: false,
-				enum: ['edited'],
+				enum: ['scheduledNotePosted'],
 			},
 			user: {
 				type: 'object',

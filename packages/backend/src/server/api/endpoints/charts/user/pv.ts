@@ -16,6 +16,13 @@ export const meta = {
 
 	allowGet: true,
 	cacheSec: 60 * 60,
+
+	// Burst up to 100, then 2/sec average
+	limit: {
+		type: 'bucket',
+		size: 100,
+		dripRate: 500,
+	},
 } as const;
 
 export const paramDef = {

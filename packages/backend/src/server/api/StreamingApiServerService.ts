@@ -7,6 +7,8 @@ import { EventEmitter } from 'events';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import * as WebSocket from 'ws';
+import proxyAddr from 'proxy-addr';
+import ms from 'ms';
 import { DI } from '@/di-symbols.js';
 import type { UsersRepository, MiAccessToken } from '@/models/_.js';
 import { NoteReadService } from '@/core/NoteReadService.js';
@@ -16,10 +18,15 @@ import { CacheService } from '@/core/CacheService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { UserService } from '@/core/UserService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { getIpHash } from '@/misc/get-ip-hash.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
 import MainStreamConnection from './stream/Connection.js';
 import { ChannelsService } from './stream/ChannelsService.js';
 import type * as http from 'node:http';
+import type { IEndpointMeta } from './endpoints.js';
 
 @Injectable()
 export class StreamingApiServerService {
@@ -41,7 +48,32 @@ export class StreamingApiServerService {
 		private notificationService: NotificationService,
 		private usersService: UserService,
 		private channelFollowingService: ChannelFollowingService,
+		private rateLimiterService: SkRateLimiterService,
+		private roleService: RoleService,
+		private loggerService: LoggerService,
 	) {
+	}
+
+	@bindThis
+	private async rateLimitThis(
+		user: MiLocalUser | null | undefined,
+		requestIp: string | undefined,
+		limit: IEndpointMeta['limit'] & { key: NonNullable<string> },
+	) : Promise<boolean> {
+		let limitActor: string;
+		if (user) {
+			limitActor = user.id;
+		} else {
+			limitActor = getIpHash(requestIp || 'wtf');
+		}
+
+		const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
+
+		if (factor <= 0) return false;
+
+		// Rate limit
+		const rateLimit = await this.rateLimiterService.limit(limit, limitActor, factor);
+		return rateLimit.blocked;
 	}
 
 	@bindThis
@@ -53,6 +85,21 @@ export class StreamingApiServerService {
 		server.on('upgrade', async (request, socket, head) => {
 			if (request.url == null) {
 				socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+				socket.destroy();
+				return;
+			}
+
+			// ServerServices sets `trustProxy: true`, which inside
+			// fastify/request.js ends up calling `proxyAddr` in this way,
+			// so we do the same
+			const requestIp = proxyAddr(request, () => { return true; } );
+
+			if (await this.rateLimitThis(null, requestIp, {
+				key: 'wsconnect',
+				duration: ms('5min'),
+				max: 32,
+			})) {
+				socket.write('HTTP/1.1 429 Rate Limit Exceeded\r\n\r\n');
 				socket.destroy();
 				return;
 			}
@@ -94,13 +141,27 @@ export class StreamingApiServerService {
 				return;
 			}
 
+			const rateLimiter = () => {
+				// rather high limit, because when catching up at the top of a
+				// timeline, the frontend may render many many notes, each of
+				// which causes a message via `useNoteCapture` to ask for
+				// realtime updates of that note
+				return this.rateLimitThis(user, requestIp, {
+					key: 'wsmessage',
+					duration: ms('2sec'),
+					max: 4096,
+				});
+			};
+
 			const stream = new MainStreamConnection(
 				this.channelsService,
 				this.noteReadService,
 				this.notificationService,
 				this.cacheService,
 				this.channelFollowingService,
-				user, app,
+				this.loggerService,
+				user, app, requestIp,
+				rateLimiter,
 			);
 
 			await stream.init();

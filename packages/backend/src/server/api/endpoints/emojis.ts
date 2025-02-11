@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { IsNull } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EmojisRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -32,6 +31,12 @@ export const meta = {
 			},
 		},
 	},
+
+	// 2 calls per second
+	limit: {
+		duration: 1000,
+		max: 2,
+	},
 } as const;
 
 export const paramDef = {
@@ -50,16 +55,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private emojiEntityService: EmojiEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const emojis = await this.emojisRepository.find({
-				where: {
-					host: IsNull(),
-				},
-				order: {
-					category: 'ASC',
-					name: 'ASC',
-				},
-			});
-
+			const emojis = await this.emojisRepository.createQueryBuilder()
+				.where('host IS NULL')
+				.orderBy('LOWER(category)', 'ASC')
+				.addOrderBy('LOWER(name)', 'ASC')
+				.getMany();
 			return {
 				emojis: await this.emojiEntityService.packSimpleMany(emojis),
 			};
