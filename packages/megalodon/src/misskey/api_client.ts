@@ -227,13 +227,14 @@ namespace MisskeyAPI {
         blocking: r.isBlocking,
         blocked_by: r.isBlocked,
         muting: r.isMuted,
-        muting_notifications: false,
+        muting_notifications: r.isMuted,
         requested: r.hasPendingFollowRequestFromYou,
-        domain_blocking: false,
-        showing_reblogs: true,
+				requested_by: r.hasPendingFollowRequestToYou,
+        domain_blocking: r.isInstanceMuted ?? false,
+        showing_reblogs: !r.isRenoteMuted,
         endorsed: false,
-        notifying: false,
-        note: null
+        notifying: !r.isMuted,
+        note: r.memo ?? '',
       }
     }
 

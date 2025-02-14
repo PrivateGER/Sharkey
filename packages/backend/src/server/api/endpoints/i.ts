@@ -31,10 +31,12 @@ export const meta = {
 		},
 	},
 
-	// 3 calls per second
+	// up to 20 calls, then 1 per second.
+	// This handles bursty traffic when all tabs reload as a group
 	limit: {
-		duration: 1000,
-		max: 3,
+		max: 20,
+		dripSize: 1,
+		dripRate: 1000,
 	},
 } as const;
 

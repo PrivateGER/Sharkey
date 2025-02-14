@@ -604,7 +604,7 @@ export default class Misskey implements MegalodonInterface {
   /**
    * POST /api/users/relation
    *
-   * @param id Array of account ID, for example `['1sdfag', 'ds12aa']`.
+   * @param ids Array of account ID, for example `['1sdfag', 'ds12aa']`.
    */
   public async getRelationships(ids: Array<string>): Promise<Response<Array<Entity.Relationship>>> {
     return Promise.all(ids.map(id => this.getRelationship(id))).then(results => ({
@@ -2232,7 +2232,7 @@ export default class Misskey implements MegalodonInterface {
                 hashtags: [],
               },
             }));
-            
+
             if (result.status !== 200) {
 							result.status = 200;
 							result.statusText = "OK";

@@ -879,6 +879,15 @@ export type paths = {
      */
     post: operations['admin___system-webhook___test'];
   };
+  '/admin/gen-vapid-keys': {
+    /**
+     * admin/gen-vapid-keys
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    post: operations['admin___gen-vapid-keys'];
+  };
   '/announcements': {
     /**
      * announcements
@@ -4217,6 +4226,9 @@ export type components = {
           /** Format: date-time */
           lastUsed: string;
         }[];
+      defaultCW: string | null;
+      /** @enum {string} */
+      defaultCWPriority: 'default' | 'parent' | 'defaultParent' | 'parentDefault';
     };
     UserDetailedNotMe: components['schemas']['UserLite'] & components['schemas']['UserDetailedNotMeOnly'];
     MeDetailed: components['schemas']['UserLite'] & components['schemas']['UserDetailedNotMeOnly'] & components['schemas']['MeDetailedOnly'];
@@ -5224,6 +5236,7 @@ export type components = {
       enableFC: boolean;
       fcSiteKey: string | null;
       enableAchievements: boolean | null;
+      robotsTxt: string | null;
       enableTestcaptcha: boolean;
       swPublickey: string | null;
       /** @default /assets/ai.png */
@@ -5434,6 +5447,7 @@ export type operations = {
             enableStatsForFederatedInstances: boolean;
             enableServerMachineStats: boolean;
             enableAchievements: boolean;
+            robotsTxt: string | null;
             enableIdenticonGeneration: boolean;
             manifestJsonOverride: string;
             policies: Record<string, never>;
@@ -10163,6 +10177,7 @@ export type operations = {
           enableStatsForFederatedInstances?: boolean;
           enableServerMachineStats?: boolean;
           enableAchievements?: boolean;
+          robotsTxt?: string | null;
           enableIdenticonGeneration?: boolean;
           serverRules?: string[];
           bannedEmailDomains?: string[];
@@ -11185,6 +11200,50 @@ export type operations = {
       };
       /** @description Too many requests */
       429: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/gen-vapid-keys
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+   */
+  'admin___gen-vapid-keys': {
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
         content: {
           'application/json': components['schemas']['Error'];
         };
@@ -21631,6 +21690,9 @@ export type operations = {
           };
           emailNotificationTypes?: string[];
           alsoKnownAs?: string[];
+          defaultCW?: string | null;
+          /** @enum {string} */
+          defaultCWPriority?: 'default' | 'parent' | 'defaultParent' | 'parentDefault';
         };
       };
     };
@@ -24967,7 +25029,8 @@ export type operations = {
           offset?: number;
           /** @description The local host is represented with `.`. */
           host?: string;
-          filetype?: string | null;
+          /** @enum {string|null} */
+          filetype?: 'image' | 'video' | 'audio' | 'module' | 'flash' | null;
           /**
            * Format: misskey:id
            * @default null
@@ -29677,7 +29740,9 @@ export type operations = {
             isBlocked: boolean;
             isMuted: boolean;
             isRenoteMuted: boolean;
-          }, {
+            isInstanceMuted?: boolean;
+            memo?: string | null;
+          }, ({
               /** Format: id */
               id: string;
               isFollowing: boolean;
@@ -29688,7 +29753,9 @@ export type operations = {
               isBlocked: boolean;
               isMuted: boolean;
               isRenoteMuted: boolean;
-            }[]]>;
+              isInstanceMuted?: boolean;
+              memo?: string | null;
+            })[]]>;
         };
       };
       /** @description Client error */

@@ -58,6 +58,14 @@ export const meta = {
 						type: 'boolean',
 						optional: false, nullable: false,
 					},
+					isInstanceMuted: {
+						type: 'boolean',
+						optional: true, nullable: false,
+					},
+					memo: {
+						type: 'string',
+						optional: true, nullable: true,
+					},
 				},
 			},
 			{
@@ -102,6 +110,14 @@ export const meta = {
 						isRenoteMuted: {
 							type: 'boolean',
 							optional: false, nullable: false,
+						},
+						isInstanceMuted: {
+							type: 'boolean',
+							optional: true, nullable: false,
+						},
+						memo: {
+							type: 'string',
+							optional: true, nullable: true,
 						},
 					},
 				},

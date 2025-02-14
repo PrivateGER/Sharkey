@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-if="noteSearchableScope === 'global'" v-model="hostInput" :disabled="hostSelect !== 'specified'" :large="true" type="search">
 					<template #prefix><i class="ti ti-server"></i></template>
 				</MkInput>
-				<MkSwitch v-model="order">Sort by newest to oldest</MkSwitch>
+				<MkSwitch v-model="order">{{ i18n.ts._noteSearch.newestToOldest }}</MkSwitch>
 				<div>
 					<MkFoldableSection :expanded="true">
 						<template #header>Advanced Search Operators</template>
@@ -49,11 +49,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkFoldableSection>
 				</div>
 				<MkSelect v-model="filetype" small>
-					<template #label>File Type</template>
-					<option :value="null">None</option>
-					<option value="image">Images</option>
-					<option value="video">Videos</option>
-					<option value="audio">Audio</option>
+					<template #label>{{ i18n.ts._noteSearch.fileType }}</template>
+					<option :value="null">{{ i18n.ts._noteSearch._fileType.none }}</option>
+					<option value="image">{{ i18n.ts._noteSearch._fileType.image }}</option>
+					<option value="video">{{ i18n.ts._noteSearch._fileType.video }}</option>
+					<option value="audio">{{ i18n.ts._noteSearch._fileType.audio }}</option>
+					<option value="module">{{ i18n.ts._noteSearch._fileType.module }}</option>
+					<option value="flash">{{ i18n.ts._noteSearch._fileType.flash }}</option>
 				</MkSelect>
 
 				<MkFolder :defaultOpen="true">
@@ -122,7 +124,7 @@ const notePagination = ref<Paging>();
 const user = ref<UserDetailed | null>(null);
 const hostInput = ref(toRef(props, 'host').value);
 const order = ref(true);
-const filetype = ref(null);
+const filetype = ref<'image' | 'video' | 'audio' | 'module' | 'flash' | null>(null);
 const similarSearch = ref(false);
 
 const noteSearchableScope = instance.noteSearchableScope ?? 'local';

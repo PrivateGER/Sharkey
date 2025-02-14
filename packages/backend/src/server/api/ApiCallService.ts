@@ -19,7 +19,7 @@ import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import type { Config } from '@/config.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
-import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { ApiError } from './error.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
@@ -313,35 +313,30 @@ export class ApiCallService implements OnApplicationShutdown {
 		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		if (endpointLimit) {
 			// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
-			let limitActor: string;
+			let limitActor: string | MiLocalUser;
 			if (user) {
-				limitActor = user.id;
+				limitActor = user;
 			} else {
 				limitActor = getIpHash(request.ip);
 			}
 
-			// TODO: 毎リクエスト計算するのもあれだしキャッシュしたい
-			const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
+			const limit = {
+				key: ep.name,
+				...endpointLimit,
+			};
 
-			if (factor > 0) {
-				const limit = {
-					key: ep.name,
-					...endpointLimit,
-				};
+			// Rate limit
+			const info = await this.rateLimiterService.limit(limit, limitActor);
 
-				// Rate limit
-				const info = await this.rateLimiterService.limit(limit, limitActor, factor);
+			sendRateLimitHeaders(reply, info);
 
-				sendRateLimitHeaders(reply, info);
-
-				if (info.blocked) {
-					throw new ApiError({
-						message: 'Rate limit exceeded. Please try again later.',
-						code: 'RATE_LIMIT_EXCEEDED',
-						id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
-						httpStatusCode: 429,
-					}, info);
-				}
+			if (info.blocked) {
+				throw new ApiError({
+					message: 'Rate limit exceeded. Please try again later.',
+					code: 'RATE_LIMIT_EXCEEDED',
+					id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
+					httpStatusCode: 429,
+				}, info);
 			}
 		}
 

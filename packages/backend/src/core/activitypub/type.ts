@@ -57,9 +57,16 @@ export function getOneApId(value: ApObject): string {
 }
 
 /**
+ * Minimal AP payload - just an object with optional ID.
+ */
+export interface ObjectWithId {
+	id?: string;
+}
+
+/**
  * Get ActivityStreams Object id
  */
-export function getApId(value: string | IObject | [string | IObject]): string {
+export function getApId(value: string | ObjectWithId | [string | ObjectWithId]): string {
 	// eslint-disable-next-line no-param-reassign
 	value = fromTuple(value);
 
@@ -71,7 +78,7 @@ export function getApId(value: string | IObject | [string | IObject]): string {
 /**
  * Get ActivityStreams Object id, or null if not present
  */
-export function getNullableApId(value: string | IObject | [string | IObject]): string | null {
+export function getNullableApId(value: string | ObjectWithId | [string | ObjectWithId]): string | null {
 	// eslint-disable-next-line no-param-reassign
 	value = fromTuple(value);
 

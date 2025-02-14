@@ -100,6 +100,8 @@ url: https://example.tld/
 
 # The port that your Misskey server should listen on.
 port: 3000
+# the address to bind to, defaults to "every address"
+# address: '0.0.0.0'
 
 # You can also use UNIX domain socket.
 # socket: /path/to/misskey.sock

@@ -57,10 +57,10 @@ export const meta = {
 		},
 	},
 
-	// 5 calls per 2 seconds
+	// up to 50 calls @ 4 per second
 	limit: {
-		duration: 1000 * 2,
-		max: 5,
+		max: 50,
+		dripRate: 250,
 	},
 } as const;
 

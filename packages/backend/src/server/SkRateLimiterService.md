@@ -12,6 +12,11 @@ SkRateLimiterService is not quite plug-and-play compatible with existing call si
 Instead, the returned LimitInfo object will have `blocked` set to true.
 Callers are responsible for checking this property and taking any desired action, such as rejecting a request or returning limit details.
 
+Rate limit factors are also handled differently.
+Instead of providing an optional parameter for callers, SkRateLimiterServer accepts an `MiUser` parameter that is used to compute the factor directly.
+If a user is not available (such as for unauthenticated callers), then the Role Template factor is used instead.
+To avoid confusion, the `factor` parameter has been removed entirely and is now an implementation detail.
+
 ## Headers
 
 LimitInfo objects (returned by `SkRateLimitService.limit()`) can be passed to `rate-limit-utils.sendRateLimitHeaders()` to send standard rate limit headers with an HTTP response.

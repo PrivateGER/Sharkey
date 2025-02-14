@@ -26,11 +26,18 @@ import { UserAuthService } from '@/core/UserAuthService.js';
 import { CaptchaService } from '@/core/CaptchaService.js';
 import { FastifyReplyError } from '@/misc/fastify-reply-error.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
-import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
-import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
+import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
+import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+// Up to 10 attempts, then 1 per minute
+const signinRateLimit: Keyed<RateLimit> = {
+	key: 'signin',
+	max: 10,
+	dripRate: 1000 * 60,
+};
 
 @Injectable()
 export class SigninApiService {
@@ -94,7 +101,7 @@ export class SigninApiService {
 		}
 
 		// not more than 1 attempt per second and not more than 10 attempts per hour
-		const rateLimit = await this.rateLimiterService.limit({ key: 'signin', duration: 60 * 60 * 1000, max: 10, minInterval: 1000 }, getIpHash(request.ip));
+		const rateLimit = await this.rateLimiterService.limit(signinRateLimit, getIpHash(request.ip));
 
 		sendRateLimitHeaders(reply, rateLimit);
 

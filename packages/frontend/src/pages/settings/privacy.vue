@@ -155,10 +155,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSwitch v-model="defaultNoteLocalOnly">{{ i18n.ts._visibility.disableFederation }}</MkSwitch>
 				</div>
 			</MkFolder>
+
+			<MkSwitch v-model="keepCw" @update:modelValue="save()">{{ i18n.ts.keepCw }}</MkSwitch>
+
+			<MkInput v-model="defaultCW" type="text" manualSave @update:modelValue="save()">
+				<template #label>{{ i18n.ts.defaultCW }}</template>
+				<template #caption>{{ i18n.ts.defaultCWDescription }}</template>
+			</MkInput>
+
+			<MkSelect v-model="defaultCWPriority" :disabled="!defaultCW || !keepCw" @update:modelValue="save()">
+				<template #label>{{ i18n.ts.defaultCWPriority }}</template>
+				<template #caption>{{ i18n.ts.defaultCWPriorityDescription }}</template>
+				<option value="default">{{ i18n.ts._defaultCWPriority.default }}</option>
+				<option value="parent">{{ i18n.ts._defaultCWPriority.parent }}</option>
+				<option value="parentDefault">{{ i18n.ts._defaultCWPriority.parentDefault }}</option>
+				<option value="defaultParent">{{ i18n.ts._defaultCWPriority.defaultParent }}</option>
+			</MkSelect>
 		</div>
 	</FormSection>
-
-	<MkSwitch v-model="keepCw" @update:modelValue="save()">{{ i18n.ts.keepCw }}</MkSwitch>
 </div>
 </template>
 
@@ -193,6 +207,8 @@ const hideOnlineStatus = ref($i.hideOnlineStatus);
 const publicReactions = ref($i.publicReactions);
 const followingVisibility = ref($i.followingVisibility);
 const followersVisibility = ref($i.followersVisibility);
+const defaultCW = ref($i.defaultCW);
+const defaultCWPriority = ref($i.defaultCWPriority);
 
 const defaultNoteVisibility = computed(defaultStore.makeGetterSetter('defaultNoteVisibility'));
 const defaultNoteLocalOnly = computed(defaultStore.makeGetterSetter('defaultNoteLocalOnly'));
@@ -251,6 +267,8 @@ function save() {
 		publicReactions: !!publicReactions.value,
 		followingVisibility: followingVisibility.value,
 		followersVisibility: followersVisibility.value,
+		defaultCWPriority: defaultCWPriority.value,
+		defaultCW: defaultCW.value,
 	});
 }
 

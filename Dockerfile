@@ -4,7 +4,7 @@ ARG NODE_VERSION=22.11.0-alpine3.20
 
 FROM node:${NODE_VERSION} as build
 
-RUN apk add git linux-headers build-base
+RUN apk add git linux-headers alpine-sdk pixman pango cairo cairo-dev pango-dev pixman-dev
 
 ENV PYTHONUNBUFFERED=1
 ENV COREPACK_DEFAULT_TO_LATEST=0
@@ -38,7 +38,7 @@ ARG UID="991"
 ARG GID="991"
 ENV COREPACK_DEFAULT_TO_LATEST=0
 
-RUN apk add ffmpeg tini jemalloc \
+RUN apk add ffmpeg tini jemalloc pixman pango cairo libpng \
 	&& corepack enable \
 	&& addgroup -g "${GID}" sharkey \
 	&& adduser -D -u "${UID}" -G sharkey -h /sharkey sharkey \

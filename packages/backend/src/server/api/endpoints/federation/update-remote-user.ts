@@ -13,10 +13,11 @@ export const meta = {
 
 	requireCredential: false,
 
-	// 2 calls per second
+	// Up to 10 calls, then 4 / second.
+	// This allows for reliable automation.
 	limit: {
-		duration: 1000,
-		max: 2,
+		max: 10,
+		dripRate: 250,
 	},
 } as const;
 

@@ -4,7 +4,7 @@
  */
 
 import { Entity, Column, Index, OneToOne, JoinColumn, PrimaryColumn } from 'typeorm';
-import { obsoleteNotificationTypes, followingVisibilities, followersVisibilities, notificationTypes } from '@/types.js';
+import { obsoleteNotificationTypes, followingVisibilities, followersVisibilities, notificationTypes, noteVisibilities, defaultCWPriorities } from '@/types.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 import { MiPage } from './Page.js';
@@ -36,10 +36,10 @@ export class MiUserProfile {
 	})
 	public birthday: string | null;
 
-	@Column("varchar", {
+	@Column('varchar', {
 		length: 128,
 		nullable: true,
-		comment: "The ListenBrainz username of the User.",
+		comment: 'The ListenBrainz username of the User.',
 	})
 	public listenbrainz: string | null;
 
@@ -289,6 +289,19 @@ export class MiUserProfile {
 		name: string;
 		unlockedAt: number;
 	}[];
+
+	@Column('text', {
+		name: 'default_cw',
+		nullable: true,
+	})
+	public defaultCW: string | null;
+
+	@Column('enum', {
+		name: 'default_cw_priority',
+		enum: defaultCWPriorities,
+		default: 'parent',
+	})
+	public defaultCWPriority: typeof defaultCWPriorities[number];
 
 	//#region Denormalized fields
 	@Index()

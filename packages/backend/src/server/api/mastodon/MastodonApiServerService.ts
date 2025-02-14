@@ -3,51 +3,76 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
-import megalodon, { Entity, MegalodonInterface } from 'megalodon';
 import querystring from 'querystring';
+import { megalodon, Entity, MegalodonInterface } from 'megalodon';
 import { IsNull } from 'typeorm';
 import multer from 'fastify-multer';
-import type { AccessTokensRepository, NoteEditRepository, NotesRepository, UserProfilesRepository, UsersRepository, MiMeta } from '@/models/_.js';
+import { Inject, Injectable } from '@nestjs/common';
+import type { AccessTokensRepository, UserProfilesRepository, UsersRepository, MiMeta } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import type { Config } from '@/config.js';
+import { DriveService } from '@/core/DriveService.js';
+import { getErrorData, MastodonLogger } from '@/server/api/mastodon/MastodonLogger.js';
+import { ApiAccountMastodonRoute } from '@/server/api/mastodon/endpoints/account.js';
+import { ApiSearchMastodonRoute } from '@/server/api/mastodon/endpoints/search.js';
+import { ApiFilterMastodonRoute } from '@/server/api/mastodon/endpoints/filter.js';
+import { ApiNotifyMastodonRoute } from '@/server/api/mastodon/endpoints/notifications.js';
+import { AuthenticateService } from '@/server/api/AuthenticateService.js';
+import { MiLocalUser } from '@/models/User.js';
+import { AuthMastodonRoute } from './endpoints/auth.js';
+import { toBoolean } from './timelineArgs.js';
 import { convertAnnouncement, convertFilter, convertAttachment, convertFeaturedTag, convertList, MastoConverters } from './converters.js';
 import { getInstance } from './endpoints/meta.js';
 import { ApiAuthMastodon, ApiAccountMastodon, ApiFilterMastodon, ApiNotifyMastodon, ApiSearchMastodon, ApiTimelineMastodon, ApiStatusMastodon } from './endpoints.js';
-import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { UserEntityService } from '@/core/entities/UserEntityService.js';
-import { DriveService } from '@/core/DriveService.js';
+import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
+
+export function getAccessToken(authorization: string | undefined): string | null {
+	const accessTokenArr = authorization?.split(' ') ?? [null];
+	return accessTokenArr[accessTokenArr.length - 1];
+}
 
 export function getClient(BASE_URL: string, authorization: string | undefined): MegalodonInterface {
-	const accessTokenArr = authorization?.split(' ') ?? [null];
-	const accessToken = accessTokenArr[accessTokenArr.length - 1];
-	const generator = (megalodon as any).default;
-	const client = generator('misskey', BASE_URL, accessToken) as MegalodonInterface;
-	return client;
+	const accessToken = getAccessToken(authorization);
+	return megalodon('misskey', BASE_URL, accessToken);
 }
 
 @Injectable()
 export class MastodonApiServerService {
 	constructor(
 		@Inject(DI.meta)
-		private serverSettings: MiMeta,
-        @Inject(DI.usersRepository)
-        private usersRepository: UsersRepository,
-		@Inject(DI.notesRepository)
-        private notesRepository: NotesRepository,
+		private readonly serverSettings: MiMeta,
+		@Inject(DI.usersRepository)
+		private readonly usersRepository: UsersRepository,
 		@Inject(DI.userProfilesRepository)
-		private userProfilesRepository: UserProfilesRepository,
-		@Inject(DI.noteEditRepository)
-		private noteEditRepository: NoteEditRepository,
+		private readonly userProfilesRepository: UserProfilesRepository,
 		@Inject(DI.accessTokensRepository)
-		private accessTokensRepository: AccessTokensRepository,
-        @Inject(DI.config)
-        private config: Config,
-		private userEntityService: UserEntityService,
-		private driveService: DriveService,
-		private mastoConverter: MastoConverters,
+		private readonly accessTokensRepository: AccessTokensRepository,
+		@Inject(DI.config)
+		private readonly config: Config,
+		private readonly driveService: DriveService,
+		private readonly mastoConverters: MastoConverters,
+		private readonly logger: MastodonLogger,
+		private readonly authenticateService: AuthenticateService,
 	) { }
+
+	@bindThis
+	public async getAuthClient(request: FastifyRequest): Promise<{ client: MegalodonInterface, me: MiLocalUser | null }> {
+		const accessToken = getAccessToken(request.headers.authorization);
+		const [me] = await this.authenticateService.authenticate(accessToken);
+
+		const baseUrl = `${request.protocol}://${request.host}`;
+		const client = megalodon('misskey', baseUrl, accessToken);
+
+		return { client, me };
+	}
+
+	@bindThis
+	public async getAuthOnly(request: FastifyRequest): Promise<MiLocalUser | null> {
+		const accessToken = getAccessToken(request.headers.authorization);
+		const [me] = await this.authenticateService.authenticate(accessToken);
+		return me;
+	}
 
 	@bindThis
 	public createServer(fastify: FastifyInstance, _options: FastifyPluginOptions, done: (err?: Error) => void) {
@@ -59,12 +84,12 @@ export class MastodonApiServerService {
 			},
 		});
 
-		fastify.addHook('onRequest', (request, reply, done) => {
+		fastify.addHook('onRequest', (_, reply, done) => {
 			reply.header('Access-Control-Allow-Origin', '*');
 			done();
 		});
 
-		fastify.addContentTypeParser('application/x-www-form-urlencoded', (request, payload, done) => {
+		fastify.addContentTypeParser('application/x-www-form-urlencoded', (_, payload, done) => {
 			let body = '';
 			payload.on('data', (data) => {
 				body += data;
@@ -73,8 +98,8 @@ export class MastodonApiServerService {
 				try {
 					const parsed = querystring.parse(body);
 					done(null, parsed);
-				} catch (e: any) {
-					done(e);
+				} catch (e) {
+					done(e as Error);
 				}
 			});
 			payload.on('error', done);
@@ -83,20 +108,21 @@ export class MastodonApiServerService {
 		fastify.register(multer.contentParser);
 
 		fastify.get('/v1/custom_emojis', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
 				const data = await client.getInstanceCustomEmojis();
 				reply.send(data.data);
-			} catch (e: any) {
-				console.error(e);
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/custom_emojis', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/instance', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
@@ -111,118 +137,124 @@ export class MastodonApiServerService {
 					},
 					order: { id: 'ASC' },
 				});
-				const contact = admin == null ? null : await this.mastoConverter.convertAccount((await client.getAccount(admin.id)).data);
+				const contact = admin == null ? null : await this.mastoConverters.convertAccount((await client.getAccount(admin.id)).data);
 				reply.send(await getInstance(data.data, contact as Entity.Account, this.config, this.serverSettings));
-			} catch (e: any) {
-				console.error(e);
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/instance', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/announcements', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
 				const data = await client.getInstanceAnnouncements();
 				reply.send(data.data.map((announcement) => convertAnnouncement(announcement)));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/announcements', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Body: { id: string } }>('/v1/announcements/:id/dismiss', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.post<{ Body: { id?: string } }>('/v1/announcements/:id/dismiss', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const data = await client.dismissInstanceAnnouncement(
-					_request.body['id'],
-				);
+				if (!_request.body.id) return reply.code(400).send({ error: 'Missing required payload "id"' });
+				const data = await client.dismissInstanceAnnouncement(_request.body['id']);
 				reply.send(data.data);
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/announcements/${_request.body.id}/dismiss`, data);
+				reply.code(401).send(data);
 			}
-		},
-		);
+		});
 
 		fastify.post('/v1/media', { preHandler: upload.single('file') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const multipartData = await _request.file;
+				const multipartData = await _request.file();
 				if (!multipartData) {
 					reply.code(401).send({ error: 'No image' });
 					return;
 				}
 				const data = await client.uploadMedia(multipartData);
 				reply.send(convertAttachment(data.data as Entity.Attachment));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('POST /v1/media', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post('/v2/media', { preHandler: upload.single('file') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.post<{ Body: { description?: string; focus?: string }}>('/v2/media', { preHandler: upload.single('file') }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const multipartData = await _request.file;
+				const multipartData = await _request.file();
 				if (!multipartData) {
 					reply.code(401).send({ error: 'No image' });
 					return;
 				}
-				const data = await client.uploadMedia(multipartData, _request.body!);
+				const data = await client.uploadMedia(multipartData, _request.body);
 				reply.send(convertAttachment(data.data as Entity.Attachment));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('POST /v2/media', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/filters', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
 			try {
 				const data = await client.getFilters();
 				reply.send(data.data.map((filter) => convertFilter(filter)));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/filters', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/trends', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
 			try {
 				const data = await client.getInstanceTrends();
 				reply.send(data.data);
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/trends', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/trends/tags', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
 			try {
 				const data = await client.getInstanceTrends();
 				reply.send(data.data);
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/trends/tags', data);
+				reply.code(401).send(data);
 			}
 		});
 
@@ -231,50 +263,69 @@ export class MastodonApiServerService {
 			reply.send([]);
 		});
 
-		fastify.post('/v1/apps', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.post<AuthMastodonRoute>('/v1/apps', { preHandler: upload.single('none') }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const client = getClient(BASE_URL, ''); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
 			try {
 				const data = await ApiAuthMastodon(_request, client);
 				reply.send(data);
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/apps', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/preferences', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
 			try {
 				const data = await client.getPreferences();
 				reply.send(data.data);
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/preferences', data);
+				reply.code(401).send(data);
 			}
 		});
 
 		//#region Accounts
-		fastify.get('/v1/accounts/verify_credentials', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
-			// displayed without being logged in
+		fastify.get<ApiAccountMastodonRoute>('/v1/accounts/verify_credentials', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.verifyCredentials());
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/accounts/verify_credentials', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.patch('/v1/accounts/update_credentials', { preHandler: upload.any() }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.patch<{
+			Body: {
+				discoverable?: string,
+				bot?: string,
+				display_name?: string,
+				note?: string,
+				avatar?: string,
+				header?: string,
+				locked?: string,
+				source?: {
+					privacy?: string,
+					sensitive?: string,
+					language?: string,
+				},
+				fields_attributes?: {
+					name: string,
+					value: string,
+				}[],
+			},
+		}>('/v1/accounts/update_credentials', { preHandler: upload.any() }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
 			// displayed without being logged in
@@ -332,512 +383,495 @@ export class MastodonApiServerService {
 					(_request.body as any).fields_attributes = fields.filter((field: any) => field.name.trim().length > 0 && field.value.length > 0);
 				}
 
-				const data = await client.updateCredentials(_request.body!);
-				reply.send(await this.mastoConverter.convertAccount(data.data));
-			} catch (e: any) {
-				//console.error(e);
-				reply.code(401).send(e.response.data);
-			}
-		});
-
-		fastify.get('/v1/accounts/lookup', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
-			// displayed without being logged in
-			try {
-				const data = await client.search((_request.query as any).acct, { type: 'accounts' });
-				const profile = await this.userProfilesRepository.findOneBy({ userId: data.data.accounts[0].id });
-				data.data.accounts[0].fields = profile?.fields.map(f => ({ ...f, verified_at: null })) || [];
-				reply.send(await this.mastoConverter.convertAccount(data.data.accounts[0]));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
-			}
-		});
-
-		fastify.get('/v1/accounts/relationships', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isnt
-			// displayed without being logged in
-			let users;
-			try {
-				let ids = _request.query ? (_request.query as any)['id[]'] ?? (_request.query as any)['id'] : null;
-				if (typeof ids === 'string') {
-					ids = [ids];
-				}
-				users = ids;
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
-				reply.send(await account.getRelationships(users));
-			} catch (e: any) {
-				/* console.error(e); */
-				const data = e.response.data;
-				data.users = users;
-				console.error(data);
+				const options = {
+					..._request.body,
+					discoverable: toBoolean(_request.body.discoverable),
+					bot: toBoolean(_request.body.bot),
+					locked: toBoolean(_request.body.locked),
+					source: _request.body.source ? {
+						..._request.body.source,
+						sensitive: toBoolean(_request.body.source.sensitive),
+					} : undefined,
+				};
+				const data = await client.updateCredentials(options);
+				reply.send(await this.mastoConverters.convertAccount(data.data));
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('PATCH /v1/accounts/update_credentials', data);
 				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.get<{ Querystring: { acct?: string }}>('/v1/accounts/lookup', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
+			const accessTokens = _request.headers.authorization;
+			const client = getClient(BASE_URL, accessTokens); // we are using this here, because in private mode some info isn't displayed without being logged in
+			try {
+				if (!_request.query.acct) return reply.code(400).send({ error: 'Missing required property "acct"' });
+				const data = await client.search(_request.query.acct, { type: 'accounts' });
+				const profile = await this.userProfilesRepository.findOneBy({ userId: data.data.accounts[0].id });
+				data.data.accounts[0].fields = profile?.fields.map(f => ({ ...f, verified_at: null })) ?? [];
+				reply.send(await this.mastoConverters.convertAccount(data.data.accounts[0]));
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/accounts/lookup', data);
+				reply.code(401).send(data);
+			}
+		});
+
+		fastify.get<ApiAccountMastodonRoute & { Querystring: { id?: string | string[], 'id[]'?: string | string[] }}>('/v1/accounts/relationships', async (_request, reply) => {
+			try {
+				const { client, me } = await this.getAuthClient(_request);
+				let ids = _request.query['id[]'] ?? _request.query['id'] ?? [];
+				if (typeof ids === 'string') {
+					ids = [ids];
+				}
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
+				reply.send(await account.getRelationships(ids));
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/accounts/relationships', data);
+				reply.code(401).send(data);
+			}
+		});
+
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const sharkId = _request.params.id;
-				const data = await client.getAccount(sharkId);
-				const account = await this.mastoConverter.convertAccount(data.data);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const data = await client.getAccount(_request.params.id);
+				const account = await this.mastoConverters.convertAccount(data.data);
 				reply.send(account);
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id/statuses', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/statuses', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getStatuses());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}/statuses`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id/featured_tags', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id/featured_tags', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
 				const data = await client.getFeaturedTags();
 				reply.send(data.data.map((tag) => convertFeaturedTag(tag)));
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}/featured_tags`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id/followers', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/followers', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getFollowers());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}/followers`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id/following', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/following', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getFollowing());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}/following`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/accounts/:id/lists', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id/lists', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
 				const data = await client.getAccountLists(_request.params.id);
 				reply.send(data.data.map((list) => convertList(list)));
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/accounts/${_request.params.id}/lists`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/follow', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/follow', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.addFollow());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/follow`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/unfollow', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unfollow', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.rmFollow());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/unfollow`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/block', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/block', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.addBlock());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/block`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/unblock', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unblock', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.rmBlock());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/unblock`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/mute', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/mute', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.addMute());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/mute`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/accounts/:id/unmute', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unmute', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.rmMute());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/accounts/${_request.params.id}/unmute`, data);
+				reply.code(401).send(data);
 			}
 		});
 
 		fastify.get('/v1/followed_tags', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
 				const data = await client.getFollowedTags();
 				reply.send(data.data);
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/followed_tags', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/bookmarks', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute>('/v1/bookmarks', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getBookmarks());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/bookmarks', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/favourites', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute>('/v1/favourites', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getFavourites());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/favourites', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/mutes', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute>('/v1/mutes', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getMutes());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/mutes', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/blocks', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiAccountMastodonRoute>('/v1/blocks', async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.getBlocks());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/blocks', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/follow_requests', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.get<{ Querystring: { limit?: string }}>('/v1/follow_requests', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const data = await client.getFollowRequests( ((_request.query as any) || { limit: 20 }).limit );
-				reply.send(await Promise.all(data.data.map(async (account) => await this.mastoConverter.convertAccount(account as Entity.Account))));
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+				const limit = _request.query.limit ? parseInt(_request.query.limit) : 20;
+				const data = await client.getFollowRequests(limit);
+				reply.send(await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account as Entity.Account))));
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/follow_requests', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/follow_requests/:id/authorize', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/follow_requests/:id/authorize', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.acceptFollow());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/follow_requests/${_request.params.id}/authorize`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/follow_requests/:id/reject', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/follow_requests/:id/reject', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const account = new ApiAccountMastodon(_request, client, BASE_URL, this.mastoConverter);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const account = new ApiAccountMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await account.rejectFollow());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/follow_requests/${_request.params.id}/reject`, data);
+				reply.code(401).send(data);
 			}
 		});
 		//#endregion
 
 		//#region Search
-		fastify.get('/v1/search', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiSearchMastodonRoute>('/v1/search', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			try {
-				const search = new ApiSearchMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const search = new ApiSearchMastodon(_request, client, me, BASE_URL, this.mastoConverters);
 				reply.send(await search.SearchV1());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/search', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v2/search', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiSearchMastodonRoute>('/v2/search', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			try {
-				const search = new ApiSearchMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const search = new ApiSearchMastodon(_request, client, me, BASE_URL, this.mastoConverters);
 				reply.send(await search.SearchV2());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v2/search', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v1/trends/statuses', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiSearchMastodonRoute>('/v1/trends/statuses', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			try {
-				const search = new ApiSearchMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const search = new ApiSearchMastodon(_request, client, me, BASE_URL, this.mastoConverters);
 				reply.send(await search.getStatusTrends());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/trends/statuses', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get('/v2/suggestions', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiSearchMastodonRoute>('/v2/suggestions', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			try {
-				const search = new ApiSearchMastodon(_request, client, BASE_URL, this.mastoConverter);
+				const { client, me } = await this.getAuthClient(_request);
+				const search = new ApiSearchMastodon(_request, client, me, BASE_URL, this.mastoConverters);
 				reply.send(await search.getSuggestions());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v2/suggestions', data);
+				reply.code(401).send(data);
 			}
 		});
 		//#endregion
 
 		//#region Notifications
-		fastify.get('/v1/notifications', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiNotifyMastodonRoute>('/v1/notifications', async (_request, reply) => {
 			try {
-				const notify = new ApiNotifyMastodon(_request, client);
+				const { client, me } = await this.getAuthClient(_request);
+				const notify = new ApiNotifyMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await notify.getNotifications());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('GET /v1/notifications', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.get<{ Params: { id: string } }>('/v1/notification/:id', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.get<ApiNotifyMastodonRoute & { Params: { id?: string } }>('/v1/notification/:id', async (_request, reply) => {
 			try {
-				const notify = new ApiNotifyMastodon(_request, client);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const notify = new ApiNotifyMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await notify.getNotification());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/notification/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/notification/:id/dismiss', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiNotifyMastodonRoute & { Params: { id?: string } }>('/v1/notification/:id/dismiss', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const notify = new ApiNotifyMastodon(_request, client);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const { client, me } = await this.getAuthClient(_request);
+				const notify = new ApiNotifyMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await notify.rmNotification());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/notification/${_request.params.id}/dismiss`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post('/v1/notifications/clear', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
-			const accessTokens = _request.headers.authorization;
-			const client = getClient(BASE_URL, accessTokens);
+		fastify.post<ApiNotifyMastodonRoute>('/v1/notifications/clear', { preHandler: upload.single('none') }, async (_request, reply) => {
 			try {
-				const notify = new ApiNotifyMastodon(_request, client);
+				const { client, me } = await this.getAuthClient(_request);
+				const notify = new ApiNotifyMastodon(_request, client, me, this.mastoConverters);
 				reply.send(await notify.rmNotifications());
-			} catch (e: any) {
-				/* console.error(e);
-				console.error(e.response.data); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('POST /v1/notifications/clear', data);
+				reply.code(401).send(data);
 			}
 		});
 		//#endregion
 
 		//#region Filters
-		fastify.get<{ Params: { id: string } }>('/v1/filters/:id', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.get<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
 				const filter = new ApiFilterMastodon(_request, client);
-				!_request.params.id ? reply.send(await filter.getFilters()) : reply.send(await filter.getFilter());
-			} catch (e: any) {
-				console.error(e);
-				console.error(e.response.data);
-				reply.code(401).send(e.response.data);
+				_request.params.id
+					? reply.send(await filter.getFilter())
+					: reply.send(await filter.getFilters());
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`GET /v1/filters/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post('/v1/filters', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.post<ApiFilterMastodonRoute>('/v1/filters', { preHandler: upload.single('none') }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
 				const filter = new ApiFilterMastodon(_request, client);
 				reply.send(await filter.createFilter());
-			} catch (e: any) {
-				console.error(e);
-				console.error(e.response.data);
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error('POST /v1/filters', data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.post<{ Params: { id: string } }>('/v1/filters/:id', { preHandler: upload.single('none') }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.post<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', { preHandler: upload.single('none') }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
 				const filter = new ApiFilterMastodon(_request, client);
 				reply.send(await filter.updateFilter());
-			} catch (e: any) {
-				console.error(e);
-				console.error(e.response.data);
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`POST /v1/filters/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 
-		fastify.delete<{ Params: { id: string } }>('/v1/filters/:id', async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.delete<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
 				const filter = new ApiFilterMastodon(_request, client);
 				reply.send(await filter.rmFilter());
-			} catch (e: any) {
-				console.error(e);
-				console.error(e.response.data);
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`DELETE /v1/filters/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 		//#endregion
 
 		//#region Timelines
-		const TLEndpoint = new ApiTimelineMastodon(fastify, this.config, this.mastoConverter);
+		const TLEndpoint = new ApiTimelineMastodon(fastify, this.mastoConverters, this.logger, this);
 
 		// GET Endpoints
 		TLEndpoint.getTL();
@@ -862,7 +896,7 @@ export class MastodonApiServerService {
 		//#endregion
 
 		//#region Status
-		const NoteEndpoint = new ApiStatusMastodon(fastify, this.mastoConverter);
+		const NoteEndpoint = new ApiStatusMastodon(fastify, this.mastoConverters, this.logger, this.authenticateService, this);
 
 		// GET Endpoints
 		NoteEndpoint.getStatus();
@@ -889,16 +923,32 @@ export class MastodonApiServerService {
 		NoteEndpoint.votePoll();
 
 		// PUT Endpoint
-		fastify.put<{ Params: { id: string } }>('/v1/media/:id', { preHandler: upload.none() }, async (_request, reply) => {
-			const BASE_URL = `${_request.protocol}://${_request.hostname}`;
+		fastify.put<{
+			Params: {
+				id?: string,
+			},
+			Body: {
+				file?: unknown,
+				description?: string,
+				focus?: string,
+				is_sensitive?: string,
+			},
+		}>('/v1/media/:id', { preHandler: upload.none() }, async (_request, reply) => {
+			const BASE_URL = `${_request.protocol}://${_request.host}`;
 			const accessTokens = _request.headers.authorization;
 			const client = getClient(BASE_URL, accessTokens);
 			try {
-				const data = await client.updateMedia(_request.params.id, _request.body!);
+				if (!_request.params.id) return reply.code(400).send({ error: 'Missing required parameter "id"' });
+				const options = {
+					..._request.body,
+					is_sensitive: toBoolean(_request.body.is_sensitive),
+				};
+				const data = await client.updateMedia(_request.params.id, options);
 				reply.send(convertAttachment(data.data));
-			} catch (e: any) {
-				/* console.error(e); */
-				reply.code(401).send(e.response.data);
+			} catch (e) {
+				const data = getErrorData(e);
+				this.logger.error(`PUT /v1/media/${_request.params.id}`, data);
+				reply.code(401).send(data);
 			}
 		});
 		NoteEndpoint.updateStatus();

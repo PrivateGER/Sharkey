@@ -122,6 +122,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<template v-else-if="notification.type === 'follow'">
 				<span :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.youGotNewFollower }}</span>
+				<div v-if="full" :class="$style.followRequestCommands">
+					<MkFollowButton v-if="userDetailed" :class="$style.followCommandButton" :user="userDetailed" :transparent="false" :full="false"/>
+				</div>
 			</template>
 			<template v-else-if="notification.type === 'followRequestAccepted'">
 				<div :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.followRequestAccepted }}</div>
@@ -136,6 +139,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-if="full && !followRequestDone" :class="$style.followRequestCommands">
 					<MkButton :class="$style.followRequestCommandButton" rounded primary @click="acceptFollowRequest()"><i class="ti ti-check"/> {{ i18n.ts.accept }}</MkButton>
 					<MkButton :class="$style.followRequestCommandButton" rounded danger @click="rejectFollowRequest()"><i class="ti ti-x"/> {{ i18n.ts.reject }}</MkButton>
+					<MkFollowButton v-if="userDetailed" :class="$style.followCommandButton" :user="userDetailed" :transparent="false" :full="false"/>
 				</div>
 			</template>
 			<span v-else-if="notification.type === 'test'" :class="$style.text">{{ i18n.ts._notification.notificationWillBeDisplayedLikeThis }}</span>
@@ -179,8 +183,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { Ref, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import { UserDetailed } from 'misskey-js/autogen/models.js';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import MkButton from '@/components/MkButton.vue';
 import { getNoteSummary } from '@/scripts/get-note-summary.js';
@@ -190,6 +195,7 @@ import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { signinRequired } from '@/account.js';
 import { infoImageUrl } from '@/instance.js';
+import MkFollowButton from '@/components/MkFollowButton.vue';
 
 const $i = signinRequired();
 
@@ -201,6 +207,28 @@ const props = withDefaults(defineProps<{
 	withTime: false,
 	full: false,
 });
+
+const userDetailed: Ref<UserDetailed | null> = ref(null);
+
+const followRequestDone = ref(true);
+
+// watch() is required because computed() doesn't support async.
+watch(props, async () => {
+	const type = props.notification.type;
+
+	// To avoid extra lookups, only do the query when it actually matters.
+	if (type === 'follow' || type === 'receiveFollowRequest') {
+		const user = await misskeyApi('users/show', {
+			userId: props.notification.userId,
+		});
+
+		userDetailed.value = user;
+		followRequestDone.value = !user.hasPendingFollowRequestToYou;
+	} else {
+		userDetailed.value = null;
+		followRequestDone.value = false;
+	}
+}, { immediate: true });
 
 type ExportCompletedNotification = Misskey.entities.Notification & { type: 'exportCompleted' };
 
@@ -215,8 +243,6 @@ const exportEntityName = {
 	note: i18n.ts.notes,
 	userList: i18n.ts.lists,
 } as const satisfies Record<ExportCompletedNotification['exportedEntity'], string>;
-
-const followRequestDone = ref(false);
 
 const acceptFollowRequest = () => {
 	if (!('user' in props.notification)) return;
@@ -434,11 +460,22 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .followRequestCommands {
 	display: flex;
 	gap: 8px;
-	max-width: 300px;
 	margin-top: 8px;
+	width: 100%;
 }
 .followRequestCommandButton {
+	max-width: 175px;
+	width: 100%;
+}
+
+.flexSpacer {
 	flex: 1;
+}
+
+.followCommandButton {
+	margin-left: auto;
+	flex-grow: 0;
+	flex-shrink: 0;
 }
 
 .reactionsItem {

@@ -27,7 +27,10 @@ export {
   Pleroma,
   Misskey,
   Entity,
-  Converter
+  Converter,
+	generator,
 }
+
+export const megalodon = generator;
 
 export default generator

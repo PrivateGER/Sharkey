@@ -5,36 +5,67 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
-import { TimeService } from '@/core/TimeService.js';
-import { EnvService } from '@/core/EnvService.js';
+import type { TimeService } from '@/core/TimeService.js';
+import type { EnvService } from '@/core/EnvService.js';
 import { BucketRateLimit, LegacyRateLimit, LimitInfo, RateLimit, hasMinLimit, isLegacyRateLimit, Keyed, hasMaxLimit, disabledLimitInfo, MaxLegacyLimit, MinLegacyLimit } from '@/misc/rate-limit-utils.js';
 import { DI } from '@/di-symbols.js';
+import { MemoryKVCache } from '@/misc/cache.js';
+import type { MiUser } from '@/models/_.js';
+import type { RoleService } from '@/core/RoleService.js';
+
+// Sentinel value used for caching the default role template.
+// Required because MemoryKVCache doesn't support null keys.
+const defaultUserKey = '';
 
 @Injectable()
 export class SkRateLimiterService {
+	// 1-minute cache interval
+	private readonly factorCache = new MemoryKVCache<number>(1000 * 60);
 	private readonly disabled: boolean;
 
 	constructor(
-		@Inject(TimeService)
+		@Inject('TimeService')
 		private readonly timeService: TimeService,
 
 		@Inject(DI.redis)
 		private readonly redisClient: Redis.Redis,
 
-		@Inject(EnvService)
+		@Inject('RoleService')
+		private readonly roleService: RoleService,
+
+		@Inject('EnvService')
 		envService: EnvService,
 	) {
 		this.disabled = envService.env.NODE_ENV === 'test';
 	}
 
 	/**
-	 * Check & increment a rate limit
+	 * Check & increment a rate limit for a client.
+	 *
+	 * If the client (actorOrUser) is passed as a string, then it uses the default rate limit factor from the role template.
+	 * If the client (actorOrUser) is passed as an MiUser, then it queries the user's actual rate limit factor from their assigned roles.
+	 *
+	 * A factor of zero (0) will disable the limit, while any negative number will produce an error.
+	 * A factor between zero (0) and one (1) will increase the limit from its default values (allowing more actions per time interval).
+	 * A factor greater than one (1) will decrease the limit from its default values (allowing fewer actions per time interval).
+	 *
 	 * @param limit The limit definition
-	 * @param actor Client who is calling this limit
-	 * @param factor Scaling factor - smaller = larger limit (less restrictive)
+	 * @param actorOrUser authenticated client user or IP hash
 	 */
-	public async limit(limit: Keyed<RateLimit>, actor: string, factor = 1): Promise<LimitInfo> {
-		if (this.disabled || factor === 0) {
+	public async limit(limit: Keyed<RateLimit>, actorOrUser: string | MiUser): Promise<LimitInfo> {
+		if (this.disabled) {
+			return disabledLimitInfo;
+		}
+
+		const actor = typeof(actorOrUser) === 'object' ? actorOrUser.id : actorOrUser;
+		const userCacheKey = typeof(actorOrUser) === 'object' ? actorOrUser.id : defaultUserKey;
+		const userRoleKey = typeof(actorOrUser) === 'object' ? actorOrUser.id : null;
+		const factor = this.factorCache.get(userCacheKey) ?? await this.factorCache.fetch(userCacheKey, async () => {
+			const role = await this.roleService.getUserPolicies(userRoleKey);
+			return role.rateLimitFactor;
+		});
+
+		if (factor === 0) {
 			return disabledLimitInfo;
 		}
 
@@ -42,10 +73,6 @@ export class SkRateLimiterService {
 			throw new Error(`Rate limit factor is zero or negative: ${factor}`);
 		}
 
-		return await this.tryLimit(limit, actor, factor);
-	}
-
-	private async tryLimit(limit: Keyed<RateLimit>, actor: string, factor: number): Promise<LimitInfo> {
 		if (isLegacyRateLimit(limit)) {
 			return await this.limitLegacy(limit, actor, factor);
 		} else {

@@ -8,5 +8,8 @@ namespace MisskeyEntity {
     isBlocking: boolean
     isBlocked: boolean
     isMuted: boolean
+		isRenoteMuted: boolean
+		isInstanceMuted?: boolean
+		memo?: string | null
   }
 }

@@ -358,6 +358,10 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 							return h('ruby', {}, [...genEl(token.children.slice(0, token.children.length - 1), scale), h('rt', text.trim())]);
 						}
 					}
+					case 'group': { // this is mostly a hack for the insides of `ruby`
+						style = '';
+						break;
+					}
 					case 'unixtime': {
 						const child = token.children[0];
 						const unixtime = parseInt(child.type === 'text' ? child.props.text : '');

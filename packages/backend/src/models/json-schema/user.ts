@@ -752,6 +752,15 @@ export const packedMeDetailedOnlySchema = {
 			},
 		},
 		//#endregion
+		defaultCW: {
+			type: 'string',
+			nullable: true, optional: false,
+		},
+		defaultCWPriority: {
+			type: 'string',
+			enum: ['default', 'parent', 'defaultParent', 'parentDefault'],
+			nullable: false, optional: false,
+		},
 	},
 } as const;
 

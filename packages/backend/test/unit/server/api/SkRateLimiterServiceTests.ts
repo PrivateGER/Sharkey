@@ -4,7 +4,9 @@
  */
 
 import type Redis from 'ioredis';
-import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import type { MiUser } from '@/models/User.js';
+import type { RolePolicies, RoleService } from '@/core/RoleService.js';
+import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { BucketRateLimit, Keyed, LegacyRateLimit } from '@/misc/rate-limit-utils.js';
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -15,6 +17,8 @@ describe(SkRateLimiterService, () => {
 	let mockRedisExec: (batch: [string, ...unknown[]][]) => Promise<[Error | null, unknown][] | null> = null!;
 	let mockEnvironment: Record<string, string | undefined> = null!;
 	let serviceUnderTest: () => SkRateLimiterService = null!;
+	let mockDefaultUserPolicies: Partial<RolePolicies> = null!;
+	let mockUserPolicies: Record<string, Partial<RolePolicies>> = null!;
 
 	beforeEach(() => {
 		mockTimeService = {
@@ -69,9 +73,18 @@ describe(SkRateLimiterService, () => {
 			env: mockEnvironment,
 		};
 
+		mockDefaultUserPolicies = { rateLimitFactor: 1 };
+		mockUserPolicies = {};
+		const mockRoleService = {
+			getUserPolicies(key: string | null) {
+				const policies = key != null ? mockUserPolicies[key] : null;
+				return Promise.resolve(policies ?? mockDefaultUserPolicies);
+			},
+		} as unknown as RoleService;
+
 		let service: SkRateLimiterService | undefined = undefined;
 		serviceUnderTest = () => {
-			return service ??= new SkRateLimiterService(mockTimeService, mockRedisClient, mockEnvService);
+			return service ??= new SkRateLimiterService(mockTimeService, mockRedisClient, mockRoleService, mockEnvService);
 		};
 	});
 
@@ -284,11 +297,12 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should scale limit by factor', async () => {
+				mockDefaultUserPolicies.rateLimitFactor = 0.5;
 				limitCounter = 1;
 				limitTimestamp = 0;
 
-				const i1 = await serviceUnderTest().limit(limit, actor, 0.5); // 1 + 1 = 2
-				const i2 = await serviceUnderTest().limit(limit, actor, 0.5); // 2 + 1 = 3
+				const i1 = await serviceUnderTest().limit(limit, actor); // 1 + 1 = 2
+				const i2 = await serviceUnderTest().limit(limit, actor); // 2 + 1 = 3
 
 				expect(i1.blocked).toBeFalsy();
 				expect(i2.blocked).toBeTruthy();
@@ -330,14 +344,18 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should skip if factor is zero', async () => {
-				const info = await serviceUnderTest().limit(limit, actor, 0);
+				mockDefaultUserPolicies.rateLimitFactor = 0;
+
+				const info = await serviceUnderTest().limit(limit, actor);
 
 				expect(info.blocked).toBeFalsy();
 				expect(info.remaining).toBe(Number.MAX_SAFE_INTEGER);
 			});
 
 			it('should throw if factor is negative', async () => {
-				const promise = serviceUnderTest().limit(limit, actor, -1);
+				mockDefaultUserPolicies.rateLimitFactor = -1;
+
+				const promise = serviceUnderTest().limit(limit, actor);
 
 				await expect(promise).rejects.toThrow(/factor is zero or negative/);
 			});
@@ -425,6 +443,19 @@ describe(SkRateLimiterService, () => {
 				expect(info.resetSec).toBe(2);
 				expect(info.fullResetMs).toBe(2000);
 				expect(info.fullResetSec).toBe(2);
+			});
+
+			it('should look up factor by user ID', async () => {
+				const userActor = { id: actor } as unknown as MiUser;
+				mockUserPolicies[actor] = { rateLimitFactor: 0.5 };
+				limitCounter = 1;
+				limitTimestamp = 0;
+
+				const i1 = await serviceUnderTest().limit(limit, userActor); // 1 + 1 = 2
+				const i2 = await serviceUnderTest().limit(limit, userActor); // 2 + 1 = 3
+
+				expect(i1.blocked).toBeFalsy();
+				expect(i2.blocked).toBeTruthy();
 			});
 		});
 
@@ -529,11 +560,12 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should scale interval by factor', async () => {
+				mockDefaultUserPolicies.rateLimitFactor = 0.5;
 				limitCounter = 1;
 				limitTimestamp = 0;
 				mockTimeService.now += 500;
 
-				const info = await serviceUnderTest().limit(limit, actor, 0.5);
+				const info = await serviceUnderTest().limit(limit, actor);
 
 				expect(info.blocked).toBeFalsy();
 			});
@@ -574,14 +606,18 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should skip if factor is zero', async () => {
-				const info = await serviceUnderTest().limit(limit, actor, 0);
+				mockDefaultUserPolicies.rateLimitFactor = 0;
+
+				const info = await serviceUnderTest().limit(limit, actor);
 
 				expect(info.blocked).toBeFalsy();
 				expect(info.remaining).toBe(Number.MAX_SAFE_INTEGER);
 			});
 
 			it('should throw if factor is negative', async () => {
-				const promise = serviceUnderTest().limit(limit, actor, -1);
+				mockDefaultUserPolicies.rateLimitFactor = -1;
+
+				const promise = serviceUnderTest().limit(limit, actor);
 
 				await expect(promise).rejects.toThrow(/factor is zero or negative/);
 			});
@@ -701,10 +737,11 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should scale limit by factor', async () => {
+				mockDefaultUserPolicies.rateLimitFactor = 0.5;
 				limitCounter = 10;
 				limitTimestamp = 0;
 
-				const info = await serviceUnderTest().limit(limit, actor, 0.5); // 10 + 1 = 11
+				const info = await serviceUnderTest().limit(limit, actor); // 10 + 1 = 11
 
 				expect(info.blocked).toBeTruthy();
 			});
@@ -760,14 +797,18 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should skip if factor is zero', async () => {
-				const info = await serviceUnderTest().limit(limit, actor, 0);
+				mockDefaultUserPolicies.rateLimitFactor = 0;
+
+				const info = await serviceUnderTest().limit(limit, actor);
 
 				expect(info.blocked).toBeFalsy();
 				expect(info.remaining).toBe(Number.MAX_SAFE_INTEGER);
 			});
 
 			it('should throw if factor is negative', async () => {
-				const promise = serviceUnderTest().limit(limit, actor, -1);
+				mockDefaultUserPolicies.rateLimitFactor = -1;
+
+				const promise = serviceUnderTest().limit(limit, actor);
 
 				await expect(promise).rejects.toThrow(/factor is zero or negative/);
 			});
@@ -890,11 +931,12 @@ describe(SkRateLimiterService, () => {
 			});
 
 			it('should scale limit and interval by factor', async () => {
+				mockDefaultUserPolicies.rateLimitFactor = 0.5;
 				limitCounter = 5;
 				limitTimestamp = 0;
 				mockTimeService.now += 500;
 
-				const info = await serviceUnderTest().limit(limit, actor, 0.5);
+				const info = await serviceUnderTest().limit(limit, actor);
 
 				expect(info.blocked).toBeFalsy();
 			});

@@ -5,7 +5,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { SearchService } from '@/core/SearchService.js';
+import { fileTypeCategories, SearchService } from '@/core/SearchService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../error.js';
@@ -52,7 +52,11 @@ export const paramDef = {
 			type: 'string',
 			description: 'The local host is represented with `.`.',
 		},
-		filetype: { type: 'string', nullable: true },
+		filetype: {
+			type: 'string',
+			nullable: true,
+			enum: fileTypeCategories,
+		},
 		userId: { type: 'string', format: 'misskey:id', nullable: true, default: null },
 		channelId: { type: 'string', format: 'misskey:id', nullable: true, default: null },
 		order: { type: 'string' },

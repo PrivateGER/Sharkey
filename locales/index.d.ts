@@ -8507,6 +8507,30 @@ export interface Locale extends ILocale {
          */
         "write:report-abuse": string;
         /**
+         * Approve new users
+         */
+        "write:admin:approve-user": string;
+        /**
+         * Decline new users
+         */
+        "write:admin:decline-user": string;
+        /**
+         * Mark users as NSFW
+         */
+        "write:admin:nsfw-user": string;
+        /**
+         * Mark users an not NSFW
+         */
+        "write:admin:unnsfw-user": string;
+        /**
+         * Silence users
+         */
+        "write:admin:silence-user": string;
+        /**
+         * Un-silence users
+         */
+        "write:admin:unsilence-user": string;
+        /**
          * View your list of scheduled notes
          */
         "read:notes-schedule": string;
@@ -11646,6 +11670,90 @@ export interface Locale extends ILocale {
      * Alt text generated successfully. Please check and edit if necessary.
      */
     "generatedAltTextSuccess": string;
+    /**
+     * Default content warning for new posts
+     */
+    "defaultCW": string;
+    /**
+     * The value here will be auto-filled as the content warning for all new posts and replies.
+     */
+    "defaultCWDescription": string;
+    /**
+     * Automatic CW priority
+     */
+    "defaultCWPriority": string;
+    /**
+     * Select preferred action when default CW and keep CW settings are both enabled at the same time.
+     */
+    "defaultCWPriorityDescription": string;
+    "_defaultCWPriority": {
+        /**
+         * Use Default (use the default CW, ignoring the inherited CW)
+         */
+        "default": string;
+        /**
+         * Use Parent (use the inherited CW, ignoring the default CW)
+         */
+        "parent": string;
+        /**
+         * Use Default, then Parent (use the default CW, and append the inherited CW)
+         */
+        "defaultParent": string;
+        /**
+         * Use Parent, then Default (use the inherited CW, and append the default CW)
+         */
+        "parentDefault": string;
+    };
+    /**
+     * Generate Keys
+     */
+    "genKeys": string;
+    "_genKeysDialog": {
+        /**
+         * Are you sure that you want to generate new keys? This will stop push notifications for all users who have already enabled them.
+         */
+        "text": string;
+        /**
+         * Generate new keys
+         */
+        "title": string;
+    };
+    "_noteSearch": {
+        /**
+         * Sort by newest to oldest
+         */
+        "newestToOldest": string;
+        /**
+         * File Type
+         */
+        "fileType": string;
+        "_fileType": {
+            /**
+             * None
+             */
+            "none": string;
+            /**
+             * Images
+             */
+            "image": string;
+            /**
+             * Videos
+             */
+            "video": string;
+            /**
+             * Audio
+             */
+            "audio": string;
+            /**
+             * Module
+             */
+            "module": string;
+            /**
+             * Flash
+             */
+            "flash": string;
+        };
+    };
 }
 declare const locales: {
     [lang: string]: Locale;

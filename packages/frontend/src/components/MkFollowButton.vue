@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <button
 	class="_button"
 	:class="[$style.root, { [$style.wait]: wait, [$style.active]: isFollowing || hasPendingFollowRequestFromYou, [$style.full]: full, [$style.large]: large }]"
-	:disabled="wait"
+	:disabled="wait || disabled"
 	@click="onClick"
 >
 	<template v-if="!wait">
@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import * as os from '@/os.js';
@@ -51,19 +51,25 @@ const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed,
 	full?: boolean,
 	large?: boolean,
+	disabled?: boolean,
 }>(), {
 	full: false,
 	large: false,
+	disabled: false,
 });
 
 const emit = defineEmits<{
-	(_: 'update:user', value: Misskey.entities.UserDetailed): void
+	(_: 'update:user', value: Misskey.entities.UserDetailed): void,
+	(_: 'update:wait', value: boolean): void,
 }>();
 
 const isFollowing = ref(props.user.isFollowing);
 const hasPendingFollowRequestFromYou = ref(props.user.hasPendingFollowRequestFromYou);
 const wait = ref(false);
 const connection = useStream().useChannel('main');
+
+// Emit the "wait" status so external components can synchronize state
+watch(wait, value => emit('update:wait', value));
 
 if (props.user.isFollowing == null && $i) {
 	misskeyApi('users/show', {

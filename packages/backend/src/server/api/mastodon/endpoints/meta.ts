@@ -8,6 +8,7 @@ import { FILE_TYPE_BROWSERSAFE } from '@/const.js';
 import type { Config } from '@/config.js';
 import type { MiMeta } from '@/models/Meta.js';
 
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 export async function getInstance(
 	response: Entity.Instance,
 	contact: Entity.Account,
@@ -17,11 +18,8 @@ export async function getInstance(
 	return {
 		uri: config.url,
 		title: meta.name || 'Sharkey',
-		short_description:
-			meta.description || 'This is a vanilla Sharkey Instance. It doesn\'t seem to have a description.',
-		description:
-			meta.description ||
-			'This is a vanilla Sharkey Instance. It doesn\'t seem to have a description.',
+		short_description: meta.description || 'This is a vanilla Sharkey Instance. It doesn\'t seem to have a description.',
+		description: meta.description || 'This is a vanilla Sharkey Instance. It doesn\'t seem to have a description.',
 		email: response.email || '',
 		version: `3.0.0 (compatible; Sharkey ${config.version})`,
 		urls: response.urls,

@@ -232,6 +232,8 @@ const $FanoutTimelineEndpointService: Provider = { provide: 'FanoutTimelineEndpo
 const $ChannelFollowingService: Provider = { provide: 'ChannelFollowingService', useExisting: ChannelFollowingService };
 const $RegistryApiService: Provider = { provide: 'RegistryApiService', useExisting: RegistryApiService };
 const $ReversiService: Provider = { provide: 'ReversiService', useExisting: ReversiService };
+const $TimeService: Provider = { provide: 'TimeService', useExisting: TimeService };
+const $EnvService: Provider = { provide: 'EnvService', useExisting: EnvService };
 
 const $ChartLoggerService: Provider = { provide: 'ChartLoggerService', useExisting: ChartLoggerService };
 const $FederationChart: Provider = { provide: 'FederationChart', useExisting: FederationChart };
@@ -538,6 +540,8 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$ChannelFollowingService,
 		$RegistryApiService,
 		$ReversiService,
+		$TimeService,
+		$EnvService,
 
 		$ChartLoggerService,
 		$FederationChart,
@@ -839,6 +843,8 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$ChannelFollowingService,
 		$RegistryApiService,
 		$ReversiService,
+		$TimeService,
+		$EnvService,
 
 		$FederationChart,
 		$NotesChart,

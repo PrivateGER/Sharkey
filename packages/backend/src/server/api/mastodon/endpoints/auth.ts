@@ -44,36 +44,54 @@ const writeScope = [
 	'write:gallery-likes',
 ];
 
-export async function ApiAuthMastodon(request: FastifyRequest, client: MegalodonInterface) {
-	const body: any = request.body || request.query;
-	try {
-		let scope = body.scopes;
-		if (typeof scope === 'string') scope = scope.split(' ') || scope.split('+');
-		const pushScope = new Set<string>();
-		for (const s of scope) {
-			if (s.match(/^read/)) for (const r of readScope) pushScope.add(r);
-			if (s.match(/^write/)) for (const r of writeScope) pushScope.add(r);
-		}
-		const scopeArr = Array.from(pushScope);
+export interface AuthPayload {
+	scopes?: string | string[],
+	redirect_uris?: string,
+	client_name?: string,
+	website?: string,
+}
 
-		const red = body.redirect_uris;
-		const appData = await client.registerApp(body.client_name, {
-			scopes: scopeArr,
-			redirect_uris: red,
-			website: body.website,
-		});
-		const returns = {
-			id: Math.floor(Math.random() * 100).toString(),
-			name: appData.name,
-			website: body.website,
-			redirect_uri: red,
-			client_id: Buffer.from(appData.url || '').toString('base64'),
-			client_secret: appData.clientSecret,
-		};
+// Not entirely right, but it gets TypeScript to work so *shrug*
+export type AuthMastodonRoute = { Body?: AuthPayload, Querystring: AuthPayload };
 
-		return returns;
-	} catch (e: any) {
-		console.error(e);
-		return e.response.data;
+export async function ApiAuthMastodon(request: FastifyRequest<AuthMastodonRoute>, client: MegalodonInterface) {
+	const body = request.body ?? request.query;
+	if (!body.scopes) throw new Error('Missing required payload "scopes"');
+	if (!body.redirect_uris) throw new Error('Missing required payload "redirect_uris"');
+	if (!body.client_name) throw new Error('Missing required payload "client_name"');
+
+	let scope = body.scopes;
+	if (typeof scope === 'string') {
+		scope = scope.split(/[ +]/g);
 	}
+
+	const pushScope = new Set<string>();
+	for (const s of scope) {
+		if (s.match(/^read/)) {
+			for (const r of readScope) {
+				pushScope.add(r);
+			}
+		}
+		if (s.match(/^write/)) {
+			for (const r of writeScope) {
+				pushScope.add(r);
+			}
+		}
+	}
+
+	const red = body.redirect_uris;
+	const appData = await client.registerApp(body.client_name, {
+		scopes: Array.from(pushScope),
+		redirect_uris: red,
+		website: body.website,
+	});
+
+	return {
+		id: Math.floor(Math.random() * 100).toString(),
+		name: appData.name,
+		website: body.website,
+		redirect_uri: red,
+		client_id: Buffer.from(appData.url || '').toString('base64'), // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+		client_secret: appData.clientSecret,
+	};
 }

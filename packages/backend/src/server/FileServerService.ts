@@ -11,7 +11,7 @@ import rename from 'rename';
 import sharp from 'sharp';
 import { sharpBmp } from '@misskey-dev/sharp-read-bmp';
 import type { Config } from '@/config.js';
-import type { MiDriveFile, DriveFilesRepository } from '@/models/_.js';
+import type { MiDriveFile, DriveFilesRepository, MiUser } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { createTemp } from '@/misc/create-temp.js';
 import { FILE_TYPE_BROWSERSAFE } from '@/const.js';
@@ -30,8 +30,7 @@ import { correctFilename } from '@/misc/correct-filename.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
 import { AuthenticateService } from '@/server/api/AuthenticateService.js';
-import { RoleService } from '@/core/RoleService.js';
-import { SkRateLimiterService } from '@/server/api/SkRateLimiterService.js';
+import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions } from 'fastify';
 
@@ -59,7 +58,6 @@ export class FileServerService {
 		private loggerService: LoggerService,
 		private authenticateService: AuthenticateService,
 		private rateLimiterService: SkRateLimiterService,
-		private roleService: RoleService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 
@@ -625,14 +623,13 @@ export class FileServerService {
 
 		// koa will automatically load the `X-Forwarded-For` header if `proxy: true` is configured in the app.
 		const [user] = await this.authenticateService.authenticate(token);
-		const actor = user?.id ?? getIpHash(request.ip);
-		const factor = user ? (await this.roleService.getUserPolicies(user.id)).rateLimitFactor : 1;
+		const actor = user ?? getIpHash(request.ip);
 
 		// Call both limits: the per-resource limit and the shared cross-resource limit
-		return await this.checkResourceLimit(reply, actor, group, resource, factor) && await this.checkSharedLimit(reply, actor, group, factor);
+		return await this.checkResourceLimit(reply, actor, group, resource) && await this.checkSharedLimit(reply, actor, group);
 	}
 
-	private async checkResourceLimit(reply: FastifyReply, actor: string, group: string, resource: string, factor = 1): Promise<boolean> {
+	private async checkResourceLimit(reply: FastifyReply, actor: string | MiUser, group: string, resource: string): Promise<boolean> {
 		const limit: Keyed<RateLimit> = {
 			// Group by resource
 			key: `${group}${resource}`,
@@ -643,10 +640,10 @@ export class FileServerService {
 			dripRate: 1000 * 60,
 		};
 
-		return await this.checkLimit(reply, actor, limit, factor);
+		return await this.checkLimit(reply, actor, limit);
 	}
 
-	private async checkSharedLimit(reply: FastifyReply, actor: string, group: string, factor = 1): Promise<boolean> {
+	private async checkSharedLimit(reply: FastifyReply, actor: string | MiUser, group: string): Promise<boolean> {
 		const limit: Keyed<RateLimit> = {
 			key: group,
 			type: 'bucket',
@@ -655,11 +652,11 @@ export class FileServerService {
 			size: 3600,
 		};
 
-		return await this.checkLimit(reply, actor, limit, factor);
+		return await this.checkLimit(reply, actor, limit);
 	}
 
-	private async checkLimit(reply: FastifyReply, actor: string, limit: Keyed<RateLimit>, factor = 1): Promise<boolean> {
-		const info = await this.rateLimiterService.limit(limit, actor, factor);
+	private async checkLimit(reply: FastifyReply, actor: string | MiUser, limit: Keyed<RateLimit>): Promise<boolean> {
+		const info = await this.rateLimiterService.limit(limit, actor);
 
 		sendRateLimitHeaders(reply, info);
 

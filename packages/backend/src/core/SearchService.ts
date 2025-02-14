@@ -73,6 +73,60 @@ function compileQuery(q: Q): string {
 	}
 }
 
+const fileTypes = {
+	image: [
+		'image/webp',
+		'image/png',
+		'image/jpeg',
+		'image/avif',
+		'image/apng',
+		'image/gif',
+	],
+	video: [
+		'video/mp4',
+		'video/webm',
+		'video/mpeg',
+		'video/x-m4v',
+	],
+	audio: [
+		'audio/mpeg',
+		'audio/flac',
+		'audio/wav',
+		'audio/aac',
+		'audio/webm',
+		'audio/opus',
+		'audio/ogg',
+		'audio/x-m4a',
+		'audio/mod',
+		'audio/s3m',
+		'audio/xm',
+		'audio/it',
+		'audio/x-mod',
+		'audio/x-s3m',
+		'audio/x-xm',
+		'audio/x-it',
+	],
+	// Keep in sync with frontend-shared/js/const.ts
+	module: [
+		'audio/mod',
+		'audio/x-mod',
+		'audio/s3m',
+		'audio/x-s3m',
+		'audio/xm',
+		'audio/x-xm',
+		'audio/it',
+		'audio/x-it',
+	],
+	flash: [
+		'application/x-shockwave-flash',
+		'application/vnd.adobe.flash.movie',
+	],
+};
+
+// Make sure to regenerate misskey-js and check search.note.vue after changing these
+export const fileTypeCategories = ['image', 'video', 'audio', 'module', 'flash', null] as const;
+export type FileTypeCategory = typeof fileTypeCategories[number];
+
 @Injectable()
 export class SearchService {
 	private readonly meilisearchIndexScope: 'local' | 'global' | string[] = 'local';
@@ -172,7 +226,7 @@ export class SearchService {
 		userId?: MiNote['userId'] | null;
 		channelId?: MiNote['channelId'] | null;
 		host?: string | null;
-		filetype?: string | null;
+		filetype?: FileTypeCategory;
 		order?: string | null;
 		disableMeili?: boolean | null;
 		similarSearch?: boolean | null;
@@ -207,48 +261,8 @@ export class SearchService {
 				}
 			}
 			if (opts.filetype) {
-				if (opts.filetype === 'image') {
-					filter.qs.push({
-						op: 'or', qs: [
-							{ op: '=', k: 'attachedFileTypes', v: 'image/webp' },
-							{ op: '=', k: 'attachedFileTypes', v: 'image/png' },
-							{ op: '=', k: 'attachedFileTypes', v: 'image/jpeg' },
-							{ op: '=', k: 'attachedFileTypes', v: 'image/avif' },
-							{ op: '=', k: 'attachedFileTypes', v: 'image/apng' },
-							{ op: '=', k: 'attachedFileTypes', v: 'image/gif' },
-						],
-					});
-				} else if (opts.filetype === 'video') {
-					filter.qs.push({
-						op: 'or', qs: [
-							{ op: '=', k: 'attachedFileTypes', v: 'video/mp4' },
-							{ op: '=', k: 'attachedFileTypes', v: 'video/webm' },
-							{ op: '=', k: 'attachedFileTypes', v: 'video/mpeg' },
-							{ op: '=', k: 'attachedFileTypes', v: 'video/x-m4v' },
-						],
-					});
-				} else if (opts.filetype === 'audio') {
-					filter.qs.push({
-						op: 'or', qs: [
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/mpeg' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/flac' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/wav' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/aac' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/webm' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/opus' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/ogg' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-m4a' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/mod' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/s3m' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-xm' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/it' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-mod' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-s3m' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-xm' },
-							{ op: '=', k: 'attachedFileTypes', v: 'audio/x-it' },
-						],
-					});
-				}
+				const filters = fileTypes[opts.filetype].map(mime => ({ op: '=' as const, k: 'attachedFileTypes', v: mime }));
+				filter.qs.push({ op: 'or', qs: filters });
 			}
 			const res = await this.meilisearchNoteIndex!.search(q, {
 				sort: [`createdAt:${opts.order ? opts.order : 'desc'}`],
@@ -312,7 +326,7 @@ export class SearchService {
 			}
 
 			if (opts.filetype) {
-				query.andWhere('note."attachedFileTypes"::varchar ~* :type', { type: `[{,]${opts.filetype}/` });
+				query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
 			}
 
 			await this.queryService.generateVisibilityQuery(query, me);

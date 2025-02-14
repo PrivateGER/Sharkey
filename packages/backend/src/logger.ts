@@ -18,8 +18,8 @@ type Context = {
 
 type Level = 'error' | 'success' | 'warning' | 'debug' | 'info';
 
-type Data = DataElement | DataElement[];
-type DataElement = Record<string, unknown> | Error | string | null;
+export type Data = DataElement | DataElement[];
+export type DataElement = Record<string, unknown> | Error | string | null;
 
 // eslint-disable-next-line import/no-default-export
 export default class Logger {

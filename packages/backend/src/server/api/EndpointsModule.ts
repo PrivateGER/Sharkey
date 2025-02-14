@@ -101,6 +101,7 @@ import * as ep___admin_systemWebhook_list from './endpoints/admin/system-webhook
 import * as ep___admin_systemWebhook_show from './endpoints/admin/system-webhook/show.js';
 import * as ep___admin_systemWebhook_update from './endpoints/admin/system-webhook/update.js';
 import * as ep___admin_systemWebhook_test from './endpoints/admin/system-webhook/test.js';
+import * as ep___admin_genVapidKeys from './endpoints/admin/gen-vapid-keys.js';
 import * as ep___announcements from './endpoints/announcements.js';
 import * as ep___announcements_show from './endpoints/announcements/show.js';
 import * as ep___antennas_create from './endpoints/antennas/create.js';
@@ -509,6 +510,7 @@ const $admin_systemWebhook_list: Provider = { provide: 'ep:admin/system-webhook/
 const $admin_systemWebhook_show: Provider = { provide: 'ep:admin/system-webhook/show', useClass: ep___admin_systemWebhook_show.default };
 const $admin_systemWebhook_update: Provider = { provide: 'ep:admin/system-webhook/update', useClass: ep___admin_systemWebhook_update.default };
 const $admin_systemWebhook_test: Provider = { provide: 'ep:admin/system-webhook/test', useClass: ep___admin_systemWebhook_test.default };
+const $admin_genVapidKeys: Provider = { provide: 'ep:admin/gen-vapid-keys', useClass: ep___admin_genVapidKeys.default };
 const $announcements: Provider = { provide: 'ep:announcements', useClass: ep___announcements.default };
 const $announcements_show: Provider = { provide: 'ep:announcements/show', useClass: ep___announcements_show.default };
 const $antennas_create: Provider = { provide: 'ep:antennas/create', useClass: ep___antennas_create.default };
@@ -921,6 +923,7 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$admin_systemWebhook_show,
 		$admin_systemWebhook_update,
 		$admin_systemWebhook_test,
+		$admin_genVapidKeys,
 		$announcements,
 		$announcements_show,
 		$antennas_create,
@@ -1327,6 +1330,7 @@ const $reversi_verify: Provider = { provide: 'ep:reversi/verify', useClass: ep__
 		$admin_systemWebhook_show,
 		$admin_systemWebhook_update,
 		$admin_systemWebhook_test,
+		$admin_genVapidKeys,
 		$announcements,
 		$announcements_show,
 		$antennas_create,

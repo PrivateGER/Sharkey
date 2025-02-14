@@ -27,6 +27,7 @@ type RedisOptionsSource = Partial<RedisOptions> & {
 type Source = {
 	url?: string;
 	port?: number;
+	address?: string;
 	socket?: string;
 	chmodSocket?: string;
 	disableHsts?: boolean;
@@ -138,6 +139,7 @@ type Source = {
 export type Config = {
 	url: string;
 	port: number;
+	address: string;
 	socket: string | undefined;
 	chmodSocket: string | undefined;
 	disableHsts: boolean | undefined;
@@ -325,6 +327,7 @@ export function loadConfig(): Config {
 		setupPassword: config.setupPassword,
 		url: url.origin,
 		port: config.port ?? parseInt(process.env.PORT ?? '3000', 10),
+		address: config.address ?? '0.0.0.0',
 		socket: config.socket,
 		chmodSocket: config.chmodSocket,
 		disableHsts: config.disableHsts,
@@ -531,7 +534,7 @@ function applyEnvOverrides(config: Source) {
 
 	// these are all the settings that can be overridden
 
-	_apply_top([['url', 'port', 'socket', 'chmodSocket', 'disableHsts', 'id', 'dbReplications']]);
+	_apply_top([['url', 'port', 'address', 'socket', 'chmodSocket', 'disableHsts', 'id', 'dbReplications']]);
 	_apply_top(['db', ['host', 'port', 'db', 'user', 'pass', 'disableCache']]);
 	_apply_top(['dbSlaves', Array.from((config.dbSlaves ?? []).keys()), ['host', 'port', 'db', 'user', 'pass']]);
 	_apply_top([

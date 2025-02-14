@@ -4,11 +4,10 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
-import { isActor, isPost, getApId } from '@/core/activitypub/type.js';
+import { isActor, isPost, getApId, getNullableApId, ObjectWithId } from '@/core/activitypub/type.js';
 import type { SchemaType } from '@/misc/json-schema.js';
 import { ApResolverService } from '@/core/activitypub/ApResolverService.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
@@ -18,6 +17,8 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { ApRequestService } from '@/core/activitypub/ApRequestService.js';
+import { InstanceActorService } from '@/core/InstanceActorService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -27,8 +28,8 @@ export const meta = {
 	kind: 'read:account',
 
 	limit: {
-		duration: ms('1minute'),
-		max: 120,
+		max: 180,
+		dripRate: 500,
 	},
 
 	errors: {
@@ -94,6 +95,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private apDbResolverService: ApDbResolverService,
 		private apPersonService: ApPersonService,
 		private apNoteService: ApNoteService,
+		private readonly apRequestService: ApRequestService,
+		private readonly instanceActorService: InstanceActorService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const object = await this.fetchAny(ps.uri, me);
@@ -117,6 +120,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			this.apDbResolverService.getNoteFromApId(uri),
 		]));
 		if (local != null) return local;
+
+		// No local object found with that uri.
+		// Before we fetch, resolve the URI in case it has a cross-origin redirect or anything like that.
+		// Resolver.resolve() uses strict verification, which is overly paranoid for a user-provided lookup.
+		uri = await this.resolveCanonicalUri(uri); // eslint-disable-line no-param-reassign
+		if (!this.utilityService.isFederationAllowedUri(uri)) return null;
 
 		const host = this.utilityService.extractDbHost(uri);
 
@@ -166,5 +175,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		}
 
 		return null;
+	}
+
+	/**
+	 * Resolves an arbitrary URI to its canonical, post-redirect form.
+	 */
+	private async resolveCanonicalUri(uri: string): Promise<string> {
+		const user = await this.instanceActorService.getInstanceActor();
+		const res = await this.apRequestService.signedGet(uri, user, true) as ObjectWithId;
+		return getNullableApId(res) ?? uri;
 	}
 }

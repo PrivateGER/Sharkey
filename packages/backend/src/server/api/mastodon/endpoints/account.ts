@@ -3,273 +3,149 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { Injectable } from '@nestjs/common';
+import { parseTimelineArgs, TimelineArgs } from '@/server/api/mastodon/timelineArgs.js';
+import { MiLocalUser } from '@/models/User.js';
 import { MastoConverters, convertRelationship } from '../converters.js';
-import { argsToBools, limitToInt } from './timeline.js';
 import type { MegalodonInterface } from 'megalodon';
 import type { FastifyRequest } from 'fastify';
-import { NoteEditRepository, NotesRepository, UsersRepository } from '@/models/_.js';
-import { UserEntityService } from '@/core/entities/UserEntityService.js';
-import type { Config } from '@/config.js';
-import { Injectable } from '@nestjs/common';
 
-const relationshipModel = {
-	id: '',
-	following: false,
-	followed_by: false,
-	delivery_following: false,
-	blocking: false,
-	blocked_by: false,
-	muting: false,
-	muting_notifications: false,
-	requested: false,
-	domain_blocking: false,
-	showing_reblogs: false,
-	endorsed: false,
-	notifying: false,
-	note: '',
-};
+export interface ApiAccountMastodonRoute {
+	Params: { id?: string },
+	Querystring: TimelineArgs & { acct?: string },
+	Body: { notifications?: boolean }
+}
 
 @Injectable()
 export class ApiAccountMastodon {
-	private request: FastifyRequest;
-	private client: MegalodonInterface;
-	private BASE_URL: string;
-
-	constructor(request: FastifyRequest, client: MegalodonInterface, BASE_URL: string, private mastoconverter: MastoConverters) {
-		this.request = request;
-		this.client = client;
-		this.BASE_URL = BASE_URL;
-	}
+	constructor(
+		private readonly request: FastifyRequest<ApiAccountMastodonRoute>,
+		private readonly client: MegalodonInterface,
+		private readonly me: MiLocalUser | null,
+		private readonly mastoConverters: MastoConverters,
+	) {}
 
 	public async verifyCredentials() {
-		try {
-			const data = await this.client.verifyAccountCredentials();
-			const acct = await this.mastoconverter.convertAccount(data.data);
-			const newAcct = Object.assign({}, acct, {
-				source: {
-					note: acct.note,
-					fields: acct.fields,
-					privacy: '',
-					sensitive: false,
-					language: '',
-				},
-			});
-			return newAcct;
-		} catch (e: any) {
-			/* console.error(e);
-			console.error(e.response.data); */
-			return e.response;
-		}
+		const data = await this.client.verifyAccountCredentials();
+		const acct = await this.mastoConverters.convertAccount(data.data);
+		return Object.assign({}, acct, {
+			source: {
+				note: acct.note,
+				fields: acct.fields,
+				privacy: '',
+				sensitive: false,
+				language: '',
+			},
+		});
 	}
 
 	public async lookup() {
-		try {
-			const data = await this.client.search((this.request.query as any).acct, { type: 'accounts' });
-			return this.mastoconverter.convertAccount(data.data.accounts[0]);
-		} catch (e: any) {
-			/* console.error(e)
-			console.error(e.response.data); */
-			return e.response;
-		}
+		if (!this.request.query.acct) throw new Error('Missing required property "acct"');
+		const data = await this.client.search(this.request.query.acct, { type: 'accounts' });
+		return this.mastoConverters.convertAccount(data.data.accounts[0]);
 	}
 
-	public async getRelationships(users: [string]) {
-		try {
-			relationshipModel.id = users.toString() || '1';
-
-			if (!(users.length > 0)) {
-				return [relationshipModel];
-			}
-
-			const reqIds = [];
-			for (let i = 0; i < users.length; i++) {
-				reqIds.push(users[i]);
-			}
-
-			const data = await this.client.getRelationships(reqIds);
-			return data.data.map((relationship) => convertRelationship(relationship));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+	public async getRelationships(reqIds: string[]) {
+		const data = await this.client.getRelationships(reqIds);
+		return data.data.map(relationship => convertRelationship(relationship));
 	}
 
 	public async getStatuses() {
-		try {
-			const data = await this.client.getAccountStatuses((this.request.params as any).id, argsToBools(limitToInt(this.request.query as any)));
-			return await Promise.all(data.data.map(async (status) => await this.mastoconverter.convertStatus(status)));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.getAccountStatuses(this.request.params.id, parseTimelineArgs(this.request.query));
+		return await Promise.all(data.data.map(async (status) => await this.mastoConverters.convertStatus(status, this.me)));
 	}
 
 	public async getFollowers() {
-		try {
-			const data = await this.client.getAccountFollowers(
-				(this.request.params as any).id,
-				limitToInt(this.request.query as any),
-			);
-			return await Promise.all(data.data.map(async (account) => await this.mastoconverter.convertAccount(account)));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.getAccountFollowers(
+			this.request.params.id,
+			parseTimelineArgs(this.request.query),
+		);
+		return await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
 	}
 
 	public async getFollowing() {
-		try {
-			const data = await this.client.getAccountFollowing(
-				(this.request.params as any).id,
-				limitToInt(this.request.query as any),
-			);
-			return await Promise.all(data.data.map(async (account) => await this.mastoconverter.convertAccount(account)));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.getAccountFollowing(
+			this.request.params.id,
+			parseTimelineArgs(this.request.query),
+		);
+		return await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
 	}
 
 	public async addFollow() {
-		try {
-			const data = await this.client.followAccount( (this.request.params as any).id );
-			const acct = convertRelationship(data.data);
-			acct.following = true;
-			return acct;
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.followAccount(this.request.params.id);
+		const acct = convertRelationship(data.data);
+		acct.following = true;
+		return acct;
 	}
 
 	public async rmFollow() {
-		try {
-			const data = await this.client.unfollowAccount( (this.request.params as any).id );
-			const acct = convertRelationship(data.data);
-			acct.following = false;
-			return acct;
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.unfollowAccount(this.request.params.id);
+		const acct = convertRelationship(data.data);
+		acct.following = false;
+		return acct;
 	}
 
 	public async addBlock() {
-		try {
-			const data = await this.client.blockAccount( (this.request.params as any).id );
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.blockAccount(this.request.params.id);
+		return convertRelationship(data.data);
 	}
 
 	public async rmBlock() {
-		try {
-			const data = await this.client.unblockAccount( (this.request.params as any).id );
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.unblockAccount(this.request.params.id);
+		return convertRelationship(data.data);
 	}
 
 	public async addMute() {
-		try {
-			const data = await this.client.muteAccount(
-				(this.request.params as any).id,
-                this.request.body as any,
-			);
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.muteAccount(
+			this.request.params.id,
+			this.request.body.notifications ?? true,
+		);
+		return convertRelationship(data.data);
 	}
 
 	public async rmMute() {
-		try {
-			const data = await this.client.unmuteAccount( (this.request.params as any).id );
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.unmuteAccount(this.request.params.id);
+		return convertRelationship(data.data);
 	}
 
 	public async getBookmarks() {
-		try {
-			const data = await this.client.getBookmarks( limitToInt(this.request.query as any) );
-			return data.data.map((status) => this.mastoconverter.convertStatus(status));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		const data = await this.client.getBookmarks(parseTimelineArgs(this.request.query));
+		return Promise.all(data.data.map((status) => this.mastoConverters.convertStatus(status, this.me)));
 	}
 
 	public async getFavourites() {
-		try {
-			const data = await this.client.getFavourites( limitToInt(this.request.query as any) );
-			return data.data.map((status) => this.mastoconverter.convertStatus(status));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		const data = await this.client.getFavourites(parseTimelineArgs(this.request.query));
+		return Promise.all(data.data.map((status) => this.mastoConverters.convertStatus(status, this.me)));
 	}
 
 	public async getMutes() {
-		try {
-			const data = await this.client.getMutes( limitToInt(this.request.query as any) );
-			return data.data.map((account) => this.mastoconverter.convertAccount(account));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		const data = await this.client.getMutes(parseTimelineArgs(this.request.query));
+		return Promise.all(data.data.map((account) => this.mastoConverters.convertAccount(account)));
 	}
 
 	public async getBlocks() {
-		try {
-			const data = await this.client.getBlocks( limitToInt(this.request.query as any) );
-			return data.data.map((account) => this.mastoconverter.convertAccount(account));
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		const data = await this.client.getBlocks(parseTimelineArgs(this.request.query));
+		return Promise.all(data.data.map((account) => this.mastoConverters.convertAccount(account)));
 	}
 
 	public async acceptFollow() {
-		try {
-			const data = await this.client.acceptFollowRequest( (this.request.params as any).id );
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.acceptFollowRequest(this.request.params.id);
+		return convertRelationship(data.data);
 	}
 
 	public async rejectFollow() {
-		try {
-			const data = await this.client.rejectFollowRequest( (this.request.params as any).id );
-			return convertRelationship(data.data);
-		} catch (e: any) {
-			console.error(e);
-			console.error(e.response.data);
-			return e.response.data;
-		}
+		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
+		const data = await this.client.rejectFollowRequest(this.request.params.id);
+		return convertRelationship(data.data);
 	}
 }

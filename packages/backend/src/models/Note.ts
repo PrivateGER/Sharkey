@@ -143,6 +143,7 @@ export class MiNote {
 	})
 	public fileIds: MiDriveFile['id'][];
 
+	@Index('IDX_NOTE_ATTACHED_FILE_TYPES', { synchronize: false })
 	@Column('varchar', {
 		length: 256, array: true, default: '{}',
 	})

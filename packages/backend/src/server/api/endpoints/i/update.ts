@@ -133,6 +133,12 @@ export const meta = {
 			id: '0b3f9f6a-2f4d-4b1f-9fb4-49d3a2fd7191',
 			httpStatusCode: 422,
 		},
+
+		maxCwLength: {
+			message: 'You tried setting a default content warning which is too long.',
+			code: 'MAX_CW_LENGTH',
+			id: '7004c478-bda3-4b4f-acb2-4316398c9d52',
+		},
 	},
 
 	res: {
@@ -242,6 +248,12 @@ export const paramDef = {
 			maxItems: 10,
 			uniqueItems: true,
 			items: { type: 'string' },
+		},
+		defaultCW: { type: 'string', nullable: true },
+		defaultCWPriority: {
+			type: 'string',
+			enum: ['default', 'parent', 'defaultParent', 'parentDefault'],
+			nullable: false,
 		},
 	},
 } as const;
@@ -492,6 +504,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 
 				updates.alsoKnownAs = newAlsoKnownAs.size > 0 ? Array.from(newAlsoKnownAs) : null;
+			}
+
+			let defaultCW = ps.defaultCW;
+			if (defaultCW !== undefined) {
+				if (defaultCW === '') defaultCW = null;
+				if (defaultCW && defaultCW.length > this.config.maxCwLength) {
+					throw new ApiError(meta.errors.maxCwLength);
+				}
+
+				profileUpdates.defaultCW = defaultCW;
+			}
+			if (ps.defaultCWPriority !== undefined) {
+				profileUpdates.defaultCWPriority = ps.defaultCWPriority;
 			}
 
 			//#region emojis/tags

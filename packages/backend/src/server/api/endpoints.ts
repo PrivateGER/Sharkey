@@ -108,6 +108,7 @@ import * as ep___admin_systemWebhook_list from './endpoints/admin/system-webhook
 import * as ep___admin_systemWebhook_show from './endpoints/admin/system-webhook/show.js';
 import * as ep___admin_systemWebhook_update from './endpoints/admin/system-webhook/update.js';
 import * as ep___admin_systemWebhook_test from './endpoints/admin/system-webhook/test.js';
+import * as ep___admin_genVapidKeys from './endpoints/admin/gen-vapid-keys.js';
 import * as ep___announcements from './endpoints/announcements.js';
 import * as ep___announcements_show from './endpoints/announcements/show.js';
 import * as ep___antennas_create from './endpoints/antennas/create.js';
@@ -514,6 +515,7 @@ const eps = [
 	['admin/system-webhook/show', ep___admin_systemWebhook_show],
 	['admin/system-webhook/update', ep___admin_systemWebhook_update],
 	['admin/system-webhook/test', ep___admin_systemWebhook_test],
+	['admin/gen-vapid-keys', ep___admin_genVapidKeys],
 	['announcements', ep___announcements],
 	['announcements/show', ep___announcements_show],
 	['antennas/create', ep___antennas_create],

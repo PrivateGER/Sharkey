@@ -18,6 +18,7 @@ import type { Config } from '@/config.js';
 import { showMachineInfo } from '@/misc/show-machine-info.js';
 import { envOption } from '@/env.js';
 import { jobQueue, server } from './common.js';
+import * as net from 'node:net';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -126,7 +127,8 @@ export async function masterMain() {
 	if (envOption.onlyQueue) {
 		bootLogger.succ('Queue started', null, true);
 	} else {
-		bootLogger.succ(config.socket ? `Now listening on socket ${config.socket} on ${config.url}` : `Now listening on port ${config.port} on ${config.url}`, null, true);
+		const addressString = net.isIPv6(config.address) ? `[${config.address}]` : config.address;
+		bootLogger.succ(config.socket ? `Now listening on socket ${config.socket} on ${config.url}` : `Now listening on ${addressString}:${config.port} on ${config.url}`, null, true);
 	}
 }
 

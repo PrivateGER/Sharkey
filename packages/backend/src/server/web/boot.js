@@ -39,7 +39,7 @@
 			if (supportedLangs.includes(navigator.language)) {
 				lang = navigator.language;
 			} else {
-				lang = supportedLangs.find(x => x.split('-')[0] === navigator.language);
+				lang = supportedLangs.find(x => x.split('-')[0] === navigator.language.split('-')[0]);
 
 				// Fallback
 				if (lang == null) lang = 'en-US';
