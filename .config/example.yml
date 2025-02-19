@@ -121,6 +121,8 @@ db:
   user: sharkey
   pass: example-misskey-pass
 
+  pgroongaSearch: true
+
   # Whether disable Caching queries
   #disableCache: true
 
@@ -416,3 +418,12 @@ checkActivityPubGetSignature: false
   # How long to save each log entry before deleting it.
   # Default: 2592000000 (1 week)
   #maxAge: 2592000000
+
+# openai:
+#    apiKey: 'apikey'
+#    baseUrl: 'https://openrouter.ai/api/v1'
+#    model: 'google/gemini-flash-1.5-8b'
+
+# imgproxyURL: https://imgproxy.example.com/
+# imgproxySalt: 'example-salt'
+# imgproxyKey: 'example'

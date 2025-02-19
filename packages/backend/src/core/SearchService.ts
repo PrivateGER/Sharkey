@@ -140,13 +140,10 @@ export class SearchService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
-
 		@Inject(DI.meilisearch)
 		private meilisearch: MeiliSearch | null,
-
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
-
 		private cacheService: CacheService,
 		private queryService: QueryService,
 		private idService: IdService,

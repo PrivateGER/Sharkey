@@ -22,6 +22,7 @@ import { L_CHARS, secureRndstr } from '@/misc/secure-rndstr.js';
 import { RoleService } from '@/core/RoleService.js';
 import { SigninService } from './SigninService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import { UserFollowingService } from "@/core/UserFollowingService.js";
 
 @Injectable()
 export class SignupApiService {
@@ -54,6 +55,7 @@ export class SignupApiService {
 		private signinService: SigninService,
 		private emailService: EmailService,
 		private roleService: RoleService,
+		private userFollowingService: UserFollowingService,
 	) {
 	}
 
@@ -317,6 +319,8 @@ export class SignupApiService {
 				id: pendingUser.id,
 			});
 
+			const adminUser = await this.usersRepository.findOneBy({ username: 'admin', host: IsNull() });
+
 			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: account.id });
 
 			await this.userProfilesRepository.update({ userId: profile.userId }, {
@@ -354,6 +358,17 @@ export class SignupApiService {
 				}
 
 				return { pendingApproval: true };
+			}
+
+			if (adminUser) {
+				await this.userFollowingService.follow(account, adminUser);
+			}
+
+			if (this.config.ntfyURL) {
+				fetch(this.config.ntfyURL, {
+					method: 'POST',
+					body: 'New user signup: ' + account.username,
+				});
 			}
 
 			return this.signinService.signin(request, reply, account as MiLocalUser);
