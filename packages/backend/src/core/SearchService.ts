@@ -277,7 +277,7 @@ export class SearchService {
 			.leftJoinAndSelect('reply.user', 'replyUser')
 			.leftJoinAndSelect('renote.user', 'renoteUser');
 
-		query.andWhere('note.tsvector @@ websearch_to_tsquery(:q)', { q });
+		query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
 
 		if (opts.order === 'asc') {
 			query
