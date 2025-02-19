@@ -41,7 +41,7 @@ export class ChartManagementService implements OnApplicationShutdown {
 		private perUserFollowingChart: PerUserFollowingChart,
 		private perUserDriveChart: PerUserDriveChart,
 		private apRequestChart: ApRequestChart,
-		private chartLoggerService: ChartLoggerService,
+		chartLoggerService: ChartLoggerService,
 	) {
 		this.charts = [
 			this.federationChart,

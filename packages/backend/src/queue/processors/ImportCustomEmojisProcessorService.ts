@@ -14,10 +14,10 @@ import { createTempDir } from '@/misc/create-temp.js';
 import { DriveService } from '@/core/DriveService.js';
 import { DownloadService } from '@/core/DownloadService.js';
 import { bindThis } from '@/decorators.js';
+import type { Config } from '@/config.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserImportJobData } from '../types.js';
-import type { Config } from '@/config.js';
 
 // TODO: 名前衝突時の動作を選べるようにする
 @Injectable()
@@ -92,6 +92,7 @@ export class ImportCustomEmojisProcessorService {
 				await this.emojisRepository.delete({
 					name: nameNfc,
 				});
+
 				try {
 					const driveFile = await this.driveService.addFile({
 						user: null,
@@ -100,11 +101,13 @@ export class ImportCustomEmojisProcessorService {
 						force: true,
 					});
 					await this.customEmojiService.add({
+						originalUrl: driveFile.url,
+						publicUrl: driveFile.webpublicUrl ?? driveFile.url,
+						fileType: driveFile.webpublicType ?? driveFile.type,
 						name: nameNfc,
 						category: emojiInfo.category?.normalize('NFC'),
 						host: null,
 						aliases: emojiInfo.aliases?.map((a: string) => a.normalize('NFC')),
-						driveFile,
 						license: emojiInfo.license,
 						isSensitive: emojiInfo.isSensitive,
 						localOnly: emojiInfo.localOnly,

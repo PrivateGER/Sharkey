@@ -51,6 +51,7 @@ const promises = Array
 		config.redisForJobQueue,
 		config.redisForTimelines,
 		config.redisForReactions,
+		config.redisForRateLimit,
 	]))
 	.map(connectToRedis)
 	.concat([

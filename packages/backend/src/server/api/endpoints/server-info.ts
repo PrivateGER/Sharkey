@@ -64,10 +64,11 @@ export const meta = {
 		},
 	},
 
-	// 2 calls per second
+	// 24 calls, then 7 per second-ish (1 for each type of server info graph)
 	limit: {
-		duration: 1000,
-		max: 2,
+		max: 24,
+		dripSize: 7,
+		dripRate: 900,
 	},
 } as const;
 

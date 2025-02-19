@@ -21,8 +21,8 @@ testCommit:
     - pnpm install --frozen-lockfile
     - pnpm run build
     - pnpm run migrate
-    - pnpm run --filter='!megalodon' test
-    - pnpm run --filter=backend --filter=misskey-js lint
+    - pnpm run test
+    - pnpm run --filter=backend --filter=misskey-js --filter=frontend-shared lint
     - pnpm run --filter=frontend --filter=frontend-embed eslint
   cache:
     key: test

@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<option value="federating">{{ i18n.ts.federating }}</option>
 							<option value="subscribing">{{ i18n.ts.subscribing }}</option>
 							<option value="publishing">{{ i18n.ts.publishing }}</option>
+							<!-- TODO translate -->
 							<option value="nsfw">NSFW</option>
 							<option value="suspended">{{ i18n.ts.suspended }}</option>
 							<option value="blocked">{{ i18n.ts.blocked }}</option>

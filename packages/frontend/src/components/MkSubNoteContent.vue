@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</details>
 	<details v-if="note.poll">
 		<summary>{{ i18n.ts.poll }}</summary>
-		<MkPoll :noteId="note.id" :poll="note.poll"/>
+		<MkPoll :noteId="note.id" :poll="note.poll" :author="note.user" :emojiUrls="note.emojis"/>
 	</details>
 	<button v-if="isLong && collapsed" :class="$style.fade" class="_button" @click.stop="collapsed = false">
 		<span :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
@@ -42,11 +42,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, computed, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import * as mfm from '@transfem-org/sfm-js';
+import { shouldCollapsed } from '@@/js/collapsed.js';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
-import { shouldCollapsed } from '@@/js/collapsed.js';
 import { defaultStore } from '@/store.js';
 import { useRouter } from '@/router/supplier.js';
 import * as os from '@/os.js';

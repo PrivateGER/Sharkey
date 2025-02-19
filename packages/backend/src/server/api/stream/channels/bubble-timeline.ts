@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
-import { DI } from '@/di-symbols.js';
+import { Injectable } from '@nestjs/common';
 import type { Packed } from '@/misc/json-schema.js';
 import { MetaService } from '@/core/MetaService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
@@ -33,7 +32,6 @@ class BubbleTimelineChannel extends Channel {
 		connection: Channel['connection'],
 	) {
 		super(id, connection);
-		//this.onNote = this.onNote.bind(this);
 	}
 
 	@bindThis

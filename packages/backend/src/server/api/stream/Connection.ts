@@ -16,11 +16,11 @@ import type { StreamEventEmitter, GlobalEvents } from '@/core/GlobalEventService
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { isJsonObject } from '@/misc/json-value.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 import type { ChannelsService } from './ChannelsService.js';
 import type { EventEmitter } from 'events';
 import type Channel from './channel.js';
-import { LoggerService } from '@/core/LoggerService.js';
-import type Logger from '@/logger.js';
 
 const MAX_CHANNELS_PER_CONNECTION = 32;
 
@@ -45,8 +45,8 @@ export default class Connection {
 	public userIdsWhoMeMutingRenotes: Set<string> = new Set();
 	public userMutedInstances: Set<string> = new Set();
 	private fetchIntervalId: NodeJS.Timeout | null = null;
-	private activeRateLimitRequests: number = 0;
-	private closingConnection: boolean = false;
+	private activeRateLimitRequests = 0;
+	private closingConnection = false;
 	private logger: Logger;
 
 	constructor(

@@ -5,6 +5,7 @@
 
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import * as Redis from 'ioredis';
+import { QueryFailedError } from 'typeorm';
 import type { InstancesRepository } from '@/models/_.js';
 import type { MiInstance } from '@/models/Instance.js';
 import { MemoryKVCache, RedisKVCache } from '@/misc/cache.js';
@@ -12,7 +13,6 @@ import { IdService } from '@/core/IdService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
-import { QueryFailedError } from 'typeorm';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 
 @Injectable()

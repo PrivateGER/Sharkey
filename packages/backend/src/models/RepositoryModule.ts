@@ -80,7 +80,10 @@ import {
 	MiUserPublickey,
 	MiUserSecurityKey,
 	MiWebhook,
-	NoteEdit
+	NoteEdit,
+	SkApContext,
+	SkApFetchLog,
+	SkApInboxLog,
 } from './_.js';
 import type { DataSource } from 'typeorm';
 
@@ -123,6 +126,24 @@ const $avatarDecorationsRepository: Provider = {
 const $latestNotesRepository: Provider = {
 	provide: DI.latestNotesRepository,
 	useFactory: (db: DataSource) => db.getRepository(SkLatestNote).extend(miRepository as MiRepository<SkLatestNote>),
+	inject: [DI.db],
+};
+
+const $apContextRepository: Provider = {
+	provide: DI.apContextsRepository,
+	useFactory: (db: DataSource) => db.getRepository(SkApContext).extend(miRepository as MiRepository<SkApContext>),
+	inject: [DI.db],
+};
+
+const $apFetchLogsRepository: Provider = {
+	provide: DI.apFetchLogsRepository,
+	useFactory: (db: DataSource) => db.getRepository(SkApFetchLog).extend(miRepository as MiRepository<SkApFetchLog>),
+	inject: [DI.db],
+};
+
+const $apInboxLogsRepository: Provider = {
+	provide: DI.apInboxLogsRepository,
+	useFactory: (db: DataSource) => db.getRepository(SkApInboxLog).extend(miRepository as MiRepository<SkApInboxLog>),
 	inject: [DI.db],
 };
 
@@ -526,6 +547,9 @@ const $noteScheduleRepository: Provider = {
 		$appsRepository,
 		$avatarDecorationsRepository,
 		$latestNotesRepository,
+		$apContextRepository,
+		$apFetchLogsRepository,
+		$apInboxLogsRepository,
 		$noteFavoritesRepository,
 		$noteThreadMutingsRepository,
 		$noteReactionsRepository,
@@ -600,6 +624,9 @@ const $noteScheduleRepository: Provider = {
 		$appsRepository,
 		$avatarDecorationsRepository,
 		$latestNotesRepository,
+		$apContextRepository,
+		$apFetchLogsRepository,
+		$apInboxLogsRepository,
 		$noteFavoritesRepository,
 		$noteThreadMutingsRepository,
 		$noteReactionsRepository,

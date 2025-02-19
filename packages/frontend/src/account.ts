@@ -102,6 +102,9 @@ export async function removeAccount(idOrToken: Account['id']) {
 }
 
 function fetchAccount(token: string, id?: string, forceShowDialog?: boolean): Promise<Account> {
+	document.cookie = `token=; path=/; max-age=0${ location.protocol === 'https:' ? '; Secure' : ''}`;
+	document.cookie = `token=${token}; path=/queue; max-age=86400${ location.protocol === 'https:' ? '; SameSite=Strict; Secure' : ''}`; // bull dashboardの認証とかで使う
+
 	return new Promise((done, fail) => {
 		window.fetch(`${apiUrl}/i`, {
 			method: 'POST',
@@ -150,9 +153,9 @@ function fetchAccount(token: string, id?: string, forceShowDialog?: boolean): Pr
 					} else if (res.error.id === 'd5826d14-3982-4d2e-8011-b9e9f02499ef') {
 						// rate limited
 						const timeToWait = res.error.info?.resetMs ?? 1000;
-						window.setTimeout(timeToWait, () => {
+						window.setTimeout(() => {
 							fetchAccount(token, id, forceShowDialog).then(done, fail);
-						});
+						}, timeToWait);
 						return;
 					} else {
 						await alert({
@@ -221,7 +224,6 @@ export async function login(token: Account['token'], redirect?: string) {
 			throw reason;
 		});
 	miLocalStorage.setItem('account', JSON.stringify(me));
-	document.cookie = `token=${token}; path=/; max-age=31536000${ location.protocol === 'https:' ? '; Secure' : ''}`; // bull dashboardの認証とかで使う
 	await addAccount(me.id, token);
 
 	if (redirect) {

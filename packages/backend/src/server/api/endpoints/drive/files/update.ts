@@ -11,7 +11,6 @@ import { RoleService } from '@/core/RoleService.js';
 import { DriveService } from '@/core/DriveService.js';
 import type { Config } from '@/config.js';
 import { ApiError } from '../../../error.js';
-import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],

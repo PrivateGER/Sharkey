@@ -11,7 +11,6 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../../error.js';
-import ms from 'ms';
 
 export const meta = {
 	tags: ['drive'],

@@ -32,6 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, onMounted, onUnmounted, provide, ref, shallowRef } from 'vue';
 import { url } from '@@/js/config.js';
 import { getScrollContainer } from '@@/js/scroll.js';
+import MkUserName from './global/MkUserName.vue';
 import RouterView from '@/components/global/RouterView.vue';
 import MkWindow from '@/components/MkWindow.vue';
 import { popout as _popout } from '@/scripts/popout.js';
@@ -43,7 +44,6 @@ import { openingWindowsCount } from '@/os.js';
 import { claimAchievement } from '@/scripts/achievements.js';
 import { useRouterFactory } from '@/router/supplier.js';
 import { mainRouter } from '@/router/main.js';
-import MkUserName from './global/MkUserName.vue';
 
 const props = defineProps<{
 	initialPath: string;

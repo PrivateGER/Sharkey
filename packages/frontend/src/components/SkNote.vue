@@ -102,7 +102,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="appearNote.files && appearNote.files.length > 0">
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" @click.stop/>
 					</div>
-					<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :class="$style.poll" @click.stop/>
+					<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :author="appearNote.user" :emojiUrls="appearNote.emojis" :class="$style.poll" @click.stop/>
 					<div v-if="isEnabledUrlPreview">
 						<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :showAsQuote="true" :skipNoteIds="[appearNote.renote?.id]" :class="$style.urlPreview" @click.stop/>
 					</div>
@@ -180,11 +180,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 		</template>
 	</I18n>
-	<I18n v-else :src="i18n.ts.userSaysSomething" tag="small">
+	<I18n v-else-if="showSoftWordMutedWord !== true" :src="i18n.ts.userSaysSomething" tag="small">
 		<template #name>
 			<MkA v-user-preview="appearNote.userId" :to="userPage(appearNote.user)">
 				<MkUserName :user="appearNote.user"/>
 			</MkA>
+		</template>
+	</I18n>
+	<I18n v-else :src="i18n.ts.userSaysSomethingAbout" tag="small">
+		<template #name>
+			<MkA v-user-preview="appearNote.userId" :to="userPage(appearNote.user)">
+				<MkUserName :user="appearNote.user"/>
+			</MkA>
+		</template>
+		<template #word>
+			{{ Array.isArray(muted) ? muted.map(words => Array.isArray(words) ? words.join() : words).slice(0, 3).join(' ') : muted }}
 		</template>
 	</I18n>
 </div>
@@ -319,6 +329,7 @@ const isDeleted = ref(false);
 const renoted = ref(false);
 const muted = ref(checkMute(appearNote.value, $i?.mutedWords));
 const hardMuted = ref(props.withHardMute && checkMute(appearNote.value, $i?.hardMutedWords, true));
+const showSoftWordMutedWord = computed(() => defaultStore.state.showSoftWordMutedWord);
 const translation = ref<Misskey.entities.NotesTranslateResponse | null>(null);
 const translating = ref(false);
 const showTicker = (defaultStore.state.instanceTicker === 'always') || (defaultStore.state.instanceTicker === 'remote' && appearNote.value.user.instance);
@@ -343,13 +354,18 @@ const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 
 /* Overload FunctionにLintが対応していないのでコメントアウト
 function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly: true): boolean;
-function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly: false): boolean | 'sensitiveMute';
+function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly: false): Array<string | string[]> | false | 'sensitiveMute';
 */
-function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly = false): boolean | 'sensitiveMute' {
+function checkMute(noteToCheck: Misskey.entities.Note, mutedWords: Array<string | string[]> | undefined | null, checkOnly = false): Array<string | string[]> | false | 'sensitiveMute' {
 	if (mutedWords != null) {
-		if (checkWordMute(noteToCheck, $i, mutedWords)) return true;
-		if (noteToCheck.reply && checkWordMute(noteToCheck.reply, $i, mutedWords)) return true;
-		if (noteToCheck.renote && checkWordMute(noteToCheck.renote, $i, mutedWords)) return true;
+		const result = checkWordMute(noteToCheck, $i, mutedWords);
+		if (Array.isArray(result)) return result;
+
+		const replyResult = noteToCheck.reply && checkWordMute(noteToCheck.reply, $i, mutedWords);
+		if (Array.isArray(replyResult)) return replyResult;
+
+		const renoteResult = noteToCheck.renote && checkWordMute(noteToCheck.renote, $i, mutedWords);
+		if (Array.isArray(renoteResult)) return renoteResult;
 	}
 
 	if (checkOnly) return false;

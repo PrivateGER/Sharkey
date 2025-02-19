@@ -23,7 +23,6 @@ import type { CustomEmojiService } from '../CustomEmojiService.js';
 import type { ReactionService } from '../ReactionService.js';
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
-import type { Config } from '@/config.js';
 
 // is-renote.tsとよしなにリンク
 function isPureRenote(note: MiNote): note is MiNote & { renoteId: MiNote['id']; renote: MiNote } {
@@ -42,8 +41,14 @@ function getAppearNoteIds(notes: MiNote[]): Set<string> {
 	for (const note of notes) {
 		if (isPureRenote(note)) {
 			appearNoteIds.add(note.renoteId);
+			if (note.renote?.replyId) {
+				appearNoteIds.add(note.renote.replyId);
+			}
 		} else {
 			appearNoteIds.add(note.id);
+			if (note.replyId) {
+				appearNoteIds.add(note.replyId);
+			}
 		}
 	}
 	return appearNoteIds;
@@ -68,9 +73,6 @@ export class NoteEntityService implements OnModuleInit {
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
-
-		@Inject(DI.config)
-		private config: Config,
 
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
@@ -110,8 +112,7 @@ export class NoteEntityService implements OnModuleInit {
 	}
 
 	@bindThis
-	private async hideNote(packedNote: Packed<'Note'>, meId: MiUser['id'] | null): Promise<void> {
-		// FIXME: このvisibility変更処理が当関数にあるのは若干不自然かもしれない(関数名を treatVisibility とかに変える手もある)
+	private treatVisibility(packedNote: Packed<'Note'>): Packed<'Note'>['visibility'] {
 		if (packedNote.visibility === 'public' || packedNote.visibility === 'home') {
 			const followersOnlyBefore = packedNote.user.makeNotesFollowersOnlyBefore;
 			if ((followersOnlyBefore != null)
@@ -123,7 +124,11 @@ export class NoteEntityService implements OnModuleInit {
 				packedNote.visibility = 'followers';
 			}
 		}
+		return packedNote.visibility;
+	}
 
+	@bindThis
+	private async hideNote(packedNote: Packed<'Note'>, meId: MiUser['id'] | null): Promise<void> {
 		if (meId === packedNote.userId) return;
 
 		// TODO: isVisibleForMe を使うようにしても良さそう(型違うけど)
@@ -280,7 +285,9 @@ export class NoteEntityService implements OnModuleInit {
 			const reaction = _hint_.myReactions.get(note.id);
 			if (reaction) {
 				return this.reactionService.convertLegacyReaction(reaction);
-			} else {
+			} else if (reaction === null) {
+				// the hints explicitly say this note has no reactions from
+				// this user
 				return undefined;
 			}
 		}
@@ -518,6 +525,8 @@ export class NoteEntityService implements OnModuleInit {
 			} : {}),
 		});
 
+		this.treatVisibility(packed);
+
 		if (!opts.skipHide) {
 			await this.hideNote(packed, meId);
 		}
@@ -543,9 +552,6 @@ export class NoteEntityService implements OnModuleInit {
 		if (meId) {
 			const idsNeedFetchMyReaction = new Set<MiNote['id']>();
 
-			// パフォーマンスのためノートが作成されてから2秒以上経っていない場合はリアクションを取得しない
-			const oldId = this.idService.gen(Date.now() - 2000);
-
 			const targetNotes: MiNote[] = [];
 			for (const note of notes) {
 				if (isPureRenote(note)) {
@@ -555,15 +561,13 @@ export class NoteEntityService implements OnModuleInit {
 						// idem if the renote is also a reply.
 						targetNotes.push(note.renote.reply);
 					}
-				} else if (note.reply) {
-					// idem for OP of a regular reply.
-					targetNotes.push(note.reply);
 				} else {
-					if (note.id < oldId) {
-						targetNotes.push(note);
-					} else {
-						myReactionsMap.set(note.id, null);
+					if (note.reply) {
+						// idem for OP of a regular reply.
+						targetNotes.push(note.reply);
 					}
+
+					targetNotes.push(note);
 				}
 			}
 

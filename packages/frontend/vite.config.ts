@@ -3,6 +3,7 @@ import pluginReplace from '@rollup/plugin-replace';
 import pluginVue from '@vitejs/plugin-vue';
 import { type UserConfig, defineConfig } from 'vite';
 import { localesVersion } from '../../locales/version.js';
+
 import locales from '../../locales/index.js';
 import meta from '../../package.json';
 import packageInfo from './package.json' with { type: 'json' };
@@ -77,6 +78,12 @@ export function getConfig(): UserConfig {
 
 		server: {
 			port: 5173,
+			hmr: {
+				// バックエンド経由での起動時、Viteは5173経由でアセットを参照していると思い込んでいるが実際は3000から配信される
+				// そのため、バックエンドのWSサーバーにHMRのWSリクエストが吸収されてしまい、正しくHMRが機能しない
+				// クライアント側のWSポートをViteサーバーのポートに強制させることで、正しくHMRが機能するようになる
+				clientPort: 5173,
+			},
 			headers: { // なんか効かない
 				'X-Frame-Options': 'DENY',
 			},

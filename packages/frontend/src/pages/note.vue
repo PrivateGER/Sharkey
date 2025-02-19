@@ -50,6 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { defineAsyncComponent, computed, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { host } from '@@/js/config.js';
 import type { Paging } from '@/components/MkPagination.vue';
 import MkNotes from '@/components/MkNotes.vue';
 import MkRemoteCaution from '@/components/MkRemoteCaution.vue';
@@ -61,9 +62,11 @@ import { dateString } from '@/filters/date.js';
 import MkClipPreview from '@/components/MkClipPreview.vue';
 import { defaultStore } from '@/store.js';
 import { pleaseLogin } from '@/scripts/please-login.js';
-import { getServerContext } from '@/server-context.js';
+import { serverContext, assertServerContext } from '@/server-context.js';
+import { $i } from '@/account.js';
 
-const CTX_NOTE = getServerContext('note');
+// contextは非ログイン状態の情報しかないためログイン時は利用できない
+const CTX_NOTE = !$i && assertServerContext(serverContext, 'note') ? serverContext.note : null;
 
 const MkNoteDetailed = defineAsyncComponent(() =>
 	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteDetailed.vue') :
@@ -146,7 +149,12 @@ function fetchNote() {
 	}).catch(err => {
 		if (err.id === '8e75455b-738c-471d-9f80-62693f33372e') {
 			pleaseLogin({
+				path: '/',
 				message: i18n.ts.thisContentsAreMarkedAsSigninRequiredByAuthor,
+				openOnRemote: {
+					type: 'lookup',
+					url: `https://${host}/notes/${props.noteId}`,
+				},
 			});
 		}
 		error.value = err;

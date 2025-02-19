@@ -1,5 +1,5 @@
-import { DI } from '@/di-symbols.js';
 import { Inject, Injectable } from '@nestjs/common';
+import { DI } from '@/di-symbols.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { ReactionService } from '@/core/ReactionService.js';

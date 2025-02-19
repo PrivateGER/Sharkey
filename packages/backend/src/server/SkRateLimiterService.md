@@ -39,6 +39,7 @@ The first call is read-only, while the others perform at least one write operati
 Two integer keys are stored per client/subject, and both expire together after the maximum duration of the limit.
 While performance has not been formally tested, it's expected that SkRateLimiterService has an impact roughly on par with the legacy RateLimiterService.
 Redis memory usage should be notably lower due to the reduced number of keys and avoidance of set / array constructions.
+If redis load does become a concern, then a dedicated node can be assigned via the `redisForRateLimit` config setting.
 
 ## Concurrency and Multi-Node Correctness
 

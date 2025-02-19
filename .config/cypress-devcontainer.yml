@@ -124,8 +124,39 @@ redis:
 #  #prefix: example-prefix
 #  #db: 1
 
-#   ┌───────────────────────────┐
-#───┘ MeiliSearch configuration └─────────────────────────────
+#redisForRateLimit:
+#  host: localhost
+#  port: 6379
+#  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  #pass: example-pass
+#  #prefix: example-prefix
+#  #db: 1
+#  # You can specify more ioredis options...
+#  #username: example-username
+
+#   ┌───────────────────────────────┐
+#───┘ Fulltext search configuration └─────────────────────────────
+
+# These are the setting items for the full-text search provider.
+fulltextSearch:
+  # You can select the ID generation method.
+  # - sqlLike (default)
+  #   Use SQL-like search.
+  #   This is a standard feature of PostgreSQL, so no special extensions are required.
+  # - sqlPgroonga
+  #   Use pgroonga.
+  #   You need to install pgroonga and configure it as a PostgreSQL extension.
+  #   In addition to the above, you need to create a pgroonga index on the text column of the note table.
+  #   see: https://pgroonga.github.io/tutorial/
+  # - meilisearch
+  #   Use Meilisearch.
+  #   You need to install Meilisearch and configure.
+  provider: sqlLike
+
+# For Meilisearch settings.
+# If you select "meilisearch" for "fulltextSearch.provider", it must be set.
+# You can set scope to local or global (default value)
+# (include notes from remote).
 
 #meilisearch:
 #  host: meilisearch
@@ -133,6 +164,7 @@ redis:
 #  apiKey: ''
 #  ssl: true
 #  index: ''
+#  scope: global
 
 #   ┌───────────────┐
 #───┘ ID generation └───────────────────────────────────────────
@@ -240,3 +272,28 @@ allowedPrivateNetworks: [
 # Permission bits are specified as a base-8 string representing User/Group/Other permissions.
 # This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
 #filePermissionBits: '644'
+
+# Log settings
+# logging:
+#   sql:
+#     # Outputs query parameters during SQL execution to the log.
+#     # default: false
+#     enableQueryParamLogging: false
+#     # Disable query truncation. If set to true, the full text of the query will be output to the log.
+#     # default: false
+#     disableQueryTruncation: false
+
+# Settings for the activity logger, which records inbound activities to the database.
+# Disabled by default due to the large volume of data it saves.
+#activityLogging:
+  # Log activities to the database (default: false)
+  #enabled: false
+
+  # Save the activity before processing, then update later with the results.
+  # This has the advantage of capturing activities that cause a hard-crash, but doubles the number of queries used.
+  # Default: false
+  #preSave: false
+
+  # How long to save each log entry before deleting it.
+  # Default: 2592000000 (1 week)
+  #maxAge: 2592000000

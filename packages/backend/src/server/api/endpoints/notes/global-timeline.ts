@@ -12,8 +12,8 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
-import { ApiError } from '../../error.js';
 import { CacheService } from '@/core/CacheService.js';
+import { ApiError } from '../../error.js';
 
 export const meta = {
 	tags: ['notes'],

@@ -14,12 +14,10 @@ import type {
 	NotesRepository,
 	BlockingsRepository,
 	DriveFilesRepository,
-	ChannelsRepository,
 	NoteScheduleRepository,
 } from '@/models/_.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import type { MiNote } from '@/models/Note.js';
-import type { MiChannel } from '@/models/Channel.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -209,9 +207,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
-
-		@Inject(DI.channelsRepository)
-		private channelsRepository: ChannelsRepository,
 
 		private queueService: QueueService,
 		private roleService: RoleService,

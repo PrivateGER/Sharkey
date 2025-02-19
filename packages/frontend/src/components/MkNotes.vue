@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, shallowRef, ref } from 'vue';
+import { defineAsyncComponent, shallowRef } from 'vue';
 import MkDateSeparatedList from '@/components/MkDateSeparatedList.vue';
 import MkPagination, { Paging } from '@/components/MkPagination.vue';
 import { i18n } from '@/i18n.js';

@@ -9,8 +9,8 @@ import { isUserRelated } from '@/misc/is-user-related.js';
 import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
-import type Connection from './Connection.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
+import type Connection from './Connection.js';
 
 /**
  * Stream channel

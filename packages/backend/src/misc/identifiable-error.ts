@@ -10,9 +10,15 @@ export class IdentifiableError extends Error {
 	public message: string;
 	public id: string;
 
-	constructor(id: string, message?: string) {
+	/**
+	 * Indicates that this is a temporary error that may be cleared by retrying
+	 */
+	public readonly isRetryable: boolean;
+
+	constructor(id: string, message?: string, isRetryable = false) {
 		super(message);
 		this.message = message ?? '';
 		this.id = id;
+		this.isRetryable = isRetryable;
 	}
 }

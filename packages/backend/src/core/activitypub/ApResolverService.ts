@@ -5,10 +5,9 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { IsNull, Not } from 'typeorm';
-import { UnrecoverableError } from 'bullmq';
 import type { MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import { InstanceActorService } from '@/core/InstanceActorService.js';
-import type { NotesRepository, PollsRepository, NoteReactionsRepository, UsersRepository, FollowRequestsRepository, MiMeta } from '@/models/_.js';
+import type { NotesRepository, PollsRepository, NoteReactionsRepository, UsersRepository, FollowRequestsRepository, MiMeta, SkApFetchLog } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { DI } from '@/di-symbols.js';
@@ -17,7 +16,9 @@ import { bindThis } from '@/decorators.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 import { fromTuple } from '@/misc/from-tuple.js';
-import { isCollectionOrOrderedCollection } from './type.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { ApLogService, calculateDurationSince, extractObjectContext } from '@/core/ApLogService.js';
+import { getNullableApId, isCollectionOrOrderedCollection } from './type.js';
 import { ApDbResolverService } from './ApDbResolverService.js';
 import { ApRendererService } from './ApRendererService.js';
 import { ApRequestService } from './ApRequestService.js';
@@ -43,6 +44,7 @@ export class Resolver {
 		private apRendererService: ApRendererService,
 		private apDbResolverService: ApDbResolverService,
 		private loggerService: LoggerService,
+		private readonly apLogService: ApLogService,
 		private recursionLimit = 256,
 	) {
 		this.history = new Set();
@@ -68,7 +70,7 @@ export class Resolver {
 		if (isCollectionOrOrderedCollection(collection)) {
 			return collection;
 		} else {
-			throw new UnrecoverableError(`unrecognized collection type: ${collection.type}`);
+			throw new IdentifiableError('f100eccf-f347-43fb-9b45-96a0831fb635', `unrecognized collection type: ${collection.type}`);
 		}
 	}
 
@@ -81,30 +83,67 @@ export class Resolver {
 			return value;
 		}
 
+		const host = this.utilityService.extractDbHost(value);
+		if (this.config.activityLogging.enabled && !this.utilityService.isSelfHost(host)) {
+			return await this._resolveLogged(value, host);
+		} else {
+			return await this._resolve(value, host);
+		}
+	}
+
+	private async _resolveLogged(requestUri: string, host: string): Promise<IObject> {
+		const startTime = process.hrtime.bigint();
+
+		const log = await this.apLogService.createFetchLog({
+			host: host,
+			requestUri,
+		});
+
+		try {
+			const result = await this._resolve(requestUri, host, log);
+
+			log.accepted = true;
+			log.result = 'ok';
+
+			return result;
+		} catch (err) {
+			log.accepted = false;
+			log.result = String(err);
+
+			throw err;
+		} finally {
+			log.duration = calculateDurationSince(startTime);
+
+			// Save or finalize asynchronously
+			this.apLogService.saveFetchLog(log)
+				.catch(err => this.logger.error('Failed to record AP object fetch:', err));
+		}
+	}
+
+	private async _resolve(value: string, host: string, log?: SkApFetchLog): Promise<IObject> {
 		if (value.includes('#')) {
 			// URLs with fragment parts cannot be resolved correctly because
 			// the fragment part does not get transmitted over HTTP(S).
 			// Avoid strange behaviour by not trying to resolve these at all.
-			throw new UnrecoverableError(`cannot resolve URL with fragment: ${value}`);
+			throw new IdentifiableError('b94fd5b1-0e3b-4678-9df2-dad4cd515ab2', `cannot resolve URL with fragment: ${value}`);
 		}
 
 		if (this.history.has(value)) {
-			throw new Error(`cannot resolve already resolved URL: ${value}`);
+			throw new IdentifiableError('0dc86cf6-7cd6-4e56-b1e6-5903d62d7ea5', `cannot resolve already resolved URL: ${value}`);
 		}
 
 		if (this.history.size > this.recursionLimit) {
-			throw new Error(`hit recursion limit: ${value}`);
+			throw new IdentifiableError('d592da9f-822f-4d91-83d7-4ceefabcf3d2', `hit recursion limit: ${value}`);
 		}
 
 		this.history.add(value);
 
-		const host = this.utilityService.extractDbHost(value);
 		if (this.utilityService.isSelfHost(host)) {
 			return await this.resolveLocal(value);
 		}
 
 		if (!this.utilityService.isFederationAllowedHost(host)) {
-			throw new UnrecoverableError(`cannot fetch AP object ${value}: blocked instance ${host}`);
+			throw new IdentifiableError('09d79f9e-64f1-4316-9cfa-e75c4d091574', `cannot fetch AP object ${value}: blocked instance ${host}`);
 		}
 
 		if (this.config.signToActivityPubGet && !this.user) {
@@ -115,18 +154,32 @@ export class Resolver {
 			? await this.apRequestService.signedGet(value, this.user) as IObject
 			: await this.httpRequestService.getActivityJson(value)) as IObject;
 
+		if (log) {
+			const { object: objectOnly, context, contextHash } = extractObjectContext(object);
+			const objectUri = getNullableApId(object);
+
+			if (objectUri) {
+				log.objectUri = objectUri;
+				log.host = this.utilityService.extractDbHost(objectUri);
+			}
+
+			log.object = objectOnly;
+			log.context = context;
+			log.contextHash = contextHash;
+		}
+
 		if (
 			Array.isArray(object['@context']) ?
 				!(object['@context'] as unknown[]).includes('https://www.w3.org/ns/activitystreams') :
 				object['@context'] !== 'https://www.w3.org/ns/activitystreams'
 		) {
-			throw new UnrecoverableError(`invalid AP object ${value}: does not have ActivityStreams context`);
+			throw new IdentifiableError('72180409-793c-4973-868e-5a118eb5519b', `invalid AP object ${value}: does not have ActivityStreams context`);
 		}
 
 		// Since redirects are allowed, we cannot safely validate an anonymous object.
 		// Reject any responses without an ID, as all other checks depend on that value.
 		if (object.id == null) {
-			throw new UnrecoverableError(`invalid AP object ${value}: missing id`);
+			throw new IdentifiableError('ad2dc287-75c1-44c4-839d-3d2e64576675', `invalid AP object ${value}: missing id`);
 		}
 
 		// We allow some limited cross-domain redirects, which means the host may have changed during fetch.
@@ -135,12 +188,12 @@ export class Resolver {
 		if (finalHost !== host) {
 			// Make sure the redirect stayed within the same authority.
 			if (this.utilityService.punyHostPSLDomain(object.id) !== this.utilityService.punyHostPSLDomain(value)) {
-				throw new UnrecoverableError(`invalid AP object ${value}: id ${object.id} has different host`);
+				throw new IdentifiableError('fd93c2fa-69a8-440f-880b-bf178e0ec877', `invalid AP object ${value}: id ${object.id} has different host`);
 			}
 
 			// Check if the redirect bounce from [allowed domain] to [blocked domain].
 			if (!this.utilityService.isFederationAllowedHost(finalHost)) {
-				throw new UnrecoverableError(`cannot fetch AP object ${value}: redirected to blocked instance ${finalHost}`);
+				throw new IdentifiableError('0a72bf24-2d9b-4f1d-886b-15aaa31adeda', `cannot fetch AP object ${value}: redirected to blocked instance ${finalHost}`);
 			}
 		}
 
@@ -150,7 +203,7 @@ export class Resolver {
 	@bindThis
 	private resolveLocal(url: string): Promise<IObject> {
 		const parsed = this.apDbResolverService.parseUri(url);
-		if (!parsed.local) throw new UnrecoverableError(`resolveLocal - not a local URL: ${url}`);
+		if (!parsed.local) throw new IdentifiableError('02b40cd0-fa92-4b0c-acc9-fb2ada952ab8', `resolveLocal - not a local URL: ${url}`);
 
 		switch (parsed.type) {
 			case 'notes':
@@ -179,7 +232,7 @@ export class Resolver {
 			case 'follows':
 				return this.followRequestsRepository.findOneBy({ id: parsed.id })
 					.then(async followRequest => {
-						if (followRequest == null) throw new UnrecoverableError(`resolveLocal - invalid follow request ID ${parsed.id}: ${url}`);
+						if (followRequest == null) throw new IdentifiableError('a9d946e5-d276-47f8-95fb-f04230289bb0', `resolveLocal - invalid follow request ID ${parsed.id}: ${url}`);
 						const [follower, followee] = await Promise.all([
 							this.usersRepository.findOneBy({
 								id: followRequest.followerId,
@@ -191,12 +244,12 @@ export class Resolver {
 							}),
 						]);
 						if (follower == null || followee == null) {
-							throw new Error(`resolveLocal - follower or followee does not exist: ${url}`);
+							throw new IdentifiableError('06ae3170-1796-4d93-a697-2611ea6d83b6', `resolveLocal - follower or followee does not exist: ${url}`);
 						}
 						return this.apRendererService.addContext(this.apRendererService.renderFollow(follower as MiLocalUser | MiRemoteUser, followee as MiLocalUser | MiRemoteUser, url));
 					});
 			default:
-				throw new UnrecoverableError(`resolveLocal: type ${parsed.type} unhandled: ${url}`);
+				throw new IdentifiableError('7a5d2fc0-94bc-4db6-b8b8-1bf24a2e23d0', `resolveLocal: type ${parsed.type} unhandled: ${url}`);
 		}
 	}
 }
@@ -232,6 +285,7 @@ export class ApResolverService {
 		private apRendererService: ApRendererService,
 		private apDbResolverService: ApDbResolverService,
 		private loggerService: LoggerService,
+		private readonly apLogService: ApLogService,
 	) {
 	}
 
@@ -252,6 +306,7 @@ export class ApResolverService {
 			this.apRendererService,
 			this.apDbResolverService,
 			this.loggerService,
+			this.apLogService,
 		);
 	}
 }

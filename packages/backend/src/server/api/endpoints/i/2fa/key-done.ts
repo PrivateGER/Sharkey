@@ -6,6 +6,7 @@
 //import bcrypt from 'bcryptjs';
 import * as argon2 from 'argon2';
 import { Inject, Injectable } from '@nestjs/common';
+import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DI } from '@/di-symbols.js';
@@ -14,7 +15,6 @@ import type { UserProfilesRepository, UserSecurityKeysRepository } from '@/model
 import { WebAuthnService } from '@/core/WebAuthnService.js';
 import { ApiError } from '@/server/api/error.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
-import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,
@@ -63,8 +63,8 @@ export const paramDef = {
 	required: ['password', 'name', 'credential'],
 } as const;
 
-// eslint-disable-next-line import/no-default-export
 @Injectable()
+// eslint-disable-next-line import/no-default-export
 export default class extends Endpoint<typeof meta, typeof paramDef> {
 	constructor(
 		@Inject(DI.userProfilesRepository)

@@ -19,6 +19,8 @@ services:
       - shonk
     # env_file:
     #   - .config/docker.env
+    environment:
+      - NODE_OPTIONS="--max-old-space-size=8192"
     volumes:
       - ./files:/sharkey/files
       - ./.config:/sharkey/.config:ro

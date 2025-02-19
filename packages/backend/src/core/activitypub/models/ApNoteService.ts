@@ -25,7 +25,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import { checkHttps } from '@/misc/check-https.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
-import { getOneApId, getApId, getOneApHrefNullable, validPost, isEmoji, getApType } from '../type.js';
+import { getOneApId, getApId, getOneApHrefNullable, validPost, isEmoji, getApType, isApObject, isDocument, IApDocument } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
 import { ApDbResolverService } from '../ApDbResolverService.js';
@@ -279,6 +279,14 @@ export class ApNoteService {
 			if (file) files.push(file);
 		}
 
+		// Some software (Peertube) attaches a thumbnail under "icon" instead of "attachment"
+		const icon = getBestIcon(note);
+		if (icon) {
+			icon.sensitive ??= note.sensitive;
+			const file = await this.apImageService.resolveImage(actor, icon);
+			if (file) files.push(file);
+		}
+
 		// リプライ
 		const reply: MiNote | null = note.inReplyTo
 			? await this.resolveNote(note.inReplyTo, { resolver })
@@ -513,6 +521,14 @@ export class ApNoteService {
 			if (file) files.push(file);
 		}
 
+		// Some software (Peertube) attaches a thumbnail under "icon" instead of "attachment"
+		const icon = getBestIcon(note);
+		if (icon) {
+			icon.sensitive ??= note.sensitive;
+			const file = await this.apImageService.resolveImage(actor, icon);
+			if (file) files.push(file);
+		}
+
 		// リプライ
 		const reply: MiNote | null = note.inReplyTo
 			? await this.resolveNote(note.inReplyTo, { resolver })
@@ -699,6 +715,8 @@ export class ApNoteService {
 						originalUrl: tag.icon.url,
 						publicUrl: tag.icon.url,
 						updatedAt: new Date(),
+						// _misskey_license が存在しなければ `null`
+						license: (tag._misskey_license?.freeText ?? null),
 					});
 
 					const emoji = await this.emojisRepository.findOneBy({ host, name });
@@ -720,7 +738,27 @@ export class ApNoteService {
 				publicUrl: tag.icon.url,
 				updatedAt: new Date(),
 				aliases: [],
+				// _misskey_license が存在しなければ `null`
+				license: (tag._misskey_license?.freeText ?? null)
 			});
 		}));
 	}
+}
+
+function getBestIcon(note: IObject): IObject | null {
+	const icons: IObject[] = toArray(note.icon);
+	if (icons.length < 2) {
+		return icons[0] ?? null;
+	}
+
+	return icons.reduce((best, i) => {
+		if (!isApObject(i)) return best;
+		if (!isDocument(i)) return best;
+		if (!best) return i;
+		if (!best.width || !best.height) return i;
+		if (!i.width || !i.height) return best;
+		if (i.width > best.width) return i;
+		if (i.height > best.height) return i;
+		return best;
+	}, null as IApDocument | null) ?? null;
 }

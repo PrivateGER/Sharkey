@@ -6,8 +6,6 @@
 import { ref } from 'vue';
 import { Interpreter, Parser, utils, values } from '@syuilo/aiscript';
 import { aiScriptReadline, createAiScriptEnv } from '@/scripts/aiscript/api.js';
-import * as os from '@/os.js';
-import { i18n } from '@/i18n.js';
 import { Plugin, noteActions, notePostInterruptors, noteViewInterruptors, postFormActions, userActions, pageViewInterruptors } from '@/store.js';
 import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
 

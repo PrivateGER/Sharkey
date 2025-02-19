@@ -363,10 +363,12 @@ export class ApInboxService {
 			this.logger.info(`Creating the (Re)Note: ${uri}`);
 
 			const activityAudience = await this.apAudienceService.parseAudience(actor, activity.to, activity.cc, resolver);
-			const createdAt = activity.published ? new Date(activity.published) : null;
+			let createdAt = activity.published ? new Date(activity.published) : null;
 
-			if (createdAt && createdAt < this.idService.parse(renote.id).date) {
-				return 'skip: malformed createdAt';
+			const renoteDate = this.idService.parse(renote.id).date;
+			if (createdAt && createdAt < renoteDate) {
+				this.logger.warn(`Correcting invalid publish time for Announce "${uri}"`);
+				createdAt = renoteDate;
 			}
 
 			await this.noteCreateService.create(actor, {

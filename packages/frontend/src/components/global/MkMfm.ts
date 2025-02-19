@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { VNode, h, defineAsyncComponent, SetupContext, provide } from 'vue';
+import { VNode, h, defineAsyncComponent, SetupContext } from 'vue';
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
-import CkFollowMouse from '../CkFollowMouse.vue';
 import { host } from '@@/js/config.js';
+import CkFollowMouse from '../CkFollowMouse.vue';
 import MkUrl from '@/components/global/MkUrl.vue';
 import MkTime from '@/components/global/MkTime.vue';
 import MkLink from '@/components/MkLink.vue';

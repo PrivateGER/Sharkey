@@ -8,13 +8,13 @@ import * as argon2 from 'argon2';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { Inject, Injectable } from '@nestjs/common';
+import ms from 'ms';
 import type { UserProfilesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { ApiError } from '@/server/api/error.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
-import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,

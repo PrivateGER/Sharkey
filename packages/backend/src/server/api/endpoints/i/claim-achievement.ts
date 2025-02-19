@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { DI } from '@/di-symbols.js';
 import { Inject, Injectable } from '@nestjs/common';
+import { DI } from '@/di-symbols.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { AchievementService, ACHIEVEMENT_TYPES } from '@/core/AchievementService.js';
 import type { MiMeta } from '@/models/_.js';

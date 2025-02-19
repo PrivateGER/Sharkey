@@ -6,12 +6,12 @@
 //import bcrypt from 'bcryptjs';
 import * as argon2 from 'argon2';
 import { Inject, Injectable } from '@nestjs/common';
+import ms from 'ms';
 import type { UsersRepository, UserProfilesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DeleteAccountService } from '@/core/DeleteAccountService.js';
 import { DI } from '@/di-symbols.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
-import ms from 'ms';
 
 export const meta = {
 	requireCredential: true,

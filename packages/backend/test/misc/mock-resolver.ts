@@ -23,6 +23,7 @@ import type {
 	PollsRepository,
 	UsersRepository,
 } from '@/models/_.js';
+import { ApLogService } from '@/core/ApLogService.js';
 
 type MockResponse = {
 	type: string;
@@ -49,6 +50,7 @@ export class MockResolver extends Resolver {
 			{} as ApRendererService,
 			{} as ApDbResolverService,
 			loggerService,
+			{} as ApLogService,
 		);
 	}
 

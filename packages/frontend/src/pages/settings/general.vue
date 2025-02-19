@@ -14,14 +14,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLink url="https://crowdin.com/project/misskey">Crowdin</MkLink>
 				</template>
 			</I18n>
-			<!--
-			<br />
-			<I18n :src="i18n.ts.i18nInfoSharkey" tag="span">
-				<template #link>
-					<MkLink url="https://crowdin.com/project/misskey">INSERT THINGY</MkLink>
-				</template>
-			</I18n>
-			-->
 		</template>
 	</MkSelect>
 
@@ -106,7 +98,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSwitch v-model="limitWidthOfReaction">{{ i18n.ts.limitWidthOfReaction }}</MkSwitch>
 			</div>
 
-			<MkSelect v-model="instanceTicker">
+			<MkSelect v-if="instance.federation !== 'none'" v-model="instanceTicker">
 				<template #label>{{ i18n.ts.instanceTicker }}</template>
 				<option value="none">{{ i18n.ts._instanceTicker.none }}</option>
 				<option value="remote">{{ i18n.ts._instanceTicker.remote }}</option>
@@ -152,11 +144,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 			</MkSwitch>
 
-			<!-- {{ i18n.ts.notificationDotNotWorkingAdvice }} -->
-
-			<!-- notificationDotNotWorkingAdvice -->
 			<MkButton @click="testNotificationDot">{{ i18n.ts.verifyNotificationDotWorkingButton }}</MkButton>
-			<!-- <p class="caption">Testing Testing</p> -->
 			<MkRadios v-model="notificationPosition">
 				<template #label>{{ i18n.ts.position }}</template>
 				<option value="leftTop"><i class="ti ti-align-box-left-top"></i> {{ i18n.ts.leftTop }}</option>
@@ -340,7 +328,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { langs } from '@@/js/config.js';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -357,6 +345,7 @@ import MkInfo from '@/components/MkInfo.vue';
 import { searchEngineMap } from '@/scripts/search-engine-map.js';
 import { defaultStore } from '@/store.js';
 import * as os from '@/os.js';
+import { instance } from '@/instance.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { reloadAsk } from '@/scripts/reload-ask.js';
 import { i18n } from '@/i18n.js';
@@ -364,7 +353,6 @@ import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { globalEvents } from '@/events.js';
 import { claimAchievement } from '@/scripts/achievements.js';
-import { deepMerge } from '@/scripts/merge.js';
 import { worksOnInstance } from '@/scripts/favicon-dot.js';
 
 const lang = ref(miLocalStorage.getItem('lang'));
@@ -422,7 +410,6 @@ const keepScreenOn = computed(defaultStore.makeGetterSetter('keepScreenOn'));
 const disableStreamingTimeline = computed(defaultStore.makeGetterSetter('disableStreamingTimeline'));
 const useGroupedNotifications = computed(defaultStore.makeGetterSetter('useGroupedNotifications'));
 const showTickerOnReplies = computed(defaultStore.makeGetterSetter('showTickerOnReplies'));
-//const searchEngine = computed(defaultStore.makeGetterSetter('searchEngine'));
 const searchEngine = computed(defaultStore.makeGetterSetter('searchEngine'));
 
 const noteDesign = computed(defaultStore.makeGetterSetter('noteDesign'));
@@ -470,7 +457,7 @@ watch(useSystemFont, () => {
 
 watch(noteDesign, async (newval) => {
 	if (noteDesign.value === newval) {
-		await reloadAsk();
+		await reloadAsk({});
 	}
 });
 

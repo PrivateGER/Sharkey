@@ -27,7 +27,7 @@ export class SkRateLimiterService {
 		@Inject('TimeService')
 		private readonly timeService: TimeService,
 
-		@Inject(DI.redis)
+		@Inject(DI.redisForRateLimit)
 		private readonly redisClient: Redis.Redis,
 
 		@Inject('RoleService')

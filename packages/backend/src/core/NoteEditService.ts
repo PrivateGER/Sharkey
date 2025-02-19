@@ -664,14 +664,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			this.roleService.addNoteToRoleTimeline(noteObj);
 
-			this.webhookService.getActiveWebhooks().then(webhooks => {
-				webhooks = webhooks.filter(x => x.userId === user.id && x.on.includes('note'));
-				for (const webhook of webhooks) {
-					this.queueService.userWebhookDeliver(webhook, 'note', {
-						note: noteObj,
-					});
-				}
-			});
+			this.webhookService.enqueueUserWebhook(user.id, 'note', { note: noteObj });
 
 			const nm = new NotificationManager(this.mutingsRepository, this.notificationService, user, note);
 
@@ -700,12 +693,7 @@ export class NoteEditService implements OnApplicationShutdown {
 						nm.push(data.reply.userId, 'edited');
 						this.globalEventService.publishMainStream(data.reply.userId, 'edited', noteObj);
 
-						const webhooks = (await this.webhookService.getActiveWebhooks()).filter(x => x.userId === data.reply!.userId && x.on.includes('edited'));
-						for (const webhook of webhooks) {
-							this.queueService.userWebhookDeliver(webhook, 'edited', {
-								note: noteObj,
-							});
-						}
+						this.webhookService.enqueueUserWebhook(data.reply.userId, 'reply', { note: noteObj });
 					}
 				}
 			}
@@ -713,7 +701,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			nm.notify();
 
 			//#region AP deliver
-			if (this.userEntityService.isLocalUser(user)) {
+			if (!data.localOnly && this.userEntityService.isLocalUser(user)) {
 				(async () => {
 					const noteActivity = await this.renderNoteOrRenoteActivity(data, note);
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
@@ -810,6 +798,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			(note.files != null && note.files.length > 0);
 	}
 
+	// TODO why is this unused?
 	@bindThis
 	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
 		for (const u of mentionedUsers.filter(u => this.userEntityService.isLocalUser(u))) {
@@ -837,13 +826,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			});
 
 			this.globalEventService.publishMainStream(u.id, 'edited', detailPackedNote);
-
-			const webhooks = (await this.webhookService.getActiveWebhooks()).filter(x => x.userId === u.id && x.on.includes('edited'));
-			for (const webhook of webhooks) {
-				this.queueService.userWebhookDeliver(webhook, 'edited', {
-					note: detailPackedNote,
-				});
-			}
+			this.webhookService.enqueueUserWebhook(u.id, 'edited', { note: detailPackedNote });
 
 			// Create notification
 			nm.push(u.id, 'edited');

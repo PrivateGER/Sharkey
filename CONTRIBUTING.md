@@ -204,25 +204,10 @@ pnpm dev
 command.
 
 - Server-side source files and automatically builds them if they are modified. Automatically start the server process(es).
-- Vite HMR (just the `vite` command) is available. The behavior may be different from production.
 - Service Worker is watched by esbuild.
-- The front end can be viewed by accessing `http://localhost:5173`.
-- The backend listens on the port configured with `port` in .config/default.yml.
-If you have not changed it from the default, it will be "http://localhost:3000".
-If "port" in .config/default.yml is set to something other than 3000, you need to change the proxy settings in packages/frontend/vite.config.local-dev.ts.
-
-### `MK_DEV_PREFER=backend pnpm dev`
-pnpm dev has another mode with `MK_DEV_PREFER=backend`.
-
-```
-MK_DEV_PREFER=backend pnpm dev
-```
-
-- This mode is closer to the production environment than the default mode.
-- Vite runs behind the backend (the backend will proxy Vite at /vite).
+- Vite HMR (just the `vite` command) is available. The behavior may be different from production.
+- Vite runs behind the backend (the backend will proxy Vite at /vite and /embed_vite except for websocket used for HMR).
 - You can see Misskey by accessing `http://localhost:3000` (Replace `3000` with the port configured with `port` in .config/default.yml).
-- To change the port of Vite, specify with `VITE_PORT` environment variable.
-- HMR may not work in some environments such as Windows.
 
 ## Testing
 
@@ -499,6 +484,11 @@ describe('test', () => {
 コード上でMisskeyのドメイン固有の概念には`Mi`をprefixすることで、他のドメインの同様の概念と区別できるほか、名前の衝突を防ぐ。
 ただし、文脈上Misskeyのものを指すことが明らかであり、名前の衝突の恐れがない場合は、一時的なローカル変数に限って`Mi`を省略してもよい。
 
+### Misskey.jsの型生成
+```bash
+pnpm build-misskey-js-with-types
+```
+
 ### How to resolve conflictions occurred at pnpm-lock.yaml?
 
 Just execute `pnpm` to fix it.
@@ -670,23 +660,23 @@ seems to do a decent job)
 *after that commit*, do all the extra work, on the same branch:
 
 * copy all changes (commit after each step):
-  * in
-    `packages/backend/src/core/activitypub/models/ApNoteService.ts`,
-    from `createNote` to `updateNote`
-  * from `packages/backend/src/core/NoteCreateService.ts` to
-    `packages/backend/src/core/NoteEditService.ts`
-  * from `packages/backend/src/server/api/endpoints/notes/create.ts`
-    to `packages/backend/src/server/api/endpoints/notes/edit.ts`
-  * from `packages/frontend/src/components/MkNote*.vue` to
-    `packages/frontend/src/components/SkNote*.vue` (if sensible)
-  * from the global timeline to the bubble timeline
-    (`packages/backend/src/server/api/stream/channels/global-timeline.ts`,
-    `packages/backend/src/server/api/stream/channels/bubble-timeline.ts`,
-    `packages/frontend/src/timelines.ts`,
-    `packages/frontend/src/components/MkTimeline.vue`,
-    `packages/frontend/src/pages/timeline.vue`,
-    `packages/frontend/src/ui/deck/tl-column.vue`,
-    `packages/frontend/src/widgets/WidgetTimeline.vue`)
+    * in
+      `packages/backend/src/core/activitypub/models/ApNoteService.ts`,
+      from `createNote` to `updateNote`
+    * from `packages/backend/src/core/NoteCreateService.ts` to
+      `packages/backend/src/core/NoteEditService.ts`
+    * from `packages/backend/src/server/api/endpoints/notes/create.ts`
+      to `packages/backend/src/server/api/endpoints/notes/edit.ts`
+    * from `packages/frontend/src/components/MkNote*.vue` to
+      `packages/frontend/src/components/SkNote*.vue` (if sensible)
+    * from the global timeline to the bubble timeline
+      (`packages/backend/src/server/api/stream/channels/global-timeline.ts`,
+      `packages/backend/src/server/api/stream/channels/bubble-timeline.ts`,
+      `packages/frontend/src/timelines.ts`,
+      `packages/frontend/src/components/MkTimeline.vue`,
+      `packages/frontend/src/pages/timeline.vue`,
+      `packages/frontend/src/ui/deck/tl-column.vue`,
+      `packages/frontend/src/widgets/WidgetTimeline.vue`)
 * if there have been any changes to the federated user data (the
   `renderPerson` function in
   `packages/backend/src/core/activitypub/ApRendererService.ts`), make
@@ -702,23 +692,20 @@ seems to do a decent job)
   build` (the `development` tells it to keep some of the original
   filenames in the built files)
 * make sure there aren't any new `ti-*` classes (Tabler Icons), and
-  replace them with appropriate `ph-*` ones (Phosphor Icons):
-  `grep -rP '["'\'']ti[ -](?!fw)' -- built/` should show you what to change.
-  NOTE: `ti-fw` is a special class that's defined by Misskey, leave it
-  alone
-
-  after every change, re-build the frontend and check again, until
-  there are no more `ti-*` classes in the built files (you can ignore
-  the source maps)
-
-  commit!
+  replace them with appropriate `ph-*` ones (Phosphor Icons) in
+  [`vite.replaceicons.ts`](packages/frontend/vite.replaceIcons.ts).
+  This command should show you want to change: `grep -ohrP
+  '(?<=["'\'']ti )(ti-(?!fw)[\w\-]+)' --exclude \*.map -- built/ |
+  sort -u`.
+    * NOTE: `ti-fw` is a special class that's defined by Misskey, leave it alone.
+    * After every change, re-build the frontend and check again, until
+      there are no more `ti-*` classes in the built files.
+    * Commit!
 * double-check the new migration, that they won't conflict with our db
   changes: `git diff develop -- packages/backend/migration/`
 * `pnpm clean; pnpm build`
-* run tests `pnpm --filter='!megalodon' test; pnpm --filter backend
-  test:e2e` (requires a test database, [see above](#testing)) and fix
-  as much as you can
-  * right now `megalodon` doesn't pass its tests, so we skip them
+* run tests `pnpm test; pnpm --filter backend test:e2e` (requires a
+  test database, [see above](#testing)) and fix as much as you can
 * run lint `pnpm --filter=backend --filter=frontend-shared lint` +
   `pnpm --filter=frontend --filter=frontend-embed eslint` and fix as
   much as you can

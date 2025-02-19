@@ -4,12 +4,12 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import type { NoteFavoritesRepository } from '@/models/_.js';
 import { ApiError } from '../../../error.js';
-import ms from 'ms';
 
 export const meta = {
 	tags: ['notes', 'favorites'],

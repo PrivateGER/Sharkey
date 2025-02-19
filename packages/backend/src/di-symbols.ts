@@ -13,6 +13,7 @@ export const DI = {
 	redisForSub: Symbol('redisForSub'),
 	redisForTimelines: Symbol('redisForTimelines'),
 	redisForReactions: Symbol('redisForReactions'),
+	redisForRateLimit: Symbol('redisForRateLimit'),
 
 	//#region Repositories
 	usersRepository: Symbol('usersRepository'),
@@ -22,6 +23,9 @@ export const DI = {
 	appsRepository: Symbol('appsRepository'),
 	avatarDecorationsRepository: Symbol('avatarDecorationsRepository'),
 	latestNotesRepository: Symbol('latestNotesRepository'),
+	apContextsRepository: Symbol('apContextsRepository'),
+	apFetchLogsRepository: Symbol('apFetchLogsRepository'),
+	apInboxLogsRepository: Symbol('apInboxLogsRepository'),
 	noteFavoritesRepository: Symbol('noteFavoritesRepository'),
 	noteThreadMutingsRepository: Symbol('noteThreadMutingsRepository'),
 	noteReactionsRepository: Symbol('noteReactionsRepository'),

@@ -4,7 +4,6 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { IsNull } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { EmojisRepository } from '@/models/_.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
@@ -88,10 +87,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (isDuplicate) throw new ApiError(meta.errors.duplicateName);
 
 			const addedEmoji = await this.customEmojiService.add({
-				driveFile,
+				originalUrl: driveFile.url,
+				publicUrl: driveFile.webpublicUrl ?? driveFile.url,
+				fileType: driveFile.webpublicType ?? driveFile.type,
 				name: nameNfc,
 				category: emoji.category?.normalize('NFC') ?? null,
-				aliases: emoji.aliases?.map(a => a.normalize('NFC')),
+				aliases: emoji.aliases.map(a => a.normalize('NFC')),
 				host: null,
 				license: emoji.license,
 				isSensitive: emoji.isSensitive,

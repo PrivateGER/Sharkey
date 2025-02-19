@@ -37,7 +37,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ph-rocket ph-bold ph-lg"></i></span>
 			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ph-television ph-bold ph-lg"></i></span>
 		</div>
-		<div :class="$style.info"><SkInstanceTicker v-if="showTicker" style="cursor: pointer;" :instance="note.user.instance" @click.stop="showOnRemote()"/></div>
+		<div :class="$style.info">
+			<SkInstanceTicker v-if="showTicker" style="cursor: pointer;" :instance="note.user.instance" :host="note.user.host" @click.stop="showOnRemote()"/>
+		</div>
 	</div>
 </header>
 <header v-else :class="$style.classicRoot">
@@ -52,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="note.user.badgeRoles" :class="$style.badgeRoles">
 		<img v-for="role in note.user.badgeRoles" :key="role.id" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl"/>
 	</div>
-	<SkInstanceTicker v-if="showTicker && !isMobile && defaultStore.state.showTickerOnReplies" style="cursor: pointer; max-height: 5px; top: 3px; position: relative; margin-top: 0px !important;" :instance="note.user.instance" @click.stop="showOnRemote()"/>
+	<SkInstanceTicker v-if="showTicker && !isMobile && defaultStore.state.showTickerOnReplies" style="cursor: pointer; max-height: 5px; top: 3px; position: relative; margin-top: 0px !important;" :instance="note.user.instance" :host="note.user.host" @click.stop="showOnRemote()"/>
 	<div :class="$style.classicInfo">
 		<div v-if="mock">
 			<MkTime :time="note.createdAt" colored/>
@@ -84,6 +86,7 @@ import { popupMenu } from '@/os.js';
 import { defaultStore } from '@/store.js';
 import { useRouter } from '@/router/supplier.js';
 import { deviceKind } from '@/scripts/device-kind.js';
+import MkInstanceTicker from '@/components/MkInstanceTicker.vue';
 
 const props = defineProps<{
 	note: Misskey.entities.Note;

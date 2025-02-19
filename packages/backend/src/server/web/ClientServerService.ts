@@ -325,14 +325,14 @@ export class ClientServerService {
 		} else {
 			const port = (process.env.VITE_PORT ?? '5173');
 			fastify.register(fastifyProxy, {
-				upstream: 'http://localhost:' + port,
+				upstream: `http://localhost:${port}`,
 				prefix: '/vite',
 				rewritePrefix: '/vite',
 			});
 
 			const embedPort = (process.env.EMBED_VITE_PORT ?? '5174');
 			fastify.register(fastifyProxy, {
-				upstream: 'http://localhost:' + embedPort,
+				upstream: `http://localhost:${embedPort}`,
 				prefix: '/embed_vite',
 				rewritePrefix: '/embed_vite',
 			});
@@ -536,6 +536,7 @@ export class ClientServerService {
 				host: host ?? IsNull(),
 				isSuspended: false,
 				enableRss: true,
+				requireSigninToViewContents: false,
 			});
 
 			return user && await this.feedService.packFeed(user);
@@ -840,6 +841,7 @@ export class ClientServerService {
 		fastify.get<{ Params: { announcementId: string; } }>('/announcements/:announcementId', async (request, reply) => {
 			const announcement = await this.announcementsRepository.findOneBy({
 				id: request.params.announcementId,
+				userId: IsNull(),
 			});
 
 			if (announcement) {

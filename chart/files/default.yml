@@ -200,6 +200,19 @@ id: "aidx"
 # IP address family used for outgoing request (ipv4, ipv6 or dual)
 #outgoingAddressFamily: ipv4
 
+# Amount of characters that can be used when writing notes. Longer notes will be rejected. (minimum: 1)
+#maxNoteLength: 3000
+# Amount of characters that will be saved for remote notes. Longer notes will be truncated to this length. (minimum: 1)
+#maxRemoteNoteLength: 100000
+# Amount of characters that can be used when writing content warnings. Longer warnings will be rejected. (minimum: 1)
+#maxCwLength: 500
+# Amount of characters that will be saved for remote content warnings. Longer warnings will be truncated to this length. (minimum: 1)
+#maxRemoteCwLength: 5000
+# Amount of characters that can be used when writing media descriptions (alt text). Longer descriptions will be rejected. (minimum: 1)
+#maxAltTextLength: 20000
+# Amount of characters that will be saved for remote media descriptions (alt text). Longer descriptions will be truncated to this length. (minimum: 1)
+#maxRemoteAltTextLength: 100000
+
 # Proxy for HTTP/HTTPS
 #proxy: http://127.0.0.1:3128
 
@@ -230,5 +243,30 @@ checkActivityPubGetSignature: false
 #  '127.0.0.1/32'
 #]
 
+#customMOTD: ['Hello World', 'The sharks rule all', 'Shonks']
+
 # Upload or download file size limits (bytes)
 #maxFileSize: 262144000
+
+# timeout (in milliseconds) and maximum size for imports (e.g. note imports)
+#import:
+#  downloadTimeout: 30000
+#  maxFileSize: 262144000
+
+# PID File of master process
+#pidFile: /tmp/misskey.pid
+
+# CHMod-style permission bits to apply to uploaded files.
+# Permission bits are specified as a base-8 string representing User/Group/Other permissions.
+# This setting is only useful for custom deployments, such as using a reverse proxy to serve media.
+#filePermissionBits: '644'
+
+# Log settings
+# logging:
+#   sql:
+#     # Outputs query parameters during SQL execution to the log.
+#     # default: false
+#     enableQueryParamLogging: false
+#     # Disable query truncation. If set to true, the full text of the query will be output to the log.
+#     # default: false
+#     disableQueryTruncation: false

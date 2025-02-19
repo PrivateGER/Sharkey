@@ -157,6 +157,7 @@ import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
 import { SponsorsService } from './SponsorsService.js';
 import type { Provider } from '@nestjs/common';
+import { ApLogService } from '@/core/ApLogService.js';
 
 //#region 文字列ベースでのinjection用(循環参照対応のため)
 const $LoggerService: Provider = { provide: 'LoggerService', useExisting: LoggerService };
@@ -166,6 +167,7 @@ const $AccountMoveService: Provider = { provide: 'AccountMoveService', useExisti
 const $AccountUpdateService: Provider = { provide: 'AccountUpdateService', useExisting: AccountUpdateService };
 const $AnnouncementService: Provider = { provide: 'AnnouncementService', useExisting: AnnouncementService };
 const $AntennaService: Provider = { provide: 'AntennaService', useExisting: AntennaService };
+const $ApLogService: Provider = { provide: 'ApLogService', useExisting: ApLogService };
 const $AppLockService: Provider = { provide: 'AppLockService', useExisting: AppLockService };
 const $AchievementService: Provider = { provide: 'AchievementService', useExisting: AchievementService };
 const $AvatarDecorationService: Provider = { provide: 'AvatarDecorationService', useExisting: AvatarDecorationService };
@@ -322,6 +324,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		AccountUpdateService,
 		AnnouncementService,
 		AntennaService,
+		ApLogService,
 		AppLockService,
 		AchievementService,
 		AvatarDecorationService,
@@ -474,6 +477,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$AccountUpdateService,
 		$AnnouncementService,
 		$AntennaService,
+		$ApLogService,
 		$AppLockService,
 		$AchievementService,
 		$AvatarDecorationService,
@@ -627,6 +631,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		AccountUpdateService,
 		AnnouncementService,
 		AntennaService,
+		ApLogService,
 		AppLockService,
 		AchievementService,
 		AvatarDecorationService,
@@ -778,6 +783,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$AccountUpdateService,
 		$AnnouncementService,
 		$AntennaService,
+		$ApLogService,
 		$AppLockService,
 		$AchievementService,
 		$AvatarDecorationService,

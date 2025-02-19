@@ -8,6 +8,18 @@ export const USER_ACTIVE_THRESHOLD = 1000 * 60 * 60 * 24 * 3; // 3days
 
 export const PER_NOTE_REACTION_USER_PAIR_CACHE_MAX = 16;
 
+export const FILE_TYPE_IMAGE = [
+	'image/png',
+	'image/gif',
+	'image/jpeg',
+	'image/webp',
+	'image/avif',
+	'image/apng',
+	'image/bmp',
+	'image/tiff',
+	'image/x-icon',
+];
+
 // ブラウザで直接表示することを許可するファイルの種類のリスト
 // ここに含まれないものは application/octet-stream としてレスポンスされる
 // SVGはXSSを生むので許可しない

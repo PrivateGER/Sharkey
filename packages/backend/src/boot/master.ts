@@ -33,7 +33,6 @@ const themeColor = chalk.hex('#86b300');
 function greet() {
 	if (!envOption.quiet) {
 		//#region Misskey logo
-		const v = `v${meta.version}`;
 		console.log(themeColor(' _____ _                _              '));
 		console.log(themeColor('/  ___| |              | |             '));
 		console.log(themeColor('\\ `--.| |__   __ _ _ __| | _____ _   _ '));
@@ -92,36 +91,52 @@ export async function masterMain() {
 			maxBreadcrumbs: 0,
 
 			// Set release version
-			release: "Sharkey@" + meta.version,
+			release: 'Sharkey@' + meta.version,
 
 			...config.sentryForBackend.options,
 		});
 	}
 
-	if (envOption.disableClustering) {
+	bootLogger.info(
+		`mode: [disableClustering: ${envOption.disableClustering}, onlyServer: ${envOption.onlyServer}, onlyQueue: ${envOption.onlyQueue}]`,
+	);
+
+	if (envOption.onlyServer && envOption.onlyQueue) {
+		bootLogger.error('Configuration error: onlyServer and onlyQueue cannot both be set. To run both server and queue workers, disable / remove both options.');
+		process.exit(1);
+	}
+
+	if (!envOption.disableClustering) {
+		// clusterモジュール有効時
+
 		if (envOption.onlyServer) {
-			await server();
+			// onlyServer かつ enableCluster な場合、メインプロセスはforkのみに制限する(listenしない)。
+			// ワーカープロセス側でlistenすると、メインプロセスでポートへの着信を受け入れてワーカープロセスへの分配を行う動作をする。
+			// そのため、メインプロセスでも直接listenするとポートの競合が発生して起動に失敗してしまう。
+			// see: https://nodejs.org/api/cluster.html#cluster
 		} else if (envOption.onlyQueue) {
 			await jobQueue();
-		} else {
-			await server();
-			await jobQueue();
-		}
-	} else {
-		if (envOption.onlyServer) {
-			// nop
-		} else if (envOption.onlyQueue) {
-			// nop
 		} else {
 			await server();
 		}
 
 		if (config.clusterLimit === 0) {
-			bootLogger.error("Configuration error: we can't create workers, `config.clusterLimit` is 0 (if you don't want to use clustering, set the environment variable `MK_DISABLE_CLUSTERING` to a non-empty value instead)", null, true);
+			bootLogger.error('Configuration error: we can\'t create workers, `config.clusterLimit` is 0 (if you don\'t want to use clustering, set the environment variable `MK_DISABLE_CLUSTERING` to a non-empty value instead)', null, true);
 			process.exit(1);
 		}
 
 		await spawnWorkers(config.clusterLimit);
+	} else {
+		// clusterモジュール無効時
+
+		if (envOption.onlyServer) {
+			await server();
+		} else if (envOption.onlyQueue) {
+			await jobQueue();
+		} else {
+			await server();
+			await jobQueue();
+		}
 	}
 
 	if (envOption.onlyQueue) {
