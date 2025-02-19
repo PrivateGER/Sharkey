@@ -383,9 +383,6 @@ importers:
       pug:
         specifier: 3.0.3
         version: 3.0.3
-      punycode:
-        specifier: 2.3.1
-        version: 2.3.1
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -637,9 +634,6 @@ importers:
       '@types/pug':
         specifier: 2.0.10
         version: 2.0.10
-      '@types/punycode':
-        specifier: 2.1.4
-        version: 2.1.4
       '@types/qrcode':
         specifier: 1.5.5
         version: 1.5.5
@@ -767,8 +761,8 @@ importers:
         specifier: 3.5.12
         version: 3.5.12
       aiscript-vscode:
-        specifier: github:aiscript-dev/aiscript-vscode#v0.1.11
-        version: https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/e1e1b27f2f72cd28a473e004b6da0d8fc0bd40d9
+        specifier: github:aiscript-dev/aiscript-vscode#v0.1.15
+        version: https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/c3cde89e79a41d93540cf8a48cd619c3f2dcb1b7
       astring:
         specifier: 1.9.0
         version: 1.9.0
@@ -850,7 +844,7 @@ importers:
       photoswipe:
         specifier: 5.4.4
         version: 5.4.4
-      punycode:
+      punycode.js:
         specifier: 2.3.1
         version: 2.3.1
       rollup:
@@ -987,9 +981,9 @@ importers:
       '@types/node':
         specifier: 22.9.0
         version: 22.9.0
-      '@types/punycode':
-        specifier: 2.1.4
-        version: 2.1.4
+      '@types/punycode.js':
+        specifier: npm:@types/punycode@2.1.4
+        version: '@types/punycode@2.1.4'
       '@types/sanitize-html':
         specifier: 2.13.0
         version: 2.13.0
@@ -1140,7 +1134,7 @@ importers:
       misskey-js:
         specifier: workspace:*
         version: link:../misskey-js
-      punycode:
+      punycode.js:
         specifier: 2.3.1
         version: 2.3.1
       rollup:
@@ -1189,9 +1183,9 @@ importers:
       '@types/node':
         specifier: 22.9.0
         version: 22.9.0
-      '@types/punycode':
-        specifier: 2.1.4
-        version: 2.1.4
+      '@types/punycode.js':
+        specifier: npm:@types/punycode@2.1.4
+        version: '@types/punycode@2.1.4'
       '@types/tinycolor2':
         specifier: 1.4.6
         version: 1.4.6
@@ -5046,9 +5040,9 @@ packages:
     resolution: {integrity: sha512-gOsf2YwSlleG6IjRYG2A7k0HmBMEo6qVNk9Bp/EaLgAJT5ngH6PXbqa4ItvnEwCm/velL5jAnQgsHsWnjhGmvw==}
     engines: {node: '>=18'}
 
-  aiscript-vscode@https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/e1e1b27f2f72cd28a473e004b6da0d8fc0bd40d9:
-    resolution: {tarball: https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/e1e1b27f2f72cd28a473e004b6da0d8fc0bd40d9}
-    version: 0.1.11
+  aiscript-vscode@https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/c3cde89e79a41d93540cf8a48cd619c3f2dcb1b7:
+    resolution: {tarball: https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/c3cde89e79a41d93540cf8a48cd619c3f2dcb1b7}
+    version: 0.1.15
     engines: {vscode: ^1.83.0}
 
   ajv-draft-04@1.0.0:
@@ -9449,6 +9443,10 @@ packages:
   pump@3.0.0:
     resolution: {integrity: sha512-LwZy+p3SFs1Pytd/jYct4wpv49HiYCqd9Rlc5ZVdk0V+8Yzv6jR5Blk3TRmPL1ft69TxP0IMZGJ+WPFU2BFhww==}
 
+  punycode.js@2.3.1:
+    resolution: {integrity: sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA==}
+    engines: {node: '>=6'}
+
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -11029,8 +11027,8 @@ packages:
   vue-component-type-helpers@2.1.10:
     resolution: {integrity: sha512-lfgdSLQKrUmADiSV6PbBvYgQ33KF3Ztv6gP85MfGaGaSGMTXORVaHT1EHfsqCgzRNBstPKYDmvAV9Do5CmJ07A==}
 
-  vue-component-type-helpers@2.2.0:
-    resolution: {integrity: sha512-cYrAnv2me7bPDcg9kIcGwjJiSB6Qyi08+jLDo9yuvoFQjzHiPTzML7RnkJB1+3P6KMsX/KbCD4QE3Tv/knEllw==}
+  vue-component-type-helpers@2.2.2:
+    resolution: {integrity: sha512-6lLY+n2xz2kCYshl59mL6gy8OUUTmkscmDFMO8i7Lj+QKwgnIFUZmM1i/iTYObtrczZVdw7UakPqDTGwVSGaRg==}
 
   vue-demi@0.14.7:
     resolution: {integrity: sha512-EOG8KXDQNwkJILkx/gPcoL/7vH+hORoBaKgGe+6W7VFMvCYJfmF2dGbvgDroVnI8LU7/kTu8mbjRZGBU1z9NTA==}
@@ -14677,7 +14675,7 @@ snapshots:
       ts-dedent: 2.2.0
       type-fest: 2.19.0
       vue: 3.5.12(typescript@5.6.3)
-      vue-component-type-helpers: 2.2.0
+      vue-component-type-helpers: 2.2.2
 
   '@swc/cli@0.3.12(@swc/core@1.9.2)(chokidar@3.5.3)':
     dependencies:
@@ -15854,7 +15852,7 @@ snapshots:
       clean-stack: 5.2.0
       indent-string: 5.0.0
 
-  aiscript-vscode@https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/e1e1b27f2f72cd28a473e004b6da0d8fc0bd40d9:
+  aiscript-vscode@https://codeload.github.com/aiscript-dev/aiscript-vscode/tar.gz/c3cde89e79a41d93540cf8a48cd619c3f2dcb1b7:
     dependencies:
       '@aiscript-dev/aiscript-languageserver': https://github.com/aiscript-dev/aiscript-languageserver/releases/download/0.1.6/aiscript-dev-aiscript-languageserver-0.1.6.tgz
       vscode-languageclient: 9.0.1
@@ -21393,6 +21391,8 @@ snapshots:
       end-of-stream: 1.4.4
       once: 1.4.0
 
+  punycode.js@2.3.1: {}
+
   punycode@2.3.1: {}
 
   pure-rand@6.0.0: {}
@@ -23147,7 +23147,7 @@ snapshots:
 
   vue-component-type-helpers@2.1.10: {}
 
-  vue-component-type-helpers@2.2.0: {}
+  vue-component-type-helpers@2.2.2: {}
 
   vue-demi@0.14.7(vue@3.5.12(typescript@5.6.3)):
     dependencies:
