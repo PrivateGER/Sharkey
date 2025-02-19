@@ -284,7 +284,7 @@ export type Config = {
 	}
 };
 
-export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch';
+export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch' | 'tsvector';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);

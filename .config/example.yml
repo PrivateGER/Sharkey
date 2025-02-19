@@ -224,6 +224,14 @@ fulltextSearch:
   #   You need to install pgroonga and configure it as a PostgreSQL extension.
   #   In addition to the above, you need to create a pgroonga index on the text column of the note table.
   #   see: https://pgroonga.github.io/tutorial/
+  # - tsvector
+  #   Use Postgres tsvectors.
+  #   You need to create a generated column and index on the note table to use this, followed by an ANALYZE on the table. Beware, this will take a while to be created and the database will remain locked during this process.
+  #   This also enables advanced search syntax, see documentation of websearch_to_tsquery: https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-PARSING-QUERIES
+  #   Support for non-English languages is currently rather poor and will be improved once post languages become a feature.
+  #   ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', COALESCE(text, '') || ' ' || COALESCE(cw, '') || ' ' || COALESCE(name, ''))) STORED;
+  #   CREATE INDEX vector_idx ON note USING GIN (tsvector_embedding);
+  #   ANALYZE note;
   # - meilisearch
   #   Use Meilisearch.
   #   You need to install Meilisearch and configure.
