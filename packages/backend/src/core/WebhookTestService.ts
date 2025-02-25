@@ -99,6 +99,7 @@ function generateDummyUser(override?: Partial<MiUser>): MiUser {
 		signupReason: null,
 		noindex: false,
 		enableRss: true,
+		mandatoryCW: null,
 		...override,
 	};
 }
@@ -216,6 +217,7 @@ function toPackedUserLite(user: MiUser, override?: Packed<'UserLite'>): Packed<'
 		isSystem: false,
 		isSilenced: user.isSilenced,
 		enableRss: true,
+		mandatoryCW: null,
 		...override,
 	};
 }

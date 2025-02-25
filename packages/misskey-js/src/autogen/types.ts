@@ -233,6 +233,15 @@ export type paths = {
      */
     post: operations['admin___captcha___save'];
   };
+  '/admin/cw-user': {
+    /**
+     * admin/cw-user
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:cw-user*
+     */
+    post: operations['admin___cw-user'];
+  };
   '/admin/decline-user': {
     /**
      * admin/decline-user
@@ -3968,6 +3977,7 @@ export type components = {
       isSystem?: boolean;
       noindex: boolean;
       enableRss: boolean;
+      mandatoryCW: string | null;
       isBot?: boolean;
       isCat?: boolean;
       speakAsCat?: boolean;
@@ -6847,6 +6857,59 @@ export type operations = {
           sitekey?: string | null;
           secret?: string | null;
           instanceUrl?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/cw-user
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:cw-user*
+   */
+  'admin___cw-user': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          userId: string;
+          cw: string | null;
         };
       };
     };

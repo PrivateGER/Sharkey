@@ -22,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.logYellow]: [
 					'markSensitiveDriveFile',
 					'resetPassword',
+					'setMandatoryCW',
 					'suspendRemoteInstance',
 					'setRemoteInstanceNSFW',
 					'unsetRemoteInstanceNSFW',
@@ -55,6 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span v-else-if="log.type === 'decline'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'unsuspend'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'resetPassword'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
+		<span v-else-if="log.type === 'setMandatoryCW'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'assignRole'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }} <i class="ti ti-arrow-right"></i> {{ log.info.roleName }}</span>
 		<span v-else-if="log.type === 'unassignRole'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }} <i class="ti ti-equal-not"></i> {{ log.info.roleName }}</span>
 		<span v-else-if="log.type === 'createRole'">: {{ log.info.role.name }}</span>
@@ -93,7 +95,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span v-else-if="log.type === 'deleteFlash'">: @{{ log.info.flashUserUsername }}</span>
 		<span v-else-if="log.type === 'deleteGalleryPost'">: @{{ log.info.postUserUsername }}</span>
 	</template>
-	<template #icon>
+	<template v-if="log.user" #icon>
 		<MkAvatar :user="log.user" :class="$style.avatar"/>
 	</template>
 	<template #suffix>
@@ -122,6 +124,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 		<template v-else-if="log.type === 'approve'">
 			<div>{{ i18n.ts.user }}: <MkA :to="`/admin/user/${log.info.userId}`" class="_link">@{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</MkA></div>
+		</template>
+		<template v-else-if="log.type === 'setMandatoryCW'">
+			<div>{{ i18n.ts.user }}: <MkA :to="`/admin/user/${log.info.userId}`" class="_link">@{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</MkA></div>
+			<div :class="$style.diff">
+				<CodeDiff :context="0" :hideHeader="true" :oldString="log.info.oldCW ?? ''" :newString="log.info.newCW ?? ''" maxHeight="150px"/>
+			</div>
 		</template>
 		<template v-else-if="log.type === 'unsuspend'">
 			<div>{{ i18n.ts.user }}: <MkA :to="`/admin/user/${log.info.userId}`" class="_link">@{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</MkA></div>

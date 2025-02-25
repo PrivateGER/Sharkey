@@ -100,6 +100,7 @@ export const moderationLogTypes = [
 	'deleteGlobalAnnouncement',
 	'deleteUserAnnouncement',
 	'resetPassword',
+	'setMandatoryCW',
 	'setRemoteInstanceNSFW',
 	'unsetRemoteInstanceNSFW',
 	'suspendRemoteInstance',
@@ -257,6 +258,13 @@ export type ModerationLogPayloads = {
 		userHost: string | null;
 	};
 	resetPassword: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+	};
+	setMandatoryCW: {
+		newCW: string | null;
+		oldCW: string | null;
 		userId: string;
 		userUsername: string;
 		userHost: string | null;

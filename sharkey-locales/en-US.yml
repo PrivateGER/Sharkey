@@ -51,6 +51,10 @@ mediaSilencedByBase: "This host's media is silenced implicitly because a base do
 driveSearchbarPlaceholder: "Search drive"
 fileNotSelected: "No file selected"
 background: "Background"
+inputNewDescription: "Enter new alt text"
+describeFile: "Add alt text"
+enterFileDescription: "Enter alt text"
+caption: "Alt text"
 antennaUsersDescription: "List one username per line. Use \"*@instance.com\" to specify all users of an instance"
 aboutMisskey: "About Sharkey"
 expandAllCws: "Show content for all replies"
@@ -303,6 +307,8 @@ _abuseReport:
         webhook: "Send a notification to the SystemWebhook when an abuse report is received or resolved."
 _moderationLogTypes:
   approve: "Approved"
+  decline: "Declined"
+  setMandatoryCW: "Set content warning for user"
   setRemoteInstanceNSFW: "Set remote instance as NSFW"
   unsetRemoteInstanceNSFW: "Set remote instance as NSFW"
   rejectRemoteInstanceReports: "Rejected reports from remote instance"
@@ -436,6 +442,7 @@ _permissions:
   "write:admin:decline-user": "Decline new users"
   "write:admin:nsfw-user": "Mark users as NSFW"
   "write:admin:unnsfw-user": "Mark users an not NSFW"
+  "write:admin:cw-user": "Apply mandatory CW on users"
   "write:admin:silence-user": "Silence users"
   "write:admin:unsilence-user": "Un-silence users"
   "read:notes-schedule": "View your list of scheduled notes"
@@ -474,3 +481,6 @@ _noteSearch:
     flash: "Flash"
 
 id: "ID"
+
+mandatoryCW: "Force content warning"
+mandatoryCWDescription: "Applies a content warning to all posts created by this user. If the post already has a CW, then this is appended to the end."

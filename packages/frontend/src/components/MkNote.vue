@@ -59,10 +59,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkInstanceTicker v-if="showTicker" :host="appearNote.user.host" :instance="appearNote.user.instance"/>
 			<div style="container-type: inline-size;">
 				<bdi>
-				<p v-if="appearNote.cw != null" :class="$style.cw">
+				<p v-if="mergedCW != null" :class="$style.cw">
 					<Mfm
-						v-if="appearNote.cw != ''"
-						:text="appearNote.cw"
+						v-if="mergedCW != ''"
+						:text="mergedCW"
 						:author="appearNote.user"
 						:nyaize="'respect'"
 						:enableEmojiMenu="true"
@@ -71,7 +71,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					/>
 					<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll" style="margin: 4px 0;" @click.stop/>
 				</p>
-				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
+				<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
 						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 						<MkA v-if="appearNote.replyId" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ph-arrow-bend-left-up ph-bold ph-lg"></i></MkA>
@@ -212,6 +212,7 @@ import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
 import { host } from '@@/js/config.js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import type { MenuItem } from '@/types/menu.js';
 import MkNoteSub from '@/components/MkNoteSub.vue';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
@@ -349,6 +350,8 @@ const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
 	url: `https://${host}/notes/${appearNote.value.id}`,
 }));
+
+const mergedCW = computed(() => computeMergedCw(appearNote.value));
 
 const renoteTooltip = computeRenoteTooltip(renoted);
 

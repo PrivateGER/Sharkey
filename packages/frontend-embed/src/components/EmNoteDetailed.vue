@@ -58,11 +58,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</header>
 		<div :class="[$style.noteContent, { [$style.contentCollapsed]: collapsed }]">
-			<p v-if="appearNote.cw != null" :class="$style.cw">
-				<EmMfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :author="appearNote.user" :nyaize="'respect'" :isBlock="true"/>
+			<p v-if="mergedCW != null" :class="$style.cw">
+				<EmMfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :author="appearNote.user" :nyaize="'respect'" :isBlock="true"/>
 				<button style="display: block; width: 100%; margin: 4px 0;" class="_buttonGray _buttonRounded" @click="showContent = !showContent">{{ showContent ? i18n.ts._cw.hide : i18n.ts._cw.show }}</button>
 			</p>
-			<div v-show="appearNote.cw == null || showContent">
+			<div v-show="mergedCW == null || showContent">
 				<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 				<EmA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></EmA>
 				<EmMfm
@@ -130,6 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, inject, ref } from 'vue';
 import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import I18n from '@/components/I18n.vue';
 import EmMediaList from '@/components/EmMediaList.vue';
 import EmNoteSub from '@/components/EmNoteSub.vue';
@@ -175,6 +176,8 @@ const isDeleted = ref(false);
 const parsed = appearNote.value.text ? mfm.parse(appearNote.value.text) : null;
 const isLong = shouldCollapsed(appearNote.value, []);
 const collapsed = ref(appearNote.value.cw == null && isLong);
+
+const mergedCW = computed(() => computeMergedCw(appearNote.value));
 </script>
 
 <style lang="scss" module>

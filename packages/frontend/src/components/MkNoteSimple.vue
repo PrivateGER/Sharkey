@@ -9,11 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.main">
 		<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
 		<div>
-			<p v-if="note.cw != null" :class="$style.cw">
-				<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :isBlock="true" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
+			<p v-if="mergedCW != null" :class="$style.cw">
+				<Mfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :isBlock="true" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
 				<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll" @click.stop/>
 			</p>
-			<div v-show="note.cw == null || showContent">
+			<div v-show="mergedCW == null || showContent">
 				<MkSubNoteContent :hideFiles="hideFiles" :class="$style.text" :note="note" :expandAllCws="props.expandAllCws"/>
 				<div v-if="note.isSchedule" style="margin-top: 10px;">
 					<MkButton :class="$style.button" inline @click.stop.prevent="editScheduleNote()"><i class="ti ti-eraser"></i> {{ i18n.ts.edit }}</MkButton>
@@ -26,8 +26,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import * as os from '@/os.js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
@@ -47,6 +48,8 @@ const props = defineProps<{
 
 let showContent = ref(defaultStore.state.uncollapseCW);
 const isDeleted = ref(false);
+
+const mergedCW = computed(() => computeMergedCw(props.note));
 
 const emit = defineEmits<{
 	(ev: 'editScheduleNote'): void;

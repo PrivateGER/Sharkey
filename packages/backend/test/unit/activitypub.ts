@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { IdService } from '@/core/IdService.js';
+
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
@@ -20,7 +22,7 @@ import { CoreModule } from '@/core/CoreModule.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type { IActor, IApDocument, ICollection, IObject, IPost } from '@/core/activitypub/type.js';
-import { MiMeta, MiNote, UserProfilesRepository } from '@/models/_.js';
+import { MiMeta, MiNote, MiUser, UserProfilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { DownloadService } from '@/core/DownloadService.js';
@@ -93,6 +95,7 @@ describe('ActivityPub', () => {
 	let rendererService: ApRendererService;
 	let jsonLdService: JsonLdService;
 	let resolver: MockResolver;
+	let idService: IdService;
 
 	const metaInitial = {
 		cacheRemoteFiles: true,
@@ -140,6 +143,7 @@ describe('ActivityPub', () => {
 		imageService = app.get<ApImageService>(ApImageService);
 		jsonLdService = app.get<JsonLdService>(JsonLdService);
 		resolver = new MockResolver(await app.resolve<LoggerService>(LoggerService));
+		idService = app.get<IdService>(IdService);
 
 		// Prevent ApPersonService from fetching instance, as it causes Jest import-after-test error
 		const federatedInstanceService = app.get<FederatedInstanceService>(FederatedInstanceService);
@@ -474,6 +478,145 @@ describe('ActivityPub', () => {
 				_misskey_quote: 'https://example.com/notes/1',
 				'https://example.org/ns#unknown': 'test test bar',
 				// undefined: 'test test baz',
+			});
+		});
+	});
+
+	describe(ApRendererService, () => {
+		let note: MiNote;
+		let author: MiUser;
+
+		beforeEach(() => {
+			author = new MiUser({
+				id: idService.gen(),
+			});
+			note = new MiNote({
+				id: idService.gen(),
+				userId: author.id,
+				visibility: 'public',
+				localOnly: false,
+				text: 'Note text',
+				cw: null,
+				renoteCount: 0,
+				repliesCount: 0,
+				clippedCount: 0,
+				reactions: {},
+				fileIds: [],
+				attachedFileTypes: [],
+				visibleUserIds: [],
+				mentions: [],
+				// This is fucked tbh - it's JSON stored in a TEXT column that gets parsed/serialized all over the place
+				mentionedRemoteUsers: '[]',
+				reactionAndUserPairCache: [],
+				emojis: [],
+				tags: [],
+				hasPoll: false,
+			});
+		});
+
+		describe('renderNote', () => {
+			describe('summary', () => {
+				// I actually don't know why it does this, but the logic was already there so I've preserved it.
+				it('should be zero-width space when CW is empty string', async () => {
+					note.cw = '';
+
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBe(String.fromCharCode(0x200B));
+				});
+
+				it('should be undefined when CW is null', async () => {
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBeUndefined();
+				});
+
+				it('should be CW when present without mandatoryCW', async () => {
+					note.cw = 'original';
+
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBe('original');
+				});
+
+				it('should be mandatoryCW when present without CW', async () => {
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBe('mandatory');
+				});
+
+				it('should be merged when CW and mandatoryCW are both present', async () => {
+					note.cw = 'original';
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBe('original, mandatory');
+				});
+
+				it('should be CW when CW includes mandatoryCW', async () => {
+					note.cw = 'original and mandatory';
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderNote(note, author, false);
+
+					expect(result.summary).toBe('original and mandatory');
+				});
+			});
+		});
+
+		describe('renderUpnote', () => {
+			describe('summary', () => {
+				// I actually don't know why it does this, but the logic was already there so I've preserved it.
+				it('should be zero-width space when CW is empty string', async () => {
+					note.cw = '';
+
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBe(String.fromCharCode(0x200B));
+				});
+
+				it('should be undefined when CW is null', async () => {
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBeUndefined();
+				});
+
+				it('should be CW when present without mandatoryCW', async () => {
+					note.cw = 'original';
+
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBe('original');
+				});
+
+				it('should be mandatoryCW when present without CW', async () => {
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBe('mandatory');
+				});
+
+				it('should be merged when CW and mandatoryCW are both present', async () => {
+					note.cw = 'original';
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBe('original, mandatory');
+				});
+
+				it('should be CW when CW includes mandatoryCW', async () => {
+					note.cw = 'original and mandatory';
+					author.mandatoryCW = 'mandatory';
+
+					const result = await rendererService.renderUpNote(note, author, false);
+
+					expect(result.summary).toBe('original and mandatory');
+				});
 			});
 		});
 	});

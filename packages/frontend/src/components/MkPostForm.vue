@@ -112,6 +112,7 @@ import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
 import { toASCII } from 'punycode.js';
 import { host, url } from '@@/js/config.js';
+import { appendContentWarning } from '@@/js/append-content-warning.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { PostFormProps } from '@/types/post-form.js';
 import MkNoteSimple from '@/components/MkNoteSimple.vue';
@@ -373,18 +374,8 @@ if ($i.defaultCW) {
 	if (!cw.value || $i.defaultCWPriority === 'default') {
 		cw.value = $i.defaultCW;
 	} else if ($i.defaultCWPriority !== 'parent') {
-		// This is a fancy way of simulating /\bsearch\b/ without a regular expression.
-		// We're checking to see whether the default CW appears inside the existing CW, but *only* if there's word boundaries.
-		const parts = cw.value.split($i.defaultCW);
-		const hasExistingDefaultCW = parts.length === 2 && !/\w$/.test(parts[0]) && !/^\w/.test(parts[1]);
-		if (!hasExistingDefaultCW) {
-			// We need to merge the CWs
-			if ($i.defaultCWPriority === 'defaultParent') {
-				cw.value = `${$i.defaultCW}, ${cw.value}`;
-			} else if ($i.defaultCWPriority === 'parentDefault') {
-				cw.value = `${cw.value}, ${$i.defaultCW}`;
-			}
-		}
+		const putDefaultFirst = $i.defaultCWPriority === 'defaultParent';
+		cw.value = appendContentWarning(cw.value, $i.defaultCW, putDefaultFirst);
 	}
 	// else { do nothing, because existing CW takes priority. }
 }

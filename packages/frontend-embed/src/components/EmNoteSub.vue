@@ -11,11 +11,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.body">
 			<EmNoteHeader :class="$style.header" :note="note" :mini="true"/>
 			<div>
-				<p v-if="note.cw != null" :class="$style.cw">
-					<EmMfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'" :isBlock="true"/>
+				<p v-if="mergedCW != null" :class="$style.cw">
+					<EmMfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :author="note.user" :nyaize="'respect'" :isBlock="true"/>
 					<button style="display: block; width: 100%;" class="_buttonGray _buttonRounded" @click="showContent = !showContent">{{ showContent ? i18n.ts._cw.hide : i18n.ts._cw.show }}</button>
 				</p>
-				<div v-show="note.cw == null || showContent">
+				<div v-show="mergedCW == null || showContent">
 					<EmSubNoteContent :class="$style.text" :note="note"/>
 				</div>
 			</div>
@@ -31,8 +31,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import EmA from '@/components/EmA.vue';
 import EmAvatar from '@/components/EmAvatar.vue';
 import EmNoteHeader from '@/components/EmNoteHeader.vue';
@@ -54,6 +55,8 @@ const props = withDefaults(defineProps<{
 
 const showContent = ref(false);
 const replies = ref<Misskey.entities.Note[]>([]);
+
+const mergedCW = computed(() => computeMergedCw(props.note));
 
 if (props.detail) {
 	misskeyApi('notes/children', {

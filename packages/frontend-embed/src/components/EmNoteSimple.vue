@@ -9,11 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.main">
 		<EmNoteHeader :class="$style.header" :note="note" :mini="true"/>
 		<div>
-			<p v-if="note.cw != null" :class="$style.cw">
-				<EmMfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis" :isBlock="true"/>
+			<p v-if="mergedCW != null" :class="$style.cw">
+				<EmMfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis" :isBlock="true"/>
 				<button style="display: block; width: 100%;" class="_buttonGray _buttonRounded" @click="showContent = !showContent">{{ showContent ? i18n.ts._cw.hide : i18n.ts._cw.show }}</button>
 			</p>
-			<div v-show="note.cw == null || showContent">
+			<div v-show="mergedCW == null || showContent">
 				<EmSubNoteContent :class="$style.text" :note="note"/>
 			</div>
 		</div>
@@ -22,8 +22,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import { i18n } from '@/i18n.js';
 import EmAvatar from '@/components/EmAvatar.vue';
 import EmNoteHeader from '@/components/EmNoteHeader.vue';
@@ -35,6 +36,8 @@ const props = defineProps<{
 }>();
 
 const showContent = ref(false);
+
+const mergedCW = computed(() => computeMergedCw(props.note));
 </script>
 
 <style lang="scss" module>

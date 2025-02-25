@@ -19,11 +19,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.body">
 			<SkNoteHeader :class="$style.header" :note="note" :classic="true" :mini="true"/>
 			<div :class="$style.content">
-				<p v-if="note.cw != null" :class="$style.cw">
-					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :isBlock="true" :author="note.user" :nyaize="'respect'"/>
+				<p v-if="mergedCW != null" :class="$style.cw">
+					<Mfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :isBlock="true" :author="note.user" :nyaize="'respect'"/>
 					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
 				</p>
-				<div v-show="note.cw == null || showContent">
+				<div v-show="mergedCW == null || showContent">
 					<MkSubNoteContent :class="$style.text" :note="note" :translating="translating" :translation="translation" :expandAllCws="props.expandAllCws"/>
 				</div>
 			</div>
@@ -94,6 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, shallowRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import SkNoteHeader from '@/components/SkNoteHeader.vue';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
@@ -155,6 +156,8 @@ const renoteTooltip = computeRenoteTooltip(renoted);
 let appearNote = computed(() => isRenote ? props.note.renote as Misskey.entities.Note : props.note);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
 const replies = ref<Misskey.entities.Note[]>([]);
+
+const mergedCW = computed(() => computeMergedCw(appearNote.value));
 
 const isRenote = (
 	props.note.renote != null &&

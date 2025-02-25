@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { appendContentWarning } from './append-content-warning.js';
 import type { Packed } from './json-schema.js';
 
 /**
@@ -20,9 +21,15 @@ export const getNoteSummary = (note: Packed<'Note'>): string => {
 
 	let summary = '';
 
+	// Append mandatory CW, if applicable
+	let cw = note.cw;
+	if (note.user.mandatoryCW) {
+		cw = appendContentWarning(cw, note.user.mandatoryCW);
+	}
+
 	// 本文
-	if (note.cw != null) {
-		summary += `CW: ${note.cw}`;
+	if (cw != null) {
+		summary += `CW: ${cw}`;
 	} else if (note.text) {
 		summary += note.text;
 	}

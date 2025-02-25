@@ -8555,6 +8555,10 @@ export interface Locale extends ILocale {
          */
         "write:admin:unnsfw-user": string;
         /**
+         * Apply mandatory CW on users
+         */
+        "write:admin:cw-user": string;
+        /**
          * Silence users
          */
         "write:admin:silence-user": string;
@@ -10214,6 +10218,14 @@ export interface Locale extends ILocale {
          * Approved
          */
         "approve": string;
+        /**
+         * Declined
+         */
+        "decline": string;
+        /**
+         * Set content warning for user
+         */
+        "setMandatoryCW": string;
         /**
          * Set remote instance as NSFW
          */
@@ -12101,6 +12113,14 @@ export interface Locale extends ILocale {
      * ID
      */
     "id": string;
+    /**
+     * Force content warning
+     */
+    "mandatoryCW": string;
+    /**
+     * Applies a content warning to all posts created by this user. If the post already has a CW, then this is appended to the end.
+     */
+    "mandatoryCWDescription": string;
 }
 declare const locales: {
     [lang: string]: Locale;

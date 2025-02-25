@@ -151,6 +151,8 @@ type Source = {
 		preSave?: boolean;
 		maxAge?: number;
 	};
+
+	websocketCompression?: boolean;
 };
 
 export type Config = {
@@ -275,16 +277,18 @@ export type Config = {
 		preSave: boolean;
 		maxAge: number;
 	};
-
-	openai?: {
+  
+  openai?: {
 		apiKey: string;
 		baseUrl: string;
 		headers: { [x: string]: string };
 		model: string;
 	}
+
+	websocketCompression?: boolean;
 };
 
-export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch' | 'tsvector';
+export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch' | 'sqlTsvector';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -442,6 +446,7 @@ export function loadConfig(): Config {
 			preSave: config.activityLogging?.preSave ?? false,
 			maxAge: config.activityLogging?.maxAge ?? (1000 * 60 * 60 * 24 * 30),
 		},
+		websocketCompression: config.websocketCompression,
 		openai: openai,
 	};
 }

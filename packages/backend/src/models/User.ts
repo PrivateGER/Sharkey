@@ -339,6 +339,15 @@ export class MiUser {
 	})
 	public enableRss: boolean;
 
+	/**
+	 * Specifies a Content Warning that should be forcibly applied to all notes by this user.
+	 * If null (default), then no Content Warning is applied.
+	 */
+	@Column('text', {
+		nullable: true,
+	})
+	public mandatoryCW: string | null;
+
 	constructor(data: Partial<MiUser>) {
 		if (data == null) return;
 

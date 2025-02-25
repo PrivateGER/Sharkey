@@ -4,6 +4,7 @@
  */
 
 import * as Misskey from 'misskey-js';
+import { appendContentWarning } from '@@/js/append-content-warning.js';
 import { i18n } from '@/i18n.js';
 
 /**
@@ -25,9 +26,15 @@ export const getNoteSummary = (note?: Misskey.entities.Note | null): string => {
 
 	let summary = '';
 
+	// Append mandatory CW, if applicable
+	let cw = note.cw;
+	if (note.user.mandatoryCW) {
+		cw = appendContentWarning(cw, note.user.mandatoryCW);
+	}
+
 	// 本文
-	if (note.cw != null) {
-		summary += `CW: ${note.cw}`;
+	if (cw != null) {
+		summary += `CW: ${cw}`;
 	} else if (note.text) {
 		summary += note.text;
 	}

@@ -46,11 +46,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<EmNoteHeader :note="appearNote" :mini="true"/>
 			<EmInstanceTicker v-if="appearNote.user.instance != null" :instance="appearNote.user.instance"/>
 			<div style="container-type: inline-size;">
-				<p v-if="appearNote.cw != null" :class="$style.cw">
-					<EmMfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :author="appearNote.user" :nyaize="'respect'" :isBlock="true"/>
+				<p v-if="mergedCW != null" :class="$style.cw">
+					<EmMfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :author="appearNote.user" :nyaize="'respect'" :isBlock="true"/>
 					<button style="display: block; width: 100%; margin: 4px 0;" class="_buttonGray _buttonRounded" @click="showContent = !showContent">{{ showContent ? i18n.ts._cw.hide : i18n.ts._cw.show }}</button>
 				</p>
-				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
+				<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
 						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 						<EmA v-if="appearNote.replyId" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></EmA>
@@ -109,6 +109,7 @@ import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
 import { url } from '@@/js/config.js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import I18n from '@/components/I18n.vue';
 import EmNoteSub from '@/components/EmNoteSub.vue';
 import EmNoteHeader from '@/components/EmNoteHeader.vue';
@@ -154,6 +155,8 @@ const parsed = computed(() => appearNote.value.text ? mfm.parse(appearNote.value
 const isLong = shouldCollapsed(appearNote.value, []);
 const collapsed = ref(appearNote.value.cw == null && isLong);
 const isDeleted = ref(false);
+
+const mergedCW = computed(() => computeMergedCw(appearNote.value));
 </script>
 
 <style lang="scss" module>

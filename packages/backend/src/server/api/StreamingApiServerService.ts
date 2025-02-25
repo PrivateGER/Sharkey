@@ -26,6 +26,7 @@ import MainStreamConnection from './stream/Connection.js';
 import { ChannelsService } from './stream/ChannelsService.js';
 import type * as http from 'node:http';
 import type { IEndpointMeta } from './endpoints.js';
+import type {Config} from "@/config.js";
 
 @Injectable()
 export class StreamingApiServerService {
@@ -49,6 +50,9 @@ export class StreamingApiServerService {
 		private channelFollowingService: ChannelFollowingService,
 		private rateLimiterService: SkRateLimiterService,
 		private loggerService: LoggerService,
+
+		@Inject(DI.config)
+		private config: Config,
 	) {
 	}
 
@@ -74,6 +78,7 @@ export class StreamingApiServerService {
 	public attach(server: http.Server): void {
 		this.#wss = new WebSocket.WebSocketServer({
 			noServer: true,
+			perMessageDeflate: this.config.websocketCompression ?? false,
 		});
 
 		server.on('upgrade', async (request, socket, head) => {

@@ -209,11 +209,12 @@ export class Resolver {
 			case 'notes':
 				return this.notesRepository.findOneByOrFail({ id: parsed.id })
 					.then(async note => {
+						const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
 						if (parsed.rest === 'activity') {
 							// this refers to the create activity and not the note itself
-							return this.apRendererService.addContext(this.apRendererService.renderCreate(await this.apRendererService.renderNote(note), note));
+							return this.apRendererService.addContext(this.apRendererService.renderCreate(await this.apRendererService.renderNote(note, author), note));
 						} else {
-							return this.apRendererService.renderNote(note);
+							return this.apRendererService.renderNote(note, author);
 						}
 					});
 			case 'users':

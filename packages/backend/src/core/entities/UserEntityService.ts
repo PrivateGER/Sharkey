@@ -592,6 +592,7 @@ export class UserEntityService implements OnModuleInit {
 			isCat: user.isCat,
 			noindex: user.noindex,
 			enableRss: user.enableRss,
+			mandatoryCW: user.mandatoryCW,
 			isSilenced: user.isSilenced || this.roleService.getUserPolicies(user.id).then(r => !r.canPublicNote),
 			speakAsCat: user.speakAsCat ?? false,
 			approved: user.approved,

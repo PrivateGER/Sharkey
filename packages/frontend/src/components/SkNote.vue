@@ -62,10 +62,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div :class="[{ [$style.clickToOpen]: defaultStore.state.clickToOpen }]" @click.stop="defaultStore.state.clickToOpen ? noteclick(appearNote.id) : undefined">
 			<div style="container-type: inline-size;">
-				<p v-if="appearNote.cw != null" :class="$style.cw">
+				<p v-if="mergedCW != null" :class="$style.cw">
 					<Mfm
-						v-if="appearNote.cw != ''"
-						:text="appearNote.cw"
+						v-if="mergedCW != ''"
+						:text="mergedCW"
 						:author="appearNote.user"
 						:nyaize="'respect'"
 						:enableEmojiMenu="true"
@@ -74,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					/>
 					<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll" style="margin: 4px 0;" @click.stop/>
 				</p>
-				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
+				<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
 						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 						<Mfm
@@ -213,6 +213,7 @@ import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
 import { host } from '@@/js/config.js';
+import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import type { MenuItem } from '@/types/menu.js';
 import SkNoteSub from '@/components/SkNoteSub.vue';
 import SkNoteHeader from '@/components/SkNoteHeader.vue';
@@ -344,6 +345,8 @@ const inReplyToCollapsed = ref(defaultStore.state.collapseNotesRepliedTo);
 const defaultLike = computed(() => defaultStore.state.like ? defaultStore.state.like : null);
 const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.value) : null);
 const allowAnim = ref(defaultStore.state.advancedMfm && defaultStore.state.animatedMfm ? true : false);
+
+const mergedCW = computed(() => computeMergedCw(appearNote.value));
 
 const renoteTooltip = computeRenoteTooltip(renoted);
 

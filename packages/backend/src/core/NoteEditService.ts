@@ -224,7 +224,7 @@ export class NoteEditService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public async edit(user: {
+	public async edit(user: MiUser & {
 		id: MiUser['id'];
 		username: MiUser['username'];
 		host: MiUser['host'];
@@ -309,7 +309,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		if (this.isRenote(data)) {
 			if (data.renote.id === oldnote.id) {
-				throw new Error("A note can't renote itself");
+				throw new Error('A note can\'t renote itself');
 			}
 
 			switch (data.renote.visibility) {
@@ -584,7 +584,7 @@ export class NoteEditService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async postNoteEdited(note: MiNote, oldNote: MiNote, user: {
+	private async postNoteEdited(note: MiNote, oldNote: MiNote, user: MiUser & {
 		id: MiUser['id'];
 		username: MiUser['username'];
 		host: MiUser['host'];
@@ -703,7 +703,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			//#region AP deliver
 			if (!data.localOnly && this.userEntityService.isLocalUser(user)) {
 				(async () => {
-					const noteActivity = await this.renderNoteOrRenoteActivity(data, note);
+					const noteActivity = await this.renderNoteOrRenoteActivity(data, note, user);
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
 
 					// メンションされたリモートユーザーに配送
@@ -834,14 +834,12 @@ export class NoteEditService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async renderNoteOrRenoteActivity(data: Option, note: MiNote) {
+	private async renderNoteOrRenoteActivity(data: Option, note: MiNote, user: MiUser) {
 		if (data.localOnly) return null;
-		const user = await this.usersRepository.findOneBy({ id: note.userId });
-		if (user == null) throw new Error('user not found');
 
 		const content = this.isRenote(data) && !this.isQuote(data)
 			? this.apRendererService.renderAnnounce(data.renote.uri ? data.renote.uri : `${this.config.url}/notes/${data.renote.id}`, note)
-			: this.apRendererService.renderUpdate(await this.apRendererService.renderUpNote(note, false), user);
+			: this.apRendererService.renderUpdate(await this.apRendererService.renderUpNote(note, user, false), user);
 
 		return this.apRendererService.addContext(content);
 	}
