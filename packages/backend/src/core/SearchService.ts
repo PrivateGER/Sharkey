@@ -238,15 +238,10 @@ export class SearchService {
 		switch (this.provider) {
 			case 'sqlLike':
 			case 'sqlPgroonga':
-			case 'sqlTsvector': {
-				// ほとんど内容に差がないのでsqlLikeとsqlPgroongaを同じ処理にしている.
-				// 今後の拡張で差が出る用であれば関数を分ける.
-				return this.searchNoteByLike(q, me, opts, pagination);
-			}
 			case 'meilisearch': {
 				return this.searchNoteByMeiliSearch(q, me, opts, pagination);
 			}
-			case 'tsvector': {
+			case 'sqlTsvector': {
 				return this.searchNoteByTsvector(q, me, opts, pagination);
 			}
 			default: {
