@@ -450,6 +450,9 @@ _permissions:
 
 robotsTxt: "Custom robots.txt"
 robotsTxtDescription: "Adding entries here will override the default robots.txt packaged with Sharkey."
+generateAltText: "Generate alt text"
+failedToGenerateAltText: "Failed to generate alt text"
+generatedAltTextSuccess: "Alt text generated successfully. Please check and edit if necessary."
 
 defaultCW: "Default content warning for new posts"
 defaultCWDescription: "The value here will be auto-filled as the content warning for all new posts and replies."

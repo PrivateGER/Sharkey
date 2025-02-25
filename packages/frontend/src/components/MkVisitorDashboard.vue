@@ -122,10 +122,11 @@ function showMenu(ev: MouseEvent) {
 }
 
 .mainIcon {
-	width: 85px;
+	width: 240px;
 	margin-top: -47px;
 	vertical-align: bottom;
 	filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+	content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp");
 }
 
 .wideIcon {

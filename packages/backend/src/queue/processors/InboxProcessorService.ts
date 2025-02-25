@@ -24,6 +24,10 @@ import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { JsonLdService } from '@/core/activitypub/JsonLdService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
+import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
+import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import type { UsersRepository } from '@/models/_.js';
+import { IdService } from '@/core/IdService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { MiNote } from '@/models/Note.js';
@@ -64,6 +68,7 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
 		private readonly apLogService: ApLogService,
+		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
 		this.updateInstanceQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseUpdateInstanceJobs, this.performUpdateInstance);
@@ -249,6 +254,13 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		this.apRequestChart.inbox();
 		this.federationChart.inbox(authUser.user.host);
 
+		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
+		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);
+		const rewrittenActivity = mMrfResponse.data;
+		if (mMrfResponse.action === MMrfAction.RejectNote) {
+			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
+		}
+
 		// Update instance stats
 		process.nextTick(async () => {
 			const i = await (this.meta.enableStatsForFederatedInstances
@@ -271,7 +283,7 @@ export class InboxProcessorService implements OnApplicationShutdown {
 
 		// アクティビティを処理
 		try {
-			const result = await this.apInboxService.performActivity(authUser.user, activity);
+			const result = await this.apInboxService.performActivity(authUser.user, rewrittenActivity);
 			if (result && !result.startsWith('ok')) {
 				if (result.startsWith('skip:')) {
 					this.logger.info(`inbox activity ignored: id=${activity.id} reason=${result}`);
