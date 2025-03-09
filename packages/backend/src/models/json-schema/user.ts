@@ -138,6 +138,10 @@ export const packedUserLiteSchema = {
 			type: 'string',
 			nullable: true, optional: false,
 		},
+		rejectQuotes: {
+			type: 'boolean',
+			nullable: false, optional: true,
+		},
 		isBot: {
 			type: 'boolean',
 			nullable: false, optional: true,

@@ -8,6 +8,8 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { PromoNotesRepository } from '@/models/_.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -46,7 +48,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.promoNotesRepository)
 		private promoNotesRepository: PromoNotesRepository,
-
+		private readonly moderationLogService: ModerationLogService,
+		private readonly cacheService: CacheService,
 		private getterService: GetterService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -60,6 +63,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (exist) {
 				throw new ApiError(meta.errors.alreadyPromoted);
 			}
+
+			const user = await this.cacheService.findUserById(note.userId);
+			await this.moderationLogService.log(me, 'createPromo', {
+				noteId: note.id,
+				noteUserId: user.id,
+				noteUserUsername: user.username,
+				noteUserHost: user.host,
+			});
 
 			await this.promoNotesRepository.insert({
 				noteId: note.id,

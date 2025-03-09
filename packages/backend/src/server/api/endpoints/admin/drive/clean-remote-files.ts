@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueueService } from '@/core/QueueService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -25,9 +26,11 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private queueService: QueueService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			this.queueService.createCleanRemoteFilesJob();
+			await this.moderationLogService.log(me, 'clearRemoteFiles', {});
+			await this.queueService.createCleanRemoteFilesJob();
 		});
 	}
 }

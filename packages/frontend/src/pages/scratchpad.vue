@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.root">
 			<div class="_gaps_s">
 				<div :class="$style.editor" class="_panel">
-					<MkCodeEditor v-model="code" lang="aiscript"/>
+					<MkCodeEditor v-model="code" lang="aiscript" debounce/>
 				</div>
 				<MkButton primary @click="run()"><i class="ti ti-player-play"></i></MkButton>
 			</div>

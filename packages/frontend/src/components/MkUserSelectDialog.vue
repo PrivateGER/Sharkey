@@ -16,16 +16,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts.selectUser }}</template>
 	<div>
 		<div :class="$style.form">
-			<MkInput v-if="computedLocalOnly" v-model="username" :autofocus="true" @update:modelValue="search">
+			<MkInput v-if="computedLocalOnly" v-model="username" :autofocus="true" debounce @update:modelValue="search">
 				<template #label>{{ i18n.ts.username }}</template>
 				<template #prefix>@</template>
 			</MkInput>
 			<FormSplit v-else :minWidth="170">
-				<MkInput v-model="username" :autofocus="true" @update:modelValue="search">
+				<MkInput v-model="username" :autofocus="true" debounce @update:modelValue="search">
 					<template #label>{{ i18n.ts.username }}</template>
 					<template #prefix>@</template>
 				</MkInput>
-				<MkInput v-model="host" :datalist="[hostname]" @update:modelValue="search">
+				<MkInput v-model="host" :datalist="[hostname]" debounce @update:modelValue="search">
 					<template #label>{{ i18n.ts.host }}</template>
 					<template #prefix>@</template>
 				</MkInput>

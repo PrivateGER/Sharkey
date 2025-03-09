@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { RelayService } from '@/core/RelayService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -27,9 +28,13 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private relayService: RelayService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			return await this.relayService.removeRelay(ps.inbox);
+			await this.moderationLogService.log(me, 'removeRelay', {
+				inbox: ps.inbox,
+			});
+			await this.relayService.removeRelay(ps.inbox);
 		});
 	}
 }

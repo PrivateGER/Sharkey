@@ -1403,7 +1403,7 @@ export interface Locale extends ILocale {
      */
     "inputNewFileName": string;
     /**
-     * 新しいキャプションを入力してください
+     * Enter new alt text
      */
     "inputNewDescription": string;
     /**
@@ -2603,11 +2603,11 @@ export interface Locale extends ILocale {
      */
     "description": string;
     /**
-     * キャプションを付ける
+     * Add alt text
      */
     "describeFile": string;
     /**
-     * キャプションを入力
+     * Enter alt text
      */
     "enterFileDescription": string;
     /**
@@ -4084,7 +4084,7 @@ export interface Locale extends ILocale {
      */
     "windowRestore": string;
     /**
-     * キャプション
+     * Alt text
      */
     "caption": string;
     /**
@@ -8567,6 +8567,10 @@ export interface Locale extends ILocale {
          */
         "write:admin:unsilence-user": string;
         /**
+         * Allow/Prohibit quote posts from a user
+         */
+        "write:admin:reject-quotes": string;
+        /**
          * View your list of scheduled notes
          */
         "read:notes-schedule": string;
@@ -9060,6 +9064,14 @@ export interface Locale extends ILocale {
          * フォローを承認制にしている場合、フォローリクエストを許可した時に表示されます。
          */
         "followedMessageDescriptionForLockedAccount": string;
+        /**
+         * Update avatar
+         */
+        "updateAvatar": string;
+        /**
+         * Remove avatar
+         */
+        "removeAvatar": string;
         /**
          * Update banner
          */
@@ -10242,6 +10254,74 @@ export interface Locale extends ILocale {
          * Accepted reports from remote instance
          */
         "acceptRemoteInstanceReports": string;
+        /**
+         * Blocked/Stripped quote posts from user
+         */
+        "rejectQuotesUser": string;
+        /**
+         * Allowed quote posts from user
+         */
+        "allowQuotesUser": string;
+        /**
+         * Cleared a user's drive files
+         */
+        "clearUserFiles": string;
+        /**
+         * Marked user as NSFW
+         */
+        "nsfwUser": string;
+        /**
+         * Un-marked user as NSFW
+         */
+        "unNsfwUser": string;
+        /**
+         * Silenced user
+         */
+        "silenceUser": string;
+        /**
+         * Un-silenced user
+         */
+        "unSilenceUser": string;
+        /**
+         * Created an account
+         */
+        "createAccount": string;
+        /**
+         * Cleared remote drive files
+         */
+        "clearRemoteFiles": string;
+        /**
+         * Cleared owner-less drive files
+         */
+        "clearOwnerlessFiles": string;
+        /**
+         * Updated custom emojis
+         */
+        "updateCustomEmojis": string;
+        /**
+         * Imported custom emojis
+         */
+        "importCustomEmojis": string;
+        /**
+         * Cleared an instance's drive files
+         */
+        "clearInstanceFiles": string;
+        /**
+         * Severed follow relations with an instance
+         */
+        "severFollowRelations": string;
+        /**
+         * Created a note promo
+         */
+        "createPromo": string;
+        /**
+         * Added a relay
+         */
+        "addRelay": string;
+        /**
+         * Removed a relay
+         */
+        "removeRelay": string;
     };
     "_fileViewer": {
         /**
@@ -11241,6 +11321,26 @@ export interface Locale extends ILocale {
      */
     "rejectReports": string;
     /**
+     * Strip quote posts from this instance
+     */
+    "rejectQuotesInstance": string;
+    /**
+     * Strip quote posts from this user
+     */
+    "rejectQuotesRemoteUser": string;
+    /**
+     * Block quote posts from this user
+     */
+    "rejectQuotesLocalUser": string;
+    /**
+     * Are you sure you wish to strip quote posts?
+     */
+    "rejectQuotesConfirm": string;
+    /**
+     * Are you sure you wish to allow quote posts?
+     */
+    "allowQuotesConfirm": string;
+    /**
      * This host is blocked implicitly because a base domain is blocked. To unblock this host, first unblock the base domain(s).
      */
     "blockedByBase": string;
@@ -11569,6 +11669,18 @@ export interface Locale extends ILocale {
      * Flash
      */
     "flash": string;
+    /**
+     * Files removed
+     */
+    "filesRemoved": string;
+    /**
+     * File imported
+     */
+    "fileImported": string;
+    /**
+     * Failed to load note
+     */
+    "cannotLoadNote": string;
     "_flash": {
         /**
          * Flash Content Hidden
@@ -12121,6 +12233,12 @@ export interface Locale extends ILocale {
      * Applies a content warning to all posts created by this user. If the post already has a CW, then this is appended to the end.
      */
     "mandatoryCWDescription": string;
+    "_processErrors": {
+        /**
+         * Unable to process quote. This post may be missing context.
+         */
+        "quoteUnavailable": string;
+    };
 }
 declare const locales: {
     [lang: string]: Locale;

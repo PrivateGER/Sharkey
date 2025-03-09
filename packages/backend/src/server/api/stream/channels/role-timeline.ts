@@ -18,13 +18,13 @@ class RoleTimelineChannel extends Channel {
 	private roleId: string;
 
 	constructor(
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 		private roleservice: RoleService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 		//this.onNote = this.onNote.bind(this);
 	}
 
@@ -48,7 +48,12 @@ class RoleTimelineChannel extends Channel {
 
 			if (this.isNoteMutedOrBlocked(note)) return;
 
-			this.send('note', note);
+			const clonedNote = await this.assignMyReaction(note);
+			await this.hideNote(clonedNote);
+
+			this.connection.cacheNote(clonedNote);
+
+			this.send('note', clonedNote);
 		} else {
 			this.send(data.type, data.body);
 		}

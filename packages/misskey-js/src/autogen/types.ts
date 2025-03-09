@@ -594,6 +594,15 @@ export type paths = {
      */
     post: operations['admin___queue___stats'];
   };
+  '/admin/reject-quotes': {
+    /**
+     * admin/reject-quotes
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:reject-quotes*
+     */
+    post: operations['admin___reject-quotes'];
+  };
   '/admin/relays/add': {
     /**
      * admin/relays/add
@@ -3978,6 +3987,7 @@ export type components = {
       noindex: boolean;
       enableRss: boolean;
       mandatoryCW: string | null;
+      rejectQuotes?: boolean;
       isBot?: boolean;
       isCat?: boolean;
       speakAsCat?: boolean;
@@ -4340,6 +4350,8 @@ export type components = {
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
+      updatedAt?: string;
+      /** Format: date-time */
       deletedAt?: string | null;
       text: string | null;
       cw?: string | null;
@@ -4408,6 +4420,7 @@ export type components = {
       url?: string;
       reactionAndUserPairCache?: string[];
       clippedCount?: number;
+      processErrors?: string[] | null;
       myReaction?: string | null;
     };
     NoteReaction: {
@@ -4965,6 +4978,7 @@ export type components = {
       latestRequestReceivedAt: string | null;
       isNSFW: boolean;
       rejectReports: boolean;
+      rejectQuotes: boolean;
       moderationNote?: string | null;
     };
     GalleryPost: {
@@ -8286,6 +8300,7 @@ export type operations = {
           isNSFW?: boolean;
           rejectReports?: boolean;
           moderationNote?: string;
+          rejectQuotes?: boolean;
         };
       };
     };
@@ -8811,6 +8826,8 @@ export type operations = {
             deeplIsPro: boolean;
             deeplFreeMode: boolean;
             deeplFreeInstance: string | null;
+            libreTranslateURL: string | null;
+            libreTranslateKey: string | null;
             defaultDarkTheme: string | null;
             defaultLightTheme: string | null;
             description: string | null;
@@ -9189,6 +9206,59 @@ export type operations = {
             objectStorage: components['schemas']['QueueCount'];
           };
         };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/reject-quotes
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:reject-quotes*
+   */
+  'admin___reject-quotes': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          userId: string;
+          rejectQuotes: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
       };
       /** @description Client error */
       400: {
@@ -11333,6 +11403,8 @@ export type operations = {
           deeplIsPro?: boolean;
           deeplFreeMode?: boolean;
           deeplFreeInstance?: string | null;
+          libreTranslateURL?: string | null;
+          libreTranslateKey?: string | null;
           enableEmail?: boolean;
           email?: string | null;
           smtpSecure?: boolean;

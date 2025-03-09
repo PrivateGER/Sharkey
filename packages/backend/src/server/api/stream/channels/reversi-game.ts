@@ -11,6 +11,7 @@ import { ReversiService } from '@/core/ReversiService.js';
 import { ReversiGameEntityService } from '@/core/entities/ReversiGameEntityService.js';
 import { isJsonObject } from '@/misc/json-value.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import Channel, { type MiChannelService } from '../channel.js';
 import { reversiUpdateKeys } from 'misskey-js';
 
@@ -23,11 +24,12 @@ class ReversiGameChannel extends Channel {
 	constructor(
 		private reversiService: ReversiService,
 		private reversiGameEntityService: ReversiGameEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 	}
 
 	@bindThis
@@ -116,6 +118,7 @@ export class ReversiGameChannelService implements MiChannelService<false> {
 	constructor(
 		private reversiService: ReversiService,
 		private reversiGameEntityService: ReversiGameEntityService,
+		private noteEntityService: NoteEntityService,
 	) {
 	}
 
@@ -124,6 +127,7 @@ export class ReversiGameChannelService implements MiChannelService<false> {
 		return new ReversiGameChannel(
 			this.reversiService,
 			this.reversiGameEntityService,
+			this.noteEntityService,
 			id,
 			connection,
 		);

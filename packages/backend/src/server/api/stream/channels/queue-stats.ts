@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import { isJsonObject } from '@/misc/json-value.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 const ev = new Xev();
@@ -17,8 +18,8 @@ class QueueStatsChannel extends Channel {
 	public static shouldShare = true;
 	public static requireCredential = false as const;
 
-	constructor(id: string, connection: Channel['connection']) {
-		super(id, connection);
+	constructor(id: string, connection: Channel['connection'], noteEntityService: NoteEntityService) {
+		super(id, connection, noteEntityService);
 		//this.onStats = this.onStats.bind(this);
 		//this.onMessage = this.onMessage.bind(this);
 	}
@@ -64,6 +65,7 @@ export class QueueStatsChannelService implements MiChannelService<false> {
 	public readonly kind = QueueStatsChannel.kind;
 
 	constructor(
+		private readonly noteEntityService: NoteEntityService,
 	) {
 	}
 
@@ -72,6 +74,7 @@ export class QueueStatsChannelService implements MiChannelService<false> {
 		return new QueueStatsChannel(
 			id,
 			connection,
+			this.noteEntityService,
 		);
 	}
 }

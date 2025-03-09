@@ -17,6 +17,8 @@ import { WebhookTestService } from '@/core/WebhookTestService.js';
 import { FlashService } from '@/core/FlashService.js';
 import { TimeService } from '@/core/TimeService.js';
 import { EnvService } from '@/core/EnvService.js';
+import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import { ApLogService } from '@/core/ApLogService.js';
 import { AccountMoveService } from './AccountMoveService.js';
 import { AccountUpdateService } from './AccountUpdateService.js';
 import { AnnouncementService } from './AnnouncementService.js';
@@ -157,7 +159,6 @@ import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
 import { SponsorsService } from './SponsorsService.js';
 import type { Provider } from '@nestjs/common';
-import { ApLogService } from '@/core/ApLogService.js';
 
 //#region 文字列ベースでのinjection用(循環参照対応のため)
 const $LoggerService: Provider = { provide: 'LoggerService', useExisting: LoggerService };
@@ -308,6 +309,7 @@ const $ApMentionService: Provider = { provide: 'ApMentionService', useExisting: 
 const $ApNoteService: Provider = { provide: 'ApNoteService', useExisting: ApNoteService };
 const $ApPersonService: Provider = { provide: 'ApPersonService', useExisting: ApPersonService };
 const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting: ApQuestionService };
+const $ApUtilityService: Provider = { provide: 'ApUtilityService', useExisting: ApUtilityService };
 //#endregion
 
 const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: SponsorsService };
@@ -465,6 +467,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		ApNoteService,
 		ApPersonService,
 		ApQuestionService,
+		ApUtilityService,
 		QueueService,
 
 		SponsorsService,
@@ -618,6 +621,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$ApNoteService,
 		$ApPersonService,
 		$ApQuestionService,
+		$ApUtilityService,
 		//#endregion
 
 		$SponsorsService,
@@ -771,6 +775,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		ApNoteService,
 		ApPersonService,
 		ApQuestionService,
+		ApUtilityService,
 		QueueService,
 
 		SponsorsService,
@@ -922,6 +927,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$ApNoteService,
 		$ApPersonService,
 		$ApQuestionService,
+		$ApUtilityService,
 		//#endregion
 
 		$SponsorsService,

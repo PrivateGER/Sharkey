@@ -38,7 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<p v-if="note.renoteCount > 0" :class="$style.noteFooterButtonCount">{{ note.renoteCount }}</p>
 				</button>
 				<button
-					v-if="canRenote"
+					v-if="canRenote && !$i?.rejectQuotes"
 					ref="quoteButton"
 					class="_button"
 					:class="$style.noteFooterButton"

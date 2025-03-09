@@ -16,10 +16,20 @@ import { nextTick, onMounted, onActivated, onBeforeUnmount, ref, shallowRef } fr
 const rootEl = shallowRef<HTMLDivElement>();
 const showing = ref(false);
 
+const emit = defineEmits<{
+	(ev: 'show'): void,
+}>();
+
 const observer = new IntersectionObserver(
 	(entries) => {
 		if (entries.some((entry) => entry.isIntersecting)) {
 			showing.value = true;
+
+			// Disconnect to avoid observer soft-leaks
+			observer.disconnect();
+
+			// Notify containing element to trigger edge logic
+			emit('show');
 		}
 	},
 );

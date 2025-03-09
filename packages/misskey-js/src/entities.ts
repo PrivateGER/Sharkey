@@ -61,6 +61,18 @@ export type ModerationLog = {
 	type: 'unsuspend';
 	info: ModerationLogPayloads['unsuspend'];
 } | {
+	type: 'acceptQuotesUser';
+	info: ModerationLogPayloads['acceptQuotesUser'];
+} | {
+	type: 'rejectQuotesUser';
+	info: ModerationLogPayloads['rejectQuotesUser'];
+} | {
+	type: 'acceptQuotesInstance';
+	info: ModerationLogPayloads['acceptQuotesInstance'];
+} | {
+	type: 'rejectQuotesInstance';
+	info: ModerationLogPayloads['rejectQuotesInstance'];
+} | {
 	type: 'updateUserNote';
 	info: ModerationLogPayloads['updateUserNote'];
 } | {
@@ -216,6 +228,51 @@ export type ModerationLog = {
 } | {
 	type: 'deleteGalleryPost';
 	info: ModerationLogPayloads['deleteGalleryPost'];
+} | {
+	type: 'clearUserFiles';
+	info: ModerationLogPayloads['clearUserFiles'];
+} | {
+	type: 'nsfwUser';
+	info: ModerationLogPayloads['nsfwUser'];
+} | {
+	type: 'unNsfwUser';
+	info: ModerationLogPayloads['unNsfwUser'];
+} | {
+	type: 'silenceUser';
+	info: ModerationLogPayloads['silenceUser'];
+} | {
+	type: 'unSilenceUser';
+	info: ModerationLogPayloads['unSilenceUser'];
+} | {
+	type: 'createAccount';
+	info: ModerationLogPayloads['createAccount'];
+} | {
+	type: 'clearRemoteFiles';
+	info: ModerationLogPayloads['clearRemoteFiles'];
+} | {
+	type: 'clearOwnerlessFiles';
+	info: ModerationLogPayloads['clearOwnerlessFiles'];
+} | {
+	type: 'updateCustomEmojis';
+	info: ModerationLogPayloads['updateCustomEmojis'];
+} | {
+	type: 'importCustomEmojis';
+	info: ModerationLogPayloads['importCustomEmojis'];
+} | {
+	type: 'clearInstanceFiles';
+	info: ModerationLogPayloads['clearInstanceFiles'];
+} | {
+	type: 'severFollowRelations';
+	info: ModerationLogPayloads['severFollowRelations'];
+} | {
+	type: 'createPromo';
+	info: ModerationLogPayloads['createPromo'];
+} | {
+	type: 'addRelay';
+	info: ModerationLogPayloads['addRelay'];
+} | {
+	type: 'removeRelay';
+	info: ModerationLogPayloads['removeRelay'];
 });
 
 export type ServerStats = {

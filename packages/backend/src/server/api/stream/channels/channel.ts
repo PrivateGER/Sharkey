@@ -7,7 +7,6 @@ import { Injectable } from '@nestjs/common';
 import type { Packed } from '@/misc/json-schema.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
-import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
@@ -20,12 +19,12 @@ class ChannelChannel extends Channel {
 	private withRenotes: boolean;
 
 	constructor(
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 		//this.onNote = this.onNote.bind(this);
 	}
 
@@ -50,16 +49,12 @@ class ChannelChannel extends Channel {
 
 		if (this.isNoteMutedOrBlocked(note)) return;
 
-		if (this.user && isRenotePacked(note) && !isQuotePacked(note)) {
-			if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-				const myRenoteReaction = await this.noteEntityService.populateMyReaction(note.renote, this.user.id);
-				note.renote.myReaction = myRenoteReaction;
-			}
-		}
+		const clonedNote = await this.assignMyReaction(note);
+		await this.hideNote(clonedNote);
 
-		this.connection.cacheNote(note);
+		this.connection.cacheNote(clonedNote);
 
-		this.send('note', note);
+		this.send('note', clonedNote);
 	}
 
 	@bindThis

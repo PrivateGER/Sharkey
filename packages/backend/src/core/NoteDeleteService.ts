@@ -162,7 +162,6 @@ export class NoteDeleteService {
 				noteUserId: note.userId,
 				noteUserUsername: user.username,
 				noteUserHost: user.host,
-				note: note,
 			});
 		}
 

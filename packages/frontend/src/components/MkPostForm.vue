@@ -640,7 +640,7 @@ async function onPaste(ev: ClipboardEvent) {
 
 	const paste = ev.clipboardData.getData('text');
 
-	if (!renoteTargetNote.value && !quoteId.value && paste.startsWith(url + '/notes/')) {
+	if (!renoteTargetNote.value && !quoteId.value && paste.startsWith(url + '/notes/') && !$i.rejectQuotes) {
 		ev.preventDefault();
 
 		os.confirm({

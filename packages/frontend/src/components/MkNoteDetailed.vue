@@ -117,7 +117,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<MkPoll v-if="appearNote.poll" ref="pollViewer" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :class="$style.poll" :author="appearNote.user" :emojiUrls="appearNote.emojis"/>
 				<div v-if="isEnabledUrlPreview">
-					<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="true" :showAsQuote="true" :skipNoteIds="[appearNote.renote?.id]" style="margin-top: 6px;"/>
+					<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="true" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="[appearNote.renote?.id]" style="margin-top: 6px;"/>
 				</div>
 				<div v-if="appearNote.renote" :class="$style.quote"><MkNoteSimple :note="appearNote.renote" :class="$style.quoteNote" :expandAllCws="props.expandAllCws"/></div>
 			</div>
@@ -153,7 +153,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i class="ti ti-ban"></i>
 			</button>
 			<button
-				v-if="canRenote"
+				v-if="canRenote && !$i?.rejectQuotes"
 				ref="quoteButton"
 				class="_button"
 				:class="$style.noteFooterButton"

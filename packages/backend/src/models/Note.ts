@@ -203,6 +203,17 @@ export class MiNote {
 	@JoinColumn()
 	public channel: MiChannel | null;
 
+	/**
+	 * List of non-fatal errors encountered while processing (creating or updating) this note.
+	 * Entries can be a translation key (which will be queried from the "_processErrors" section) or a raw string.
+	 * Errors will be displayed to the user when viewing the note.
+	 */
+	@Column('text', {
+		array: true,
+		nullable: true,
+	})
+	public processErrors: string[] | null;
+
 	//#region Denormalized fields
 	@Index()
 	@Column('varchar', {

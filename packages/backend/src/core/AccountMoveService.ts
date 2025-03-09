@@ -9,7 +9,7 @@ import { IsNull, In, MoreThan, Not } from 'typeorm';
 import { bindThis } from '@/decorators.js';
 import { DI } from '@/di-symbols.js';
 import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
-import type { BlockingsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, UserListMembershipsRepository, UsersRepository } from '@/models/_.js';
+import type { BlockingsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, UserListMembershipsRepository, UsersRepository, NoteScheduleRepository, MiNoteSchedule } from '@/models/_.js';
 import type { RelationshipJobData, ThinUser } from '@/queue/types.js';
 
 import { IdService } from '@/core/IdService.js';
@@ -48,6 +48,9 @@ export class AccountMoveService {
 
 		@Inject(DI.instancesRepository)
 		private instancesRepository: InstancesRepository,
+
+		@Inject(DI.noteScheduleRepository)
+		private noteScheduleRepository: NoteScheduleRepository,
 
 		private userEntityService: UserEntityService,
 		private idService: IdService,
@@ -119,6 +122,7 @@ export class AccountMoveService {
 			await Promise.all([
 				this.copyBlocking(src, dst),
 				this.copyMutings(src, dst),
+				this.deleteScheduledNotes(src),
 				this.updateLists(src, dst),
 			]);
 		} catch {
@@ -199,6 +203,21 @@ export class AccountMoveService {
 
 		const arrayToInsert = Array.from(newMutings.entries()).map(entry => ({ ...entry[1], id: entry[0] }));
 		await this.mutingsRepository.insert(arrayToInsert);
+	}
+
+	@bindThis
+	public async deleteScheduledNotes(src: ThinUser): Promise<void> {
+		const scheduledNotes = await this.noteScheduleRepository.findBy({
+			userId: src.id,
+		}) as MiNoteSchedule[];
+
+		for (const note of scheduledNotes) {
+			await this.queueService.ScheduleNotePostQueue.remove(`schedNote:${note.id}`);
+		}
+
+		await this.noteScheduleRepository.delete({
+			userId: src.id,
+		});
 	}
 
 	/**

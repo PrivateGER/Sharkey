@@ -18,7 +18,8 @@ import type Logger from '@/logger.js';
 import { fromTuple } from '@/misc/from-tuple.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { ApLogService, calculateDurationSince, extractObjectContext } from '@/core/ApLogService.js';
-import { getNullableApId, isCollectionOrOrderedCollection } from './type.js';
+import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import { getApId, getNullableApId, isCollectionOrOrderedCollection } from './type.js';
 import { ApDbResolverService } from './ApDbResolverService.js';
 import { ApRendererService } from './ApRendererService.js';
 import { ApRequestService } from './ApRequestService.js';
@@ -45,6 +46,7 @@ export class Resolver {
 		private apDbResolverService: ApDbResolverService,
 		private loggerService: LoggerService,
 		private readonly apLogService: ApLogService,
+		private readonly apUtilityService: ApUtilityService,
 		private recursionLimit = 256,
 	) {
 		this.history = new Set();
@@ -176,20 +178,16 @@ export class Resolver {
 			throw new IdentifiableError('72180409-793c-4973-868e-5a118eb5519b', `invalid AP object ${value}: does not have ActivityStreams context`);
 		}
 
-		// Since redirects are allowed, we cannot safely validate an anonymous object.
-		// Reject any responses without an ID, as all other checks depend on that value.
-		if (object.id == null) {
-			throw new IdentifiableError('ad2dc287-75c1-44c4-839d-3d2e64576675', `invalid AP object ${value}: missing id`);
-		}
+		// The object ID is already validated to match the final URL's authority by signedGet / getActivityJson.
+		// We only need to validate that it also matches the original URL's authority, in case of redirects.
+		const objectId = getApId(object);
 
 		// We allow some limited cross-domain redirects, which means the host may have changed during fetch.
 		// Additional checks are needed to validate the scope of cross-domain redirects.
-		const finalHost = this.utilityService.extractDbHost(object.id);
+		const finalHost = this.utilityService.extractDbHost(objectId);
 		if (finalHost !== host) {
 			// Make sure the redirect stayed within the same authority.
-			if (this.utilityService.punyHostPSLDomain(object.id) !== this.utilityService.punyHostPSLDomain(value)) {
-				throw new IdentifiableError('fd93c2fa-69a8-440f-880b-bf178e0ec877', `invalid AP object ${value}: id ${object.id} has different host`);
-			}
+			this.apUtilityService.assertIdMatchesUrlAuthority(object, value);
 
 			// Check if the redirect bounce from [allowed domain] to [blocked domain].
 			if (!this.utilityService.isFederationAllowedHost(finalHost)) {
@@ -287,6 +285,7 @@ export class ApResolverService {
 		private apDbResolverService: ApDbResolverService,
 		private loggerService: LoggerService,
 		private readonly apLogService: ApLogService,
+		private readonly apUtilityService: ApUtilityService,
 	) {
 	}
 
@@ -308,6 +307,7 @@ export class ApResolverService {
 			this.apDbResolverService,
 			this.loggerService,
 			this.apLogService,
+			this.apUtilityService,
 		);
 	}
 }

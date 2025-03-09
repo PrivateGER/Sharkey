@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import type { JsonObject } from '@/misc/json-value.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 class ReversiChannel extends Channel {
@@ -17,8 +18,9 @@ class ReversiChannel extends Channel {
 	constructor(
 		id: string,
 		connection: Channel['connection'],
+		noteEntityService: NoteEntityService,
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 	}
 
 	@bindThis
@@ -40,6 +42,7 @@ export class ReversiChannelService implements MiChannelService<true> {
 	public readonly kind = ReversiChannel.kind;
 
 	constructor(
+		private readonly noteEntityService: NoteEntityService,
 	) {
 	}
 
@@ -48,6 +51,7 @@ export class ReversiChannelService implements MiChannelService<true> {
 		return new ReversiChannel(
 			id,
 			connection,
+			this.noteEntityService,
 		);
 	}
 }

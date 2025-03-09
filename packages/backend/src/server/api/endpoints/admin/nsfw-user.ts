@@ -5,9 +5,10 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { UsersRepository, UserProfilesRepository } from '@/models/_.js';
+import type { UserProfilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -28,20 +29,19 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
-		@Inject(DI.usersRepository)
-		private readonly usersRepository: UsersRepository,
-
 		@Inject(DI.userProfilesRepository)
 		private readonly userProfilesRepository: UserProfilesRepository,
-
+		private readonly moderationLogService: ModerationLogService,
 		private readonly cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const user = await this.usersRepository.findOneBy({ id: ps.userId });
+			const user = await this.cacheService.findUserById(ps.userId);
 
-			if (user == null) {
-				throw new Error('user not found');
-			}
+			await this.moderationLogService.log(me, 'nsfwUser', {
+				userId: ps.userId,
+				userUsername: user.username,
+				userHost: user.host,
+			});
 
 			await this.userProfilesRepository.update(user.id, {
 				alwaysMarkNsfw: true,

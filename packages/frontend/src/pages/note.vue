@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div class="_margin _gaps_s">
 							<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
+							<SkErrorList :errors="note.processErrors"/>
 							<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="$style.note" :expandAllCws="expandAllCws"/>
 						</div>
 						<div v-if="clips && clips.length > 0" class="_margin">
@@ -60,6 +61,7 @@ import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { i18n } from '@/i18n.js';
 import { dateString } from '@/filters/date.js';
 import MkClipPreview from '@/components/MkClipPreview.vue';
+import SkErrorList from '@/components/SkErrorList.vue';
 import { defaultStore } from '@/store.js';
 import { pleaseLogin } from '@/scripts/please-login.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
@@ -69,9 +71,9 @@ import { $i } from '@/account.js';
 const CTX_NOTE = !$i && assertServerContext(serverContext, 'note') ? serverContext.note : null;
 
 const MkNoteDetailed = defineAsyncComponent(() =>
-	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteDetailed.vue') :
-	(defaultStore.state.noteDesign === 'sharkey') ? import('@/components/SkNoteDetailed.vue') :
-	null
+	(defaultStore.state.noteDesign === 'misskey')
+		? import('@/components/MkNoteDetailed.vue')
+		: import('@/components/SkNoteDetailed.vue'),
 );
 
 const props = defineProps<{

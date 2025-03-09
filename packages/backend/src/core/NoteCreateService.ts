@@ -144,6 +144,7 @@ type Option = {
 	uri?: string | null;
 	url?: string | null;
 	app?: MiApp | null;
+	processErrors?: string[] | null;
 };
 
 export type PureRenoteOption = Option & { renote: MiNote } & ({ text?: null } | { cw?: null } | { reply?: null } | { poll?: null } | { files?: null | [] });
@@ -308,6 +309,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 					throw new Error('Renote target is not public or home');
 			}
 		}
+
+		// Check quote permissions
+		await this.checkQuotePermissions(data, user);
 
 		// Check blocking
 		if (this.isRenote(data) && !this.isQuote(data)) {
@@ -482,6 +486,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			renoteUserId: data.renote ? data.renote.userId : null,
 			renoteUserHost: data.renote ? data.renote.userHost : null,
 			userHost: user.host,
+			processErrors: data.processErrors,
 		});
 
 		// should really not happen, but better safe than sorry
@@ -1146,5 +1151,30 @@ export class NoteCreateService implements OnApplicationShutdown {
 	@bindThis
 	public async onApplicationShutdown(signal?: string | undefined): Promise<void> {
 		await this.dispose();
+	}
+
+	@bindThis
+	public async checkQuotePermissions(data: Option, user: MiUser): Promise<void> {
+		// Not a quote
+		if (!this.isRenote(data) || !this.isQuote(data)) return;
+
+		// User cannot quote
+		if (user.rejectQuotes) {
+			if (user.host == null) {
+				throw new IdentifiableError('1c0ea108-d1e3-4e8e-aa3f-4d2487626153', 'QUOTE_DISABLED_FOR_USER');
+			} else {
+				(data as Option).renote = null;
+				(data.processErrors ??= []).push('quoteUnavailable');
+			}
+		}
+
+		// Instance cannot quote
+		if (user.host) {
+			const instance = await this.federatedInstanceService.fetch(user.host);
+			if (instance?.rejectQuotes) {
+				(data as Option).renote = null;
+				(data.processErrors ??= []).push('quoteUnavailable');
+			}
+		}
 	}
 }

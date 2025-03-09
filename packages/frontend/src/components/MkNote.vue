@@ -102,7 +102,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :author="appearNote.user" :emojiUrls="appearNote.emojis" :class="$style.poll" @click.stop/>
 					<div v-if="isEnabledUrlPreview">
-						<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :showAsQuote="true" :skipNoteIds="[appearNote.renote?.id]" :class="$style.urlPreview" @click.stop/>
+						<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="[appearNote.renote?.id]" :class="$style.urlPreview" @click.stop/>
 					</div>
 					<div v-if="appearNote.renote" :class="$style.quote"><MkNoteSimple :note="appearNote.renote" :class="$style.quoteNote"/></div>
 					<button v-if="isLong && collapsed" :class="$style.collapsed" class="_button" @click.stop @click="collapsed = false">
@@ -142,7 +142,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i class="ti ti-ban"></i>
 				</button>
 				<button
-					v-if="canRenote && !props.mock"
+					v-if="canRenote && !props.mock && !$i?.rejectQuotes"
 					ref="quoteButton"
 					:class="$style.footerButton"
 					class="_button"

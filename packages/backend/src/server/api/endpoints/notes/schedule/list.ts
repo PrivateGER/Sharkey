@@ -7,12 +7,14 @@ import ms from 'ms';
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
-import type { MiNote, MiNoteSchedule, NoteScheduleRepository } from '@/models/_.js';
+import type { MiNote, MiUser, MiNoteSchedule, NoteScheduleRepository, NotesRepository } from '@/models/_.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { Packed } from '@/misc/json-schema.js';
 import { noteVisibilities } from '@/types.js';
+import { bindThis } from '@/decorators.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -81,7 +83,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.noteScheduleRepository)
 		private noteScheduleRepository: NoteScheduleRepository,
 
+		@Inject(DI.notesRepository)
+		private notesRepository: NotesRepository,
+
 		private userEntityService: UserEntityService,
+		private noteEntityService: NoteEntityService,
 		private driveFileEntityService: DriveFileEntityService,
 		private queryService: QueryService,
 	) {
@@ -106,6 +112,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				userId: string;
 				scheduledAt: string;
 			}[] = await Promise.all(scheduleNotes.map(async (item: MiNoteSchedule) => {
+				const renote = await this.fetchNote(item.note.renote, me);
+				const reply = await this.fetchNote(item.note.reply, me);
+
 				return {
 					...item,
 					scheduledAt: item.scheduledAt.toISOString(),
@@ -115,17 +124,35 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						user: user,
 						visibility: item.note.visibility ?? 'public',
 						reactionAcceptance: item.note.reactionAcceptance ?? null,
-						visibleUsers: item.note.visibleUsers ? await userEntityService.packMany(item.note.visibleUsers.map(u => u.id), me) : [],
+						visibleUsers: item.note.visibleUsers ? await this.userEntityService.packMany(item.note.visibleUsers.map(u => u.id), me) : [],
 						fileIds: item.note.files ? item.note.files : [],
 						files: await this.driveFileEntityService.packManyByIds(item.note.files),
 						createdAt: item.scheduledAt.toISOString(),
 						isSchedule: true,
 						id: item.id,
+						renote, reply,
+						renoteId: item.note.renote,
+						replyId: item.note.reply,
 					},
 				};
 			}));
 
 			return scheduleNotesPack;
 		});
+	}
+
+	@bindThis
+	private async fetchNote(
+		id: MiNote['id'] | null | undefined,
+		me: MiUser,
+	): Promise<Packed<'Note'> | null> {
+		if (id) {
+			const note = await this.notesRepository.findOneBy({ id });
+			if (note) {
+				note.reactionAndUserPairCache ??= [];
+				return this.noteEntityService.pack(note, me);
+			}
+		}
+		return null;
 	}
 }

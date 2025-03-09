@@ -27,6 +27,7 @@ export const paramDef = {
 		isNSFW: { type: 'boolean' },
 		rejectReports: { type: 'boolean' },
 		moderationNote: { type: 'string' },
+		rejectQuotes: { type: 'boolean' },
 	},
 	required: ['host'],
 } as const;
@@ -59,6 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				suspensionState,
 				isNSFW: ps.isNSFW,
 				rejectReports: ps.rejectReports,
+				rejectQuotes: ps.rejectQuotes,
 				moderationNote: ps.moderationNote,
 			});
 
@@ -86,6 +88,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.rejectReports != null && instance.rejectReports !== ps.rejectReports) {
 				const message = ps.rejectReports ? 'rejectRemoteInstanceReports' : 'acceptRemoteInstanceReports';
+				this.moderationLogService.log(me, message, {
+					id: instance.id,
+					host: instance.host,
+				});
+			}
+
+			if (ps.rejectQuotes != null && instance.rejectQuotes !== ps.rejectQuotes) {
+				const message = ps.rejectReports ? 'rejectQuotesInstance' : 'acceptQuotesInstance';
 				this.moderationLogService.log(me, message, {
 					id: instance.id,
 					host: instance.host,

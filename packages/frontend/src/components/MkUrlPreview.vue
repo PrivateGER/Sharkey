@@ -87,20 +87,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { defineAsyncComponent, onDeactivated, onUnmounted, ref, watch } from 'vue';
 import { url as local } from '@@/js/config.js';
 import { versatileLang } from '@@/js/intl-const.js';
+import * as Misskey from 'misskey-js';
 import type { summaly } from '@misskey-dev/summaly';
+import type MkNoteSimple from '@/components/MkNoteSimple.vue';
+import type SkNoteSimple from '@/components/SkNoteSimple.vue';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { deviceKind } from '@/scripts/device-kind.js';
 import MkButton from '@/components/MkButton.vue';
 import { transformPlayerUrl } from '@/scripts/player-url-transform.js';
 import { defaultStore } from '@/store.js';
-import * as Misskey from 'misskey-js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 
-const XNoteSimple = defineAsyncComponent(() =>
-	(defaultStore.state.noteDesign === 'misskey') ? import('@/components/MkNoteSimple.vue') :
-	(defaultStore.state.noteDesign === 'sharkey') ? import('@/components/SkNoteSimple.vue') :
-	null
+const XNoteSimple = defineAsyncComponent<typeof MkNoteSimple | typeof SkNoteSimple>(() =>
+	defaultStore.state.noteDesign === 'misskey'
+		? import('@/components/MkNoteSimple.vue')
+		: import('@/components/SkNoteSimple.vue'),
 );
 
 type SummalyResult = Awaited<ReturnType<typeof summaly>>;
@@ -111,12 +113,13 @@ const props = withDefaults(defineProps<{
 	compact?: boolean;
 	showAsQuote?: boolean;
 	showActions?: boolean;
-	skipNoteIds?: string[];
+	skipNoteIds?: (string | undefined)[];
 }>(), {
 	detail: false,
 	compact: false,
 	showAsQuote: false,
 	showActions: true,
+	skipNoteIds: undefined,
 });
 
 const MOBILE_THRESHOLD = 500;

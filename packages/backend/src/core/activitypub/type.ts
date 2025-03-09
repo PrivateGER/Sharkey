@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { UnrecoverableError } from 'bullmq';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { fromTuple } from '@/misc/from-tuple.js';
 
 export type Obj = { [x: string]: any };
@@ -57,28 +57,21 @@ export function getOneApId(value: ApObject): string {
 }
 
 /**
- * Minimal AP payload - just an object with optional ID.
- */
-export interface ObjectWithId {
-	id?: string;
-}
-
-/**
  * Get ActivityStreams Object id
  */
-export function getApId(value: string | ObjectWithId | [string | ObjectWithId]): string {
+export function getApId(value: string | IObject | [string | IObject]): string {
 	// eslint-disable-next-line no-param-reassign
 	value = fromTuple(value);
 
 	if (typeof value === 'string') return value;
 	if (typeof value.id === 'string') return value.id;
-	throw new UnrecoverableError('cannot determine id');
+	throw new IdentifiableError('ad2dc287-75c1-44c4-839d-3d2e64576675', `invalid AP object ${value}: missing id`);
 }
 
 /**
  * Get ActivityStreams Object id, or null if not present
  */
-export function getNullableApId(value: string | ObjectWithId | [string | ObjectWithId]): string | null {
+export function getNullableApId(value: string | IObject | [string | IObject]): string | null {
 	// eslint-disable-next-line no-param-reassign
 	value = fromTuple(value);
 

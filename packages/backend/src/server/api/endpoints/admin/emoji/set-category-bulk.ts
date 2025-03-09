@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -34,8 +35,13 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private customEmojiService: CustomEmojiService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			await this.moderationLogService.log(me, 'updateCustomEmojis', {
+				ids: ps.ids,
+				category: ps.category,
+			});
 			await this.customEmojiService.setCategoryBulk(ps.ids, ps.category?.normalize('NFC') ?? null);
 		});
 	}

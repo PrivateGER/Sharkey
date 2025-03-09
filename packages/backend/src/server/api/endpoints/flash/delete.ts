@@ -78,7 +78,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					flashId: flash.id,
 					flashUserId: flash.userId,
 					flashUserUsername: user.username,
-					flash,
 				});
 			}
 		});

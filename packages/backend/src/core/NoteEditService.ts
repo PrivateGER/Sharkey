@@ -140,6 +140,7 @@ type Option = {
 	app?: MiApp | null;
 	updatedAt?: Date | null;
 	editcount?: boolean | null;
+	processErrors?: string[] | null;
 };
 
 @Injectable()
@@ -337,6 +338,9 @@ export class NoteEditService implements OnApplicationShutdown {
 			}
 		}
 
+		// Check quote permissions
+		await this.noteCreateService.checkQuotePermissions(data, user);
+
 		// Check blocking
 		if (this.isRenote(data) && !this.isQuote(data)) {
 			if (data.renote.userHost === null) {
@@ -529,6 +533,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			if (data.uri != null) note.uri = data.uri;
 			if (data.url != null) note.url = data.url;
+			if (data.processErrors !== undefined) note.processErrors = data.processErrors;
 
 			if (mentionedUsers.length > 0) {
 				note.mentions = mentionedUsers.map(u => u.id);

@@ -86,6 +86,7 @@ export type AdminQueueDeliverDelayedResponse = operations['admin___queue___deliv
 export type AdminQueueInboxDelayedResponse = operations['admin___queue___inbox-delayed']['responses']['200']['content']['application/json'];
 export type AdminQueuePromoteRequest = operations['admin___queue___promote']['requestBody']['content']['application/json'];
 export type AdminQueueStatsResponse = operations['admin___queue___stats']['responses']['200']['content']['application/json'];
+export type AdminRejectQuotesRequest = operations['admin___reject-quotes']['requestBody']['content']['application/json'];
 export type AdminRelaysAddRequest = operations['admin___relays___add']['requestBody']['content']['application/json'];
 export type AdminRelaysAddResponse = operations['admin___relays___add']['responses']['200']['content']['application/json'];
 export type AdminRelaysListResponse = operations['admin___relays___list']['responses']['200']['content']['application/json'];

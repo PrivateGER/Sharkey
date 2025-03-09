@@ -81,6 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div class="_gaps">
 						<MkSwitch v-model="silenced" @update:modelValue="toggleSilence">{{ i18n.ts.silence }}</MkSwitch>
 						<MkSwitch v-if="!isSystem" v-model="suspended" @update:modelValue="toggleSuspend">{{ i18n.ts.suspend }}</MkSwitch>
+						<MkSwitch v-model="rejectQuotes" @update:modelValue="toggleRejectQuotes">{{ user.host == null ? i18n.ts.rejectQuotesLocalUser : i18n.ts.rejectQuotesRemoteUser }}</MkSwitch>
 						<MkSwitch v-model="markedAsNSFW" @update:modelValue="toggleNSFW">{{ i18n.ts.markAsNSFW }}</MkSwitch>
 
 						<MkInput v-model="mandatoryCW" type="text" manualSave @update:modelValue="onMandatoryCWChanged">
@@ -247,6 +248,7 @@ const moderator = ref(false);
 const silenced = ref(false);
 const approved = ref(false);
 const suspended = ref(false);
+const rejectQuotes = ref(false);
 const markedAsNSFW = ref(false);
 const moderationNote = ref('');
 const mandatoryCW = ref<string | null>(null);
@@ -287,6 +289,7 @@ function createFetcher() {
 		approved.value = info.value.approved;
 		markedAsNSFW.value = info.value.alwaysMarkNsfw;
 		suspended.value = info.value.isSuspended;
+		rejectQuotes.value = user.value.rejectQuotes ?? false;
 		moderationNote.value = info.value.moderationNote;
 		mandatoryCW.value = user.value.mandatoryCW;
 	});
@@ -364,6 +367,22 @@ async function toggleSuspend(v) {
 		suspended.value = !v;
 	} else {
 		await misskeyApi(v ? 'admin/suspend-user' : 'admin/unsuspend-user', { userId: user.value.id });
+		await refreshUser();
+	}
+}
+
+async function toggleRejectQuotes(v: boolean): Promise<void> {
+	const confirm = await os.confirm({
+		type: 'warning',
+		text: v ? i18n.ts.rejectQuotesConfirm : i18n.ts.allowQuotesConfirm,
+	});
+	if (confirm.canceled) {
+		rejectQuotes.value = !v;
+	} else {
+		await misskeyApi('admin/reject-quotes', {
+			userId: props.userId,
+			rejectQuotes: v,
+		});
 		await refreshUser();
 	}
 }

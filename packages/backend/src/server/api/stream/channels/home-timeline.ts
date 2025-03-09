@@ -20,12 +20,12 @@ class HomeTimelineChannel extends Channel {
 	private withFiles: boolean;
 
 	constructor(
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 		//this.onNote = this.onNote.bind(this);
 	}
 
@@ -81,7 +81,8 @@ class HomeTimelineChannel extends Channel {
 
 		if (this.isNoteMutedOrBlocked(note)) return;
 
-		const clonedNote = await this.assignMyReaction(note, this.noteEntityService);
+		const clonedNote = await this.assignMyReaction(note);
+		await this.hideNote(clonedNote);
 
 		this.connection.cacheNote(clonedNote);
 

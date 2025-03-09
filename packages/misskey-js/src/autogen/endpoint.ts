@@ -83,6 +83,7 @@ import type {
 	AdminQueueInboxDelayedResponse,
 	AdminQueuePromoteRequest,
 	AdminQueueStatsResponse,
+	AdminRejectQuotesRequest,
 	AdminRelaysAddRequest,
 	AdminRelaysAddResponse,
 	AdminRelaysListResponse,
@@ -674,6 +675,7 @@ export type Endpoints = {
 	'admin/queue/inbox-delayed': { req: EmptyRequest; res: AdminQueueInboxDelayedResponse };
 	'admin/queue/promote': { req: AdminQueuePromoteRequest; res: EmptyResponse };
 	'admin/queue/stats': { req: EmptyRequest; res: AdminQueueStatsResponse };
+	'admin/reject-quotes': { req: AdminRejectQuotesRequest; res: EmptyResponse };
 	'admin/relays/add': { req: AdminRelaysAddRequest; res: AdminRelaysAddResponse };
 	'admin/relays/list': { req: EmptyRequest; res: AdminRelaysListResponse };
 	'admin/relays/remove': { req: AdminRelaysRemoveRequest; res: EmptyResponse };

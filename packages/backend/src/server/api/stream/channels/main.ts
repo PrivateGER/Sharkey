@@ -17,12 +17,12 @@ class MainChannel extends Channel {
 	public static kind = 'read:account';
 
 	constructor(
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 	}
 
 	@bindThis

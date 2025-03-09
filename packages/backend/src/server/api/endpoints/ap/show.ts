@@ -7,7 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
-import { isActor, isPost, getApId, getNullableApId, ObjectWithId } from '@/core/activitypub/type.js';
+import { isActor, isPost, getApId, getNullableApId } from '@/core/activitypub/type.js';
 import type { SchemaType } from '@/misc/json-schema.js';
 import { ApResolverService } from '@/core/activitypub/ApResolverService.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
@@ -153,7 +153,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		// Before we fetch, resolve the URI in case it has a cross-origin redirect or anything like that.
 		// Resolver.resolve() uses strict verification, which is overly paranoid for a user-provided lookup.
 		uri = await this.resolveCanonicalUri(uri); // eslint-disable-line no-param-reassign
-		if (!this.utilityService.isFederationAllowedUri(uri)) return null;
+		if (!this.utilityService.isFederationAllowedUri(uri)) {
+			throw new ApiError(meta.errors.federationNotAllowed);
+		}
 
 		const host = this.utilityService.extractDbHost(uri);
 
@@ -243,7 +245,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	 */
 	private async resolveCanonicalUri(uri: string): Promise<string> {
 		const user = await this.instanceActorService.getInstanceActor();
-		const res = await this.apRequestService.signedGet(uri, user, true) as ObjectWithId;
+		const res = await this.apRequestService.signedGet(uri, user, true);
 		return getNullableApId(res) ?? uri;
 	}
 }

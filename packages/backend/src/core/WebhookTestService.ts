@@ -100,6 +100,7 @@ function generateDummyUser(override?: Partial<MiUser>): MiUser {
 		noindex: false,
 		enableRss: true,
 		mandatoryCW: null,
+		rejectQuotes: false,
 		...override,
 	};
 }
@@ -143,6 +144,7 @@ function generateDummyNote(override?: Partial<MiNote>): MiNote {
 		renoteUserId: null,
 		renoteUserHost: null,
 		updatedAt: null,
+		processErrors: [],
 		...override,
 	};
 }

@@ -78,7 +78,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					postId: post.id,
 					postUserId: post.userId,
 					postUserUsername: user.username,
-					post,
 				});
 			}
 		});

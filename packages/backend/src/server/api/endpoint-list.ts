@@ -74,6 +74,7 @@ export * as 'admin/queue/deliver-delayed' from './endpoints/admin/queue/deliver-
 export * as 'admin/queue/inbox-delayed' from './endpoints/admin/queue/inbox-delayed.js';
 export * as 'admin/queue/promote' from './endpoints/admin/queue/promote.js';
 export * as 'admin/queue/stats' from './endpoints/admin/queue/stats.js';
+export * as 'admin/reject-quotes' from './endpoints/admin/reject-quotes.js';
 export * as 'admin/relays/add' from './endpoints/admin/relays/add.js';
 export * as 'admin/relays/list' from './endpoints/admin/relays/list.js';
 export * as 'admin/relays/remove' from './endpoints/admin/relays/remove.js';

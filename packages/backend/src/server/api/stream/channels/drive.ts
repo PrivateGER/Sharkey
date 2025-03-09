@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import type { JsonObject } from '@/misc/json-value.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 class DriveChannel extends Channel {
@@ -30,6 +31,7 @@ export class DriveChannelService implements MiChannelService<true> {
 	public readonly kind = DriveChannel.kind;
 
 	constructor(
+		private readonly noteEntityService: NoteEntityService,
 	) {
 	}
 
@@ -38,6 +40,7 @@ export class DriveChannelService implements MiChannelService<true> {
 		return new DriveChannel(
 			id,
 			connection,
+			this.noteEntityService,
 		);
 	}
 }

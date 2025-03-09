@@ -16,8 +16,8 @@ import type { Config } from '@/config.js';
 import { StatusError } from '@/misc/status-error.js';
 import { bindThis } from '@/decorators.js';
 import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/validator.js';
-import { assertActivityMatchesUrls } from '@/core/activitypub/misc/check-against-url.js';
-import type { IObject } from '@/core/activitypub/type.js';
+import { IObject } from '@/core/activitypub/type.js';
+import { ApUtilityService } from './activitypub/ApUtilityService.js';
 import type { Response } from 'node-fetch';
 import type { URL } from 'node:url';
 
@@ -145,6 +145,7 @@ export class HttpRequestService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+		private readonly apUtilityService: ApUtilityService,
 	) {
 		const cache = new CacheableLookup({
 			maxTtl: 3600,	// 1hours
@@ -198,6 +199,7 @@ export class HttpRequestService {
 	 * Get agent by URL
 	 * @param url URL
 	 * @param bypassProxy Allways bypass proxy
+	 * @param isLocalAddressAllowed
 	 */
 	@bindThis
 	public getAgentByUrl(url: URL, bypassProxy = false, isLocalAddressAllowed = false): http.Agent | https.Agent {
@@ -229,10 +231,11 @@ export class HttpRequestService {
 			validators: [validateContentTypeSetAsActivityPub],
 		});
 
-		const finalUrl = res.url; // redirects may have been involved
 		const activity = await res.json() as IObject;
 
-		assertActivityMatchesUrls(activity, [finalUrl]);
+		// Make sure the object ID matches the final URL (which is where it actually exists).
+		// The caller (ApResolverService) will verify the ID against the original / entry URL, which ensures that all three match.
+		this.apUtilityService.assertIdMatchesUrlAuthority(activity, res.url);
 
 		return activity;
 	}

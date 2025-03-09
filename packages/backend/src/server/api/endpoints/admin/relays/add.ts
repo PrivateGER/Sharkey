@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { RelayService } from '@/core/RelayService.js';
 import { ApiError } from '../../../error.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -64,6 +65,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private relayService: RelayService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			try {
@@ -71,6 +73,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			} catch {
 				throw new ApiError(meta.errors.invalidUrl);
 			}
+
+			await this.moderationLogService.log(me, 'addRelay', {
+				inbox: ps.inbox,
+			});
 
 			return await this.relayService.addRelay(ps.inbox);
 		});

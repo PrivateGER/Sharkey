@@ -164,6 +164,15 @@ export class MiInstance {
 	})
 	public rejectReports: boolean;
 
+	/**
+	 * If true, quote posts from this instance will be downgraded to normal posts.
+	 * The quote will be stripped and a process error will be generated.
+	 */
+	@Column('boolean', {
+		default: false,
+	})
+	public rejectQuotes: boolean;
+
 	@Column('varchar', {
 		length: 16384, default: '',
 	})

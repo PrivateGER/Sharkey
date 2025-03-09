@@ -26,12 +26,12 @@ class UserListChannel extends Channel {
 	constructor(
 		private userListsRepository: UserListsRepository,
 		private userListMembershipsRepository: UserListMembershipsRepository,
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 		//this.updateListUsers = this.updateListUsers.bind(this);
 		//this.onNote = this.onNote.bind(this);
 	}
@@ -111,16 +111,12 @@ class UserListChannel extends Channel {
 
 		if (this.isNoteMutedOrBlocked(note)) return;
 
-		if (this.user && isRenotePacked(note) && !isQuotePacked(note)) {
-			if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-				const myRenoteReaction = await this.noteEntityService.populateMyReaction(note.renote, this.user.id);
-				note.renote.myReaction = myRenoteReaction;
-			}
-		}
+		const clonedNote = await this.assignMyReaction(note);
+		await this.hideNote(clonedNote);
 
-		this.connection.cacheNote(note);
+		this.connection.cacheNote(clonedNote);
 
-		this.send('note', note);
+		this.send('note', clonedNote);
 	}
 
 	@bindThis

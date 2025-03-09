@@ -79,7 +79,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					pageId: page.id,
 					pageUserId: page.userId,
 					pageUserUsername: user.username,
-					page,
 				});
 			}
 		});

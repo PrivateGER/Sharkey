@@ -53,6 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkInfo v-if="isBaseSilenced" warn>{{ i18n.ts.silencedByBase }}</MkInfo>
 						<MkSwitch v-model="isSilenced" :disabled="!meta || !instance || isBaseSilenced" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
 						<MkSwitch v-model="isNSFW" :disabled="!instance" @update:modelValue="toggleNSFW">{{ i18n.ts.markInstanceAsNSFW }}</MkSwitch>
+						<MkSwitch v-model="rejectQuotes" :disabled="!instance" @update:modelValue="toggleRejectQuotes">{{ i18n.ts.rejectQuotesInstance }}</MkSwitch>
 						<MkSwitch v-model="rejectReports" :disabled="!instance" @update:modelValue="toggleRejectReports">{{ i18n.ts.rejectReports }}</MkSwitch>
 						<MkInfo v-if="isBaseMediaSilenced" warn>{{ i18n.ts.mediaSilencedByBase }}</MkInfo>
 						<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance || isBaseMediaSilenced" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
@@ -211,6 +212,7 @@ const isSuspended = ref(false);
 const isBlocked = ref(false);
 const isSilenced = ref(false);
 const isNSFW = ref(false);
+const rejectQuotes = ref(false);
 const rejectReports = ref(false);
 const isMediaSilenced = ref(false);
 const faviconUrl = ref<string | null>(null);
@@ -282,6 +284,7 @@ async function fetch(): Promise<void> {
 	isSilenced.value = instance.value?.isSilenced ?? false;
 	isNSFW.value = instance.value?.isNSFW ?? false;
 	rejectReports.value = instance.value?.rejectReports ?? false;
+	rejectQuotes.value = instance.value?.rejectQuotes ?? false;
 	isMediaSilenced.value = instance.value?.isMediaSilenced ?? false;
 	faviconUrl.value = getProxiedImageUrlNullable(instance.value?.faviconUrl, 'preview') ?? getProxiedImageUrlNullable(instance.value?.iconUrl, 'preview');
 	moderationNote.value = instance.value?.moderationNote ?? '';
@@ -344,6 +347,15 @@ async function toggleRejectReports(): Promise<void> {
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
 		rejectReports: rejectReports.value,
+	});
+}
+
+async function toggleRejectQuotes(): Promise<void> {
+	if (!iAmModerator) return;
+	if (!instance.value) throw new Error('No instance?');
+	await misskeyApi('admin/federation/update-instance', {
+		host: instance.value.host,
+		rejectQuotes: rejectQuotes.value,
 	});
 }
 

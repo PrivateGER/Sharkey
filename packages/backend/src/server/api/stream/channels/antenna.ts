@@ -18,12 +18,12 @@ class AntennaChannel extends Channel {
 	private antennaId: string;
 
 	constructor(
-		private noteEntityService: NoteEntityService,
+		noteEntityService: NoteEntityService,
 
 		id: string,
 		connection: Channel['connection'],
 	) {
-		super(id, connection);
+		super(id, connection, noteEntityService);
 		//this.onEvent = this.onEvent.bind(this);
 	}
 
