@@ -572,6 +572,38 @@ export class ApRendererService {
 	}
 
 	@bindThis
+	public async renderPersonRedacted(user: MiLocalUser) {
+		const id = this.userEntityService.genLocalUserUri(user.id);
+		const isSystem = user.username.includes('.');
+
+		const keypair = await this.userKeypairService.getUserKeypair(user.id);
+
+		return {
+			// Basic federation metadata
+			type: isSystem ? 'Application' : user.isBot ? 'Service' : 'Person',
+			id,
+			inbox: `${id}/inbox`,
+			outbox: `${id}/outbox`,
+			sharedInbox: `${this.config.url}/inbox`,
+			endpoints: { sharedInbox: `${this.config.url}/inbox` },
+			url: `${this.config.url}/@${user.username}`,
+			preferredUsername: user.username,
+			publicKey: this.renderKey(user, keypair, '#main-key'),
+
+			// Privacy settings
+			_misskey_requireSigninToViewContents: user.requireSigninToViewContents,
+			_misskey_makeNotesFollowersOnlyBefore: user.makeNotesFollowersOnlyBefore,
+			_misskey_makeNotesHiddenBefore: user.makeNotesHiddenBefore,
+			manuallyApprovesFollowers: user.isLocked,
+			discoverable: user.isExplorable,
+			hideOnlineStatus: user.hideOnlineStatus,
+			noindex: user.noindex,
+			indexable: !user.noindex,
+			enableRss: user.enableRss,
+		};
+	}
+
+	@bindThis
 	public renderQuestion(user: { id: MiUser['id'] }, note: MiNote, poll: MiPoll): IQuestion {
 		return {
 			type: 'Question',

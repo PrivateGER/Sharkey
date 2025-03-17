@@ -101,6 +101,7 @@ function generateDummyUser(override?: Partial<MiUser>): MiUser {
 		enableRss: true,
 		mandatoryCW: null,
 		rejectQuotes: false,
+		allowUnsignedFetch: 'staff',
 		...override,
 	};
 }

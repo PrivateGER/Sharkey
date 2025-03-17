@@ -4,6 +4,7 @@
  */
 
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { type InstanceUnsignedFetchOption, instanceUnsignedFetchOptions } from '@/const.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
@@ -749,4 +750,14 @@ export class MiMeta {
 		default: '{}',
 	})
 	public federationHosts: string[];
+
+	/**
+	 * In combination with user.allowUnsignedFetch, controls enforcement of HTTP signatures for inbound ActivityPub fetches (GET requests).
+	 * TODO warning if config value is present
+	 */
+	@Column('enum', {
+		enum: instanceUnsignedFetchOptions,
+		default: 'always',
+	})
+	public allowUnsignedFetch: InstanceUnsignedFetchOption;
 }

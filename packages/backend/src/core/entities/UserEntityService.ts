@@ -725,6 +725,7 @@ export class UserEntityService implements OnModuleInit {
 				policies: this.roleService.getUserPolicies(user.id),
 				defaultCW: profile!.defaultCW,
 				defaultCWPriority: profile!.defaultCWPriority,
+				allowUnsignedFetch: user.allowUnsignedFetch,
 			} : {}),
 
 			...(opts.includeSecrets ? {

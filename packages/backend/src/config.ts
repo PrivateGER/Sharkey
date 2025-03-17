@@ -219,6 +219,7 @@ export type Config = {
 	customMOTD: string[] | undefined;
 	signToActivityPubGet: boolean;
 	attachLdSignatureForRelays: boolean;
+	/** @deprecated Use MiMeta.allowUnsignedFetch instead */
 	checkActivityPubGetSignature: boolean | undefined;
 	logging?: {
 		sql?: {

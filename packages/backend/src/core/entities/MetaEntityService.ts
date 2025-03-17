@@ -181,6 +181,7 @@ export class MetaEntityService {
 				serviceWorker: instance.enableServiceWorker,
 				miauth: true,
 			},
+			allowUnsignedFetch: instance.allowUnsignedFetch,
 		};
 
 		return packDetailed;

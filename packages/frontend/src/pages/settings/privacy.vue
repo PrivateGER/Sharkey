@@ -132,6 +132,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="instance.federation !== 'none'"><i class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i> {{ i18n.ts._accountSettings.mayNotEffectForFederatedNotes }}</div>
 				</template>
 			</FormSlot>
+
+			<MkFolder v-if="instance.federation !== 'none'">
+				<template #label>{{ i18n.ts.authorizedFetchSection }}</template>
+				<template #suffix>{{ computedAllowUnsignedFetch !== 'always' ? i18n.ts.enabled : i18n.ts.disabled }}</template>
+
+				<MkRadios v-model="allowUnsignedFetch" @update:modelValue="save()">
+					<template #label>{{ i18n.ts.authorizedFetchLabel }}</template>
+					<template #caption>{{ i18n.ts.authorizedFetchDescription }}</template>
+					<option value="never">{{ i18n.ts._authorizedFetchValue.never }} - {{ i18n.ts._authorizedFetchValueDescription.never }}</option>
+					<option value="always">{{ i18n.ts._authorizedFetchValue.always }} - {{ i18n.ts._authorizedFetchValueDescription.always }}</option>
+					<option value="essential">{{ i18n.ts._authorizedFetchValue.essential }} - {{ i18n.ts._authorizedFetchValueDescription.essential }}</option>
+					<option value="staff">{{ i18n.ts._authorizedFetchValue.staff }} - {{ i18n.tsx._authorizedFetchValueDescription.staff({ value: i18n.ts._authorizedFetchValue[instance.allowUnsignedFetch] }) }}</option>
+				</MkRadios>
+			</MkFolder>
 		</div>
 	</FormSection>
 
@@ -192,6 +206,7 @@ import FormSlot from '@/components/form/slot.vue';
 import { formatDateTimeString } from '@/scripts/format-time-string.js';
 import MkInput from '@/components/MkInput.vue';
 import * as os from '@/os.js';
+import MkRadios from '@/components/MkRadios.vue';
 
 const $i = signinRequired();
 
@@ -210,6 +225,13 @@ const followingVisibility = ref($i.followingVisibility);
 const followersVisibility = ref($i.followersVisibility);
 const defaultCW = ref($i.defaultCW);
 const defaultCWPriority = ref($i.defaultCWPriority);
+const allowUnsignedFetch = ref($i.allowUnsignedFetch);
+const computedAllowUnsignedFetch = computed(() => {
+	if (allowUnsignedFetch.value !== 'staff') {
+		return allowUnsignedFetch.value;
+	}
+	return instance.allowUnsignedFetch;
+});
 
 const defaultNoteVisibility = computed(defaultStore.makeGetterSetter('defaultNoteVisibility'));
 const defaultNoteLocalOnly = computed(defaultStore.makeGetterSetter('defaultNoteLocalOnly'));
@@ -270,6 +292,7 @@ function save() {
 		followersVisibility: followersVisibility.value,
 		defaultCWPriority: defaultCWPriority.value,
 		defaultCW: defaultCW.value,
+		allowUnsignedFetch: allowUnsignedFetch.value,
 	});
 }
 

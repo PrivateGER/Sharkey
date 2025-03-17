@@ -14,7 +14,7 @@ import accepts from 'accepts';
 import vary from 'vary';
 import secureJson from 'secure-json-parse';
 import { DI } from '@/di-symbols.js';
-import type { FollowingsRepository, NotesRepository, EmojisRepository, NoteReactionsRepository, UserProfilesRepository, UserNotePiningsRepository, UsersRepository, FollowRequestsRepository } from '@/models/_.js';
+import type { FollowingsRepository, NotesRepository, EmojisRepository, NoteReactionsRepository, UserProfilesRepository, UserNotePiningsRepository, UsersRepository, FollowRequestsRepository, MiMeta } from '@/models/_.js';
 import * as url from '@/misc/prelude/url.js';
 import type { Config } from '@/config.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
@@ -22,7 +22,6 @@ import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { QueueService } from '@/core/QueueService.js';
 import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import { UserKeypairService } from '@/core/UserKeypairService.js';
-import { InstanceActorService } from '@/core/InstanceActorService.js';
 import type { MiUserPublickey } from '@/models/UserPublickey.js';
 import type { MiFollowing } from '@/models/Following.js';
 import { countIf } from '@/misc/prelude/array.js';
@@ -33,9 +32,10 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import type Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
-import { IActivity } from '@/core/activitypub/type.js';
+import { IActivity, IAnnounce, ICreate } from '@/core/activitypub/type.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import * as Acct from '@/misc/acct.js';
+import { CacheService } from '@/core/CacheService.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
 import type { FindOptionsWhere } from 'typeorm';
 
@@ -50,6 +50,9 @@ export class ActivityPubServerService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
@@ -77,13 +80,13 @@ export class ActivityPubServerService {
 
 		private utilityService: UtilityService,
 		private userEntityService: UserEntityService,
-		private instanceActorService: InstanceActorService,
 		private apRendererService: ApRendererService,
 		private apDbResolverService: ApDbResolverService,
 		private queueService: QueueService,
 		private userKeypairService: UserKeypairService,
 		private queryService: QueryService,
 		private loggerService: LoggerService,
+		private readonly cacheService: CacheService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 		this.logger = this.loggerService.getLogger('apserv', 'pink');
@@ -106,7 +109,7 @@ export class ActivityPubServerService {
 	 * @param author Author of the note
 	 */
 	@bindThis
-	private async packActivity(note: MiNote, author: MiUser): Promise<any> {
+	private async packActivity(note: MiNote, author: MiUser): Promise<ICreate | IAnnounce> {
 		if (isRenote(note) && !isQuote(note)) {
 			const renote = await this.notesRepository.findOneByOrFail({ id: note.renoteId });
 			return this.apRendererService.renderAnnounce(renote.uri ? renote.uri : `${this.config.url}/notes/${renote.id}`, note);
@@ -115,10 +118,55 @@ export class ActivityPubServerService {
 		return this.apRendererService.renderCreate(await this.apRendererService.renderNote(note, author, false), note);
 	}
 
-	@bindThis
-	private async shouldRefuseGetRequest(request: FastifyRequest, reply: FastifyReply, userId: string | undefined = undefined): Promise<boolean> {
-		if (!this.config.checkActivityPubGetSignature) return false;
+	/**
+	 * Checks Authorized Fetch.
+	 * Returns an object with two properties:
+	 * * reject - true if the request should be ignored by the caller, false if it should be processed.
+	 * * redact - true if the caller should redact response data, false if it should return full data.
+	 * When "reject" is true, the HTTP status code will be automatically set to 401 unauthorized.
+	 */
+	private async checkAuthorizedFetch(
+		request: FastifyRequest,
+		reply: FastifyReply,
+		userId?: string,
+		essential?: boolean,
+	): Promise<{ reject: boolean, redact: boolean }> {
+		// Federation disabled => reject
+		if (this.meta.federation === 'none') {
+			reply.code(401);
+			return { reject: true, redact: true };
+		}
 
+		// Auth fetch disabled => accept
+		const allowUnsignedFetch = await this.getUnsignedFetchAllowance(userId);
+		if (allowUnsignedFetch === 'always') {
+			return { reject: false, redact: false };
+		}
+
+		// Valid signature => accept
+		const error = await this.checkSignature(request);
+		if (!error) {
+			return { reject: false, redact: false };
+		}
+
+		// Unsigned, but essential => accept redacted
+		if (allowUnsignedFetch === 'essential' && essential) {
+			return { reject: false, redact: true };
+		}
+
+		// Unsigned, not essential => reject
+		this.authlogger.warn(error);
+		reply.code(401);
+		return { reject: true, redact: true };
+	}
+
+	/**
+	 * Verifies HTTP Signatures for a request.
+	 * Returns null of success (valid signature).
+	 * Returns a string error on validation failure.
+	 */
+	@bindThis
+	private async checkSignature(request: FastifyRequest): Promise<string | null> {
 		/* this code is inspired from the `inbox` function below, and
 			 `queue/processors/InboxProcessorService`
 
@@ -129,59 +177,33 @@ export class ActivityPubServerService {
 			 this is also inspired by FireFish's `checkFetch`
 		*/
 
-		/* tell any caching proxy that they should not cache these
-		   responses: we wouldn't want the proxy to return a 403 to
-		   someone presenting a valid signature, or return a cached
-		   response body to someone we've blocked!
-		 */
-		reply.header('Cache-Control', 'private, max-age=0, must-revalidate');
-
-		/* we always allow requests about our instance actor, because when
-			 a remote instance needs to check our signature on a request we
-			 sent, it will need to fetch information about the user that
-			 signed it (which is our instance actor), and if we try to check
-			 their signature on *that* request, we'll fetch *their* instance
-			 actor... leading to an infinite recursion */
-		if (userId) {
-			const instanceActor = await this.instanceActorService.getInstanceActor();
-
-			if (userId === instanceActor.id || userId === instanceActor.username) {
-				this.authlogger.debug(`${request.id} ${request.url} request to instance.actor, letting through`);
-				return false;
-			}
-		}
-
 		let signature;
 
 		try {
-			signature = httpSignature.parseRequest(request.raw, { 'headers': ['(request-target)', 'host', 'date'], authorizationHeaderName: 'signature' });
+			signature = httpSignature.parseRequest(request.raw, {
+				headers: ['(request-target)', 'host', 'date'],
+				authorizationHeaderName: 'signature',
+			});
 		} catch (e) {
 			// not signed, or malformed signature: refuse
-			this.authlogger.warn(`${request.id} ${request.url} not signed, or malformed signature: refuse`);
-			reply.code(401);
-			return true;
+			return `${request.id} ${request.url} not signed, or malformed signature: refuse`;
 		}
 
 		const keyId = new URL(signature.keyId);
 		const keyHost = this.utilityService.toPuny(keyId.hostname);
 
-		const logPrefix = `${request.id} ${request.url} (by ${request.headers['user-agent']}) apparently from ${keyHost}:`;
+		const logPrefix = `${request.id} ${request.url} (by ${request.headers['user-agent']}) claims to be from ${keyHost}:`;
 
-		if (signature.params.headers.indexOf('host') === -1
-			|| request.headers.host !== this.config.host) {
+		if (signature.params.headers.indexOf('host') === -1 || request.headers.host !== this.config.host) {
 			// no destination host, or not us: refuse
-			this.authlogger.warn(`${logPrefix} no destination host, or not us: refuse`);
-			reply.code(401);
-			return true;
+			return `${logPrefix} no destination host, or not us: refuse`;
 		}
 
 		if (!this.utilityService.isFederationAllowedHost(keyHost)) {
 			/* blocked instance: refuse (we don't care if the signature is
 				 good, if they even pretend to be from a blocked instance,
 				 they're out) */
-			this.authlogger.warn(`${logPrefix} instance is blocked: refuse`);
-			reply.code(401);
-			return true;
+			return `${logPrefix} instance is blocked: refuse`;
 		}
 
 		// do we know the signer already?
@@ -200,14 +222,18 @@ export class ActivityPubServerService {
 
 		if (authUser?.key == null) {
 			// we can't figure out who the signer is, or we can't get their key: refuse
-			this.authlogger.warn(`${logPrefix} we can't figure out who the signer is, or we can't get their key: refuse`);
-			reply.code(401);
-			return true;
+			return `${logPrefix} we can't figure out who the signer is, or we can't get their key: refuse`;
+		}
+
+		if (authUser.user.isSuspended) {
+			// Signer is suspended locally
+			return `${logPrefix} signer is suspended: refuse`;
 		}
 
 		let httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
 
 		// maybe they changed their key? refetch it
+		// TODO rate-limit this using lastFetchedAt
 		if (!httpSignatureValidated) {
 			authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
 			if (authUser.key != null) {
@@ -217,13 +243,11 @@ export class ActivityPubServerService {
 
 		if (!httpSignatureValidated) {
 			// bad signature: refuse
-			this.authlogger.info(`${logPrefix} failed to validate signature: refuse`);
-			reply.code(401);
-			return true;
+			return `${logPrefix} failed to validate signature: refuse`;
 		}
 
 		// all good, don't refuse
-		return false;
+		return null;
 	}
 
 	@bindThis
@@ -299,7 +323,8 @@ export class ActivityPubServerService {
 		request: FastifyRequest<{ Params: { user: string; }; Querystring: { cursor?: string; page?: string; }; }>,
 		reply: FastifyReply,
 	) {
-		if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
+		if (reject) return;
 
 		const userId = request.params.user;
 
@@ -326,11 +351,9 @@ export class ActivityPubServerService {
 
 		if (profile.followersVisibility === 'private') {
 			reply.code(403);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=30');
 			return;
 		} else if (profile.followersVisibility === 'followers') {
 			reply.code(403);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=30');
 			return;
 		}
 		//#endregion
@@ -382,7 +405,6 @@ export class ActivityPubServerService {
 				user.followersCount,
 				`${partOf}?page=true`,
 			);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(rendered));
 		}
@@ -393,7 +415,8 @@ export class ActivityPubServerService {
 		request: FastifyRequest<{ Params: { user: string; }; Querystring: { cursor?: string; page?: string; }; }>,
 		reply: FastifyReply,
 	) {
-		if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
+		if (reject) return;
 
 		const userId = request.params.user;
 
@@ -420,11 +443,9 @@ export class ActivityPubServerService {
 
 		if (profile.followingVisibility === 'private') {
 			reply.code(403);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=30');
 			return;
 		} else if (profile.followingVisibility === 'followers') {
 			reply.code(403);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=30');
 			return;
 		}
 		//#endregion
@@ -476,7 +497,6 @@ export class ActivityPubServerService {
 				user.followingCount,
 				`${partOf}?page=true`,
 			);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(rendered));
 		}
@@ -484,7 +504,8 @@ export class ActivityPubServerService {
 
 	@bindThis
 	private async featured(request: FastifyRequest<{ Params: { user: string; }; }>, reply: FastifyReply) {
-		if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
+		if (reject) return;
 
 		const userId = request.params.user;
 
@@ -517,7 +538,6 @@ export class ActivityPubServerService {
 			renderedNotes,
 		);
 
-		if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 		this.setResponseType(request, reply);
 		return (this.apRendererService.addContext(rendered));
 	}
@@ -530,7 +550,8 @@ export class ActivityPubServerService {
 		}>,
 		reply: FastifyReply,
 	) {
-		if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
+		if (reject) return;
 
 		const userId = request.params.user;
 
@@ -608,14 +629,13 @@ export class ActivityPubServerService {
 				`${partOf}?page=true`,
 				`${partOf}?page=true&since_id=000000000000000000000000`,
 			);
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(rendered));
 		}
 	}
 
 	@bindThis
-	private async userInfo(request: FastifyRequest, reply: FastifyReply, user: MiUser | null) {
+	private async userInfo(request: FastifyRequest, reply: FastifyReply, user: MiUser | null, redact = false) {
 		if (user == null) {
 			reply.code(404);
 			return;
@@ -631,10 +651,12 @@ export class ActivityPubServerService {
 			return;
 		}
 
-		if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
-
 		this.setResponseType(request, reply);
-		return (this.apRendererService.addContext(await this.apRendererService.renderPerson(user as MiLocalUser)));
+
+		const person = redact
+			? await this.apRendererService.renderPersonRedacted(user as MiLocalUser)
+			: await this.apRendererService.renderPerson(user as MiLocalUser);
+		return this.apRendererService.addContext(person);
 	}
 
 	@bindThis
@@ -687,6 +709,13 @@ export class ActivityPubServerService {
 			reply.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
 			reply.header('Access-Control-Allow-Origin', '*');
 			reply.header('Access-Control-Expose-Headers', 'Vary');
+
+			/* tell any caching proxy that they should not cache these
+				 responses: we wouldn't want the proxy to return a 403 to
+				 someone presenting a valid signature, or return a cached
+				 response body to someone we've blocked!
+			 */
+			reply.header('Cache-Control', 'private, max-age=0, must-revalidate');
 			done();
 		});
 
@@ -697,8 +726,6 @@ export class ActivityPubServerService {
 
 		// note
 		fastify.get<{ Params: { note: string; } }>('/notes/:note', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
-
 			vary(reply.raw, 'Accept');
 
 			const note = await this.notesRepository.findOneBy({
@@ -706,6 +733,9 @@ export class ActivityPubServerService {
 				visibility: In(['public', 'home']),
 				localOnly: false,
 			});
+
+			const { reject } = await this.checkAuthorizedFetch(request, reply, note?.userId);
+			if (reject) return;
 
 			if (note == null) {
 				reply.code(404);
@@ -722,7 +752,6 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 
 			const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
@@ -731,8 +760,6 @@ export class ActivityPubServerService {
 
 		// note activity
 		fastify.get<{ Params: { note: string; } }>('/notes/:note/activity', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
-
 			vary(reply.raw, 'Accept');
 
 			const note = await this.notesRepository.findOneBy({
@@ -742,12 +769,14 @@ export class ActivityPubServerService {
 				localOnly: false,
 			});
 
+			const { reject } = await this.checkAuthorizedFetch(request, reply, note?.userId);
+			if (reject) return;
+
 			if (note == null) {
 				reply.code(404);
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 
 			const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
@@ -777,7 +806,8 @@ export class ActivityPubServerService {
 
 		// publickey
 		fastify.get<{ Params: { user: string; } }>('/users/:user/publickey', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+			const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user, true);
+			if (reject) return;
 
 			const userId = request.params.user;
 
@@ -794,7 +824,6 @@ export class ActivityPubServerService {
 			const keypair = await this.userKeypairService.getUserKeypair(user.id);
 
 			if (this.userEntityService.isLocalUser(user)) {
-				if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 				this.setResponseType(request, reply);
 				return (this.apRendererService.addContext(this.apRendererService.renderKey(user, keypair)));
 			} else {
@@ -804,7 +833,8 @@ export class ActivityPubServerService {
 		});
 
 		fastify.get<{ Params: { user: string; } }>('/users/:user', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply, request.params.user)) return;
+			const { reject, redact } = await this.checkAuthorizedFetch(request, reply, request.params.user, true);
+			if (reject) return;
 
 			vary(reply.raw, 'Accept');
 
@@ -815,12 +845,10 @@ export class ActivityPubServerService {
 				isSuspended: false,
 			});
 
-			return await this.userInfo(request, reply, user);
+			return await this.userInfo(request, reply, user, redact);
 		});
 
 		fastify.get<{ Params: { acct: string; } }>('/@:acct', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply, request.params.acct)) return;
-
 			vary(reply.raw, 'Accept');
 
 			const acct = Acct.parse(request.params.acct);
@@ -831,13 +859,17 @@ export class ActivityPubServerService {
 				isSuspended: false,
 			});
 
-			return await this.userInfo(request, reply, user);
+			const { reject, redact } = await this.checkAuthorizedFetch(request, reply, user?.id, true);
+			if (reject) return;
+
+			return await this.userInfo(request, reply, user, redact);
 		});
 		//#endregion
 
 		// emoji
 		fastify.get<{ Params: { emoji: string; } }>('/emojis/:emoji', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
+			const { reject } = await this.checkAuthorizedFetch(request, reply);
+			if (reject) return;
 
 			const emoji = await this.emojisRepository.findOneBy({
 				host: IsNull(),
@@ -849,16 +881,16 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(await this.apRendererService.renderEmoji(emoji)));
 		});
 
 		// like
 		fastify.get<{ Params: { like: string; } }>('/likes/:like', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
-
 			const reaction = await this.noteReactionsRepository.findOneBy({ id: request.params.like });
+
+			const { reject } = await this.checkAuthorizedFetch(request, reply, reaction?.userId);
+			if (reject) return;
 
 			if (reaction == null) {
 				reply.code(404);
@@ -872,14 +904,14 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(await this.apRendererService.renderLike(reaction, note)));
 		});
 
 		// follow
 		fastify.get<{ Params: { follower: string; followee: string; } }>('/follows/:follower/:followee', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
+			const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.follower);
+			if (reject) return;
 
 			// This may be used before the follow is completed, so we do not
 			// check if the following exists.
@@ -900,21 +932,21 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(this.apRendererService.renderFollow(follower, followee)));
 		});
 
 		// follow
 		fastify.get<{ Params: { followRequestId: string ; } }>('/follows/:followRequestId', async (request, reply) => {
-			if (await this.shouldRefuseGetRequest(request, reply)) return;
-
 			// This may be used before the follow is completed, so we do not
 			// check if the following exists and only check if the follow request exists.
 
 			const followRequest = await this.followRequestsRepository.findOneBy({
 				id: request.params.followRequestId,
 			});
+
+			const { reject } = await this.checkAuthorizedFetch(request, reply, followRequest?.followerId);
+			if (reject) return;
 
 			if (followRequest == null) {
 				reply.code(404);
@@ -937,11 +969,21 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			if (!this.config.checkActivityPubGetSignature) reply.header('Cache-Control', 'public, max-age=180');
 			this.setResponseType(request, reply);
 			return (this.apRendererService.addContext(this.apRendererService.renderFollow(follower, followee)));
 		});
 
 		done();
+	}
+
+	private async getUnsignedFetchAllowance(userId: string | undefined) {
+		const user = userId ? await this.cacheService.findLocalUserById(userId) : null;
+
+		// User system value if there is no user, or if user has deferred the choice.
+		if (!user?.allowUnsignedFetch || user.allowUnsignedFetch === 'staff') {
+			return this.meta.allowUnsignedFetch;
+		}
+
+		return user.allowUnsignedFetch;
 	}
 }

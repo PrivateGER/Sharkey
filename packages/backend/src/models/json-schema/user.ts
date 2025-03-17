@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { userUnsignedFetchOptions } from '@/const.js';
+
 export const notificationRecieveConfig = {
 	type: 'object',
 	oneOf: [
@@ -767,6 +769,11 @@ export const packedMeDetailedOnlySchema = {
 		defaultCWPriority: {
 			type: 'string',
 			enum: ['default', 'parent', 'defaultParent', 'parentDefault'],
+			nullable: false, optional: false,
+		},
+		allowUnsignedFetch: {
+			type: 'string',
+			enum: userUnsignedFetchOptions,
 			nullable: false, optional: false,
 		},
 	},

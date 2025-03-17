@@ -159,17 +159,6 @@ export function getCopyNoteLinkMenu(note: Misskey.entities.Note, text: string): 
 	};
 }
 
-export function getCopyNoteOriginLinkMenu(note: misskey.entities.Note, text: string): MenuItem {
-	return {
-		icon: 'ph-link ph-bold ph-lg',
-		text,
-		action: (): void => {
-			copyToClipboard(note.url ?? note.uri);
-			os.success();
-		},
-	};
-}
-
 function getNoteEmbedCodeMenu(note: Misskey.entities.Note, text: string): MenuItem | undefined {
 	if (note.url != null || note.uri != null) return undefined;
 	if (['specified', 'followers'].includes(note.visibility)) return undefined;
@@ -338,9 +327,6 @@ export function getNoteMenu(props: {
 		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink));
 
 		if (appearNote.url || appearNote.uri) {
-			menuItems.push(
-				getCopyNoteOriginLinkMenu(appearNote, 'Copy link (Origin)')
-			);
 			menuItems.push({
 				icon: 'ti ti-link',
 				text: i18n.ts.copyRemoteLink,
@@ -506,9 +492,6 @@ export function getNoteMenu(props: {
 		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink));
 
 		if (appearNote.url || appearNote.uri) {
-			menuItems.push(
-				getCopyNoteOriginLinkMenu(appearNote, 'Copy link (Origin)')
-			);
 			menuItems.push({
 				icon: 'ti ti-link',
 				text: i18n.ts.copyRemoteLink,

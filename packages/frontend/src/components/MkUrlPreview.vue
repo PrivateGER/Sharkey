@@ -45,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 <div v-else-if="theNote" :class="[$style.link, { [$style.compact]: compact }]"><XNoteSimple :note="theNote" :class="$style.body"/></div>
 <div v-else-if="!hidePreview">
-	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="self ? url.substring(local.length) : url" rel="nofollow noopener" :target="target" :title="url">
+	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="self ? url.substring(local.length) : url" rel="nofollow noopener" :target="target" :title="url" @click.prevent="self ? true : warningExternalWebsite(url)" @click.stop>
 		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="defaultStore.state.dataSaver.urlPreview ? '' : `background-image: url('${thumbnail}')`">
 		</div>
 		<article :class="$style.body">
@@ -69,6 +69,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="tweetId" :class="$style.action">
 			<MkButton :small="true" inline @click="tweetExpanded = true">
 				<i class="ti ti-brand-x"></i> {{ i18n.ts.expandTweet }}
+			</MkButton>
+		</div>
+		<div v-if="showAsQuote && activityPub && !theNote && !fetchingTheNote" :class="$style.action">
+			<MkButton :small="true" inline @click="fetchNote()">
+				<i class="ti ti-note"></i> {{ i18n.ts.fetchLinkedNote }}
 			</MkButton>
 		</div>
 		<div v-if="!playerEnabled && player.url" :class="$style.action">
@@ -98,6 +103,7 @@ import MkButton from '@/components/MkButton.vue';
 import { transformPlayerUrl } from '@/scripts/player-url-transform.js';
 import { defaultStore } from '@/store.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
+import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
 
 const XNoteSimple = defineAsyncComponent<typeof MkNoteSimple | typeof SkNoteSimple>(() =>
 	defaultStore.state.noteDesign === 'misskey'
@@ -149,29 +155,38 @@ const embedId = `embed${Math.random().toString().replace(/\D/, '')}`;
 const tweetHeight = ref(150);
 const unknownUrl = ref(false);
 const theNote = ref<Misskey.entities.Note | null>(null);
+const fetchingTheNote = ref(false);
 
 onDeactivated(() => {
 	playerEnabled.value = false;
 });
 
-watch(activityPub, async (uri) => {
-		if (!props.showAsQuote) return;
-		if (!uri) return;
-		try {
-			const response = await misskeyApi('ap/show', { uri });
-			if (response.type !== 'Note') return;
-			const theNoteId = response['object'].id;
-			if (theNoteId && props.skipNoteIds && props.skipNoteIds.includes(theNoteId)) {
-				hidePreview.value = true;
-				return;
-			}
-			theNote.value = response['object'];
-		} catch (err) {
-			if (_DEV_) {
-				console.error(`failed to extract note for preview of ${uri}`, err);
-			}
+async function fetchNote() {
+	if (!props.showAsQuote) return;
+	if (!activityPub.value) return;
+	if (theNote.value) return;
+	if (fetchingTheNote.value) return;
+
+	fetchingTheNote.value = true;
+	try {
+		const response = await misskeyApi('ap/show', { uri: activityPub.value });
+		if (response.type !== 'Note') return;
+		const theNoteId = response['object'].id;
+		if (theNoteId && props.skipNoteIds && props.skipNoteIds.includes(theNoteId)) {
+			hidePreview.value = true;
+			return;
 		}
-});
+		theNote.value = response['object'];
+		fetchingTheNote.value = false;
+	} catch (err) {
+		if (_DEV_) {
+			console.error(`failed to extract note for preview of ${activityPub.value}`, err);
+		}
+		activityPub.value = null;
+		fetchingTheNote.value = false;
+		theNote.value = null;
+	}
+}
 
 const requestUrl = new URL(props.url);
 if (!['http:', 'https:'].includes(requestUrl.protocol)) throw new Error('invalid url');
@@ -198,7 +213,7 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 
 		return res.json();
 	})
-	.then((info: SummalyResult | null) => {
+	.then((info: SummalyResult & { haveNoteLocally?: boolean } | null) => {
 		if (!info || info.url == null) {
 			fetching.value = false;
 			unknownUrl.value = true;
@@ -216,6 +231,9 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 		player.value = info.player;
 		sensitive.value = info.sensitive ?? false;
 		activityPub.value = info.activityPub;
+		if (info.haveNoteLocally) {
+			fetchNote();
+		}
 	});
 
 function adjustTweetHeight(message: MessageEvent) {

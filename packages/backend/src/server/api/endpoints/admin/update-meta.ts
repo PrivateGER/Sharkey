@@ -8,6 +8,7 @@ import type { MiMeta } from '@/models/Meta.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { MetaService } from '@/core/MetaService.js';
+import { instanceUnsignedFetchOptions } from '@/const.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -204,6 +205,11 @@ export const paramDef = {
 			items: {
 				type: 'string',
 			},
+		},
+		allowUnsignedFetch: {
+			type: 'string',
+			enum: instanceUnsignedFetchOptions,
+			nullable: false,
 		},
 	},
 	required: [],
@@ -751,6 +757,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (Array.isArray(ps.federationHosts)) {
 				set.federationHosts = ps.federationHosts.filter(Boolean).map(x => x.toLowerCase());
+			}
+
+			if (ps.allowUnsignedFetch !== undefined) {
+				set.allowUnsignedFetch = ps.allowUnsignedFetch;
 			}
 
 			const before = await this.metaService.fetch(true);

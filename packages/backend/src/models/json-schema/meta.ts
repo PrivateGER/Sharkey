@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { instanceUnsignedFetchOptions } from '@/const.js';
+
 export const packedMetaLiteSchema = {
 	type: 'object',
 	optional: false, nullable: false,
@@ -395,6 +397,11 @@ export const packedMetaDetailedOnlySchema = {
 		},
 		cacheRemoteSensitiveFiles: {
 			type: 'boolean',
+			optional: false, nullable: false,
+		},
+		allowUnsignedFetch: {
+			type: 'string',
+			enum: instanceUnsignedFetchOptions,
 			optional: false, nullable: false,
 		},
 	},

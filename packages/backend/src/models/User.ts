@@ -4,6 +4,7 @@
  */
 
 import { Entity, Column, Index, OneToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { type UserUnsignedFetchOption, userUnsignedFetchOptions } from '@/const.js';
 import { id } from './util/id.js';
 import { MiDriveFile } from './DriveFile.js';
 
@@ -125,7 +126,7 @@ export class MiUser {
 	})
 	public backgroundId: MiDriveFile['id'] | null;
 
-	@OneToOne(type => MiDriveFile, {
+	@OneToOne(() => MiDriveFile, {
 		onDelete: 'SET NULL',
 	})
 	@JoinColumn()
@@ -357,6 +358,15 @@ export class MiUser {
 	})
 	public rejectQuotes: boolean;
 
+	/**
+	 * In combination with meta.allowUnsignedFetch, controls enforcement of HTTP signatures for inbound ActivityPub fetches (GET requests).
+	 */
+	@Column('enum', {
+		enum: userUnsignedFetchOptions,
+		default: 'staff',
+	})
+	public allowUnsignedFetch: UserUnsignedFetchOption;
+
 	constructor(data: Partial<MiUser>) {
 		if (data == null) return;
 
@@ -394,5 +404,5 @@ export const nameSchema = { type: 'string', minLength: 1, maxLength: 50 } as con
 export const descriptionSchema = { type: 'string', minLength: 1, maxLength: 1500 } as const;
 export const followedMessageSchema = { type: 'string', minLength: 1, maxLength: 256 } as const;
 export const locationSchema = { type: 'string', minLength: 1, maxLength: 50 } as const;
-export const listenbrainzSchema = { type: "string", minLength: 1, maxLength: 128 } as const;
+export const listenbrainzSchema = { type: 'string', minLength: 1, maxLength: 128 } as const;
 export const birthdaySchema = { type: 'string', pattern: /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.toString().slice(1, -1) } as const;

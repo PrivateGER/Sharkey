@@ -9,6 +9,7 @@ import { MetaService } from '@/core/MetaService.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
+import { instanceUnsignedFetchOptions } from '@/const.js';
 
 export const meta = {
 	tags: ['meta'],
@@ -589,6 +590,15 @@ export const meta = {
 					optional: false, nullable: false,
 				},
 			},
+			hasLegacyAuthFetchSetting: {
+				type: 'boolean',
+				optional: false, nullable: false,
+			},
+			allowUnsignedFetch: {
+				type: 'string',
+				enum: instanceUnsignedFetchOptions,
+				optional: false, nullable: false,
+			},
 		},
 	},
 } as const;
@@ -745,6 +755,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				trustedLinkUrlPatterns: instance.trustedLinkUrlPatterns,
 				federation: instance.federation,
 				federationHosts: instance.federationHosts,
+				hasLegacyAuthFetchSetting: config.checkActivityPubGetSignature != null,
+				allowUnsignedFetch: instance.allowUnsignedFetch,
 			};
 		});
 	}

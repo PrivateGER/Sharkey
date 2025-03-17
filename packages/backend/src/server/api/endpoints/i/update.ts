@@ -33,6 +33,7 @@ import type { Config } from '@/config.js';
 import { safeForSql } from '@/misc/safe-for-sql.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import { notificationRecieveConfig } from '@/models/json-schema/user.js';
+import { userUnsignedFetchOptions } from '@/const.js';
 import { ApiLoggerService } from '../../ApiLoggerService.js';
 import { ApiError } from '../../error.js';
 
@@ -253,6 +254,11 @@ export const paramDef = {
 		defaultCWPriority: {
 			type: 'string',
 			enum: ['default', 'parent', 'defaultParent', 'parentDefault'],
+			nullable: false,
+		},
+		allowUnsignedFetch: {
+			type: 'string',
+			enum: userUnsignedFetchOptions,
 			nullable: false,
 		},
 	},
@@ -517,6 +523,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 			if (ps.defaultCWPriority !== undefined) {
 				profileUpdates.defaultCWPriority = ps.defaultCWPriority;
+			}
+
+			if (ps.allowUnsignedFetch !== undefined) {
+				updates.allowUnsignedFetch = ps.allowUnsignedFetch;
 			}
 
 			//#region emojis/tags

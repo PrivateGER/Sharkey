@@ -8,6 +8,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header><XHeader :actions="headerActions" :tabs="headerTabs"/></template>
 	<MkSpacer :contentMax="700" :marginMin="16" :marginMax="32">
 		<div class="_gaps_m">
+			<MkFolder v-if="meta.federation !== 'none'">
+				<template #label>{{ i18n.ts.authorizedFetchSection }}</template>
+				<template #suffix>{{ meta.allowUnsignedFetch !== 'always' ? i18n.ts.enabled : i18n.ts.disabled }}</template>
+				<template v-if="authFetchForm.modified.value" #footer>
+					<MkFormFooter :form="authFetchForm"/>
+				</template>
+
+				<MkRadios v-model="authFetchForm.state.allowUnsignedFetch">
+					<template #label>{{ i18n.ts.authorizedFetchLabel }}</template>
+					<template #caption>{{ i18n.ts.authorizedFetchDescription }}</template>
+					<option value="never">{{ i18n.ts._authorizedFetchValue.never }} - {{ i18n.ts._authorizedFetchValueDescription.never }}</option>
+					<option value="always">{{ i18n.ts._authorizedFetchValue.always }} - {{ i18n.ts._authorizedFetchValueDescription.always }}</option>
+					<option value="essential">{{ i18n.ts._authorizedFetchValue.essential }} - {{ i18n.ts._authorizedFetchValueDescription.essential }}</option>
+				</MkRadios>
+			</MkFolder>
+
 			<XBotProtection/>
 
 			<MkFolder>
@@ -95,6 +111,15 @@ import { useForm } from '@/scripts/use-form.js';
 import MkFormFooter from '@/components/MkFormFooter.vue';
 
 const meta = await misskeyApi('admin/meta');
+
+const authFetchForm = useForm({
+	allowUnsignedFetch: meta.allowUnsignedFetch,
+}, async state => {
+	await os.apiWithDialog('admin/update-meta', {
+		allowUnsignedFetch: state.allowUnsignedFetch,
+	});
+	fetchInstance(true);
+});
 
 const ipLoggingForm = useForm({
 	enableIpLogging: meta.enableIpLogging,
