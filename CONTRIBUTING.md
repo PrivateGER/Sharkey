@@ -677,6 +677,9 @@ seems to do a decent job)
       `packages/frontend/src/pages/timeline.vue`,
       `packages/frontend/src/ui/deck/tl-column.vue`,
       `packages/frontend/src/widgets/WidgetTimeline.vue`)
+    * from `packages/backend/src/queue/processors/InboxProcessorService.ts`
+      to `packages/backend/src/core/UpdateInstanceQueue.ts`
+      where `updateInstanceQueue` is impacted
 * if there have been any changes to the federated user data (the
   `renderPerson` function in
   `packages/backend/src/core/activitypub/ApRendererService.ts`), make

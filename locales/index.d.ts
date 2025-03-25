@@ -11638,6 +11638,10 @@ export interface Locale extends ILocale {
      */
     "pendingFollowRequests": string;
     /**
+     * Are you sure you want to cancel your follow request?
+     */
+    "undoFollowRequestConfirm": string;
+    /**
      * Show quotes
      */
     "showQuotes": string;

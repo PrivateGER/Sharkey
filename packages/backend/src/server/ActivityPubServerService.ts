@@ -783,6 +783,52 @@ export class ActivityPubServerService {
 			return (this.apRendererService.addContext(await this.packActivity(note, author)));
 		});
 
+		// replies
+		fastify.get<{
+			Params: { note: string; };
+			Querystring: { page?: unknown; until_id?: unknown; };
+		}>('/notes/:note/replies', async (request, reply) => {
+			vary(reply.raw, 'Accept');
+			this.setResponseType(request, reply);
+
+			// Raw query to avoid fetching the while entity just to check access and get the user ID
+			const note = await this.notesRepository
+				.createQueryBuilder('note')
+				.andWhere({
+					id: request.params.note,
+					userHost: IsNull(),
+					visibility: In(['public', 'home']),
+					localOnly: false,
+				})
+				.select(['note.id', 'note.userId'])
+				.getRawOne<{ note_id: string, note_userId: string }>();
+
+			const { reject } = await this.checkAuthorizedFetch(request, reply, note?.note_userId);
+			if (reject) return;
+
+			if (note == null) {
+				reply.code(404);
+				return;
+			}
+
+			const untilId = request.query.until_id;
+			if (untilId != null && typeof(untilId) !== 'string') {
+				reply.code(400);
+				return;
+			}
+
+			// If page is unset, then we just provide the outer wrapper.
+			// This is because the spec doesn't allow the wrapper to contain both elements *and* pages.
+			// We could technically do it anyway, but that may break other instances.
+			if (request.query.page !== 'true') {
+				const collection = await this.apRendererService.renderRepliesCollection(note.note_id);
+				return this.apRendererService.addContext(collection);
+			}
+
+			const page = await this.apRendererService.renderRepliesCollectionPage(note.note_id, untilId ?? undefined);
+			return this.apRendererService.addContext(page);
+		});
+
 		// outbox
 		fastify.get<{
 			Params: { user: string; };

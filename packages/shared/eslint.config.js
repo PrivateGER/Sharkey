@@ -41,6 +41,7 @@ export default [
 			'@typescript-eslint/prefer-nullish-coalescing': ['warn', {
 				ignorePrimitives: true,
 			}],
+			'no-param-reassign': 'off',
 		},
 	},
 ];

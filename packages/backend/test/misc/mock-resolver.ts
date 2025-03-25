@@ -8,7 +8,7 @@ import type { ApDbResolverService } from '@/core/activitypub/ApDbResolverService
 import type { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import type { ApRequestService } from '@/core/activitypub/ApRequestService.js';
 import { Resolver } from '@/core/activitypub/ApResolverService.js';
-import type { IObject } from '@/core/activitypub/type.js';
+import type { IObject, IObjectWithId } from '@/core/activitypub/type.js';
 import type { HttpRequestService } from '@/core/HttpRequestService.js';
 import type { InstanceActorService } from '@/core/InstanceActorService.js';
 import type { LoggerService } from '@/core/LoggerService.js';
@@ -25,6 +25,7 @@ import type {
 } from '@/models/_.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import { fromTuple } from '@/misc/from-tuple.js';
 
 type MockResponse = {
 	type: string;
@@ -72,8 +73,11 @@ export class MockResolver extends Resolver {
 		return this.#remoteGetTrials;
 	}
 
+	public async resolve(value: string | [string]): Promise<IObjectWithId>;
+	public async resolve(value: string | IObject | [string | IObject]): Promise<IObject>;
 	@bindThis
-	public async resolve(value: string | IObject): Promise<IObject> {
+	public async resolve(value: string | IObject | [string | IObject]): Promise<IObject> {
+		value = fromTuple(value);
 		if (typeof value !== 'string') return value;
 
 		this.#remoteGetTrials.push(value);

@@ -19,6 +19,7 @@ import { TimeService } from '@/core/TimeService.js';
 import { EnvService } from '@/core/EnvService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
 import { ApLogService } from '@/core/ApLogService.js';
+import { UpdateInstanceQueue } from '@/core/UpdateInstanceQueue.js';
 import { AccountMoveService } from './AccountMoveService.js';
 import { AccountUpdateService } from './AccountUpdateService.js';
 import { AnnouncementService } from './AnnouncementService.js';
@@ -220,6 +221,7 @@ const $UserRenoteMutingService: Provider = { provide: 'UserRenoteMutingService',
 const $UserSearchService: Provider = { provide: 'UserSearchService', useExisting: UserSearchService };
 const $UserSuspendService: Provider = { provide: 'UserSuspendService', useExisting: UserSuspendService };
 const $UserAuthService: Provider = { provide: 'UserAuthService', useExisting: UserAuthService };
+const $UpdateInstanceQueue: Provider = { provide: 'UpdateInstanceQueue', useExisting: UpdateInstanceQueue };
 const $VideoProcessingService: Provider = { provide: 'VideoProcessingService', useExisting: VideoProcessingService };
 const $UserWebhookService: Provider = { provide: 'UserWebhookService', useExisting: UserWebhookService };
 const $SystemWebhookService: Provider = { provide: 'SystemWebhookService', useExisting: SystemWebhookService };
@@ -378,6 +380,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		UserSearchService,
 		UserSuspendService,
 		UserAuthService,
+		UpdateInstanceQueue,
 		VideoProcessingService,
 		UserWebhookService,
 		SystemWebhookService,
@@ -532,6 +535,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$UserSearchService,
 		$UserSuspendService,
 		$UserAuthService,
+		$UpdateInstanceQueue,
 		$VideoProcessingService,
 		$UserWebhookService,
 		$SystemWebhookService,
@@ -687,6 +691,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		UserSearchService,
 		UserSuspendService,
 		UserAuthService,
+		UpdateInstanceQueue,
 		VideoProcessingService,
 		UserWebhookService,
 		SystemWebhookService,
@@ -840,6 +845,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$UserSearchService,
 		$UserSuspendService,
 		$UserAuthService,
+		$UpdateInstanceQueue,
 		$VideoProcessingService,
 		$UserWebhookService,
 		$SystemWebhookService,

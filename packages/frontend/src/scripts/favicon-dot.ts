@@ -28,6 +28,7 @@ class FavIconDot {
 		this.ctx = this.canvas.getContext('2d');
 
 		this.faviconImage = document.createElement('img');
+		this.faviconImage.crossOrigin = 'anonymous';
 
 		this.hasLoaded = new Promise((resolve, reject) => {
 			(this.faviconImage as HTMLImageElement).addEventListener('load', () => {
@@ -76,7 +77,8 @@ class FavIconDot {
 	private drawDot() {
 		if (!this.ctx || !this.faviconImage) return;
 		this.ctx.beginPath();
-		this.ctx.arc(this.faviconImage.width - 10, 10, 10, 0, 2 * Math.PI);
+		const radius = Math.min(this.faviconImage.width, this.faviconImage.height) * 0.2;
+		this.ctx.arc(this.faviconImage.width - radius, radius, radius, 0, 2 * Math.PI);
 		const computedStyle = getComputedStyle(document.documentElement);
 		this.ctx.fillStyle = tinycolor(computedStyle.getPropertyValue('--MI_THEME-navIndicator')).toHexString();
 		this.ctx.strokeStyle = 'white';
@@ -85,7 +87,17 @@ class FavIconDot {
 	}
 
 	private setFavicon() {
-		if (this.faviconEL) this.faviconEL.href = this.canvas.toDataURL('image/png');
+		if (this.faviconEL) {
+			try {
+				URL.revokeObjectURL(this.faviconEL.href);
+			} catch {
+				// the href was probably not an object URL
+			}
+			this.canvas.toBlob((blob) => {
+				const url = URL.createObjectURL(blob);
+				this.faviconEL.href = url;
+			});
+		}
 	}
 
 	public async setVisible(isVisible: boolean) {
@@ -98,12 +110,11 @@ class FavIconDot {
 
 	public async worksOnInstance() {
 		try {
-			// Wait for it to have loaded the icon
-			await this.hasLoaded;
-			this.drawIcon();
-			this.drawDot();
-			this.canvas.toDataURL('image/png');
+			await this.setVisible(true);
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+			await this.setVisible(false);
 		} catch (error) {
+			console.error('error setting notification dot', error);
 			return false;
 		}
 		return true;
@@ -122,7 +133,7 @@ export async function setFavIconDot(visible: boolean) {
 		try {
 			(icon as FavIconDot).setVisible(visible);
 		} catch (error) {
-			//Probably failed due to CORS and a dirty canvas
+			console.error('error setting notification dot', error);
 		}
 	};
 

@@ -16,7 +16,7 @@ import type { Config } from '@/config.js';
 import { StatusError } from '@/misc/status-error.js';
 import { bindThis } from '@/decorators.js';
 import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/validator.js';
-import { IObject } from '@/core/activitypub/type.js';
+import type { IObject, IObjectWithId } from '@/core/activitypub/type.js';
 import { ApUtilityService } from './activitypub/ApUtilityService.js';
 import type { Response } from 'node-fetch';
 import type { URL } from 'node:url';
@@ -217,7 +217,7 @@ export class HttpRequestService {
 	}
 
 	@bindThis
-	public async getActivityJson(url: string, isLocalAddressAllowed = false): Promise<IObject> {
+	public async getActivityJson(url: string, isLocalAddressAllowed = false): Promise<IObjectWithId> {
 		const res = await this.send(url, {
 			method: 'GET',
 			headers: {
@@ -237,7 +237,7 @@ export class HttpRequestService {
 		// The caller (ApResolverService) will verify the ID against the original / entry URL, which ensures that all three match.
 		this.apUtilityService.assertIdMatchesUrlAuthority(activity, res.url);
 
-		return activity;
+		return activity as IObjectWithId;
 	}
 
 	@bindThis
