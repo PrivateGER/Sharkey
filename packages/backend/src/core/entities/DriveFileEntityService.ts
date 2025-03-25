@@ -175,7 +175,7 @@ export class DriveFileEntityService {
 		const isSafeCDNUrl = (url: string) => {
 			try {
 				const parsedUrl = new URL(url);
-				const allowedHosts = ['s3.plasmatrap.com'];
+				const allowedHosts = ['s3.plasmatrap.com', 'minio.plasmatrap.com'];
 				return allowedHosts.includes(parsedUrl.host);
 			} catch (e) {
 				return false;
