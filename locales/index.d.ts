@@ -8551,7 +8551,7 @@ export interface Locale extends ILocale {
          */
         "write:admin:nsfw-user": string;
         /**
-         * Mark users an not NSFW
+         * Mark users as not NSFW
          */
         "write:admin:unnsfw-user": string;
         /**
@@ -10243,7 +10243,7 @@ export interface Locale extends ILocale {
          */
         "setRemoteInstanceNSFW": string;
         /**
-         * Set remote instance as NSFW
+         * Unset remote instance as NSFW
          */
         "unsetRemoteInstanceNSFW": string;
         /**
