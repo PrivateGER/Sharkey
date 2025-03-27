@@ -4,10 +4,9 @@
  */
 
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
-import { URL } from 'url';
 import { In } from 'typeorm';
-import { generateImageUrl } from '@imgproxy/imgproxy-node';
 import { DI } from '@/di-symbols.js';
+import { generateImageUrl } from '@imgproxy/imgproxy-node';
 import type { DriveFilesRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { Packed } from '@/misc/json-schema.js';
@@ -144,68 +143,51 @@ export class DriveFileEntityService {
 
 	@bindThis
 	public getThumbnailUrl(file: MiDriveFile): string | null {
-		// Prioritize returning an existing thumbnail URL if it's available
-		if (file.thumbnailUrl) {
-			return file.thumbnailUrl;
-		}
-
-		// Handle video files separately
 		if (file.type.startsWith('video')) {
+			if (file.thumbnailUrl) return file.thumbnailUrl;
+
 			return this.videoProcessingService.getExternalVideoThumbnailUrl(file.webpublicUrl ?? file.url);
+		} else if (file.uri != null && file.userHost != null && this.config.externalMediaProxyEnabled) {
+			// 動画ではなくリモートかつメディアプロキシ
+			return this.getProxiedUrl(file.uri, 'static');
 		}
 
-		// Handle remote linked files with expired keys through a local proxy if allowed by the configuration
-		if (file.uri && file.isLink && this.config.proxyRemoteFiles) {
-			return this.getProxiedUrl(file.uri, 'static', file.type);
+		if (file.uri != null && file.isLink && this.config.proxyRemoteFiles) {
+			// リモートかつ期限切れはローカルプロキシを試みる
+			// 従来は/files/${thumbnailAccessKey}にアクセスしていたが、
+			// /filesはメディアプロキシにリダイレクトするようにしたため直接メディアプロキシを指定する
+			return this.getProxiedUrl(file.uri, 'static');
 		}
 
-		// If none of the above conditions are met, we assume no valid thumbnail URL is available
-		return null;
+		const url = file.webpublicUrl ?? file.url;
+
+		return file.thumbnailUrl ?? (isMimeImage(file.type, 'sharp-convertible-image') ? url : null);
 	}
 
 	@bindThis
-	public getPublicUrl(file: MiDriveFile, mode?: 'avatar'): string {
-		// Handle the case where a specific avatar URL is requested
-		if (mode === 'avatar') {
-			const avatarUrl = file.webpublicUrl ?? file.url;
-			return this.getProxiedUrl(avatarUrl, 'avatar', file.type);
+	public getPublicUrl(file: MiDriveFile, mode?: 'avatar'): string { // static = thumbnail
+		// リモートかつメディアプロキシ
+		if (file.uri != null && file.userHost != null && this.config.externalMediaProxyEnabled) {
+			return this.getProxiedUrl(file.uri, mode);
 		}
 
-		// Handle the general case where no specific mode is required
-		const isSafeCDNUrl = (url: string) => {
-			try {
-				const parsedUrl = new URL(url);
-				const allowedHosts = ['s3.plasmatrap.com', 'minio.plasmatrap.com'];
-				return allowedHosts.includes(parsedUrl.host);
-			} catch (e) {
-				return false;
-			}
-		};
-
-		// Return the direct URL if it's secure and available
-		if (file.url && isSafeCDNUrl(file.url)) {
-			return file.url;
-		} else if (file.url && !isSafeCDNUrl(file.url) && this.config.externalMediaProxyEnabled) {
-			return this.getProxiedUrl(file.url, mode, file.type);
-		}
-
-		// Use external media proxy for remote files not linked directly
-		if (file.uri && this.config.externalMediaProxyEnabled && file.isLink) {
-			return this.getProxiedUrl(file.uri, mode, file.type);
-		}
-
-		// Attempt to use a local proxy for remote files that are links
-		if (file.uri && file.isLink && this.config.proxyRemoteFiles) {
+		// リモートかつ期限切れはローカルプロキシを試みる
+		if (file.uri != null && file.isLink && this.config.proxyRemoteFiles) {
 			const key = file.webpublicAccessKey;
-			// Ensure the key does not contain '/' indicating it's not an old storage key
-			if (key && !key.includes('/')) {
-				const proxiedUrl = `${this.config.url}/files/${key}`;
-				return proxiedUrl;
+
+			if (key && !key.match('/')) {	// 古いものはここにオブジェクトストレージキーが入ってるので除外
+				const url = `${this.config.url}/files/${key}`;
+				if (mode === 'avatar') return this.getProxiedUrl(file.uri, 'avatar');
+				return url;
 			}
 		}
 
-		// Fallback to the public URL if available
-		return file.webpublicUrl ?? file.url;
+		const url = file.webpublicUrl ?? file.url;
+
+		if (mode === 'avatar') {
+			return this.getProxiedUrl(url, 'avatar');
+		}
+		return url;
 	}
 
 	@bindThis
