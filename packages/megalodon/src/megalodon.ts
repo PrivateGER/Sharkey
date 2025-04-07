@@ -1,11 +1,6 @@
 import Response from './response'
 import OAuth from './oauth'
-import Pleroma from './pleroma'
-import { ProxyConfig } from './proxy_config'
-import Mastodon from './mastodon'
 import Entity from './entity'
-import Misskey from './misskey'
-import Friendica from './friendica'
 
 export interface WebSocketInterface {
   start(): void
@@ -347,7 +342,7 @@ export interface MegalodonInterface {
    * @param ids Array of account IDs.
    * @return Array of Relationship.
    */
-  getRelationships(ids: Array<string>): Promise<Response<Array<Entity.Relationship>>>
+  getRelationships(ids: string | Array<string>): Promise<Response<Array<Entity.Relationship>>>
   /**
    * Search for matching accounts by username or display name.
    *
@@ -1413,42 +1408,3 @@ export class NodeinfoError extends Error {
     Object.setPrototypeOf(this, new.target.prototype)
   }
 }
-
-/**
- * Get client for each SNS according to megalodon interface.
- *
- * @param sns Name of your SNS, `mastodon` or `pleroma`.
- * @param baseUrl hostname or base URL.
- * @param accessToken access token from OAuth2 authorization
- * @param userAgent UserAgent is specified in header on request.
- * @param proxyConfig Proxy setting, or set false if don't use proxy.
- * @return Client instance for each SNS you specified.
- */
-const generator = (
-  sns: 'mastodon' | 'pleroma' | 'misskey' | 'friendica',
-  baseUrl: string,
-  accessToken: string | null = null,
-  userAgent: string | null = null,
-  proxyConfig: ProxyConfig | false = false
-): MegalodonInterface => {
-  switch (sns) {
-    case 'pleroma': {
-      const pleroma = new Pleroma(baseUrl, accessToken, userAgent, proxyConfig)
-      return pleroma
-    }
-    case 'misskey': {
-      const misskey = new Misskey(baseUrl, accessToken, userAgent, proxyConfig)
-      return misskey
-    }
-    case 'friendica': {
-      const friendica = new Friendica(baseUrl, accessToken, userAgent, proxyConfig)
-      return friendica
-    }
-    case 'mastodon': {
-      const mastodon = new Mastodon(baseUrl, accessToken, userAgent, proxyConfig)
-      return mastodon
-    }
-  }
-}
-
-export default generator

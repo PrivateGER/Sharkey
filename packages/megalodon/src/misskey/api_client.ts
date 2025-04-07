@@ -9,7 +9,8 @@ import MisskeyEntity from './entity'
 import MegalodonEntity from '../entity'
 import WebSocket from './web_socket'
 import MisskeyNotificationType from './notification'
-import NotificationType, { UnknownNotificationTypeError } from '../notification'
+import * as NotificationType from '../notification'
+import { UnknownNotificationTypeError } from '../notification';
 
 namespace MisskeyAPI {
   export namespace Entity {
@@ -32,6 +33,7 @@ namespace MisskeyAPI {
     export type Notification = MisskeyEntity.Notification
     export type Poll = MisskeyEntity.Poll
     export type Reaction = MisskeyEntity.Reaction
+		export type NoteReaction = MisskeyEntity.NoteReaction
     export type Relation = MisskeyEntity.Relation
     export type User = MisskeyEntity.User
     export type UserDetail = MisskeyEntity.UserDetail
@@ -285,6 +287,7 @@ namespace MisskeyAPI {
         plain_content: n.text ? n.text : null,
         created_at: n.createdAt,
         edited_at: n.updatedAt || null,
+				// TODO this is probably wrong
         emojis: mapEmojis(n.emojis).concat(mapReactionEmojis(n.reactionEmojis)),
         replies_count: n.repliesCount,
         reblogs_count: n.renoteCount,
@@ -303,7 +306,7 @@ namespace MisskeyAPI {
         application: null,
         language: null,
         pinned: null,
-        emoji_reactions: typeof n.reactions === 'object' ? mapReactions(n.reactions, n.myReaction) : [],
+        emoji_reactions: typeof n.reactions === 'object' ? mapReactions(n.reactions, n.reactionEmojis, n.myReaction) : [],
         bookmarked: false,
         quote: n.renote && n.text ? note(n.renote, n.user.host ? n.user.host : host ? host : null) : null
       }
@@ -333,23 +336,37 @@ namespace MisskeyAPI {
 				) : 0;
 		};
 
-    export const mapReactions = (r: { [key: string]: number }, myReaction?: string): Array<MegalodonEntity.Reaction> => {
-      return Object.keys(r).map(key => {
-        if (myReaction && key === myReaction) {
-          return {
-            count: r[key],
-            me: true,
-            name: key
-          }
-        }
-        return {
-          count: r[key],
-          me: false,
-          name: key
-        }
+    export const mapReactions = (r: { [key: string]: number }, e: Record<string, string | undefined>, myReaction?: string): Array<MegalodonEntity.Reaction> => {
+      return Object.entries(r).map(([key, count]) => {
+				const me = myReaction != null && key === myReaction;
+
+				// Name is equal to the key for native emoji reactions, and as a fallback.
+				let name = key;
+
+				// Custom emoji have a leading / trailing ":", which we need to remove.
+				const match = key.match(/^:([^@:]+)(@[^:]+)?:$/);
+				if (match) {
+					const [, prefix, host] = match;
+
+					// Local custom emoji end in "@.", which we need to remove.
+					if (host && host !== '@.') {
+						name = prefix + host;
+					} else {
+						name = prefix;
+					}
+				}
+
+				return {
+					count,
+					me,
+					name,
+					url: e[name],
+					static_url: e[name],
+				}
       })
     }
 
+		// TODO implement other properties
     const mapReactionEmojis = (r: { [key: string]: string }): Array<MegalodonEntity.Emoji> => {
       return Object.keys(r).map(key => ({
         shortcode: key,
@@ -370,7 +387,7 @@ namespace MisskeyAPI {
           result.push({
             count: 1,
             me: false,
-            name: e.type
+            name: e.type,
           })
         }
       })

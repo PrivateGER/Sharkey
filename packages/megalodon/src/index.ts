@@ -2,15 +2,14 @@ import Response from './response'
 import OAuth from './oauth'
 import { isCancel, RequestCanceledError } from './cancel'
 import { ProxyConfig } from './proxy_config'
-import generator, { MegalodonInterface, WebSocketInterface } from './megalodon'
+import { MegalodonInterface, WebSocketInterface } from './megalodon'
 import { detector } from './detector'
-import Mastodon from './mastodon'
-import Pleroma from './pleroma'
 import Misskey from './misskey'
 import Entity from './entity'
-import NotificationType from './notification'
+import * as NotificationType from './notification'
 import FilterContext from './filter_context'
 import Converter from './converter'
+import MastodonEntity from './mastodon/entity';
 
 export {
   Response,
@@ -23,14 +22,8 @@ export {
   WebSocketInterface,
   NotificationType,
   FilterContext,
-  Mastodon,
-  Pleroma,
   Misskey,
   Entity,
   Converter,
-	generator,
+	MastodonEntity,
 }
-
-export const megalodon = generator;
-
-export default generator

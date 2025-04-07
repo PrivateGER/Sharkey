@@ -6,6 +6,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Entity } from 'megalodon';
 import mfm from '@transfem-org/sfm-js';
+import { MastodonNotificationType } from 'megalodon/lib/src/mastodon/notification.js';
+import { NotificationType } from 'megalodon/lib/src/notification.js';
 import { DI } from '@/di-symbols.js';
 import { MfmService } from '@/core/MfmService.js';
 import type { Config } from '@/config.js';
@@ -19,6 +21,8 @@ import { IdService } from '@/core/IdService.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { MastodonDataService } from '@/server/api/mastodon/MastodonDataService.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { appendContentWarning } from '@/misc/append-content-warning.js';
+import { isRenote } from '@/misc/is-renote.js';
 
 // Missing from Megalodon apparently
 // https://docs.joinmastodon.org/entities/StatusEdit/
@@ -47,7 +51,7 @@ export const escapeMFM = (text: string): string => text
 	.replace(/\r?\n/g, '<br>');
 
 @Injectable()
-export class MastoConverters {
+export class MastodonConverters {
 	constructor(
 		@Inject(DI.config)
 		private readonly config: Config,
@@ -68,7 +72,6 @@ export class MastoConverters {
 
 	private encode(u: MiUser, m: IMentionedRemoteUsers): MastodonEntity.Mention {
 		let acct = u.username;
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		let acctUrl = `https://${u.host || this.config.host}/@${u.username}`;
 		let url: string | null = null;
 		if (u.host) {
@@ -136,10 +139,10 @@ export class MastoConverters {
 		});
 	}
 
-	private async encodeField(f: Entity.Field): Promise<MastodonEntity.Field> {
+	private encodeField(f: Entity.Field): MastodonEntity.Field {
 		return {
 			name: f.name,
-			value: await this.mfmService.toMastoApiHtml(mfm.parse(f.value), [], true) ?? escapeMFM(f.value),
+			value: this.mfmService.toMastoApiHtml(mfm.parse(f.value), [], true) ?? escapeMFM(f.value),
 			verified_at: null,
 		};
 	}
@@ -161,13 +164,15 @@ export class MastoConverters {
 		});
 		const fqn = `${user.username}@${user.host ?? this.config.hostname}`;
 		let acct = user.username;
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		let acctUrl = `https://${user.host || this.config.host}/@${user.username}`;
 		const acctUri = `https://${this.config.host}/users/${user.id}`;
 		if (user.host) {
 			acct = `${user.username}@${user.host}`;
 			acctUrl = `https://${user.host}/@${user.username}`;
 		}
+
+		const bioText = profile?.description && this.mfmService.toMastoApiHtml(mfm.parse(profile.description));
+
 		return awaitAll({
 			id: account.id,
 			username: user.username,
@@ -179,16 +184,16 @@ export class MastoConverters {
 			followers_count: profile?.followersVisibility === 'public' ? user.followersCount : 0,
 			following_count: profile?.followingVisibility === 'public' ? user.followingCount : 0,
 			statuses_count: user.notesCount,
-			note: profile?.description ?? '',
+			note: bioText ?? '',
 			url: user.uri ?? acctUrl,
 			uri: user.uri ?? acctUri,
-			avatar: user.avatarUrl ? user.avatarUrl : 'https://dev.joinsharkey.org/static-assets/avatar.png',
-			avatar_static: user.avatarUrl ? user.avatarUrl : 'https://dev.joinsharkey.org/static-assets/avatar.png',
-			header: user.bannerUrl ? user.bannerUrl : 'https://dev.joinsharkey.org/static-assets/transparent.png',
-			header_static: user.bannerUrl ? user.bannerUrl : 'https://dev.joinsharkey.org/static-assets/transparent.png',
+			avatar: user.avatarUrl ?? 'https://dev.joinsharkey.org/static-assets/avatar.png',
+			avatar_static: user.avatarUrl ?? 'https://dev.joinsharkey.org/static-assets/avatar.png',
+			header: user.bannerUrl ?? 'https://dev.joinsharkey.org/static-assets/transparent.png',
+			header_static: user.bannerUrl ?? 'https://dev.joinsharkey.org/static-assets/transparent.png',
 			emojis: emoji,
 			moved: null, //FIXME
-			fields: Promise.all(profile?.fields.map(async p => this.encodeField(p)) ?? []),
+			fields: profile?.fields.map(p => this.encodeField(p)) ?? [],
 			bot: user.isBot,
 			discoverable: user.isExplorable,
 			noindex: user.noindex,
@@ -198,41 +203,56 @@ export class MastoConverters {
 		});
 	}
 
-	public async getEdits(id: string, me?: MiLocalUser | null) {
+	public async getEdits(id: string, me: MiLocalUser | null): Promise<StatusEdit[]> {
 		const note = await this.mastodonDataService.getNote(id, me);
 		if (!note) {
 			return [];
 		}
-		const noteUser = await this.getUser(note.userId).then(async (p) => await this.convertAccount(p));
+
+		const noteUser = await this.getUser(note.userId);
+		const account = await this.convertAccount(noteUser);
 		const edits = await this.noteEditRepository.find({ where: { noteId: note.id }, order: { id: 'ASC' } });
-		const history: Promise<StatusEdit>[] = [];
+		const history: StatusEdit[] = [];
+
+		const mentionedRemoteUsers = JSON.parse(note.mentionedRemoteUsers);
+		const renote = isRenote(note) ? await this.mastodonDataService.requireNote(note.renoteId, me) : null;
 
 		// TODO this looks wrong, according to mastodon docs
 		let lastDate = this.idService.parse(note.id).date;
+
 		for (const edit of edits) {
-			const files = this.driveFileEntityService.packManyByIds(edit.fileIds);
+			// TODO avoid re-packing files for each edit
+			const files = await this.driveFileEntityService.packManyByIds(edit.fileIds);
+
+			const cw = appendContentWarning(edit.cw, noteUser.mandatoryCW) ?? '';
+
+			const isQuote = renote && (edit.cw || edit.newText || edit.fileIds.length > 0 || note.replyId);
+			const quoteUri = isQuote
+				? renote.url ?? renote.uri ?? `${this.config.url}/notes/${renote.id}`
+				: null;
+
 			const item = {
-				account: noteUser,
-				content: this.mfmService.toMastoApiHtml(mfm.parse(edit.newText ?? ''), JSON.parse(note.mentionedRemoteUsers)).then(p => p ?? ''),
+				account: account,
+				content: this.mfmService.toMastoApiHtml(mfm.parse(edit.newText ?? ''), mentionedRemoteUsers, false, quoteUri) ?? '',
 				created_at: lastDate.toISOString(),
-				emojis: [],
-				sensitive: edit.cw != null && edit.cw.length > 0,
-				spoiler_text: edit.cw ?? '',
-				media_attachments: files.then(files => files.length > 0 ? files.map((f) => this.encodeFile(f)) : []),
+				emojis: [], //FIXME
+				sensitive: !!cw,
+				spoiler_text: cw,
+				media_attachments: files.length > 0 ? files.map((f) => this.encodeFile(f)) : [],
 			};
 			lastDate = edit.updatedAt;
-			history.push(awaitAll(item));
+			history.push(item);
 		}
 
-		return await Promise.all(history);
+		return history;
 	}
 
-	private async convertReblog(status: Entity.Status | null, me?: MiLocalUser | null): Promise<MastodonEntity.Status | null> {
+	private async convertReblog(status: Entity.Status | null, me: MiLocalUser | null): Promise<MastodonEntity.Status | null> {
 		if (!status) return null;
 		return await this.convertStatus(status, me);
 	}
 
-	public async convertStatus(status: Entity.Status, me?: MiLocalUser | null): Promise<MastodonEntity.Status> {
+	public async convertStatus(status: Entity.Status, me: MiLocalUser | null): Promise<MastodonEntity.Status> {
 		const convertedAccount = this.convertAccount(status.account);
 		const note = await this.mastodonDataService.requireNote(status.id, me);
 		const noteUser = await this.getUser(status.account.id);
@@ -265,7 +285,6 @@ export class MastoConverters {
 		});
 
 		// This must mirror the usual isQuote / isPureRenote logic used elsewhere.
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		const isQuote = note.renoteId && (note.text || note.cw || note.fileIds.length > 0 || note.hasPoll || note.replyId);
 
 		const renote: Promise<MiNote> | null = note.renoteId ? this.mastodonDataService.requireNote(note.renoteId, me) : null;
@@ -277,10 +296,10 @@ export class MastoConverters {
 
 		const text = note.text;
 		const content = text !== null
-			? quoteUri
-				.then(quoteUri => this.mfmService.toMastoApiHtml(mfm.parse(text), mentionedRemoteUsers, false, quoteUri))
-				.then(p => p ?? escapeMFM(text))
+			? quoteUri.then(quote => this.mfmService.toMastoApiHtml(mfm.parse(text), mentionedRemoteUsers, false, quote) ?? escapeMFM(text))
 			: '';
+
+		const cw = appendContentWarning(note.cw, noteUser.mandatoryCW) ?? '';
 
 		const reblogged = await this.mastodonDataService.hasReblog(note.id, me);
 
@@ -292,11 +311,12 @@ export class MastoConverters {
 			account: convertedAccount,
 			in_reply_to_id: note.replyId,
 			in_reply_to_account_id: note.replyUserId,
-			reblog: !isQuote ? await this.convertReblog(status.reblog, me) : null,
+			reblog: !isQuote ? this.convertReblog(status.reblog, me) : null,
 			content: content,
 			content_type: 'text/x.misskeymarkdown',
 			text: note.text,
 			created_at: status.created_at,
+			edited_at: note.updatedAt?.toISOString() ?? null,
 			emojis: emoji,
 			replies_count: note.repliesCount,
 			reblogs_count: note.renoteCount,
@@ -304,8 +324,8 @@ export class MastoConverters {
 			reblogged,
 			favourited: status.favourited,
 			muted: status.muted,
-			sensitive: status.sensitive,
-			spoiler_text: note.cw ?? '',
+			sensitive: status.sensitive || !!cw,
+			spoiler_text: cw,
 			visibility: status.visibility,
 			media_attachments: status.media_attachments.map(a => convertAttachment(a)),
 			mentions: mentions,
@@ -315,15 +335,14 @@ export class MastoConverters {
 			application: null, //FIXME
 			language: null, //FIXME
 			pinned: false, //FIXME
-			reactions: status.emoji_reactions,
-			emoji_reactions: status.emoji_reactions,
 			bookmarked: false, //FIXME
-			quote: isQuote ? await this.convertReblog(status.reblog, me) : null,
-			edited_at: note.updatedAt?.toISOString() ?? null,
+			quote_id: isQuote ? status.reblog?.id : undefined,
+			quote: isQuote ? this.convertReblog(status.reblog, me) : null,
+			reactions: status.emoji_reactions,
 		});
 	}
 
-	public async convertConversation(conversation: Entity.Conversation, me?: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
+	public async convertConversation(conversation: Entity.Conversation, me: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
 		return {
 			id: conversation.id,
 			accounts: await Promise.all(conversation.accounts.map(a => this.convertAccount(a))),
@@ -332,13 +351,22 @@ export class MastoConverters {
 		};
 	}
 
-	public async convertNotification(notification: Entity.Notification, me?: MiLocalUser | null): Promise<MastodonEntity.Notification> {
+	public async convertNotification(notification: Entity.Notification, me: MiLocalUser | null): Promise<MastodonEntity.Notification | null> {
+		const status = notification.status
+			? await this.convertStatus(notification.status, me).catch(() => null)
+			: null;
+
+		// We sometimes get notifications for inaccessible notes, these should be ignored.
+		if (!status) {
+			return null;
+		}
+
 		return {
 			account: await this.convertAccount(notification.account),
 			created_at: notification.created_at,
 			id: notification.id,
-			status: notification.status ? await this.convertStatus(notification.status, me) : undefined,
-			type: notification.type,
+			status,
+			type: convertNotificationType(notification.type as NotificationType),
 		};
 	}
 }
@@ -348,12 +376,26 @@ function simpleConvert<T>(data: T): T {
 	return Object.assign({}, data);
 }
 
-export function convertAccount(account: Entity.Account) {
-	return simpleConvert(account);
+function convertNotificationType(type: NotificationType): MastodonNotificationType {
+	switch (type) {
+		case 'emoji_reaction': return 'reaction';
+		case 'poll_vote':
+		case 'poll_expired':
+			return 'poll';
+		// Not supported by mastodon
+		case 'move':
+			return type as MastodonNotificationType;
+		default: return type;
+	}
 }
-export function convertAnnouncement(announcement: Entity.Announcement) {
-	return simpleConvert(announcement);
+
+export function convertAnnouncement(announcement: Entity.Announcement): MastodonEntity.Announcement {
+	return {
+		...announcement,
+		updated_at: announcement.updated_at ?? announcement.published_at,
+	};
 }
+
 export function convertAttachment(attachment: Entity.Attachment): MastodonEntity.Attachment {
 	const { width, height } = attachment.meta?.original ?? attachment.meta ?? {};
 	const size = (width && height) ? `${width}x${height}` : undefined;
@@ -379,26 +421,22 @@ export function convertAttachment(attachment: Entity.Attachment): MastodonEntity
 		} : null,
 	};
 }
-export function convertFilter(filter: Entity.Filter) {
+export function convertFilter(filter: Entity.Filter): MastodonEntity.Filter {
 	return simpleConvert(filter);
 }
-export function convertList(list: Entity.List) {
-	return simpleConvert(list);
+export function convertList(list: Entity.List): MastodonEntity.List {
+	return {
+		id: list.id,
+		title: list.title,
+		replies_policy: list.replies_policy ?? 'followed',
+	};
 }
-export function convertFeaturedTag(tag: Entity.FeaturedTag) {
+export function convertFeaturedTag(tag: Entity.FeaturedTag): MastodonEntity.FeaturedTag {
 	return simpleConvert(tag);
 }
 
-export function convertPoll(poll: Entity.Poll) {
+export function convertPoll(poll: Entity.Poll): MastodonEntity.Poll {
 	return simpleConvert(poll);
-}
-
-// noinspection JSUnusedGlobalSymbols
-export function convertReaction(reaction: Entity.Reaction) {
-	if (reaction.accounts) {
-		reaction.accounts = reaction.accounts.map(convertAccount);
-	}
-	return reaction;
 }
 
 // Megalodon sometimes returns broken / stubbed relationship data
@@ -422,7 +460,3 @@ export function convertRelationship(relationship: Partial<Entity.Relationship> &
 	};
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function convertStatusSource(status: Entity.StatusSource) {
-	return simpleConvert(status);
-}

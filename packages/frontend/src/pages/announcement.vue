@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<Mfm :text="announcement.title"/>
 				</div>
 				<div :class="$style.content">
-					<Mfm :text="announcement.text"/>
+					<Mfm :text="announcement.text" :isBlock="true"/>
 					<img v-if="announcement.imageUrl" :src="announcement.imageUrl"/>
 					<div style="margin-top: 8px; opacity: 0.7; font-size: 85%;">
 						{{ i18n.ts.createdAt }}: <MkTime :time="announcement.createdAt" mode="detail"/>

@@ -303,8 +303,8 @@ export default class Misskey implements MegalodonInterface {
       max_id?: string
       since_id?: string
       pinned?: boolean
-      exclude_replies: boolean
-      exclude_reblogs: boolean
+      exclude_replies?: boolean
+      exclude_reblogs?: boolean
       only_media?: boolean
     }
   ): Promise<Response<Array<Entity.Status>>> {
@@ -591,12 +591,12 @@ export default class Misskey implements MegalodonInterface {
    */
   public async getRelationship(id: string): Promise<Response<Entity.Relationship>> {
     return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
+      .post<MisskeyAPI.Entity.Relation[]>('/api/users/relation', {
         userId: id
       })
       .then(res => {
         return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
+          data: MisskeyAPI.Converter.relation(res.data[0])
         })
       })
   }
@@ -606,11 +606,16 @@ export default class Misskey implements MegalodonInterface {
    *
    * @param ids Array of account ID, for example `['1sdfag', 'ds12aa']`.
    */
-  public async getRelationships(ids: Array<string>): Promise<Response<Array<Entity.Relationship>>> {
-    return Promise.all(ids.map(id => this.getRelationship(id))).then(results => ({
-      ...results[0],
-      data: results.map(r => r.data)
-    }))
+  public async getRelationships(ids: string | Array<string>): Promise<Response<Array<Entity.Relationship>>> {
+		return this.client
+			.post<MisskeyAPI.Entity.Relation[]>('/api/users/relation', {
+				userId: ids
+			})
+			.then(res => {
+				return Object.assign(res, {
+					data: res.data.map(r => MisskeyAPI.Converter.relation(r))
+				})
+			})
   }
 
   /**
@@ -652,48 +657,82 @@ export default class Misskey implements MegalodonInterface {
   // ======================================
   // accounts/bookmarks
   // ======================================
-  public async getBookmarks(_options?: {
+	/**
+	 * POST /api/i/favorites
+	 */
+  public async getBookmarks(options?: {
     limit?: number
     max_id?: string
     since_id?: string
     min_id?: string
   }): Promise<Response<Array<Entity.Status>>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+		let params = {}
+		if (options) {
+			if (options.limit) {
+				params = Object.assign(params, {
+					limit: options.limit
+				})
+			}
+			if (options.max_id) {
+				params = Object.assign(params, {
+					untilId: options.max_id
+				})
+			}
+			if (options.min_id) {
+				params = Object.assign(params, {
+					sinceId: options.min_id
+				})
+			}
+		}
+		return this.client.post<Array<MisskeyAPI.Entity.Favorite>>('/api/i/favorites', params).then(res => {
+			return Object.assign(res, {
+				data: res.data.map(fav => MisskeyAPI.Converter.note(fav.note, this.baseUrl))
+			})
+		})
   }
+
+	/**
+	 * POST /api/users/reactions
+	 */
+	public async getReactions(userId: string, options?: { limit?: number; max_id?: string; min_id?: string }): Promise<Response<MisskeyEntity.NoteReaction[]>> {
+		let params = {
+			userId,
+		};
+		if (options) {
+			if (options.limit) {
+				params = Object.assign(params, {
+					limit: options.limit
+				})
+			}
+			if (options.max_id) {
+				params = Object.assign(params, {
+					untilId: options.max_id
+				})
+			}
+			if (options.min_id) {
+				params = Object.assign(params, {
+					sinceId: options.min_id
+				})
+			}
+		}
+		return this.client.post<MisskeyAPI.Entity.NoteReaction[]>('/api/users/reactions', params);
+	}
 
   // ======================================
   //  accounts/favourites
   // ======================================
   /**
-   * POST /api/i/favorites
+   * POST /api/users/reactions
    */
-  public async getFavourites(options?: { limit?: number; max_id?: string; min_id?: string }): Promise<Response<Array<Entity.Status>>> {
-    let params = {}
-    if (options) {
-      if (options.limit) {
-        params = Object.assign(params, {
-          limit: options.limit
-        })
-      }
-      if (options.max_id) {
-        params = Object.assign(params, {
-          untilId: options.max_id
-        })
-      }
-      if (options.min_id) {
-        params = Object.assign(params, {
-          sinceId: options.min_id
-        })
-      }
-    }
-    return this.client.post<Array<MisskeyAPI.Entity.Favorite>>('/api/i/favorites', params).then(res => {
-      return Object.assign(res, {
-        data: res.data.map(fav => MisskeyAPI.Converter.note(fav.note, this.baseUrl))
-      })
-    })
+  public async getFavourites(options?: { limit?: number; max_id?: string; min_id?: string; userId?: string }): Promise<Response<Array<Entity.Status>>> {
+		const userId = options?.userId ?? (await this.verifyAccountCredentials()).data.id;
+
+		const response = await this.getReactions(userId, options);
+
+		return {
+			...response,
+			data: response.data.map(r => MisskeyAPI.Converter.note(r.note, this.baseUrl)),
+		};
   }
 
   // ======================================
@@ -2352,6 +2391,18 @@ export default class Misskey implements MegalodonInterface {
           }
         }))
       }
+			default: {
+				return {
+					status: 400,
+					statusText: 'bad request',
+					headers: {},
+					data: {
+						accounts: [],
+						statuses: [],
+						hashtags: [],
+					}
+				}
+			}
     }
   }
 
@@ -2504,6 +2555,7 @@ export default class Misskey implements MegalodonInterface {
       }))
   }
 
+	// TODO implement
   public async getEmojiReaction(_id: string, _emoji: string): Promise<Response<Entity.Reaction>> {
     return new Promise((_, reject) => {
       const err = new NoImplementedError('misskey does not support')

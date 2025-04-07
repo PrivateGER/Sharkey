@@ -806,6 +806,7 @@ export class NoteEditService implements OnApplicationShutdown {
 	// TODO why is this unused?
 	@bindThis
 	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
+		// FIXME only users the note is visible to should receive a notification, same as when a note is created
 		for (const u of mentionedUsers.filter(u => this.userEntityService.isLocalUser(u))) {
 			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
 				where: {

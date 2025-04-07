@@ -866,7 +866,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 	@bindThis
 	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
-		for (const u of mentionedUsers.filter(u => this.userEntityService.isLocalUser(u))) {
+		// Only create mention events for local users, and users for whom the note is visible
+		for (const u of mentionedUsers.filter(u => (note.visibility !== 'specified' || note.visibleUserIds.some(x => x === u.id)) && this.userEntityService.isLocalUser(u))) {
 			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
 				where: {
 					userId: u.id,

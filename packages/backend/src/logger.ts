@@ -19,7 +19,9 @@ type Context = {
 type Level = 'error' | 'success' | 'warning' | 'debug' | 'info';
 
 export type Data = DataElement | DataElement[];
-export type DataElement = Record<string, unknown> | Error | string | null;
+export type DataElement = DataObject | Error | string | null;
+// https://stackoverflow.com/questions/61148466/typescript-type-that-matches-any-object-but-not-arrays
+export type DataObject = Record<string, unknown> | (object & { length?: never; });
 
 // eslint-disable-next-line import/no-default-export
 export default class Logger {

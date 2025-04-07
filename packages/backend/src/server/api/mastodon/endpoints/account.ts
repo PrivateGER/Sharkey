@@ -3,14 +3,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Injectable } from '@nestjs/common';
-import { parseTimelineArgs, TimelineArgs } from '@/server/api/mastodon/timelineArgs.js';
-import { MiLocalUser } from '@/models/User.js';
-import { MastoConverters, convertRelationship } from '../converters.js';
-import type { MegalodonInterface } from 'megalodon';
-import type { FastifyRequest } from 'fastify';
+import { Inject, Injectable } from '@nestjs/common';
+import { parseTimelineArgs, TimelineArgs, toBoolean } from '@/server/api/mastodon/argsUtils.js';
+import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
+import { DriveService } from '@/core/DriveService.js';
+import { DI } from '@/di-symbols.js';
+import type { AccessTokensRepository, UserProfilesRepository } from '@/models/_.js';
+import { attachMinMaxPagination } from '@/server/api/mastodon/pagination.js';
+import { MastodonConverters, convertRelationship, convertFeaturedTag, convertList } from '../MastodonConverters.js';
+import type multer from 'fastify-multer';
+import type { FastifyInstance } from 'fastify';
 
-export interface ApiAccountMastodonRoute {
+interface ApiAccountMastodonRoute {
 	Params: { id?: string },
 	Querystring: TimelineArgs & { acct?: string },
 	Body: { notifications?: boolean }
@@ -19,133 +23,280 @@ export interface ApiAccountMastodonRoute {
 @Injectable()
 export class ApiAccountMastodon {
 	constructor(
-		private readonly request: FastifyRequest<ApiAccountMastodonRoute>,
-		private readonly client: MegalodonInterface,
-		private readonly me: MiLocalUser | null,
-		private readonly mastoConverters: MastoConverters,
+		@Inject(DI.userProfilesRepository)
+		private readonly userProfilesRepository: UserProfilesRepository,
+
+		@Inject(DI.accessTokensRepository)
+		private readonly accessTokensRepository: AccessTokensRepository,
+
+		private readonly clientService: MastodonClientService,
+		private readonly mastoConverters: MastodonConverters,
+		private readonly driveService: DriveService,
 	) {}
 
-	public async verifyCredentials() {
-		const data = await this.client.verifyAccountCredentials();
-		const acct = await this.mastoConverters.convertAccount(data.data);
-		return Object.assign({}, acct, {
-			source: {
-				note: acct.note,
-				fields: acct.fields,
-				privacy: '',
-				sensitive: false,
-				language: '',
-			},
+	public register(fastify: FastifyInstance, upload: ReturnType<typeof multer>): void {
+		fastify.get<ApiAccountMastodonRoute>('/v1/accounts/verify_credentials', async (_request, reply) => {
+			const client = this.clientService.getClient(_request);
+			const data = await client.verifyAccountCredentials();
+			const acct = await this.mastoConverters.convertAccount(data.data);
+			const response = Object.assign({}, acct, {
+				source: {
+					note: acct.note,
+					fields: acct.fields,
+					privacy: 'public',
+					sensitive: false,
+					language: '',
+				},
+			});
+			reply.send(response);
 		});
-	}
 
-	public async lookup() {
-		if (!this.request.query.acct) throw new Error('Missing required property "acct"');
-		const data = await this.client.search(this.request.query.acct, { type: 'accounts' });
-		return this.mastoConverters.convertAccount(data.data.accounts[0]);
-	}
+		fastify.patch<{
+			Body: {
+				discoverable?: string,
+				bot?: string,
+				display_name?: string,
+				note?: string,
+				avatar?: string,
+				header?: string,
+				locked?: string,
+				source?: {
+					privacy?: string,
+					sensitive?: string,
+					language?: string,
+				},
+				fields_attributes?: {
+					name: string,
+					value: string,
+				}[],
+			},
+		}>('/v1/accounts/update_credentials', { preHandler: upload.any() }, async (_request, reply) => {
+			const accessTokens = _request.headers.authorization;
+			const client = this.clientService.getClient(_request);
+			// Check if there is a Header or Avatar being uploaded, if there is proceed to upload it to the drive of the user and then set it.
+			if (_request.files.length > 0 && accessTokens) {
+				const tokeninfo = await this.accessTokensRepository.findOneBy({ token: accessTokens.replace('Bearer ', '') });
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const avatar = (_request.files as any).find((obj: any) => {
+					return obj.fieldname === 'avatar';
+				});
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const header = (_request.files as any).find((obj: any) => {
+					return obj.fieldname === 'header';
+				});
 
-	public async getRelationships(reqIds: string[]) {
-		const data = await this.client.getRelationships(reqIds);
-		return data.data.map(relationship => convertRelationship(relationship));
-	}
+				if (tokeninfo && avatar) {
+					const upload = await this.driveService.addFile({
+						user: { id: tokeninfo.userId, host: null },
+						path: avatar.path,
+						name: avatar.originalname !== null && avatar.originalname !== 'file' ? avatar.originalname : undefined,
+						sensitive: false,
+					});
+					if (upload.type.startsWith('image/')) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(_request.body as any).avatar = upload.id;
+					}
+				} else if (tokeninfo && header) {
+					const upload = await this.driveService.addFile({
+						user: { id: tokeninfo.userId, host: null },
+						path: header.path,
+						name: header.originalname !== null && header.originalname !== 'file' ? header.originalname : undefined,
+						sensitive: false,
+					});
+					if (upload.type.startsWith('image/')) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(_request.body as any).header = upload.id;
+					}
+				}
+			}
 
-	public async getStatuses() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.getAccountStatuses(this.request.params.id, parseTimelineArgs(this.request.query));
-		return await Promise.all(data.data.map(async (status) => await this.mastoConverters.convertStatus(status, this.me)));
-	}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			if ((_request.body as any).fields_attributes) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const fields = (_request.body as any).fields_attributes.map((field: any) => {
+					if (!(field.name.trim() === '' && field.value.trim() === '')) {
+						if (field.name.trim() === '') return reply.code(400).send('Field name can not be empty');
+						if (field.value.trim() === '') return reply.code(400).send('Field value can not be empty');
+					}
+					return {
+						...field,
+					};
+				});
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(_request.body as any).fields_attributes = fields.filter((field: any) => field.name.trim().length > 0 && field.value.length > 0);
+			}
 
-	public async getFollowers() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.getAccountFollowers(
-			this.request.params.id,
-			parseTimelineArgs(this.request.query),
-		);
-		return await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
-	}
+			const options = {
+				..._request.body,
+				discoverable: toBoolean(_request.body.discoverable),
+				bot: toBoolean(_request.body.bot),
+				locked: toBoolean(_request.body.locked),
+				source: _request.body.source ? {
+					..._request.body.source,
+					sensitive: toBoolean(_request.body.source.sensitive),
+				} : undefined,
+			};
+			const data = await client.updateCredentials(options);
+			const response = await this.mastoConverters.convertAccount(data.data);
 
-	public async getFollowing() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.getAccountFollowing(
-			this.request.params.id,
-			parseTimelineArgs(this.request.query),
-		);
-		return await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
-	}
+			reply.send(response);
+		});
 
-	public async addFollow() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.followAccount(this.request.params.id);
-		const acct = convertRelationship(data.data);
-		acct.following = true;
-		return acct;
-	}
+		fastify.get<{ Querystring: { acct?: string }}>('/v1/accounts/lookup', async (_request, reply) => {
+			if (!_request.query.acct) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required property "acct"' });
 
-	public async rmFollow() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.unfollowAccount(this.request.params.id);
-		const acct = convertRelationship(data.data);
-		acct.following = false;
-		return acct;
-	}
+			const client = this.clientService.getClient(_request);
+			const data = await client.search(_request.query.acct, { type: 'accounts' });
+			const profile = await this.userProfilesRepository.findOneBy({ userId: data.data.accounts[0].id });
+			data.data.accounts[0].fields = profile?.fields.map(f => ({ ...f, verified_at: null })) ?? [];
+			const response = await this.mastoConverters.convertAccount(data.data.accounts[0]);
 
-	public async addBlock() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.blockAccount(this.request.params.id);
-		return convertRelationship(data.data);
-	}
+			reply.send(response);
+		});
 
-	public async rmBlock() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.unblockAccount(this.request.params.id);
-		return convertRelationship(data.data);
-	}
+		fastify.get<ApiAccountMastodonRoute & { Querystring: { id?: string | string[] }}>('/v1/accounts/relationships', async (_request, reply) => {
+			if (!_request.query.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required property "id"' });
 
-	public async addMute() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.muteAccount(
-			this.request.params.id,
-			this.request.body.notifications ?? true,
-		);
-		return convertRelationship(data.data);
-	}
+			const client = this.clientService.getClient(_request);
+			const data = await client.getRelationships(_request.query.id);
+			const response = data.data.map(relationship => convertRelationship(relationship));
 
-	public async rmMute() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.unmuteAccount(this.request.params.id);
-		return convertRelationship(data.data);
-	}
+			reply.send(response);
+		});
 
-	public async getBookmarks() {
-		const data = await this.client.getBookmarks(parseTimelineArgs(this.request.query));
-		return Promise.all(data.data.map((status) => this.mastoConverters.convertStatus(status, this.me)));
-	}
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 
-	public async getFavourites() {
-		const data = await this.client.getFavourites(parseTimelineArgs(this.request.query));
-		return Promise.all(data.data.map((status) => this.mastoConverters.convertStatus(status, this.me)));
-	}
+			const client = this.clientService.getClient(_request);
+			const data = await client.getAccount(_request.params.id);
+			const account = await this.mastoConverters.convertAccount(data.data);
 
-	public async getMutes() {
-		const data = await this.client.getMutes(parseTimelineArgs(this.request.query));
-		return Promise.all(data.data.map((account) => this.mastoConverters.convertAccount(account)));
-	}
+			reply.send(account);
+		});
 
-	public async getBlocks() {
-		const data = await this.client.getBlocks(parseTimelineArgs(this.request.query));
-		return Promise.all(data.data.map((account) => this.mastoConverters.convertAccount(account)));
-	}
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/statuses', async (request, reply) => {
+			if (!request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 
-	public async acceptFollow() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.acceptFollowRequest(this.request.params.id);
-		return convertRelationship(data.data);
-	}
+			const { client, me } = await this.clientService.getAuthClient(request);
+			const args = parseTimelineArgs(request.query);
+			const data = await client.getAccountStatuses(request.params.id, args);
+			const response = await Promise.all(data.data.map(async (status) => await this.mastoConverters.convertStatus(status, me)));
 
-	public async rejectFollow() {
-		if (!this.request.params.id) throw new Error('Missing required parameter "id"');
-		const data = await this.client.rejectFollowRequest(this.request.params.id);
-		return convertRelationship(data.data);
+			attachMinMaxPagination(request, reply, response);
+			reply.send(response);
+		});
+
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id/featured_tags', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.getFeaturedTags();
+			const response = data.data.map((tag) => convertFeaturedTag(tag));
+
+			reply.send(response);
+		});
+
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/followers', async (request, reply) => {
+			if (!request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(request);
+			const data = await client.getAccountFollowers(
+				request.params.id,
+				parseTimelineArgs(request.query),
+			);
+			const response = await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
+
+			attachMinMaxPagination(request, reply, response);
+			reply.send(response);
+		});
+
+		fastify.get<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/following', async (request, reply) => {
+			if (!request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(request);
+			const data = await client.getAccountFollowing(
+				request.params.id,
+				parseTimelineArgs(request.query),
+			);
+			const response = await Promise.all(data.data.map(async (account) => await this.mastoConverters.convertAccount(account)));
+
+			attachMinMaxPagination(request, reply, response);
+			reply.send(response);
+		});
+
+		fastify.get<{ Params: { id?: string } }>('/v1/accounts/:id/lists', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.getAccountLists(_request.params.id);
+			const response = data.data.map((list) => convertList(list));
+
+			reply.send(response);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/follow', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.followAccount(_request.params.id);
+			const acct = convertRelationship(data.data);
+			acct.following = true; // TODO this is wrong, follow may not have processed immediately
+
+			reply.send(acct);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unfollow', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.unfollowAccount(_request.params.id);
+			const acct = convertRelationship(data.data);
+			acct.following = false;
+
+			reply.send(acct);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/block', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.blockAccount(_request.params.id);
+			const response = convertRelationship(data.data);
+
+			reply.send(response);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unblock', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.unblockAccount(_request.params.id);
+			const response = convertRelationship(data.data);
+
+			return reply.send(response);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/mute', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.muteAccount(
+				_request.params.id,
+				_request.body.notifications ?? true,
+			);
+			const response = convertRelationship(data.data);
+
+			reply.send(response);
+		});
+
+		fastify.post<ApiAccountMastodonRoute & { Params: { id?: string } }>('/v1/accounts/:id/unmute', { preHandler: upload.single('none') }, async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const client = this.clientService.getClient(_request);
+			const data = await client.unmuteAccount(_request.params.id);
+			const response = convertRelationship(data.data);
+
+			reply.send(response);
+		});
 	}
 }

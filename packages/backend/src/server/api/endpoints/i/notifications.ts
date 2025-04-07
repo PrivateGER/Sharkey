@@ -84,8 +84,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const includeTypes = ps.includeTypes && ps.includeTypes.filter(type => !(obsoleteNotificationTypes).includes(type as any)) as typeof notificationTypes[number][];
 			const excludeTypes = ps.excludeTypes && ps.excludeTypes.filter(type => !(obsoleteNotificationTypes).includes(type as any)) as typeof notificationTypes[number][];
 
-			let sinceTime = ps.sinceId ? this.idService.parse(ps.sinceId).date.getTime().toString() : null;
-			let untilTime = ps.untilId ? this.idService.parse(ps.untilId).date.getTime().toString() : null;
+			let sinceTime = ps.sinceId ? (this.idService.parse(ps.sinceId).date.getTime() + 1).toString() : null;
+			let untilTime = ps.untilId ? (this.idService.parse(ps.untilId).date.getTime() - 1).toString() : null;
 
 			let notifications: MiNotification[];
 			for (;;) {

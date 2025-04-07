@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import promiseLimit from 'promise-limit';
 import { DataSource } from 'typeorm';
 import { ModuleRef } from '@nestjs/core';
@@ -40,6 +40,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import type { AccountMoveService } from '@/core/AccountMoveService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import { MemoryKVCache } from '@/misc/cache.js';
 import { getApId, getApType, isActor, isCollection, isCollectionOrOrderedCollection, isPropertyValue } from '../type.js';
 import { extractApHashtags } from './tag.js';
 import type { OnModuleInit } from '@nestjs/common';
@@ -57,7 +58,11 @@ const summaryLength = 2048;
 type Field = Record<'name' | 'value', string>;
 
 @Injectable()
-export class ApPersonService implements OnModuleInit {
+export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
+	// Moved from ApDbResolverService
+	private readonly publicKeyByKeyIdCache = new MemoryKVCache<MiUserPublickey | null>(1000 * 60 * 60 * 12); // 12h
+	private readonly publicKeyByUserIdCache = new MemoryKVCache<MiUserPublickey | null>(1000 * 60 * 60 * 12); // 12h
+
 	private utilityService: UtilityService;
 	private userEntityService: UserEntityService;
 	private driveFileEntityService: DriveFileEntityService;
@@ -130,6 +135,10 @@ export class ApPersonService implements OnModuleInit {
 		this.apLoggerService = this.moduleRef.get('ApLoggerService');
 		this.accountMoveService = this.moduleRef.get('AccountMoveService');
 		this.logger = this.apLoggerService.logger;
+	}
+
+	onApplicationShutdown(): void {
+		this.dispose();
 	}
 
 	/**
@@ -355,6 +364,7 @@ export class ApPersonService implements OnModuleInit {
 
 		// Create user
 		let user: MiRemoteUser | null = null;
+		let publicKey: MiUserPublickey | null = null;
 
 		//#region カスタム絵文字取得
 		const emojis = await this.apNoteService.extractEmojis(person.tag ?? [], host)
@@ -435,7 +445,7 @@ export class ApPersonService implements OnModuleInit {
 				}));
 
 				if (person.publicKey) {
-					await transactionalEntityManager.save(new MiUserPublickey({
+					publicKey = await transactionalEntityManager.save(new MiUserPublickey({
 						userId: user.id,
 						keyId: person.publicKey.id,
 						keyPem: person.publicKey.publicKeyPem.trim(),
@@ -450,6 +460,7 @@ export class ApPersonService implements OnModuleInit {
 				if (u == null) throw new UnrecoverableError(`already registered a user with conflicting data: ${uri}`);
 
 				user = u as MiRemoteUser;
+				publicKey = await this.userPublickeysRepository.findOneBy({ userId: user.id });
 			} else {
 				this.logger.error(e instanceof Error ? e : new Error(e as string));
 				throw e;
@@ -460,6 +471,11 @@ export class ApPersonService implements OnModuleInit {
 
 		// Register to the cache
 		this.cacheService.uriPersonCache.set(user.uri, user);
+
+		// Register public key to the cache.
+		// Value may be null, which indicates that the user has no defined key. (optimization)
+		this.publicKeyByUserIdCache.set(user.id, publicKey);
+		if (publicKey) this.publicKeyByKeyIdCache.set(publicKey.keyId, publicKey);
 
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
@@ -611,10 +627,27 @@ export class ApPersonService implements OnModuleInit {
 		await this.usersRepository.update(exist.id, updates);
 
 		if (person.publicKey) {
-			await this.userPublickeysRepository.update({ userId: exist.id }, {
+			const publicKey = new MiUserPublickey({
+				userId: exist.id,
 				keyId: person.publicKey.id,
 				keyPem: person.publicKey.publicKeyPem,
 			});
+
+			// Create or update key
+			await this.userPublickeysRepository.save(publicKey);
+
+			this.publicKeyByKeyIdCache.set(person.publicKey.id, publicKey);
+			this.publicKeyByUserIdCache.set(exist.id, publicKey);
+		} else {
+			const existingPublicKey = await this.userPublickeysRepository.findOneBy({ userId: exist.id });
+			if (existingPublicKey) {
+				// Delete key
+				await this.userPublickeysRepository.delete({ userId: exist.id });
+				this.publicKeyByKeyIdCache.delete(existingPublicKey.keyId);
+			}
+
+			// Null indicates that the user has no key. (optimization)
+			this.publicKeyByUserIdCache.set(exist.id, null);
 		}
 
 		let _description: string | null = null;
@@ -824,5 +857,39 @@ export class ApPersonService implements OnModuleInit {
 		}
 
 		return false;
+	}
+
+	@bindThis
+	public async findPublicKeyByUserId(userId: string): Promise<MiUserPublickey | null> {
+		const publicKey = this.publicKeyByUserIdCache.get(userId) ?? await this.userPublickeysRepository.findOneBy({ userId });
+
+		// This can technically keep a key cached "forever" if it's used enough, but that's ok.
+		// We can never have stale data because the publicKey caches are coherent. (cache updates whenever data changes)
+		if (publicKey) {
+			this.publicKeyByUserIdCache.set(publicKey.userId, publicKey);
+			this.publicKeyByKeyIdCache.set(publicKey.keyId, publicKey);
+		}
+
+		return publicKey;
+	}
+
+	@bindThis
+	public async findPublicKeyByKeyId(keyId: string): Promise<MiUserPublickey | null> {
+		const publicKey = this.publicKeyByKeyIdCache.get(keyId) ?? await this.userPublickeysRepository.findOneBy({ keyId });
+
+		// This can technically keep a key cached "forever" if it's used enough, but that's ok.
+		// We can never have stale data because the publicKey caches are coherent. (cache updates whenever data changes)
+		if (publicKey) {
+			this.publicKeyByUserIdCache.set(publicKey.userId, publicKey);
+			this.publicKeyByKeyIdCache.set(publicKey.keyId, publicKey);
+		}
+
+		return publicKey;
+	}
+
+	@bindThis
+	public dispose(): void {
+		this.publicKeyByUserIdCache.dispose();
+		this.publicKeyByKeyIdCache.dispose();
 	}
 }
