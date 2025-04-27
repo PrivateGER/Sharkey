@@ -153,6 +153,10 @@ type Source = {
 	};
 
 	websocketCompression?: boolean;
+
+	customHtml?: {
+		head?: string;
+	}
 };
 
 export type Config = {
@@ -287,6 +291,10 @@ export type Config = {
 	}
 
 	websocketCompression?: boolean;
+
+	customHtml: {
+		head: string;
+	}
 };
 
 export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch' | 'sqlTsvector';
@@ -449,6 +457,9 @@ export function loadConfig(): Config {
 		},
 		websocketCompression: config.websocketCompression ?? false,
 		openai: openai,
+		customHtml: {
+			head: config.customHtml?.head ?? '',
+		}
 	};
 }
 
@@ -601,4 +612,5 @@ function applyEnvOverrides(config: Source) {
 	_apply_top([['signToActivityPubGet', 'checkActivityPubGetSignature', 'setupPassword']]);
 	_apply_top(['logging', 'sql', ['disableQueryTruncation', 'enableQueryParamLogging']]);
 	_apply_top(['activityLogging', ['enabled', 'preSave', 'maxAge']]);
+	_apply_top(['customHtml', ['head']]);
 }

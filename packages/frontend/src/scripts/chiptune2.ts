@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: marie and other Sharkey contributors
- * SPDX-License-Identifier: AGPL-3.0-only
+ * SPDX-FileCopyrightText: Simon Gündling and other chiptune2.js contributors
+ * SPDX-License-Identifier: MIT
  */
 
 /* eslint-disable */

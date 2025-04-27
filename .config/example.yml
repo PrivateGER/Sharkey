@@ -436,3 +436,11 @@ websocketCompression: false
 # imgproxyURL: https://imgproxy.example.com/
 # imgproxySalt: 'example-salt'
 # imgproxyKey: 'example'
+
+# Inject arbitrary HTML tags to customize Sharkey without having to fork it
+#customHtml:
+#  head: |
+#    <!-- The possibilities are limitless! -->
+#    <script>console.log("Hello, world!")</script>
+#    <style>.whatever { color: red; }</style>
+#    <link rel="stylesheet" href="https://example.com/styles.css">

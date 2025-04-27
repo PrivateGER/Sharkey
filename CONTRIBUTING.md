@@ -680,6 +680,7 @@ seems to do a decent job)
     * from `packages/backend/src/queue/processors/InboxProcessorService.ts`
       to `packages/backend/src/core/UpdateInstanceQueue.ts`
       where `updateInstanceQueue` is impacted
+    * from `verifyLink` in `packages/backend/src/core/activitypub/models/ApPersonService.ts` to `verifyFieldLinks` in `packages/backend/src/misc/verify-field-link.ts` (if sensible)
 * if there have been any changes to the federated user data (the
   `renderPerson` function in
   `packages/backend/src/core/activitypub/ApRendererService.ts`), make

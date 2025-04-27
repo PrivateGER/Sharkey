@@ -375,7 +375,7 @@ export class CaptchaService {
 					throw new CaptchaError(captchaErrorCodes.invalidParameters, 'frc-failed: secret and captureResult are required');
 				}
 
-				await this.verifyFriendlyCaptcha(params.captchaResult, params.captchaResult);
+				await this.verifyFriendlyCaptcha(params.secret, params.captchaResult);
 				await this.updateMeta(provider, params);
 			},
 		}[provider];
