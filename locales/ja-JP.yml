@@ -993,6 +993,8 @@ slow: "遅い"
 fast: "速い"
 sensitiveMediaDetection: "センシティブなメディアの検出"
 localOnly: "ローカルのみ"
+antennaUseGlobalRelay: "リレーを使用してグローバル検索"
+antennaUseGlobalRelayWarning: "連合機能を使ってより多くの関連投稿を見つけます。より広いネットワークから投稿が含まれるため、アンテナの結果は特定性が低くなる可能性があります。"
 remoteOnly: "リモートのみ"
 failedToUpload: "アップロード失敗"
 cannotUploadBecauseInappropriate: "不適切な内容を含む可能性があると判定されたためアップロードできません。"
@@ -2221,6 +2223,7 @@ _permissions:
   "read:clip-favorite": "クリップのいいねを見る"
   "read:federation": "連合に関する情報を取得する"
   "write:report-abuse": "違反を報告する"
+  "read:admin:antennas": "すべてのグローバルアンテナを表示"
 
 _auth:
   shareAccessTitle: "アプリへのアクセス許可"

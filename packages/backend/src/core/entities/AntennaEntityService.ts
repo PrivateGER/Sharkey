@@ -38,6 +38,7 @@ export class AntennaEntityService {
 			users: antenna.users,
 			caseSensitive: antenna.caseSensitive,
 			localOnly: antenna.localOnly,
+			useGlobalRelay: antenna.useGlobalRelay,
 			excludeBots: antenna.excludeBots,
 			withReplies: antenna.withReplies,
 			withFile: antenna.withFile,

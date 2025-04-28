@@ -72,6 +72,11 @@ export const packedAntennaSchema = {
 			optional: false, nullable: false,
 			default: false,
 		},
+		useGlobalRelay: {
+			type: 'boolean',
+			optional: false, nullable: false,
+			default: false,
+		},
 		excludeBots: {
 			type: 'boolean',
 			optional: false, nullable: false,
