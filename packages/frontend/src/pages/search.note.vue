@@ -26,7 +26,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 
 				<MkSwitch v-model="order">{{ i18n.ts._noteSearch.newestToOldest }}</MkSwitch>
-
+				<div>
+					<MkFoldableSection :expanded="true">
+						<template #header>Advanced Search Operators</template>
+						<div class="_gaps_m">
+							<table>
+								<tr>
+									<td><strong>AND</strong></td>
+									<td>Matches multiple keywords, separated by spaces (e.g., <code>apple orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>OR</strong></td>
+									<td>Matches any of the keywords (e.g., <code>apple OR orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>NOT</strong></td>
+									<td>Excludes results containing a keyword (e.g., <code>apple -orange</code>).</td>
+								</tr>
+								<tr>
+									<td><strong>""</strong></td>
+									<td>Searches for an exact phrase (e.g., <code>"neocat woozy"</code>).</td>
+								</tr>
+							</table>
+						</div>
+					</MkFoldableSection>
+				</div>
 				<MkSelect v-model="filetype" small>
 					<template #label>{{ i18n.ts._noteSearch.fileType }}</template>
 					<option :value="null">{{ i18n.ts._noteSearch._fileType.none }}</option>
@@ -102,8 +126,9 @@ const searchQuery = ref(toRef(props, 'query').value);
 const notePagination = ref<Paging>();
 const user = ref<UserDetailed | null>(null);
 const hostInput = ref(toRef(props, 'host').value);
-const order = ref(false);
+const order = ref(true);
 const filetype = ref<'image' | 'video' | 'audio' | 'module' | 'flash' | null>(null);
+const similarSearch = ref(false);
 
 const noteSearchableScope = instance.noteSearchableScope ?? 'local';
 
@@ -219,6 +244,7 @@ async function search() {
 			...(searchHost.value ? { host: searchHost.value } : {}),
 			order: order.value ? 'desc' : 'asc',
 			filetype: filetype.value,
+			similarSearch: similarSearch.value,
 		},
 	};
 

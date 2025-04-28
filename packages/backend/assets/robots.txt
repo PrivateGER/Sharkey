@@ -1,4 +1,6 @@
-user-agent: *
-allow: /
+User-Agent: *
+Disallow: /*
+Allow: /$
 
-# todo: sitemap
+User-Agent: yacybot
+Allow: /

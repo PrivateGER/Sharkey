@@ -86,3 +86,4 @@ ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 ENV NODE_ENV=production
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["pnpm", "run", "migrateandstart"]
+

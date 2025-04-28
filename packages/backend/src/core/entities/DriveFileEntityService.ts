@@ -6,6 +6,7 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
+import { generateImageUrl } from '@imgproxy/imgproxy-node';
 import type { DriveFilesRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { Packed } from '@/misc/json-schema.js';
@@ -74,14 +75,70 @@ export class DriveFileEntityService {
 	}
 
 	@bindThis
-	private getProxiedUrl(url: string, mode?: 'static' | 'avatar'): string {
-		return appendQuery(
+	private getProxiedUrl(url: string, mode?: 'static' | 'avatar', mimeType?: string): string {
+		const defaultURL = appendQuery(
 			`${this.config.mediaProxy}/${mode ?? 'image'}.webp`,
 			query({
 				url,
 				...(mode ? { [mode]: '1' } : {}),
 			}),
 		);
+
+		if (this.config.imgproxyURL) {
+			// Check file type, imgproxy supports only images
+			let supportedFiletype = false;
+
+			// If mimeType is provided, use it to determine if the file is an image
+			if (mimeType) {
+				if (isMimeImage(mimeType, 'sharp-convertible-image') && mimeType !== 'image/gif') {
+					supportedFiletype = true;
+				}
+			} else {
+				// Parse URL and get extension
+				const ext = new URL(url).pathname.split('.').pop()?.toLowerCase() ?? '';
+				if (['jpg', 'jpeg', 'png', 'webp', 'svg', 'bmp', 'tiff', 'webp'].includes(ext)) {
+					supportedFiletype = true;
+				}
+			}
+
+			let options = {};
+			if (mode === 'avatar') {
+				options = {
+					width: 320,
+					height: 320,
+					gravity: {
+						type: 'sm',
+					},
+					enlarge: true,
+				};
+			} else if (mode === 'static') {
+				if (!supportedFiletype) {
+					return defaultURL;
+				}
+
+				options = {
+					width: 500,
+					height: 0,
+					gravity: {
+						type: 'sm',
+					},
+					enlarge: true,
+					auto_rotate: true,
+				};
+			} else {
+				return defaultURL;
+			}
+
+			return generateImageUrl({
+				endpoint: this.config.imgproxyURL,
+				key: this.config.imgproxyKey,
+				salt: this.config.imgproxySalt,
+				url: url,
+				options,
+			});
+		}
+
+		return defaultURL;
 	}
 
 	@bindThis

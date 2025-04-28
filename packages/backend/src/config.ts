@@ -38,6 +38,7 @@ type Source = {
 		user?: string;
 		pass?: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
 		extra?: { [x: string]: string };
 	};
 	dbReplications?: boolean;
@@ -45,6 +46,7 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
+		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -122,7 +124,20 @@ type Source = {
 	};
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 	filePermissionBits?: string;
+
+	openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 
 	logging?: {
 		sql?: {
@@ -158,6 +173,8 @@ export type Config = {
 		user: string;
 		pass: string;
 		disableCache?: boolean;
+		pgroongaSearch?: boolean;
+		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
@@ -252,6 +269,12 @@ export type Config = {
 	} | undefined;
 
 	pidFile: string;
+
+	ntfyURL: string;
+
+	imgproxyURL: string,
+	imgproxySalt: string,
+	imgproxyKey: string,
 	filePermissionBits?: string;
 
 	activityLogging: {
@@ -259,6 +282,13 @@ export type Config = {
 		preSave: boolean;
 		maxAge: number;
 	};
+
+  openai?: {
+		apiKey: string;
+		baseUrl: string;
+		headers: { [x: string]: string };
+		model: string;
+	}
 
 	websocketCompression?: boolean;
 
@@ -331,6 +361,13 @@ export function loadConfig(): Config {
 		: null;
 	const internalMediaProxy = `${scheme}://${host}/proxy`;
 	const redis = convertRedisOptions(config.redis, host);
+
+	const openai = config.openai ? {
+		apiKey: config.openai.apiKey,
+		baseUrl: config.openai.baseUrl ?? 'https://api.openai.com/v1',
+		headers: config.openai.headers ?? {},
+		model: config.openai.model,
+	} : undefined;
 
 	return {
 		version,
@@ -406,6 +443,11 @@ export function loadConfig(): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		import: config.import,
 		pidFile: config.pidFile,
+		ntfyURL: config.ntfyURL,
+
+		imgproxyURL: config.imgproxyURL,
+		imgproxySalt: config.imgproxySalt,
+		imgproxyKey: config.imgproxyKey,
 		filePermissionBits: config.filePermissionBits,
 		logging: config.logging,
 		activityLogging: {
@@ -414,9 +456,10 @@ export function loadConfig(): Config {
 			maxAge: config.activityLogging?.maxAge ?? (1000 * 60 * 60 * 24 * 30),
 		},
 		websocketCompression: config.websocketCompression ?? false,
+		openai: openai,
 		customHtml: {
 			head: config.customHtml?.head ?? '',
-		},
+		}
 	};
 }
 

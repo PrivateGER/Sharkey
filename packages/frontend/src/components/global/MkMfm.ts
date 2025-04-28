@@ -20,6 +20,7 @@ import MkGoogle from '@/components/MkGoogle.vue';
 import MkSparkle from '@/components/MkSparkle.vue';
 import MkA, { MkABehavior } from '@/components/global/MkA.vue';
 import { defaultStore } from '@/store.js';
+import { clamp } from '@@/js/math.js';
 
 function safeParseFloat(str: unknown): number | null {
 	if (typeof str !== 'string' || str === '') return null;
@@ -309,10 +310,10 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 							style = '';
 							break;
 						}
-						const x = Math.min(safeParseFloat(token.props.args.x) ?? 1, 5);
-						const y = Math.min(safeParseFloat(token.props.args.y) ?? 1, 5);
+						const x = clamp(safeParseFloat(token.props.args.x) ?? 1, -5, 5);
+						const y = clamp(safeParseFloat(token.props.args.y) ?? 1, -5, 5);
 						style = `transform: scale(${x}, ${y});`;
-						scale = scale * Math.max(x, y);
+						scale = scale * Math.max(Math.abs(x), Math.abs(y));
 						break;
 					}
 					case 'fg': {

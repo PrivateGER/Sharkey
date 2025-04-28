@@ -28,9 +28,8 @@ export const meta = {
 	requireCredential: true,
 	kind: 'read:account',
 
-	// Up to 30 calls, then 1 per 1/2 second
 	limit: {
-		max: 30,
+		max: 180,
 		dripRate: 500,
 	},
 
@@ -214,7 +213,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		return await this.mergePack(
 			me,
 			isActor(object) ? await this.apPersonService.createPerson(getApId(object)) : null,
-			isPost(object) ? await this.apNoteService.createNote(getApId(object), undefined, undefined, true) : null,
+			isPost(object) ? await this.apNoteService.createNote(getApId(object), undefined, undefined, false) : null,
 		);
 	}
 

@@ -140,13 +140,10 @@ export class SearchService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
-
 		@Inject(DI.meilisearch)
 		private meilisearch: MeiliSearch | null,
-
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
-
 		private cacheService: CacheService,
 		private queryService: QueryService,
 		private idService: IdService,
@@ -241,13 +238,11 @@ export class SearchService {
 		switch (this.provider) {
 			case 'sqlLike':
 			case 'sqlPgroonga':
-			case 'sqlTsvector': {
-				// ほとんど内容に差がないのでsqlLikeとsqlPgroongaを同じ処理にしている.
-				// 今後の拡張で差が出る用であれば関数を分ける.
-				return this.searchNoteByLike(q, me, opts, pagination);
-			}
 			case 'meilisearch': {
 				return this.searchNoteByMeiliSearch(q, me, opts, pagination);
+			}
+			case 'sqlTsvector': {
+				return this.searchNoteByTsvector(q, me, opts, pagination);
 			}
 			default: {
 				// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -255,6 +250,57 @@ export class SearchService {
 				return [];
 			}
 		}
+	}
+
+	@bindThis
+	private async searchNoteByTsvector(q: string,
+		me: MiUser | null,
+		opts: SearchOpts,
+		pagination: SearchPagination,
+	): Promise<MiNote[]> {
+		const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
+
+		if (opts.userId) {
+			query.andWhere('note.userId = :userId', { userId: opts.userId });
+		} else if (opts.channelId) {
+			query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
+		}
+
+		query
+			.innerJoinAndSelect('note.user', 'user')
+			.leftJoinAndSelect('note.reply', 'reply')
+			.leftJoinAndSelect('note.renote', 'renote')
+			.leftJoinAndSelect('reply.user', 'replyUser')
+			.leftJoinAndSelect('renote.user', 'renoteUser');
+
+		query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
+
+		if (opts.order === 'asc') {
+			query
+				.addSelect('ts_rank_cd(note.tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+				.orderBy('rank', 'DESC');
+		} else {
+			query
+				.orderBy('note.created_at', 'DESC');
+		}
+
+		if (opts.host) {
+			if (opts.host === '.') {
+				query.andWhere('note.userHost IS NULL');
+			} else {
+				query.andWhere('note.userHost = :host', { host: opts.host });
+			}
+		}
+
+		if (opts.filetype) {
+			query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
+		}
+
+		await this.queryService.generateVisibilityQuery(query, me);
+		if (me) this.queryService.generateMutedUserQuery(query, me);
+		if (me) this.queryService.generateBlockedUserQuery(query, me);
+
+		return await query.limit(pagination.limit).getMany();
 	}
 
 	@bindThis

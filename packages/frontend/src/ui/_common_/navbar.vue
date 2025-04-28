@@ -39,6 +39,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.noDelay.right="i18n.ts.controlPanel" :class="$style.item" :activeClass="$style.active" to="/admin">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
+			<MkA :class="$style.item" :activeClass="$style.active" to="/services">
+				<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Services</span>
+			</MkA>
 			<button class="_button" :class="$style.item" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
 				<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
@@ -235,8 +238,8 @@ function more(ev: MouseEvent) {
 
 	.instanceIcon {
 		display: inline-block;
-		width: 38px;
-		aspect-ratio: 1;
+		width: 180px;
+		content: url("https://s3.plasmatrap.com//b3839ce5-d4e9-428e-b6f9-28a325ea65b2.webp");
 	}
 
 	.wideInstanceIcon {

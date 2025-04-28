@@ -6,7 +6,7 @@
 import { describe, test, assert, afterEach } from 'vitest';
 import { render, cleanup, type RenderResult } from '@testing-library/vue';
 import './init';
-import type { summaly } from '@misskey-dev/summaly';
+import type { summaly } from '@transfem-org/summaly';
 import { components } from '@/components/index.js';
 import { directives } from '@/directives/index.js';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';

@@ -12146,6 +12146,18 @@ export interface Locale extends ILocale {
      */
     "robotsTxtDescription": string;
     /**
+     * Generate alt text
+     */
+    "generateAltText": string;
+    /**
+     * Failed to generate alt text
+     */
+    "failedToGenerateAltText": string;
+    /**
+     * Alt text generated successfully. Please check and edit if necessary.
+     */
+    "generatedAltTextSuccess": string;
+    /**
      * Default content warning for new posts
      */
     "defaultCW": string;

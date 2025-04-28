@@ -121,6 +121,8 @@ db:
   user: sharkey
   pass: example-misskey-pass
 
+  pgroongaSearch: true
+
   # Whether disable Caching queries
   #disableCache: true
 
@@ -425,6 +427,15 @@ attachLdSignatureForRelays: true
 # If you're not using jemalloc, this may cause memory fragmentation and performance issues! (https://www.npmjs.com/package/ws#websocket-compression)
 # jemalloc is used by default in the Sharkey Docker image and may be set up manually otherwise: https://github.com/jemalloc/jemalloc/wiki/getting-started
 websocketCompression: false
+
+# openai:
+#    apiKey: 'apikey'
+#    baseUrl: 'https://openrouter.ai/api/v1'
+#    model: 'google/gemini-flash-1.5-8b'
+
+# imgproxyURL: https://imgproxy.example.com/
+# imgproxySalt: 'example-salt'
+# imgproxyKey: 'example'
 
 # Inject arbitrary HTML tags to customize Sharkey without having to fork it
 #customHtml:
