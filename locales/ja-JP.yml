@@ -2223,6 +2223,7 @@ _permissions:
   "read:clip-favorite": "クリップのいいねを見る"
   "read:federation": "連合に関する情報を取得する"
   "write:report-abuse": "違反を報告する"
+  "read:admin:antennas": "すべてのグローバルアンテナを表示"
 
 _auth:
   shareAccessTitle: "アプリへのアクセス許可"

@@ -15,7 +15,6 @@ export const meta = {
 	requireCredential: true,
 	requireAdmin: true,
 	kind: 'read:admin:antennas',
-	secure: true,
 
 	res: {
 		type: 'array',

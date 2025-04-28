@@ -2181,6 +2181,7 @@ _permissions:
   "read:clip-favorite": "View favorited clips"
   "read:federation": "Get federation data"
   "write:report-abuse": "Report violation"
+  "read:admin:antennas": "View all global antennas"
 _auth:
   shareAccessTitle: "Granting application permissions"
   shareAccess: "Would you like to authorize \"{name}\" to access this account?"

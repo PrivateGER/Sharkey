@@ -8547,6 +8547,10 @@ export interface Locale extends ILocale {
          */
         "write:report-abuse": string;
         /**
+         * すべてのグローバルアンテナを表示
+         */
+        "read:admin:antennas": string;
+        /**
          * Approve new users
          */
         "write:admin:approve-user": string;
