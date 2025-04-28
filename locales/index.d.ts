@@ -3992,6 +3992,14 @@ export interface Locale extends ILocale {
      */
     "localOnly": string;
     /**
+     * リレーを使用してグローバル検索
+     */
+    "antennaUseGlobalRelay": string;
+    /**
+     * 連合機能を使ってより多くの関連投稿を見つけます。より広いネットワークから投稿が含まれるため、アンテナの結果は特定性が低くなる可能性があります。
+     */
+    "antennaUseGlobalRelayWarning": string;
+    /**
      * リモートのみ
      */
     "remoteOnly": string;

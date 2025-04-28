@@ -37,6 +37,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #caption>{{ i18n.ts.antennaKeywordsDescription }}</template>
 			</MkTextarea>
 			<MkSwitch v-model="localOnly">{{ i18n.ts.localOnly }}</MkSwitch>
+			<MkSwitch v-model="useGlobalRelay">{{ i18n.ts.antennaUseGlobalRelay }}</MkSwitch>
+			<MkInfo v-if="useGlobalRelay" warn>{{ i18n.ts.antennaUseGlobalRelayWarning }}</MkInfo>
 			<MkSwitch v-model="caseSensitive">{{ i18n.ts.caseSensitive }}</MkSwitch>
 			<MkSwitch v-model="withFile">{{ i18n.ts.withFileAntenna }}</MkSwitch>
 		</div>
@@ -58,6 +60,7 @@ import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
+import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
 import { i18n } from '@/i18n.js';
@@ -85,6 +88,7 @@ const initialAntenna = deepMerge<PartialAllowedAntenna>(props.antenna ?? {}, {
 	withReplies: false,
 	caseSensitive: false,
 	localOnly: false,
+	useGlobalRelay: false,
 	withFile: false,
 	isActive: true,
 	hasUnreadNote: false,
@@ -105,6 +109,7 @@ const keywords = ref<string>(initialAntenna.keywords.map(x => x.join(' ')).join(
 const excludeKeywords = ref<string>(initialAntenna.excludeKeywords.map(x => x.join(' ')).join('\n'));
 const caseSensitive = ref<boolean>(initialAntenna.caseSensitive);
 const localOnly = ref<boolean>(initialAntenna.localOnly);
+const useGlobalRelay = ref<boolean>(initialAntenna.useGlobalRelay);
 const excludeBots = ref<boolean>(initialAntenna.excludeBots);
 const withReplies = ref<boolean>(initialAntenna.withReplies);
 const withFile = ref<boolean>(initialAntenna.withFile);
@@ -126,6 +131,7 @@ async function saveAntenna() {
 		withFile: withFile.value,
 		caseSensitive: caseSensitive.value,
 		localOnly: localOnly.value,
+		useGlobalRelay: useGlobalRelay.value,
 		users: users.value.trim().split('\n').map(x => x.trim()),
 		keywords: keywords.value.trim().split('\n').map(x => x.trim().split(' ')),
 		excludeKeywords: excludeKeywords.value.trim().split('\n').map(x => x.trim().split(' ')),
