@@ -50,6 +50,12 @@ export const navbarItemDef = reactive({
 		icon: 'ti ti-hash',
 		to: '/explore',
 	},
+	topPosts: {
+		title: 'Top Posts',
+		icon: 'ph-trend-up ph-bold ph-lg',
+		show: computed(() => $i != null),
+		to: '/top-posts',
+	},
 	announcements: {
 		title: i18n.ts.announcements,
 		icon: 'ti ti-speakerphone',
