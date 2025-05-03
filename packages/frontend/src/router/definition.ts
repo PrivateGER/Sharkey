@@ -224,6 +224,10 @@ const routes: RouteDef[] = [{
 	component: page(() => import('@/pages/explore.vue')),
 	hash: 'initialTab',
 }, {
+	path: '/top-posts',
+	component: page(() => import('@/pages/top-posts.vue')),
+	loginRequired: true,
+}, {
 	path: '/following-feed',
 	component: page(() => import('@/pages/following-feed.vue')),
 	loginRequired: true,
