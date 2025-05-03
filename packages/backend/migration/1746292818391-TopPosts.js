@@ -28,6 +28,7 @@ export class TopPosts1746292818391 {
 											JOIN public.user u ON n."userId" = u.id
 						 WHERE
 								 n.created_at >= NOW() - INTERVAL '24 hours'
+							 AND n."replyId" IS NULL
 							 AND n.visibility = 'public'  -- Only public posts
 							 AND NOT (u."isSuspended" OR u."isDeleted")
 				 ),
