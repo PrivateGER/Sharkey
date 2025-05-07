@@ -6,53 +6,59 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkStickyContainer>
 	<template #header><MkPageHeader :actions="headerActions" :tabs="headerTabs"/></template>
-	<div class="top-posts">
-		<div v-if="!$i" class="empty">
-			<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
-			<div>{{ i18n.ts.signinRequired }}</div>
-		</div>
-		<div v-else-if="error" class="empty">
-			<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
-			<div>{{ error }}</div>
-		</div>
-		<div v-else-if="loading && posts.length === 0" class="empty">
-			<MkLoading/>
-		</div>
-		<div v-else-if="posts.length === 0" class="empty">
-			<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
-			<div>{{ i18n.ts.noNotes }}</div>
-		</div>
-		<div v-else>
-			<MkInfo v-if="showInfo" class="info" :closable="true" @close="hideInfo">
-				<b>About Top Posts</b>
-				<p>This feed shows the top 25 posts that are currently trending based on a scoring system that considers:</p>
-				<ul>
-					<li>Engagement (reactions, replies, and renotes)</li>
-					<li>Recency (newer posts score higher)</li>
-					<li>Following status (posts from users you follow get a boost)</li>
-				</ul>
-				<p>Click the info icon next to any post's score to see the detailed calculation.</p>
-				<p>This feed refreshes periodically and is unique to your account. If you're new, it may take a few minutes to generate for you.</p>
-			</MkInfo>
+	<MkPullToRefresh :refresher="() => fetchPosts">
+		<MkSpacer :contentMax="800">
+			<div class="top-posts">
+				<div v-if="!$i" class="empty">
+					<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
+					<div>{{ i18n.ts.signinRequired }}</div>
+				</div>
+				<div v-else-if="error" class="empty">
+					<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
+					<div>{{ error }}</div>
+				</div>
+				<div v-else-if="loading && posts.length === 0" class="empty">
+					<MkLoading/>
+				</div>
+				<div v-else-if="posts.length === 0" class="empty">
+					<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
+					<div>{{ i18n.ts.noNotes }}</div>
+				</div>
+				<div v-else>
+					<MkInfo v-if="showInfo" class="info" :closable="true" @close="hideInfo">
+						<b>About Top Posts</b>
+						<p>This feed shows the top 25 posts that are currently trending based on a scoring system that considers:</p>
+						<ul>
+							<li>Engagement (reactions, replies, and renotes)</li>
+							<li>Recency (newer posts score higher)</li>
+							<li>Following status (posts from users you follow get a boost)</li>
+						</ul>
+						<p>Click the info icon next to any post's score to see the detailed calculation.</p>
+						<p>This feed refreshes periodically and is unique to your account. If you're new, it may take a few minutes to generate for you.</p>
+					</MkInfo>
 
-			<div class="timeline">
-				<TransitionGroup name="post-list">
-					<div v-for="post in posts" :key="post.note.id" class="post-item">
-						<div class="post-content">
-							<MkNote :note="post.note" />
-							<div class="score-badge">
-								<i class="ti ti-award"></i>
-								<span>{{ formatNumber(post.score) }}</span>
-								<button class="info-button _button" @click="showScoreDetails(post)">
-									<i class="ti ti-info-circle"></i>
-								</button>
+					<div class="timeline">
+						<TransitionGroup name="post-list">
+							<div v-for="post in posts" :key="post.note.id" class="post-item">
+								<div class="post-content">
+									<MkNote :note="post.note" />
+									<div class="score-badge">
+										<i class="ti ti-award"></i>
+										<span>{{ formatNumber(post.score) }}</span>
+										<button class="info-button _button" @click="showScoreDetails(post)">
+											<i class="ti ti-info-circle"></i>
+										</button>
+									</div>
+								</div>
 							</div>
-						</div>
+						</TransitionGroup>
 					</div>
-				</TransitionGroup>
+				</div>
 			</div>
-		</div>
-	</div>
+		</MkSpacer>
+
+	</MkPullToRefresh>
+
 </MkStickyContainer>
 </template>
 
@@ -66,6 +72,7 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/account.js';
 import { definePageMetadata } from '@/scripts/page-metadata.js';
 import { misskeyApi } from '@/scripts/misskey-api.js';
+import MkPullToRefresh from "@/components/MkPullToRefresh.vue";
 
 type Post = {
 	note: any;
@@ -152,7 +159,7 @@ definePageMetadata(() => ({
 }));
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .top-posts {
 	margin: var(--margin);
 }
@@ -176,13 +183,6 @@ definePageMetadata(() => ({
 	}
 }
 
-.timeline {
-	background: var(--MI_THEME-bg);
-	border-radius: var(--MI-radius);
-	overflow: clip;
-	margin: 0 16px;
-}
-
 .post-list-enter-active,
 .post-list-leave-active {
 	transition: all 0.3s ease;
@@ -196,6 +196,8 @@ definePageMetadata(() => ({
 
 .post-item {
 	position: relative;
+
+	background: color-mix(in srgb, var(--MI_THEME-panel) 65%, transparent);
 
 	&:not(:last-child) {
 		border-bottom: 1px solid var(--divider);
@@ -259,10 +261,6 @@ definePageMetadata(() => ({
 }
 
 @media (max-width: 500px) {
-	.timeline {
-		margin: 0 8px;
-	}
-
 	.score-badge {
 		top: 0;
 		right: 8px;
