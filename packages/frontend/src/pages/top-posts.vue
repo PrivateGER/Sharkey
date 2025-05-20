@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<TransitionGroup name="post-list">
 							<div v-for="post in posts" :key="post.note.id" class="post-item">
 								<div class="post-content">
-									<MkNote :note="post.note" />
+									<MkNote :note="post.note"/>
 									<div class="score-badge">
 										<i class="ti ti-award"></i>
 										<span>{{ formatNumber(post.score) }}</span>
@@ -56,23 +56,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 		</MkSpacer>
-
 	</MkPullToRefresh>
-
 </MkStickyContainer>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, defineAsyncComponent } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import MkNote from '@/components/MkNote.vue';
 import MkLoading from '@/components/global/MkLoading.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
-import { $i } from '@/account.js';
-import { definePageMetadata } from '@/scripts/page-metadata.js';
-import { misskeyApi } from '@/scripts/misskey-api.js';
-import MkPullToRefresh from "@/components/MkPullToRefresh.vue";
+import { misskeyApi } from '@/utility/misskey-api.js';
+import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
+import { ensureSignin } from '@/i.js';
+import { definePage } from '@/page.js';
+
+const $i = ensureSignin();
 
 type Post = {
 	note: any;
@@ -106,12 +106,12 @@ async function fetchPosts() {
 			posts.value = data as Post[];
 		} else {
 			posts.value = [];
-			error.value = "Unexpected API response format";
-			console.error("Unexpected API response format", data);
+			error.value = 'Unexpected API response format';
+			console.error('Unexpected API response format', data);
 		}
 	} catch (err: any) {
-		error.value = err.message || "Could not load top posts";
-		console.error("Error fetching top posts:", err);
+		error.value = err.message || 'Could not load top posts';
+		console.error('Error fetching top posts:', err);
 	} finally {
 		loading.value = false;
 	}
@@ -153,7 +153,7 @@ onMounted(() => {
 	fetchPosts();
 });
 
-definePageMetadata(() => ({
+definePage(() => ({
 	title: 'Top Posts',
 	icon: 'ph-trend-up ph-bold ph-lg',
 }));

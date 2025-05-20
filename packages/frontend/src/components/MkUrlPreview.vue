@@ -105,7 +105,6 @@ import { prefer } from '@/preferences.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { warningExternalWebsite } from '@/utility/warning-external-website.js';
 import DynamicNoteSimple from '@/components/DynamicNoteSimple.vue';
-import { warningExternalWebsite } from '@/scripts/warning-external-website.js';
 
 type SummalyResult = Awaited<ReturnType<typeof summaly>>;
 

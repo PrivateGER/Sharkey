@@ -297,8 +297,8 @@ export class SearchService {
 		}
 
 		await this.queryService.generateVisibilityQuery(query, me);
-		if (me) this.queryService.generateMutedUserQuery(query, me);
-		if (me) this.queryService.generateBlockedUserQuery(query, me);
+		if (me) this.queryService.generateMutedUserQueryForUsers(query, me);
+		if (me) this.queryService.generateBlockQueryForUsers(query, me);
 
 		return await query.limit(pagination.limit).getMany();
 	}
@@ -345,7 +345,7 @@ export class SearchService {
 			query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
 		}
 
-		this.queryService.generateVisibilityQuery(query, me);
+		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query);
 		if (me) this.queryService.generateMutedUserQueryForNotes(query, me);
 		if (me) this.queryService.generateBlockedUserQueryForNotes(query, me);

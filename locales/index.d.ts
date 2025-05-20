@@ -9125,10 +9125,6 @@ export interface Locale extends ILocale {
          */
         "write:report-abuse": string;
         /**
-         * すべてのグローバルアンテナを表示
-         */
-        "read:admin:antennas": string;
-        /**
          * チャットを操作する
          */
         "write:chat": string;
@@ -9136,6 +9132,10 @@ export interface Locale extends ILocale {
          * チャットを閲覧する
          */
         "read:chat": string;
+        /**
+         * すべてのグローバルアンテナを表示
+         */
+        "read:admin:antennas": string;
         /**
          * Approve new users
          */

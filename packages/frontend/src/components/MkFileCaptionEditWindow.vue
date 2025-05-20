@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
 		<div>
-			<MkLoading v-if="loading" :style="{ marginTop: '16px' }" />
+			<MkLoading v-if="loading" :style="{ marginTop: '16px' }"/>
 			<MkButton v-if="isImage" :style="{ marginTop: '16px' }" :disabled="loading" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
 		</div>
 	</div>
@@ -37,7 +37,7 @@ import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
-import {misskeyApi} from "@/scripts/misskey-api.js";
+import { misskeyApi } from '@/utility/misskey-api.js';
 
 const props = defineProps<{
 	file: Misskey.entities.DriveFile;

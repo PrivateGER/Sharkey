@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import {definePageMetadata} from "@/scripts/page-metadata.js";
+import { definePage } from '@/page.js';
 
 const tab = ref('all');
 const headerTabs = computed(() => []);
@@ -12,7 +12,7 @@ import excalidrawlogo from '/client-assets/excalidraw.svg';
 import pipedlogo from '/client-assets/piped.svg';
 import uptimekumalogo from '/client-assets/uptimekuma.svg';
 
-definePageMetadata(() => ({
+definePage(() => ({
 	title: "PlasmaTrap Services",
 	icon: 'ti ti-world',
 }));
