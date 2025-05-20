@@ -38,6 +38,7 @@ import * as Acct from '@/misc/acct.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
 import type { FindOptionsWhere } from 'typeorm';
+import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 
 const ACTIVITY_JSON = 'application/activity+json; charset=utf-8';
 const LD_JSON = 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"; charset=utf-8';
@@ -85,6 +86,7 @@ export class ActivityPubServerService {
 		private queueService: QueueService,
 		private userKeypairService: UserKeypairService,
 		private queryService: QueryService,
+		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
 		private loggerService: LoggerService,
 		private readonly cacheService: CacheService,
 	) {
@@ -177,7 +179,7 @@ export class ActivityPubServerService {
 			 this is also inspired by FireFish's `checkFetch`
 		*/
 
-		let signature;
+		let signature: httpSignature.IParsedSignature;
 
 		try {
 			signature = httpSignature.parseRequest(request.raw, {
@@ -230,14 +232,37 @@ export class ActivityPubServerService {
 			return `${logPrefix} signer is suspended: refuse`;
 		}
 
-		let httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
+		// some fedi implementations include the query (`?foo=bar`) in the
+		// signature, some don't, so we have to handle both cases
+		function verifyWithOrWithoutQuery() {
+			const httpSignatureValidated = httpSignature.verifySignature(signature, authUser!.key!.keyPem);
+			if (httpSignatureValidated) return true;
+
+			const requestUrl = new URL(`http://whatever${request.raw.url}`);
+			if (! requestUrl.search) return false;
+
+			// verification failed, the request URL contained a query, let's try without
+			const semiRawRequest = request.raw;
+			semiRawRequest.url = requestUrl.pathname;
+
+			// no need for try/catch, if the original request parsed, this
+			// one will, too
+			const signatureWithoutQuery = httpSignature.parseRequest(semiRawRequest, {
+				headers: ['(request-target)', 'host', 'date'],
+				authorizationHeaderName: 'signature',
+			});
+
+			return httpSignature.verifySignature(signatureWithoutQuery, authUser!.key!.keyPem);
+		}
+
+		let httpSignatureValidated = verifyWithOrWithoutQuery();
 
 		// maybe they changed their key? refetch it
 		// TODO rate-limit this using lastFetchedAt
 		if (!httpSignatureValidated) {
 			authUser.key = await this.apDbResolverService.refetchPublicKeyForApId(authUser.user);
 			if (authUser.key != null) {
-				httpSignatureValidated = httpSignature.verifySignature(signature, authUser.key.keyPem);
+				httpSignatureValidated = verifyWithOrWithoutQuery();
 			}
 		}
 
@@ -252,6 +277,11 @@ export class ActivityPubServerService {
 
 	@bindThis
 	private inbox(request: FastifyRequest, reply: FastifyReply) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		let signature;
 
 		try {
@@ -323,6 +353,11 @@ export class ActivityPubServerService {
 		request: FastifyRequest<{ Params: { user: string; }; Querystring: { cursor?: string; page?: string; }; }>,
 		reply: FastifyReply,
 	) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
 		if (reject) return;
 
@@ -415,6 +450,11 @@ export class ActivityPubServerService {
 		request: FastifyRequest<{ Params: { user: string; }; Querystring: { cursor?: string; page?: string; }; }>,
 		reply: FastifyReply,
 	) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
 		if (reject) return;
 
@@ -504,6 +544,11 @@ export class ActivityPubServerService {
 
 	@bindThis
 	private async featured(request: FastifyRequest<{ Params: { user: string; }; }>, reply: FastifyReply) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
 		if (reject) return;
 
@@ -550,6 +595,11 @@ export class ActivityPubServerService {
 		}>,
 		reply: FastifyReply,
 	) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user);
 		if (reject) return;
 
@@ -588,16 +638,28 @@ export class ActivityPubServerService {
 		const partOf = `${this.config.url}/users/${userId}/outbox`;
 
 		if (page) {
-			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), sinceId, untilId)
-				.andWhere('note.userId = :userId', { userId: user.id })
-				.andWhere(new Brackets(qb => {
-					qb
-						.where('note.visibility = \'public\'')
-						.orWhere('note.visibility = \'home\'');
-				}))
-				.andWhere('note.localOnly = FALSE');
-
-			const notes = await query.limit(limit).getMany();
+			const notes = this.meta.enableFanoutTimeline ? await this.fanoutTimelineEndpointService.getMiNotes({
+				sinceId: sinceId ?? null,
+				untilId: untilId ?? null,
+				limit: limit,
+				allowPartial: false, // Possibly true? IDK it's OK for ordered collection.
+				me: null,
+				redisTimelines: [
+					`userTimeline:${user.id}`,
+					`userTimelineWithReplies:${user.id}`,
+				],
+				useDbFallback: true,
+				ignoreAuthorFromMute: true,
+				excludePureRenotes: false,
+				noteFilter: (note) => {
+					if (note.visibility !== 'home' && note.visibility !== 'public') return false;
+					if (note.localOnly) return false;
+					return true;
+				},
+				dbFallback: async (untilId, sinceId, limit) => {
+					return await this.getUserNotesFromDb(sinceId, untilId, limit, user.id);
+				},
+			}) : await this.getUserNotesFromDb(sinceId ?? null, untilId ?? null, limit, user.id);
 
 			if (sinceId) notes.reverse();
 
@@ -635,7 +697,26 @@ export class ActivityPubServerService {
 	}
 
 	@bindThis
+	private async getUserNotesFromDb(untilId: string | null, sinceId: string | null, limit: number, userId: MiUser['id']) {
+		return await this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), sinceId, untilId)
+			.andWhere('note.userId = :userId', { userId })
+			.andWhere(new Brackets(qb => {
+				qb
+					.where('note.visibility = \'public\'')
+					.orWhere('note.visibility = \'home\'');
+			}))
+			.andWhere('note.localOnly = FALSE')
+			.limit(limit)
+			.getMany();
+	}
+
+	@bindThis
 	private async userInfo(request: FastifyRequest, reply: FastifyReply, user: MiUser | null, redact = false) {
+		if (this.meta.federation === 'none') {
+			reply.code(403);
+			return;
+		}
+
 		if (user == null) {
 			reply.code(404);
 			return;
@@ -728,6 +809,11 @@ export class ActivityPubServerService {
 		fastify.get<{ Params: { note: string; } }>('/notes/:note', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
 			vary(reply.raw, 'Accept');
 
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const note = await this.notesRepository.findOneBy({
 				id: request.params.note,
 				visibility: In(['public', 'home']),
@@ -761,6 +847,11 @@ export class ActivityPubServerService {
 		// note activity
 		fastify.get<{ Params: { note: string; } }>('/notes/:note/activity', async (request, reply) => {
 			vary(reply.raw, 'Accept');
+
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
 
 			const note = await this.notesRepository.findOneBy({
 				id: request.params.note,
@@ -852,6 +943,11 @@ export class ActivityPubServerService {
 
 		// publickey
 		fastify.get<{ Params: { user: string; } }>('/users/:user/publickey', async (request, reply) => {
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.user, true);
 			if (reject) return;
 
@@ -884,6 +980,11 @@ export class ActivityPubServerService {
 
 			vary(reply.raw, 'Accept');
 
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const userId = request.params.user;
 
 			const user = await this.usersRepository.findOneBy({
@@ -896,6 +997,11 @@ export class ActivityPubServerService {
 
 		fastify.get<{ Params: { acct: string; } }>('/@:acct', { constraints: { apOrHtml: 'ap' } }, async (request, reply) => {
 			vary(reply.raw, 'Accept');
+
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
 
 			const acct = Acct.parse(request.params.acct);
 
@@ -914,6 +1020,11 @@ export class ActivityPubServerService {
 
 		// emoji
 		fastify.get<{ Params: { emoji: string; } }>('/emojis/:emoji', async (request, reply) => {
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const { reject } = await this.checkAuthorizedFetch(request, reply);
 			if (reject) return;
 
@@ -933,6 +1044,11 @@ export class ActivityPubServerService {
 
 		// like
 		fastify.get<{ Params: { like: string; } }>('/likes/:like', async (request, reply) => {
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const reaction = await this.noteReactionsRepository.findOneBy({ id: request.params.like });
 
 			const { reject } = await this.checkAuthorizedFetch(request, reply, reaction?.userId);
@@ -956,6 +1072,11 @@ export class ActivityPubServerService {
 
 		// follow
 		fastify.get<{ Params: { follower: string; followee: string; } }>('/follows/:follower/:followee', async (request, reply) => {
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			const { reject } = await this.checkAuthorizedFetch(request, reply, request.params.follower);
 			if (reject) return;
 
@@ -983,7 +1104,12 @@ export class ActivityPubServerService {
 		});
 
 		// follow
-		fastify.get<{ Params: { followRequestId: string ; } }>('/follows/:followRequestId', async (request, reply) => {
+		fastify.get<{ Params: { followRequestId: string; } }>('/follows/:followRequestId', async (request, reply) => {
+			if (this.meta.federation === 'none') {
+				reply.code(403);
+				return;
+			}
+
 			// This may be used before the follow is completed, so we do not
 			// check if the following exists and only check if the follow request exists.
 

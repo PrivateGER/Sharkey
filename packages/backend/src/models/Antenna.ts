@@ -104,5 +104,10 @@ export class MiAntenna {
 	@Column('boolean', {
 		default: false,
 	})
+	public excludeNotesInSensitiveChannel: boolean;
+
+	@Column('boolean', {
+		default: false,
+	})
 	public useGlobalRelay: boolean;
 }

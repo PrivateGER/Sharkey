@@ -6,7 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { IsNull } from 'typeorm';
-import type { BlockingsRepository, FollowingsRepository, MutingsRepository, RenoteMutingsRepository, MiUserProfile, UserProfilesRepository, UsersRepository, MiFollowing } from '@/models/_.js';
+import type { BlockingsRepository, FollowingsRepository, MutingsRepository, RenoteMutingsRepository, MiUserProfile, UserProfilesRepository, UsersRepository, MiFollowing, MiNote } from '@/models/_.js';
 import { MemoryKVCache, RedisKVCache } from '@/misc/cache.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
@@ -14,6 +14,24 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
 import type { OnApplicationShutdown } from '@nestjs/common';
+
+export interface FollowStats {
+	localFollowing: number;
+	localFollowers: number;
+	remoteFollowing: number;
+	remoteFollowers: number;
+}
+
+export interface CachedTranslation {
+	sourceLang: string | undefined;
+	text: string | undefined;
+}
+
+interface CachedTranslationEntity {
+	l?: string;
+	t?: string;
+	u?: number;
+}
 
 @Injectable()
 export class CacheService implements OnApplicationShutdown {
@@ -27,6 +45,8 @@ export class CacheService implements OnApplicationShutdown {
 	public userBlockedCache: RedisKVCache<Set<string>>; // NOTE: 「被」Blockキャッシュ
 	public renoteMutingsCache: RedisKVCache<Set<string>>;
 	public userFollowingsCache: RedisKVCache<Record<string, Pick<MiFollowing, 'withReplies'> | undefined>>;
+	private readonly userFollowStatsCache = new MemoryKVCache<FollowStats>(1000 * 60 * 10); // 10 minutes
+	private readonly translationsCache: RedisKVCache<CachedTranslationEntity>;
 
 	constructor(
 		@Inject(DI.redis)
@@ -116,6 +136,11 @@ export class CacheService implements OnApplicationShutdown {
 			fromRedisConverter: (value) => JSON.parse(value),
 		});
 
+		this.translationsCache = new RedisKVCache<CachedTranslationEntity>(this.redisClient, 'translations', {
+			lifetime: 1000 * 60 * 60 * 24 * 7, // 1 week,
+			memoryCacheLifetime: 1000 * 60, // 1 minute
+		});
+
 		// NOTE: チャンネルのフォロー状況キャッシュはChannelFollowingServiceで行っている
 
 		this.redisForSub.on('message', this.onMessage);
@@ -167,6 +192,18 @@ export class CacheService implements OnApplicationShutdown {
 					const followee = this.userByIdCache.get(body.followeeId);
 					if (followee) followee.followersCount++;
 					this.userFollowingsCache.delete(body.followerId);
+					this.userFollowStatsCache.delete(body.followerId);
+					this.userFollowStatsCache.delete(body.followeeId);
+					break;
+				}
+				case 'unfollow': {
+					const follower = this.userByIdCache.get(body.followerId);
+					if (follower) follower.followingCount--;
+					const followee = this.userByIdCache.get(body.followeeId);
+					if (followee) followee.followersCount--;
+					this.userFollowingsCache.delete(body.followerId);
+					this.userFollowStatsCache.delete(body.followerId);
+					this.userFollowStatsCache.delete(body.followeeId);
 					break;
 				}
 				default:
@@ -185,6 +222,80 @@ export class CacheService implements OnApplicationShutdown {
 		return await this.localUserByIdCache.fetchMaybe(userId, async () => {
 			return await this.usersRepository.findOneBy({ id: userId, host: IsNull() }) as MiLocalUser | null ?? undefined;
 		}) ?? null;
+	}
+
+	@bindThis
+	public async getFollowStats(userId: MiUser['id']): Promise<FollowStats> {
+		return await this.userFollowStatsCache.fetch(userId, async () => {
+			const stats = {
+				localFollowing: 0,
+				localFollowers: 0,
+				remoteFollowing: 0,
+				remoteFollowers: 0,
+			};
+
+			const followings = await this.followingsRepository.findBy([
+				{ followerId: userId },
+				{ followeeId: userId },
+			]);
+
+			for (const following of followings) {
+				if (following.followerId === userId) {
+					// increment following; user is a follower of someone else
+					if (following.followeeHost == null) {
+						stats.localFollowing++;
+					} else {
+						stats.remoteFollowing++;
+					}
+				} else if (following.followeeId === userId) {
+					// increment followers; user is followed by someone else
+					if (following.followerHost == null) {
+						stats.localFollowers++;
+					} else {
+						stats.remoteFollowers++;
+					}
+				} else {
+					// Should never happen
+				}
+			}
+
+			// Infer remote-remote followers heuristically, since we don't track that info directly.
+			const user = await this.findUserById(userId);
+			if (user.host !== null) {
+				stats.remoteFollowing = Math.max(0, user.followingCount - stats.localFollowing);
+				stats.remoteFollowers = Math.max(0, user.followersCount - stats.localFollowers);
+			}
+
+			return stats;
+		});
+	}
+
+	@bindThis
+	public async getCachedTranslation(note: MiNote, targetLang: string): Promise<CachedTranslation | null> {
+		const cacheKey = `${note.id}@${targetLang}`;
+
+		// Use cached translation, if present and up-to-date
+		const cached = await this.translationsCache.get(cacheKey);
+		if (cached && cached.u === note.updatedAt?.valueOf()) {
+			return {
+				sourceLang: cached.l,
+				text: cached.t,
+			};
+		}
+
+		// No cache entry :(
+		return null;
+	}
+
+	@bindThis
+	public async setCachedTranslation(note: MiNote, targetLang: string, translation: CachedTranslation): Promise<void> {
+		const cacheKey = `${note.id}@${targetLang}`;
+
+		await this.translationsCache.set(cacheKey, {
+			l: translation.sourceLang,
+			t: translation.text,
+			u: note.updatedAt?.valueOf(),
+		});
 	}
 
 	@bindThis

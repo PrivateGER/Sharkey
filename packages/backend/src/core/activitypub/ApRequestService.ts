@@ -257,7 +257,7 @@ export class ApRequestService {
 						return await this.signedGet(href, user, false);
 					}
 				}
-			} catch (e) {
+			} catch {
 				// something went wrong parsing the HTML, ignore the whole thing
 			} finally {
 				happyDOM.close().catch(err => {});

@@ -13,7 +13,6 @@ import { DI } from '@/di-symbols.js';
 import type { UsersRepository, MiAccessToken, MiUser } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { Keyed, RateLimit } from '@/misc/rate-limit-utils.js';
-import { NoteReadService } from '@/core/NoteReadService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { bindThis } from '@/decorators.js';
 import { CacheService } from '@/core/CacheService.js';
@@ -47,7 +46,6 @@ export class StreamingApiServerService {
 		private usersRepository: UsersRepository,
 
 		private cacheService: CacheService,
-		private noteReadService: NoteReadService,
 		private authenticateService: AuthenticateService,
 		private channelsService: ChannelsService,
 		private notificationService: NotificationService,
@@ -126,9 +124,11 @@ export class StreamingApiServerService {
 			const requestIp = proxyAddr(request, () => true );
 			const limitActor = user?.id ?? getIpHash(requestIp);
 			if (await this.rateLimitThis(limitActor, {
+				// Up to 32 connections, then 1 every 10 seconds
+				type: 'bucket',
 				key: 'wsconnect',
-				duration: ms('5min'),
-				max: 32,
+				size: 32,
+				dripRate: 10 * 1000,
 			})) {
 				socket.write('HTTP/1.1 429 Rate Limit Exceeded\r\n\r\n');
 				socket.destroy();
@@ -169,7 +169,6 @@ export class StreamingApiServerService {
 
 			const stream = new MainStreamConnection(
 				this.channelsService,
-				this.noteReadService,
 				this.notificationService,
 				this.cacheService,
 				this.channelFollowingService,

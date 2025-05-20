@@ -96,7 +96,6 @@ export const paramDef = {
 		setSensitiveFlagAutomatically: { type: 'boolean' },
 		enableSensitiveMediaDetectionForVideos: { type: 'boolean' },
 		enableBotTrending: { type: 'boolean' },
-		proxyAccountId: { type: 'string', format: 'misskey:id', nullable: true },
 		maintainerName: { type: 'string', nullable: true },
 		maintainerEmail: { type: 'string', nullable: true },
 		langs: {
@@ -104,6 +103,7 @@ export const paramDef = {
 				type: 'string',
 			},
 		},
+		translationTimeout: { type: 'number' },
 		deeplAuthKey: { type: 'string', nullable: true },
 		deeplIsPro: { type: 'boolean' },
 		deeplFreeMode: { type: 'boolean' },
@@ -130,7 +130,7 @@ export const paramDef = {
 		useObjectStorage: { type: 'boolean' },
 		objectStorageBaseUrl: { type: 'string', nullable: true },
 		objectStorageBucket: { type: 'string', nullable: true },
-		objectStoragePrefix: { type: 'string', nullable: true },
+		objectStoragePrefix: { type: 'string', pattern: /^[a-zA-Z0-9-._\/]*$/.source, nullable: true },
 		objectStorageEndpoint: { type: 'string', nullable: true },
 		objectStorageRegion: { type: 'string', nullable: true },
 		objectStoragePort: { type: 'integer', nullable: true },
@@ -209,6 +209,10 @@ export const paramDef = {
 		allowUnsignedFetch: {
 			type: 'string',
 			enum: instanceUnsignedFetchOptions,
+			nullable: false,
+		},
+		enableProxyAccount: {
+			type: 'boolean',
 			nullable: false,
 		},
 	},
@@ -405,12 +409,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				set.turnstileSecretKey = ps.turnstileSecretKey;
 			}
 
-			if (ps.enableFC !== undefined) {
-				set.enableFC = ps.enableFC;
-			}
-
 			if (ps.enableTestcaptcha !== undefined) {
 				set.enableTestcaptcha = ps.enableTestcaptcha;
+			}
+
+			if (ps.enableFC !== undefined) {
+				set.enableFC = ps.enableFC;
 			}
 
 			if (ps.fcSiteKey !== undefined) {
@@ -423,10 +427,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.enableBotTrending !== undefined) {
 				set.enableBotTrending = ps.enableBotTrending;
-			}
-
-			if (ps.proxyAccountId !== undefined) {
-				set.proxyAccountId = ps.proxyAccountId;
 			}
 
 			if (ps.maintainerName !== undefined) {
@@ -559,6 +559,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.objectStorageS3ForcePathStyle !== undefined) {
 				set.objectStorageS3ForcePathStyle = ps.objectStorageS3ForcePathStyle;
+			}
+
+			if (ps.translationTimeout !== undefined) {
+				set.translationTimeout = ps.translationTimeout;
 			}
 
 			if (ps.deeplAuthKey !== undefined) {
@@ -761,6 +765,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.allowUnsignedFetch !== undefined) {
 				set.allowUnsignedFetch = ps.allowUnsignedFetch;
+			}
+
+			if (ps.enableProxyAccount !== undefined) {
+				set.enableProxyAccount = ps.enableProxyAccount;
 			}
 
 			const before = await this.metaService.fetch(true);

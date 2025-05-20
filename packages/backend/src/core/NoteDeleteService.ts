@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Brackets, In } from 'typeorm';
+import { Brackets, In, IsNull, Not } from 'typeorm';
 import { Injectable, Inject } from '@nestjs/common';
 import type { MiUser, MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import { MiNote, IMentionedRemoteUsers } from '@/models/Note.js';
@@ -124,9 +124,11 @@ export class NoteDeleteService {
 				this.perUserNotesChart.update(user, note, false);
 			}
 
-			if (note.renoteId && note.text || !note.renoteId) {
+			if (!isRenote(note) || isQuote(note)) {
 				// Decrement notes count (user)
 				this.decNotesCountOfUser(user);
+			} else {
+				this.usersRepository.update({ id: user.id }, { updatedAt: new Date() });
 			}
 
 			if (this.meta.enableStatsForFederatedInstances) {
@@ -165,8 +167,11 @@ export class NoteDeleteService {
 			});
 		}
 
-		if (note.uri) {
-			this.apLogService.deleteObjectLogs(note.uri)
+		const deletedUris = [note, ...cascadingNotes]
+			.map(n => n.uri)
+			.filter((u): u is string => u != null);
+		if (deletedUris.length > 0) {
+			this.apLogService.deleteObjectLogs(deletedUris)
 				.catch(err => this.logger.error(err, `Failed to delete AP logs for note '${note.uri}'`));
 		}
 	}
@@ -232,12 +237,26 @@ export class NoteDeleteService {
 	}
 
 	@bindThis
+	private async getRenotedOrRepliedRemoteUsers(note: MiNote) {
+		const query = this.notesRepository.createQueryBuilder('note')
+			.leftJoinAndSelect('note.user', 'user')
+			.where(new Brackets(qb => {
+				qb.orWhere('note.renoteId = :renoteId', { renoteId: note.id });
+				qb.orWhere('note.replyId = :replyId', { replyId: note.id });
+			}))
+			.andWhere({ userHost: Not(IsNull()) });
+		const notes = await query.getMany() as (MiNote & { user: MiRemoteUser })[];
+		const remoteUsers = notes.map(({ user }) => user);
+		return remoteUsers;
+	}
+
+	@bindThis
 	private async deliverToConcerned(user: { id: MiLocalUser['id']; host: null; }, note: MiNote, content: any) {
-		this.apDeliverManagerService.deliverToFollowers(user, content);
-		this.relayService.deliverToRelays(user, content);
-		const remoteUsers = await this.getMentionedRemoteUsers(note);
-		for (const remoteUser of remoteUsers) {
-			this.apDeliverManagerService.deliverToUser(user, content, remoteUser);
-		}
+		await this.apDeliverManagerService.deliverToFollowers(user, content);
+		await this.apDeliverManagerService.deliverToUsers(user, content, [
+			...await this.getMentionedRemoteUsers(note),
+			...await this.getRenotedOrRepliedRemoteUsers(note),
+		]);
+		await this.relayService.deliverToRelays(user, content);
 	}
 }

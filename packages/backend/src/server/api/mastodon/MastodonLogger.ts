@@ -3,32 +3,48 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
-import { FastifyRequest } from 'fastify';
-import Logger from '@/logger.js';
+import { Injectable } from '@nestjs/common';
+import { isAxiosError } from 'axios';
+import type Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { ApiError } from '@/server/api/error.js';
-import { EnvService } from '@/core/EnvService.js';
 import { getBaseUrl } from '@/server/api/mastodon/MastodonClientService.js';
+import { AuthenticationError } from '@/server/api/AuthenticateService.js';
+import type { FastifyRequest } from 'fastify';
 
 @Injectable()
 export class MastodonLogger {
 	public readonly logger: Logger;
 
 	constructor(
-		@Inject(EnvService)
-		private readonly envService: EnvService,
-
 		loggerService: LoggerService,
 	) {
 		this.logger = loggerService.getLogger('masto-api');
 	}
 
 	public error(request: FastifyRequest, error: MastodonError, status: number): void {
-		if ((status < 400 && status > 499) || this.envService.env.NODE_ENV === 'development') {
-			const path = new URL(request.url, getBaseUrl(request)).pathname;
+		const path = getPath(request);
+
+		if (status >= 400 && status <= 499) { // Client errors
+			this.logger.debug(`Error in mastodon endpoint ${request.method} ${path}:`, error);
+		} else { // Server errors
 			this.logger.error(`Error in mastodon endpoint ${request.method} ${path}:`, error);
 		}
+	}
+
+	public exception(request: FastifyRequest, ex: Error): void {
+		const path = getPath(request);
+
+		// Exceptions are always server errors, and should therefore always be logged.
+		this.logger.error(`Exception in mastodon endpoint ${request.method} ${path}:`, ex);
+	}
+}
+
+function getPath(request: FastifyRequest): string {
+	try {
+		return new URL(request.url, getBaseUrl(request)).pathname;
+	} catch {
+		return request.url;
 	}
 }
 
@@ -36,6 +52,43 @@ export class MastodonLogger {
 export interface MastodonError {
 	error: string;
 	error_description?: string;
+}
+
+export function getErrorException(error: unknown): Error | null {
+	if (!(error instanceof Error)) {
+		return null;
+	}
+
+	// AxiosErrors need special decoding
+	if (isAxiosError(error)) {
+		// Axios errors with a response are from the remote
+		if (error.response) {
+			return null;
+		}
+
+		// This is the inner exception, basically
+		if (error.cause && !isAxiosError(error.cause)) {
+			if (!error.cause.stack) {
+				error.cause.stack = error.stack;
+			}
+
+			return error.cause;
+		}
+
+		const ex = new Error();
+		ex.name = error.name;
+		ex.stack = error.stack;
+		ex.message = error.message;
+		ex.cause = error.cause;
+		return ex;
+	}
+
+	// AuthenticationError is a client error
+	if (error instanceof AuthenticationError) {
+		return null;
+	}
+
+	return error;
 }
 
 export function getErrorData(error: unknown): MastodonError {
@@ -59,17 +112,33 @@ export function getErrorData(error: unknown): MastodonError {
 		}
 	}
 
+	if ('error' in error && typeof (error.error) === 'string') {
+		if ('message' in error && typeof (error.message) === 'string') {
+			return convertErrorMessageError(error as { error: string, message: string });
+		}
+	}
+
 	if (error instanceof Error) {
 		return convertGenericError(error);
 	}
 
-	return convertUnknownError(error);
+	if ('error' in error && typeof(error.error) === 'string') {
+		// "error_description" is string, undefined, or not present.
+		if (!('error_description' in error) || typeof(error.error_description) === 'string' || typeof(error.error_description) === 'undefined') {
+			return convertMastodonError(error as MastodonError);
+		}
+	}
+
+	return {
+		error: 'INTERNAL_ERROR',
+		error_description: 'Internal error occurred. Please contact us if the error persists.',
+	};
 }
 
 function unpackAxiosError(error: unknown): unknown {
-	if (error && typeof(error) === 'object') {
-		if ('response' in error && error.response && typeof (error.response) === 'object') {
-			if ('data' in error.response && error.response.data && typeof (error.response.data) === 'object') {
+	if (isAxiosError(error)) {
+		if (error.response) {
+			if (error.response.data && typeof(error.response.data) === 'object') {
 				if ('error' in error.response.data && error.response.data.error && typeof(error.response.data.error) === 'object') {
 					return error.response.data.error;
 				}
@@ -80,46 +149,48 @@ function unpackAxiosError(error: unknown): unknown {
 			// No data - this is a fallback to avoid leaking request/response details in the error
 			return undefined;
 		}
+
+		if (error.cause && !isAxiosError(error.cause)) {
+			if (!error.cause.stack) {
+				error.cause.stack = error.stack;
+			}
+
+			return error.cause;
+		}
+
+		// No data - this is a fallback to avoid leaking request/response details in the error
+		return String(error);
 	}
 
 	return error;
 }
 
 function convertApiError(apiError: ApiError): MastodonError {
-	const mastoError: MastodonError & Partial<ApiError> = {
+	return {
 		error: apiError.code,
 		error_description: apiError.message,
-		...apiError,
 	};
-
-	delete mastoError.code;
-	delete mastoError.message;
-	delete mastoError.httpStatusCode;
-
-	return mastoError;
 }
 
-function convertUnknownError(data: object = {}): MastodonError {
-	return Object.assign({}, data, {
-		error: 'INTERNAL_ERROR',
-		error_description: 'Internal error occurred. Please contact us if the error persists.',
-		id: '5d37dbcb-891e-41ca-a3d6-e690c97775ac',
-		kind: 'server',
-	});
+function convertErrorMessageError(error: { error: string, message: string }): MastodonError {
+	return {
+		error: error.error,
+		error_description: error.message,
+	};
 }
 
 function convertGenericError(error: Error): MastodonError {
-	const mastoError: MastodonError & Partial<Error> = {
+	return {
 		error: 'INTERNAL_ERROR',
 		error_description: String(error),
-		...error,
 	};
+}
 
-	delete mastoError.name;
-	delete mastoError.message;
-	delete mastoError.stack;
-
-	return mastoError;
+function convertMastodonError(error: MastodonError): MastodonError {
+	return {
+		error: error.error,
+		error_description: error.error_description,
+	};
 }
 
 export function getErrorStatus(error: unknown): number {
@@ -133,6 +204,10 @@ export function getErrorStatus(error: unknown): number {
 
 		if ('httpStatusCode' in error && typeof(error.httpStatusCode) === 'number') {
 			return error.httpStatusCode;
+		}
+
+		if ('statusCode' in error && typeof(error.statusCode) === 'number') {
+			return error.statusCode;
 		}
 	}
 

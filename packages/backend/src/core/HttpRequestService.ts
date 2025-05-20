@@ -12,7 +12,7 @@ import fetch from 'node-fetch';
 import { HttpProxyAgent, HttpsProxyAgent } from 'hpagent';
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { Config } from '@/config.js';
+import type { Config, PrivateNetwork } from '@/config.js';
 import { StatusError } from '@/misc/status-error.js';
 import { bindThis } from '@/decorators.js';
 import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/validator.js';
@@ -20,11 +20,35 @@ import type { IObject, IObjectWithId } from '@/core/activitypub/type.js';
 import { ApUtilityService } from './activitypub/ApUtilityService.js';
 import type { Response } from 'node-fetch';
 import type { URL } from 'node:url';
+import type { Socket } from 'node:net';
 
 export type HttpRequestSendOptions = {
 	throwErrorWhenResponseNotOk: boolean;
 	validators?: ((res: Response) => void)[];
 };
+
+export function isPrivateIp(allowedPrivateNetworks: PrivateNetwork[] | undefined, ip: string, port?: number): boolean {
+	const parsedIp = ipaddr.parse(ip);
+
+	for (const { cidr, ports } of allowedPrivateNetworks ?? []) {
+		if (cidr[0].kind() === parsedIp.kind() && parsedIp.match(cidr)) {
+			if (ports == null || (port != null && ports.includes(port))) {
+				return false;
+			}
+		}
+	}
+
+	return parsedIp.range() !== 'unicast';
+}
+
+export function validateSocketConnect(allowedPrivateNetworks: PrivateNetwork[] | undefined, socket: Socket): void {
+	const address = socket.remoteAddress;
+	if (address && ipaddr.isValid(address)) {
+		if (isPrivateIp(allowedPrivateNetworks, address, socket.remotePort)) {
+			socket.destroy(new Error(`Blocked address: ${address}`));
+		}
+	}
+}
 
 declare module 'node:http' {
 	interface Agent {
@@ -44,30 +68,11 @@ class HttpRequestServiceAgent extends http.Agent {
 	public createConnection(options: net.NetConnectOpts, callback?: (err: unknown, stream: net.Socket) => void): net.Socket {
 		const socket = super.createConnection(options, callback)
 			.on('connect', () => {
-				const address = socket.remoteAddress;
 				if (process.env.NODE_ENV === 'production') {
-					if (address && ipaddr.isValid(address)) {
-						if (this.isPrivateIp(address)) {
-							socket.destroy(new Error(`Blocked address: ${address}`));
-						}
-					}
+					validateSocketConnect(this.config.allowedPrivateNetworks, socket);
 				}
 			});
 		return socket;
-	}
-
-	@bindThis
-	private isPrivateIp(ip: string): boolean {
-		const parsedIp = ipaddr.parse(ip);
-
-		for (const net of this.config.allowedPrivateNetworks ?? []) {
-			const cidr = ipaddr.parseCIDR(net);
-			if (cidr[0].kind() === parsedIp.kind() && parsedIp.match(ipaddr.parseCIDR(net))) {
-				return false;
-			}
-		}
-
-		return parsedIp.range() !== 'unicast';
 	}
 }
 
@@ -83,30 +88,11 @@ class HttpsRequestServiceAgent extends https.Agent {
 	public createConnection(options: net.NetConnectOpts, callback?: (err: unknown, stream: net.Socket) => void): net.Socket {
 		const socket = super.createConnection(options, callback)
 			.on('connect', () => {
-				const address = socket.remoteAddress;
 				if (process.env.NODE_ENV === 'production') {
-					if (address && ipaddr.isValid(address)) {
-						if (this.isPrivateIp(address)) {
-							socket.destroy(new Error(`Blocked address: ${address}`));
-						}
-					}
+					validateSocketConnect(this.config.allowedPrivateNetworks, socket);
 				}
 			});
 		return socket;
-	}
-
-	@bindThis
-	private isPrivateIp(ip: string): boolean {
-		const parsedIp = ipaddr.parse(ip);
-
-		for (const net of this.config.allowedPrivateNetworks ?? []) {
-			const cidr = ipaddr.parseCIDR(net);
-			if (cidr[0].kind() === parsedIp.kind() && parsedIp.match(ipaddr.parseCIDR(net))) {
-				return false;
-			}
-		}
-
-		return parsedIp.range() !== 'unicast';
 	}
 }
 
@@ -115,32 +101,32 @@ export class HttpRequestService {
 	/**
 	 * Get http non-proxy agent (without local address filtering)
 	 */
-	private httpNative: http.Agent;
+	private readonly httpNative: http.Agent;
 
 	/**
 	 * Get https non-proxy agent (without local address filtering)
 	 */
-	private httpsNative: https.Agent;
+	private readonly httpsNative: https.Agent;
 
 	/**
 	 * Get http non-proxy agent
 	 */
-	private http: http.Agent;
+	private readonly http: http.Agent;
 
 	/**
 	 * Get https non-proxy agent
 	 */
-	private https: https.Agent;
+	private readonly https: https.Agent;
 
 	/**
 	 * Get http proxy or non-proxy agent
 	 */
-	public httpAgent: http.Agent;
+	public readonly httpAgent: http.Agent;
 
 	/**
 	 * Get https proxy or non-proxy agent
 	 */
-	public httpsAgent: https.Agent;
+	public readonly httpsAgent: https.Agent;
 
 	constructor(
 		@Inject(DI.config)
@@ -198,7 +184,7 @@ export class HttpRequestService {
 	/**
 	 * Get agent by URL
 	 * @param url URL
-	 * @param bypassProxy Allways bypass proxy
+	 * @param bypassProxy Always bypass proxy
 	 * @param isLocalAddressAllowed
 	 */
 	@bindThis
@@ -213,6 +199,38 @@ export class HttpRequestService {
 				return url.protocol === 'http:' ? this.httpNative : this.httpsNative;
 			}
 			return url.protocol === 'http:' ? this.httpAgent : this.httpsAgent;
+		}
+	}
+
+	/**
+	 * Get agent for http by URL
+	 * @param url URL
+	 * @param isLocalAddressAllowed
+	 */
+	@bindThis
+	public getAgentForHttp(url: URL, isLocalAddressAllowed = false): http.Agent {
+		if ((this.config.proxyBypassHosts ?? []).includes(url.hostname)) {
+			return isLocalAddressAllowed
+				? this.httpNative
+				: this.http;
+		} else {
+			return this.httpAgent;
+		}
+	}
+
+	/**
+	 * Get agent for https by URL
+	 * @param url URL
+	 * @param isLocalAddressAllowed
+	 */
+	@bindThis
+	public getAgentForHttps(url: URL, isLocalAddressAllowed = false): https.Agent {
+		if ((this.config.proxyBypassHosts ?? []).includes(url.hostname)) {
+			return isLocalAddressAllowed
+				? this.httpsNative
+				: this.https;
+		} else {
+			return this.httpsAgent;
 		}
 	}
 

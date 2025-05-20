@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { IsNull } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import { FILE_TYPE_BROWSERSAFE } from '@/const.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
-import type { MiMeta, UsersRepository } from '@/models/_.js';
+import type { MiMeta } from '@/models/_.js';
 import { MastodonConverters } from '@/server/api/mastodon/MastodonConverters.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { RoleService } from '@/core/RoleService.js';
@@ -20,9 +19,6 @@ export class ApiInstanceMastodon {
 	constructor(
 		@Inject(DI.meta)
 		private readonly meta: MiMeta,
-
-		@Inject(DI.usersRepository)
-		private readonly usersRepository: UsersRepository,
 
 		@Inject(DI.config)
 		private readonly config: Config,
@@ -36,21 +32,14 @@ export class ApiInstanceMastodon {
 		fastify.get('/v1/instance', async (_request, reply) => {
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const data = await client.getInstance();
-			const instance = data.data;
-			const admin = await this.usersRepository.findOne({
-				where: {
-					host: IsNull(),
-					isRoot: true,
-					isDeleted: false,
-					isSuspended: false,
-				},
-				order: { id: 'ASC' },
-			});
-			const contact = admin == null ? null : await this.mastoConverters.convertAccount((await client.getAccount(admin.id)).data);
+			const contact = this.meta.rootUser != null
+				? await this.mastoConverters.convertAccount(this.meta.rootUser)
+				: null;
 			const roles = await this.roleService.getUserPolicies(me?.id ?? null);
 
+			const instance = data.data;
 			const response: MastodonEntity.Instance = {
-				uri: this.config.url,
+				uri: this.config.host,
 				title: this.meta.name || 'Sharkey',
 				description: this.meta.description || 'This is a vanilla Sharkey Instance. It doesn\'t seem to have a description.',
 				email: instance.email || '',
@@ -98,7 +87,7 @@ export class ApiInstanceMastodon {
 				rules: instance.rules ?? [],
 			};
 
-			reply.send(response);
+			return reply.send(response);
 		});
 	}
 }

@@ -10,6 +10,7 @@ import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
 import { instanceUnsignedFetchOptions } from '@/const.js';
+import { SystemAccountService } from '@/core/SystemAccountService.js';
 
 export const meta = {
 	tags: ['meta'],
@@ -265,7 +266,7 @@ export const meta = {
 			},
 			proxyAccountId: {
 				type: 'string',
-				optional: false, nullable: true,
+				optional: false, nullable: false,
 				format: 'id',
 			},
 			email: {
@@ -444,6 +445,10 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			translationTimeout: {
+				type: 'number',
+				optional: false, nullable: false,
+			},
 			deeplAuthKey: {
 				type: 'string',
 				optional: false, nullable: true,
@@ -580,6 +585,7 @@ export const meta = {
 			},
 			federation: {
 				type: 'string',
+				enum: ['all', 'specified', 'none'],
 				optional: false, nullable: false,
 			},
 			federationHosts: {
@@ -597,6 +603,10 @@ export const meta = {
 			allowUnsignedFetch: {
 				type: 'string',
 				enum: instanceUnsignedFetchOptions,
+				optional: false, nullable: false,
+			},
+			enableProxyAccount: {
+				type: 'boolean',
 				optional: false, nullable: false,
 			},
 		},
@@ -617,9 +627,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private config: Config,
 
 		private metaService: MetaService,
+		private systemAccountService: SystemAccountService,
 	) {
 		super(meta, paramDef, async () => {
 			const instance = await this.metaService.fetch(true);
+
+			const proxy = await this.systemAccountService.fetch('proxy');
 
 			return {
 				maintainerName: instance.maintainerName,
@@ -693,7 +706,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				setSensitiveFlagAutomatically: instance.setSensitiveFlagAutomatically,
 				enableSensitiveMediaDetectionForVideos: instance.enableSensitiveMediaDetectionForVideos,
 				enableBotTrending: instance.enableBotTrending,
-				proxyAccountId: instance.proxyAccountId,
+				proxyAccountId: proxy.id,
 				email: instance.email,
 				smtpSecure: instance.smtpSecure,
 				smtpHost: instance.smtpHost,
@@ -714,6 +727,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				objectStorageUseProxy: instance.objectStorageUseProxy,
 				objectStorageSetPublicRead: instance.objectStorageSetPublicRead,
 				objectStorageS3ForcePathStyle: instance.objectStorageS3ForcePathStyle,
+				translationTimeout: instance.translationTimeout,
 				deeplAuthKey: instance.deeplAuthKey,
 				deeplIsPro: instance.deeplIsPro,
 				deeplFreeMode: instance.deeplFreeMode,
@@ -757,6 +771,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				federationHosts: instance.federationHosts,
 				hasLegacyAuthFetchSetting: config.checkActivityPubGetSignature != null,
 				allowUnsignedFetch: instance.allowUnsignedFetch,
+				enableProxyAccount: instance.enableProxyAccount,
 			};
 		});
 	}

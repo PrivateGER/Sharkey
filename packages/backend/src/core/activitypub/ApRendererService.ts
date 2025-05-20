@@ -20,7 +20,7 @@ import type { MiEmoji } from '@/models/Emoji.js';
 import type { MiPoll } from '@/models/Poll.js';
 import type { MiPollVote } from '@/models/PollVote.js';
 import { UserKeypairService } from '@/core/UserKeypairService.js';
-import { MfmService } from '@/core/MfmService.js';
+import { MfmService, type Appender } from '@/core/MfmService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import type { MiUserKeypair } from '@/models/UserKeypair.js';
@@ -30,6 +30,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { IdService } from '@/core/IdService.js';
 import { appendContentWarning } from '@/misc/append-content-warning.js';
 import { QueryService } from '@/core/QueryService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { JsonLdService } from './JsonLdService.js';
 import { ApMfmService } from './ApMfmService.js';
 import { CONTEXT } from './misc/contexts.js';
@@ -72,6 +73,7 @@ export class ApRendererService {
 		private mfmService: MfmService,
 		private idService: IdService,
 		private readonly queryService: QueryService,
+		private utilityService: UtilityService,
 	) {
 	}
 
@@ -267,6 +269,49 @@ export class ApRendererService {
 	}
 
 	@bindThis
+	public renderIdenticon(user: MiLocalUser): IApImage {
+		return {
+			type: 'Image',
+			url: this.userEntityService.getIdenticonUrl(user),
+			sensitive: false,
+			name: null,
+		};
+	}
+
+	@bindThis
+	public renderSystemAvatar(user: MiLocalUser): IApImage {
+		if (this.meta.iconUrl == null) return this.renderIdenticon(user);
+		return {
+			type: 'Image',
+			url: this.meta.iconUrl,
+			sensitive: false,
+			name: null,
+		};
+	}
+
+	@bindThis
+	public renderSystemBanner(): IApImage | null {
+		if (this.meta.bannerUrl == null) return null;
+		return {
+			type: 'Image',
+			url: this.meta.bannerUrl,
+			sensitive: false,
+			name: null,
+		};
+	}
+
+	@bindThis
+	public renderSystemBackground(): IApImage | null {
+		if (this.meta.backgroundImageUrl == null) return null;
+		return {
+			type: 'Image',
+			url: this.meta.backgroundImageUrl,
+			sensitive: false,
+			name: null,
+		};
+	}
+
+	@bindThis
 	public renderKey(user: MiLocalUser, key: MiUserKeypair, postfix?: string): IKey {
 		return {
 			id: `${this.config.url}/users/${user.id}${postfix ?? '/publickey'}`,
@@ -423,10 +468,24 @@ export class ApRendererService {
 			poll = await this.pollsRepository.findOneBy({ noteId: note.id });
 		}
 
-		let apAppend = '';
+		const apAppend: Appender[] = [];
 
 		if (quote) {
-			apAppend += `\n\nRE: ${quote}`;
+			// Append quote link as `<br><br><span class="quote-inline">RE: <a href="...">...</a></span>`
+			// the claas name `quote-inline` is used in non-misskey clients for styling quote notes.
+			// For compatibility, the span part should be kept as possible.
+			apAppend.push((doc, body) => {
+				body.appendChild(doc.createElement('br'));
+				body.appendChild(doc.createElement('br'));
+				const span = doc.createElement('span');
+				span.className = 'quote-inline';
+				span.appendChild(doc.createTextNode('RE: '));
+				const link = doc.createElement('a');
+				link.setAttribute('href', quote);
+				link.textContent = quote;
+				span.appendChild(link);
+				body.appendChild(span);
+			});
 		}
 
 		let summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;
@@ -540,9 +599,9 @@ export class ApRendererService {
 			_misskey_requireSigninToViewContents: user.requireSigninToViewContents,
 			_misskey_makeNotesFollowersOnlyBefore: user.makeNotesFollowersOnlyBefore,
 			_misskey_makeNotesHiddenBefore: user.makeNotesHiddenBefore,
-			icon: avatar ? this.renderImage(avatar) : null,
-			image: banner ? this.renderImage(banner) : null,
-			backgroundUrl: background ? this.renderImage(background) : null,
+			icon: avatar ? this.renderImage(avatar) : isSystem ? this.renderSystemAvatar(user) : this.renderIdenticon(user),
+			image: banner ? this.renderImage(banner) : isSystem ? this.renderSystemBanner() : null,
+			backgroundUrl: background ? this.renderImage(background) : isSystem ? this.renderSystemBackground() : null,
 			tag,
 			manuallyApprovesFollowers: user.isLocked,
 			discoverable: user.isExplorable,
@@ -658,7 +717,7 @@ export class ApRendererService {
 
 	@bindThis
 	public renderUndo(object: string | IObject, user: { id: MiUser['id'] }): IUndo {
-		const id = typeof object !== 'string' && typeof object.id === 'string' && object.id.startsWith(this.config.url) ? `${object.id}/undo` : undefined;
+		const id = typeof object !== 'string' && typeof object.id === 'string' && this.utilityService.isUriLocal(object.id) ? `${object.id}/undo` : undefined;
 
 		return {
 			type: 'Undo',
@@ -760,10 +819,24 @@ export class ApRendererService {
 			poll = await this.pollsRepository.findOneBy({ noteId: note.id });
 		}
 
-		let apAppend = '';
+		const apAppend: Appender[] = [];
 
 		if (quote) {
-			apAppend += `\n\nRE: ${quote}`;
+			// Append quote link as `<br><br><span class="quote-inline">RE: <a href="...">...</a></span>`
+			// the claas name `quote-inline` is used in non-misskey clients for styling quote notes.
+			// For compatibility, the span part should be kept as possible.
+			apAppend.push((doc, body) => {
+				body.appendChild(doc.createElement('br'));
+				body.appendChild(doc.createElement('br'));
+				const span = doc.createElement('span');
+				span.className = 'quote-inline';
+				span.appendChild(doc.createTextNode('RE: '));
+				const link = doc.createElement('a');
+				link.setAttribute('href', quote);
+				link.textContent = quote;
+				span.appendChild(link);
+				body.appendChild(span);
+			});
 		}
 
 		let summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;

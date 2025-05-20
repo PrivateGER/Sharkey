@@ -6,7 +6,6 @@
 import * as mfm from '@transfem-org/sfm-js';
 import { Inject, Injectable } from '@nestjs/common';
 import ms from 'ms';
-import { JSDOM } from 'jsdom';
 import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mfm.js';
 import { extractHashtags } from '@/misc/extract-hashtags.js';
 import * as Acct from '@/misc/acct.js';
@@ -216,6 +215,7 @@ export const paramDef = {
 		autoSensitive: { type: 'boolean' },
 		followingVisibility: { type: 'string', enum: ['public', 'followers', 'private'] },
 		followersVisibility: { type: 'string', enum: ['public', 'followers', 'private'] },
+		chatScope: { type: 'string', enum: ['everyone', 'followers', 'following', 'mutual', 'none'] },
 		pinnedPageId: { type: 'string', format: 'misskey:id', nullable: true },
 		mutedWords: muteWords,
 		hardMutedWords: muteWords,
@@ -237,6 +237,7 @@ export const paramDef = {
 				receiveFollowRequest: notificationRecieveConfig,
 				followRequestAccepted: notificationRecieveConfig,
 				roleAssigned: notificationRecieveConfig,
+				chatRoomInvitationReceived: notificationRecieveConfig,
 				achievementEarned: notificationRecieveConfig,
 				app: notificationRecieveConfig,
 				test: notificationRecieveConfig,
@@ -326,10 +327,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.listenbrainz !== undefined) profileUpdates.listenbrainz = ps.listenbrainz;
 			if (ps.followingVisibility !== undefined) profileUpdates.followingVisibility = ps.followingVisibility;
 			if (ps.followersVisibility !== undefined) profileUpdates.followersVisibility = ps.followersVisibility;
+			if (ps.chatScope !== undefined) updates.chatScope = ps.chatScope;
 
 			function checkMuteWordCount(mutedWords: (string[] | string)[], limit: number) {
-				// TODO: ちゃんと数える
-				const length = JSON.stringify(mutedWords).length;
+				const length = mutedWords.reduce((sum, word) => {
+					const wordLength = Array.isArray(word)
+						? word.reduce((l, w) => l + w.length, 0)
+						: word.length;
+					return sum + wordLength;
+				}, 0);
+
 				if (length > limit) {
 					throw new ApiError(meta.errors.tooManyMutedWords);
 				}
@@ -611,7 +618,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// フォロワーにUpdateを配信
 			if (this.userNeedsPublishing(user, updates) || this.profileNeedsPublishing(profile, updatedProfile)) {
-				this.accountUpdateService.publishToFollowers(user.id);
+				this.accountUpdateService.publishToFollowers(user);
 			}
 
 			return iObj;
@@ -619,6 +626,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	}
 
 	// this function is superseded by '@/misc/verify-field-link.ts'
+	/*
 	private async verifyLink(url: string, user: MiLocalUser) {
 		if (!safeForSql(url)) return;
 
@@ -650,6 +658,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// なにもしない
 		}
 	}
+	*/
 
 	// these two methods need to be kept in sync with
 	// `ApRendererService.renderPerson`

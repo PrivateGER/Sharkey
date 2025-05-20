@@ -6,7 +6,7 @@
 import { URL } from 'node:url';
 import { Inject, Injectable } from '@nestjs/common';
 import * as parse5 from 'parse5';
-import { Window, XMLSerializer } from 'happy-dom';
+import { type Document, type HTMLParagraphElement, Window } from 'happy-dom';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { intersperse } from '@/misc/prelude/array.js';
@@ -22,6 +22,8 @@ type ChildNode = DefaultTreeAdapterMap['childNode'];
 
 const urlRegex = /^https?:\/\/[\w\/:%#@$&?!()\[\]~.,=+\-]+/;
 const urlRegexFull = /^https?:\/\/[\w\/:%#@$&?!()\[\]~.,=+\-]+$/;
+
+export type Appender = (document: Document, body: HTMLParagraphElement) => void;
 
 @Injectable()
 export class MfmService {
@@ -343,7 +345,7 @@ export class MfmService {
 	}
 
 	@bindThis
-	public toHtml(nodes: mfm.MfmNode[] | null, mentionedRemoteUsers: IMentionedRemoteUsers = []) {
+	public toHtml(nodes: mfm.MfmNode[] | null, mentionedRemoteUsers: IMentionedRemoteUsers = [], additionalAppenders: Appender[] = []) {
 		if (nodes == null) {
 			return null;
 		}
@@ -576,7 +578,11 @@ export class MfmService {
 
 		appendChildren(nodes, body);
 
-		const serialized = new XMLSerializer().serializeToString(body);
+		for (const additionalAppender of additionalAppenders) {
+			additionalAppender(doc, body);
+		}
+
+		const serialized = body.outerHTML;
 
 		happyDOM.close().catch(err => {});
 
@@ -847,13 +853,13 @@ export class MfmService {
 			body.appendChild(quote);
 		}
 
-		let result = new XMLSerializer().serializeToString(body);
+		let result = body.outerHTML;
 
 		if (inline) {
 			result = result.replace(/^<p>/, '').replace(/<\/p>$/, '');
 		}
 
-		happyDOM.close().catch(e => {});
+		happyDOM.close().catch(() => {});
 
 		return result;
 	}

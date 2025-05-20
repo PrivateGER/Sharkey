@@ -2,16 +2,6 @@ import Response from './response'
 import OAuth from './oauth'
 import Entity from './entity'
 
-export interface WebSocketInterface {
-  start(): void
-  stop(): void
-  // EventEmitter
-  on(event: string | symbol, listener: (...args: any[]) => void): this
-  once(event: string | symbol, listener: (...args: any[]) => void): this
-  removeListener(event: string | symbol, listener: (...args: any[]) => void): this
-  removeAllListeners(event?: string | symbol): this
-}
-
 export interface MegalodonInterface {
   /**
    * Cancel all requests in this instance.
@@ -1361,16 +1351,6 @@ export interface MegalodonInterface {
    * @return Reaction.
    **/
   getEmojiReaction(id: string, emoji: string): Promise<Response<Entity.Reaction>>
-
-  // ======================================
-  // WebSocket
-  // ======================================
-  userSocket(): WebSocketInterface
-  publicSocket(): WebSocketInterface
-  localSocket(): WebSocketInterface
-  tagSocket(tag: string): WebSocketInterface
-  listSocket(list_id: string): WebSocketInterface
-  directSocket(): WebSocketInterface
 }
 
 export class NoImplementedError extends Error {

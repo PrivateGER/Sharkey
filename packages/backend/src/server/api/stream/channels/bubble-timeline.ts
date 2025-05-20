@@ -53,9 +53,11 @@ class BubbleTimelineChannel extends Channel {
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 		if (!this.withBots && note.user.isBot) return;
 
-		if (!(note.user.host != null && this.instance.bubbleInstances.includes(note.user.host) && note.visibility === 'public' )) return;
-
+		if (note.visibility !== 'public') return;
 		if (note.channelId != null) return;
+		if (note.user.host == null) return;
+		if (!this.instance.bubbleInstances.includes(note.user.host)) return;
+		if (note.user.requireSigninToViewContents && this.user == null) return;
 
 		if (isRenotePacked(note) && !isQuotePacked(note) && !this.withRenotes) return;
 
@@ -65,8 +67,6 @@ class BubbleTimelineChannel extends Channel {
 
 		const clonedNote = await this.assignMyReaction(note);
 		await this.hideNote(clonedNote);
-
-		this.connection.cacheNote(clonedNote);
 
 		this.send('note', clonedNote);
 	}

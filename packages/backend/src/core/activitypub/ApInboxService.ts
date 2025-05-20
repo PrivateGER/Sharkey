@@ -354,7 +354,7 @@ export class ApInboxService {
 			try {
 				// The target ID is verified by secureResolve, so we know it shares host authority with the actor who sent it.
 				// This means we can pass that ID to resolveNote and avoid an extra fetch, which will fail if the note is private.
-				renote = await this.apNoteService.resolveNote(target, { resolver, sentFrom: new URL(getApId(target)) });
+				renote = await this.apNoteService.resolveNote(target, { resolver, sentFrom: getApId(target) });
 				if (renote == null) return 'announce target is null';
 			} catch (err) {
 				// 対象が4xxならスキップ
@@ -470,7 +470,7 @@ export class ApInboxService {
 	}
 
 	@bindThis
-	private async create(actor: MiRemoteUser, activity: ICreate | IUpdate, resolver?: Resolver): Promise<string | void> {
+	private async create(actor: MiRemoteUser, activity: ICreate | IUpdate, resolver?: Resolver, silent = false): Promise<string | void> {
 		const uri = getApId(activity);
 
 		this.logger.info(`Create: ${uri}`);
@@ -505,7 +505,7 @@ export class ApInboxService {
 		});
 
 		if (isPost(object)) {
-			await this.createNote(resolver, actor, object, false);
+			await this.createNote(resolver, actor, object, silent);
 		} else {
 			return `skip: Unsupported type for Create: ${getApType(object)} ${getNullableApId(object)}`;
 		}
@@ -598,18 +598,11 @@ export class ApInboxService {
 			return `skip: delete actor ${actor.uri} !== ${uri}`;
 		}
 
-		const user = await this.usersRepository.findOneBy({ id: actor.id });
-		if (user == null) {
-			return 'skip: actor not found';
-		} else if (user.isDeleted) {
-			return 'skip: already deleted';
+		if (!(await this.usersRepository.update({ id: actor.id, isDeleted: false }, { isDeleted: true })).affected) {
+			return 'skip: already deleted or actor not found';
 		}
 
 		const job = await this.queueService.createDeleteAccountJob(actor);
-
-		await this.usersRepository.update(actor.id, {
-			isDeleted: true,
-		});
 
 		this.globalEventService.publishInternalEvent('remoteUserUpdated', { id: actor.id });
 
@@ -896,7 +889,7 @@ export class ApInboxService {
 		} else if (getApType(object) === 'Question') {
 			// If we get an Update(Question) for a note that doesn't exist, then create it instead
 			if (!await this.apNoteService.hasNote(object)) {
-				return await this.create(actor, activity, resolver);
+				return await this.create(actor, activity, resolver, true);
 			}
 
 			await this.apQuestionService.updateQuestion(object, actor, resolver);
@@ -904,7 +897,7 @@ export class ApInboxService {
 		} else if (isPost(object)) {
 			// If we get an Update(Note) for a note that doesn't exist, then create it instead
 			if (!await this.apNoteService.hasNote(object)) {
-				return await this.create(actor, activity, resolver);
+				return await this.create(actor, activity, resolver, true);
 			}
 
 			await this.apNoteService.updateNote(object, actor, resolver);

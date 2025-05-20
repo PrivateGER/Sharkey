@@ -40,6 +40,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import type { AccountMoveService } from '@/core/AccountMoveService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import { AppLockService } from '@/core/AppLockService.js';
 import { MemoryKVCache } from '@/misc/cache.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { verifyFieldLinks } from '@/misc/verify-field-link.js';
@@ -114,7 +115,8 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 
 		private roleService: RoleService,
 		private readonly apUtilityService: ApUtilityService,
-		private httpRequestService: HttpRequestService,
+		private readonly httpRequestService: HttpRequestService,
+		private readonly appLockService: AppLockService,
 	) {
 	}
 
@@ -323,15 +325,21 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 
 		const host = this.utilityService.punyHost(uri);
 		if (host === this.utilityService.toPuny(this.config.host)) {
+			// TODO convert to unrecoverable error
 			throw new StatusError(`cannot resolve local user: ${uri}`, 400, 'cannot resolve local user');
 		}
+
+		return await this._createPerson(uri, resolver);
+	}
+
+	private async _createPerson(value: string | IObject, resolver?: Resolver): Promise<MiRemoteUser> {
+		const uri = getApId(value);
+		const host = this.utilityService.punyHost(uri);
 
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
 
-		const object = await resolver.resolve(uri);
-		if (object.id == null) throw new UnrecoverableError(`null object.id in ${uri}`);
-
+		const object = await resolver.resolve(value);
 		const person = this.validateActor(object, uri);
 
 		this.logger.info(`Creating the Person: ${person.id}`);
@@ -569,7 +577,7 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 				.catch(err => {
 					if (!(err instanceof StatusError) || err.isRetryable) {
 						this.logger.error('error occurred while fetching following/followers collection', { stack: err });
-						// Do not update the visibiility on transient errors.
+						// Do not update the visibility on transient errors.
 						return undefined;
 					}
 					return 'private';
@@ -592,7 +600,7 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 			inbox: person.inbox,
 			sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
 			followersUri: person.followers ? getApId(person.followers) : undefined,
-			featured: person.featured,
+			featured: person.featured ? getApId(person.featured) : undefined,
 			emojis: emojiNames,
 			name: truncate(person.name, nameLength),
 			tags,
@@ -632,7 +640,9 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		if (moving) updates.movedAt = new Date();
 
 		// Update user
-		await this.usersRepository.update(exist.id, updates);
+		if (!(await this.usersRepository.update({ id: exist.id, isDeleted: false }, updates)).affected) {
+			return `skip: user ${exist.id} is deleted`;
+		}
 
 		if (person.publicKey) {
 			const publicKey = new MiUserPublickey({
@@ -725,16 +735,36 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 	 * リモートサーバーからフェッチしてMisskeyに登録しそれを返します。
 	 */
 	@bindThis
-	public async resolvePerson(uri: string, resolver?: Resolver): Promise<MiLocalUser | MiRemoteUser> {
+	public async resolvePerson(value: string | IObject, resolver?: Resolver, sentFrom?: string): Promise<MiLocalUser | MiRemoteUser> {
+		const uri = getApId(value);
+
+		if (!this.utilityService.isFederationAllowedUri(uri)) {
+			// TODO convert to identifiable error
+			throw new StatusError(`blocked host: ${uri}`, 451, 'blocked host');
+		}
+
 		//#region このサーバーに既に登録されていたらそれを返す
 		const exist = await this.fetchPerson(uri);
 		if (exist) return exist;
 		//#endregion
 
-		// リモートサーバーからフェッチしてきて登録
-		// eslint-disable-next-line no-param-reassign
-		if (resolver == null) resolver = this.apResolverService.createResolver();
-		return await this.createPerson(uri, resolver);
+		// Bail if local URI doesn't exist
+		if (this.utilityService.isUriLocal(uri)) {
+			// TODO convert to identifiable error
+			throw new StatusError(`cannot resolve local person: ${uri}`, 400, 'cannot resolve local person');
+		}
+
+		const unlock = await this.appLockService.getApLock(uri);
+
+		try {
+			// Optimization: we can avoid re-fetching the value *if and only if* it matches the host authority that it was sent from.
+			// Instances can create any object within their host authority, but anything outside of that MUST be untrusted.
+			const haveSameAuthority = sentFrom && this.apUtilityService.haveSameAuthority(sentFrom, uri);
+			const createFrom = haveSameAuthority ? value : uri;
+			return await this._createPerson(createFrom, resolver);
+		} finally {
+			unlock();
+		}
 	}
 
 	@bindThis
@@ -756,7 +786,7 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 
 	@bindThis
 	public async updateFeatured(userId: MiUser['id'], resolver?: Resolver): Promise<void> {
-		const user = await this.usersRepository.findOneByOrFail({ id: userId });
+		const user = await this.usersRepository.findOneByOrFail({ id: userId, isDeleted: false });
 		if (!this.userEntityService.isRemoteUser(user)) return;
 		if (!user.featured) return;
 
@@ -788,7 +818,7 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 			.slice(0, maxPinned)
 			.map(item => limit(() => this.apNoteService.resolveNote(item, {
 				resolver: _resolver,
-				sentFrom: new URL(user.uri),
+				sentFrom: user.uri,
 			}))));
 
 		await this.db.transaction(async transactionalEntityManager => {

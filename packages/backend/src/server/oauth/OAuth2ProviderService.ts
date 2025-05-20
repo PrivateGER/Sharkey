@@ -3,18 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import querystring from 'querystring';
 import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
-/* import { kinds } from '@/misc/api-permissions.js';
-import type { Config } from '@/config.js';
-import { DI } from '@/di-symbols.js'; */
-import multer from 'fastify-multer';
 import { bindThis } from '@/decorators.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { getErrorData } from '@/server/api/mastodon/MastodonLogger.js';
+import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import type { FastifyInstance } from 'fastify';
 
 const kinds = [
@@ -59,6 +55,7 @@ export class OAuth2ProviderService {
 		private config: Config,
 
 		private readonly mastodonClientService: MastodonClientService,
+		private readonly serverUtilityService: ServerUtilityService,
 	) { }
 
 	// https://datatracker.ietf.org/doc/html/rfc8414.html
@@ -95,36 +92,10 @@ export class OAuth2ProviderService {
 			});
 		}); */
 
-		const upload = multer({
-			storage: multer.diskStorage({}),
-			limits: {
-				fileSize: this.config.maxFileSize || 262144000,
-				files: 1,
-			},
-		});
-
-		fastify.addHook('onRequest', (request, reply, done) => {
-			reply.header('Access-Control-Allow-Origin', '*');
-			done();
-		});
-
-		fastify.addContentTypeParser('application/x-www-form-urlencoded', (request, payload, done) => {
-			let body = '';
-			payload.on('data', (data) => {
-				body += data;
-			});
-			payload.on('end', () => {
-				try {
-					const parsed = querystring.parse(body);
-					done(null, parsed);
-				} catch (e: unknown) {
-					done(e instanceof Error ? e : new Error(String(e)));
-				}
-			});
-			payload.on('error', done);
-		});
-
-		fastify.register(multer.contentParser);
+		this.serverUtilityService.addMultipartFormDataContentType(fastify);
+		this.serverUtilityService.addFormUrlEncodedContentType(fastify);
+		this.serverUtilityService.addCORS(fastify);
+		this.serverUtilityService.addFlattenedQueryType(fastify);
 
 		for (const url of ['/authorize', '/authorize/']) {
 			fastify.get<{ Querystring: Record<string, string | string[] | undefined> }>(url, async (request, reply) => {
@@ -135,11 +106,11 @@ export class OAuth2ProviderService {
 				if (request.query.state) redirectUri.searchParams.set('state', String(request.query.state));
 				if (request.query.redirect_uri) redirectUri.searchParams.set('redirect_uri', String(request.query.redirect_uri));
 
-				reply.redirect(redirectUri.toString());
+				return reply.redirect(redirectUri.toString());
 			});
 		}
 
-		fastify.post<{ Body?: Record<string, string | string[] | undefined>, Querystring: Record<string, string | string[] | undefined> }>('/token', { preHandler: upload.none() }, async (request, reply) => {
+		fastify.post<{ Body?: Record<string, string | string[] | undefined>, Querystring: Record<string, string | string[] | undefined> }>('/token', async (request, reply) => {
 			const body = request.body ?? request.query;
 
 			if (body.grant_type === 'client_credentials') {
@@ -149,7 +120,7 @@ export class OAuth2ProviderService {
 					scope: 'read',
 					created_at: Math.floor(new Date().getTime() / 1000),
 				};
-				reply.send(ret);
+				return reply.send(ret);
 			}
 
 			try {
@@ -159,20 +130,20 @@ export class OAuth2ProviderService {
 				const secret = String(body.client_secret);
 				const code = body.code ? String(body.code) : '';
 
-				// TODO fetch the access token directly
+				// TODO fetch the access token directly, then remove all oauth code from megalodon
 				const client = this.mastodonClientService.getClient(request);
 				const atData = await client.fetchAccessToken(clientId, secret, code);
 
 				const ret = {
 					access_token: atData.accessToken,
 					token_type: 'Bearer',
-					scope: body.scope || 'read write follow push',
-					created_at: Math.floor(new Date().getTime() / 1000),
+					scope: atData.scope || body.scope || 'read write follow push',
+					created_at: atData.createdAt || Math.floor(new Date().getTime() / 1000),
 				};
-				reply.send(ret);
+				return reply.send(ret);
 			} catch (e: unknown) {
 				const data = getErrorData(e);
-				reply.code(401).send(data);
+				return reply.code(401).send(data);
 			}
 		});
 	}

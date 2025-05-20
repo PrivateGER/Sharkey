@@ -38,7 +38,7 @@ export class ApiStatusMastodon {
 				response.media_attachments = [];
 			}
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/statuses/:id/source', async (_request, reply) => {
@@ -47,7 +47,7 @@ export class ApiStatusMastodon {
 			const client = this.clientService.getClient(_request);
 			const data = await client.getStatusSource(_request.params.id);
 
-			reply.send(data.data);
+			return reply.send(data.data);
 		});
 
 		fastify.get<{ Params: { id?: string }, Querystring: TimelineArgs }>('/v1/statuses/:id/context', async (_request, reply) => {
@@ -55,11 +55,11 @@ export class ApiStatusMastodon {
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const { data } = await client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query));
-			const ancestors = await Promise.all(data.ancestors.map(async status => await this.mastoConverters.convertStatus(status, me)));
-			const descendants = await Promise.all(data.descendants.map(async status => await this.mastoConverters.convertStatus(status, me)));
+			const ancestors = await Promise.all(data.ancestors.map(async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me)));
+			const descendants = await Promise.all(data.descendants.map(async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me)));
 			const response = { ancestors, descendants };
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/statuses/:id/history', async (_request, reply) => {
@@ -68,7 +68,7 @@ export class ApiStatusMastodon {
 			const user = await this.clientService.getAuth(_request);
 			const edits = await this.mastoConverters.getEdits(_request.params.id, user);
 
-			reply.send(edits);
+			return reply.send(edits);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/statuses/:id/reblogged_by', async (_request, reply) => {
@@ -78,7 +78,7 @@ export class ApiStatusMastodon {
 			const data = await client.getStatusRebloggedBy(_request.params.id);
 			const response = await Promise.all(data.data.map((account: Entity.Account) => this.mastoConverters.convertAccount(account)));
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/statuses/:id/favourited_by', async (_request, reply) => {
@@ -88,7 +88,7 @@ export class ApiStatusMastodon {
 			const data = await client.getStatusFavouritedBy(_request.params.id);
 			const response = await Promise.all(data.data.map((account: Entity.Account) => this.mastoConverters.convertAccount(account)));
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/media/:id', async (_request, reply) => {
@@ -98,7 +98,7 @@ export class ApiStatusMastodon {
 			const data = await client.getMedia(_request.params.id);
 			const response = convertAttachment(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/polls/:id', async (_request, reply) => {
@@ -108,7 +108,7 @@ export class ApiStatusMastodon {
 			const data = await client.getPoll(_request.params.id);
 			const response = convertPoll(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string }, Body: { choices?: number[] } }>('/v1/polls/:id/votes', async (_request, reply) => {
@@ -119,7 +119,7 @@ export class ApiStatusMastodon {
 			const data = await client.votePoll(_request.params.id, _request.body.choices);
 			const response = convertPoll(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{
@@ -161,14 +161,14 @@ export class ApiStatusMastodon {
 					body.in_reply_to_id,
 					removed,
 				);
-				reply.send(a.data);
+				return reply.send(a.data);
 			}
 			if (body.in_reply_to_id && removed === '/unreact') {
 				const id = body.in_reply_to_id;
 				const post = await client.getStatus(id);
-				const react = post.data.emoji_reactions.filter(e => e.me)[0].name;
+				const react = post.data.emoji_reactions.filter((e: Entity.Emoji) => e.me)[0].name;
 				const data = await client.deleteEmojiReaction(id, react);
-				reply.send(data.data);
+				return reply.send(data.data);
 			}
 			if (!body.media_ids) body.media_ids = undefined;
 			if (body.media_ids && !body.media_ids.length) body.media_ids = undefined;
@@ -194,7 +194,7 @@ export class ApiStatusMastodon {
 			const data = await client.postStatus(text, options);
 			const response = await this.mastoConverters.convertStatus(data.data as Entity.Status, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.put<{
@@ -233,7 +233,7 @@ export class ApiStatusMastodon {
 			const data = await client.editStatus(_request.params.id, options);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/favourite', async (_request, reply) => {
@@ -243,7 +243,7 @@ export class ApiStatusMastodon {
 			const data = await client.createEmojiReaction(_request.params.id, '❤');
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/unfavourite', async (_request, reply) => {
@@ -253,7 +253,7 @@ export class ApiStatusMastodon {
 			const data = await client.deleteEmojiReaction(_request.params.id, '❤');
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/reblog', async (_request, reply) => {
@@ -263,7 +263,7 @@ export class ApiStatusMastodon {
 			const data = await client.reblogStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/unreblog', async (_request, reply) => {
@@ -273,7 +273,7 @@ export class ApiStatusMastodon {
 			const data = await client.unreblogStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/bookmark', async (_request, reply) => {
@@ -283,7 +283,7 @@ export class ApiStatusMastodon {
 			const data = await client.bookmarkStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/unbookmark', async (_request, reply) => {
@@ -293,7 +293,7 @@ export class ApiStatusMastodon {
 			const data = await client.unbookmarkStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/pin', async (_request, reply) => {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
@@ -302,7 +302,7 @@ export class ApiStatusMastodon {
 			const data = await client.pinStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/unpin', async (_request, reply) => {
@@ -312,7 +312,7 @@ export class ApiStatusMastodon {
 			const data = await client.unpinStatus(_request.params.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string, name?: string } }>('/v1/statuses/:id/react/:name', async (_request, reply) => {
@@ -323,7 +323,7 @@ export class ApiStatusMastodon {
 			const data = await client.createEmojiReaction(_request.params.id, _request.params.name);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string, name?: string } }>('/v1/statuses/:id/unreact/:name', async (_request, reply) => {
@@ -334,7 +334,7 @@ export class ApiStatusMastodon {
 			const data = await client.deleteEmojiReaction(_request.params.id, _request.params.name);
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.delete<{ Params: { id?: string } }>('/v1/statuses/:id', async (_request, reply) => {
@@ -343,7 +343,7 @@ export class ApiStatusMastodon {
 			const client = this.clientService.getClient(_request);
 			const data = await client.deleteStatus(_request.params.id);
 
-			reply.send(data.data);
+			return reply.send(data.data);
 		});
 	}
 }

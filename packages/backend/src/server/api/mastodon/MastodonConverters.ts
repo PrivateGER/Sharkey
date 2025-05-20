@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { Entity } from 'megalodon';
+import { Entity, MastodonEntity, MisskeyEntity } from 'megalodon';
 import mfm from '@transfem-org/sfm-js';
 import { MastodonNotificationType } from 'megalodon/lib/src/mastodon/notification.js';
 import { NotificationType } from 'megalodon/lib/src/notification.js';
@@ -275,7 +275,7 @@ export class MastodonConverters {
 			this.getUser(p)
 				.then(u => this.encode(u, mentionedRemoteUsers))
 				.catch(() => null)))
-			.then(p => p.filter(m => m)) as Promise<Entity.Mention[]>;
+			.then((p: Entity.Mention[]) => p.filter(m => m));
 
 		const tags = note.tags.map(tag => {
 			return {
@@ -327,7 +327,7 @@ export class MastodonConverters {
 			sensitive: status.sensitive || !!cw,
 			spoiler_text: cw,
 			visibility: status.visibility,
-			media_attachments: status.media_attachments.map(a => convertAttachment(a)),
+			media_attachments: status.media_attachments.map((a: Entity.Account) => convertAttachment(a)),
 			mentions: mentions,
 			tags: tags,
 			card: null, //FIXME
@@ -345,7 +345,7 @@ export class MastodonConverters {
 	public async convertConversation(conversation: Entity.Conversation, me: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
 		return {
 			id: conversation.id,
-			accounts: await Promise.all(conversation.accounts.map(a => this.convertAccount(a))),
+			accounts: await Promise.all(conversation.accounts.map((a: Entity.Account) => this.convertAccount(a))),
 			last_status: conversation.last_status ? await this.convertStatus(conversation.last_status, me) : null,
 			unread: conversation.unread,
 		};
@@ -367,6 +367,15 @@ export class MastodonConverters {
 			id: notification.id,
 			status,
 			type: convertNotificationType(notification.type as NotificationType),
+		};
+	}
+
+	public convertApplication(app: MisskeyEntity.App): MastodonEntity.Application {
+		return {
+			name: app.name,
+			scopes: app.permission,
+			redirect_uri: app.callbackUrl,
+			redirect_uris: [app.callbackUrl],
 		};
 	}
 }
@@ -459,4 +468,3 @@ export function convertRelationship(relationship: Partial<Entity.Relationship> &
 		note: relationship.note ?? '',
 	};
 }
-

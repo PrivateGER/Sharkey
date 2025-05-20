@@ -27,17 +27,19 @@ export type DataObject = Record<string, unknown> | (object & { length?: never; }
 export default class Logger {
 	private context: Context;
 	private parentLogger: Logger | null = null;
+	public readonly verbose: boolean;
 
-	constructor(context: string, color?: KEYWORD) {
+	constructor(context: string, color?: KEYWORD, verbose?: boolean) {
 		this.context = {
 			name: context,
 			color: color,
 		};
+		this.verbose = verbose ?? envOption.verbose;
 	}
 
 	@bindThis
 	public createSubLogger(context: string, color?: KEYWORD): Logger {
-		const logger = new Logger(context, color);
+		const logger = new Logger(context, color, this.verbose);
 		logger.parentLogger = this;
 		return logger;
 	}
@@ -110,7 +112,7 @@ export default class Logger {
 
 	@bindThis
 	public debug(message: string, data?: Data, important = false): void { // デバッグ用に使う(開発者に必要だが利用者に不要な情報)
-		if (process.env.NODE_ENV !== 'production' || envOption.verbose) {
+		if (process.env.NODE_ENV !== 'production' || this.verbose) {
 			this.log('debug', message, data, important);
 		}
 	}

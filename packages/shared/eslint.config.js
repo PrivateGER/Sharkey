@@ -44,4 +44,10 @@ export default [
 			'no-param-reassign': 'off',
 		},
 	},
+	{
+		files: ['src/**/*.stories.ts'],
+		rules: {
+			'no-restricted-globals': 'off',
+		}
+	},
 ];

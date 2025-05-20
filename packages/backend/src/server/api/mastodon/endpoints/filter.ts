@@ -8,7 +8,6 @@ import { toBoolean } from '@/server/api/mastodon/argsUtils.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { convertFilter } from '../MastodonConverters.js';
 import type { FastifyInstance } from 'fastify';
-import type multer from 'fastify-multer';
 
 interface ApiFilterMastodonRoute {
 	Params: {
@@ -29,14 +28,14 @@ export class ApiFilterMastodon {
 		private readonly clientService: MastodonClientService,
 	) {}
 
-	public register(fastify: FastifyInstance, upload: ReturnType<typeof multer>): void {
+	public register(fastify: FastifyInstance): void {
 		fastify.get('/v1/filters', async (_request, reply) => {
 			const client = this.clientService.getClient(_request);
 
 			const data = await client.getFilters();
 			const response = data.data.map((filter) => convertFilter(filter));
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', async (_request, reply) => {
@@ -46,10 +45,10 @@ export class ApiFilterMastodon {
 			const data = await client.getFilter(_request.params.id);
 			const response = convertFilter(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
-		fastify.post<ApiFilterMastodonRoute>('/v1/filters', { preHandler: upload.single('none') }, async (_request, reply) => {
+		fastify.post<ApiFilterMastodonRoute>('/v1/filters', async (_request, reply) => {
 			if (!_request.body.phrase) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "phrase"' });
 			if (!_request.body.context) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "context"' });
 
@@ -65,10 +64,10 @@ export class ApiFilterMastodon {
 			const data = await client.createFilter(_request.body.phrase, _request.body.context, options);
 			const response = convertFilter(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
-		fastify.post<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', { preHandler: upload.single('none') }, async (_request, reply) => {
+		fastify.post<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', async (_request, reply) => {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 			if (!_request.body.phrase) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "phrase"' });
 			if (!_request.body.context) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "context"' });
@@ -85,7 +84,7 @@ export class ApiFilterMastodon {
 			const data = await client.updateFilter(_request.params.id, _request.body.phrase, _request.body.context, options);
 			const response = convertFilter(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.delete<ApiFilterMastodonRoute & { Params: { id?: string } }>('/v1/filters/:id', async (_request, reply) => {
@@ -94,7 +93,7 @@ export class ApiFilterMastodon {
 			const client = this.clientService.getClient(_request);
 			const data = await client.deleteFilter(_request.params.id);
 
-			reply.send(data.data);
+			return reply.send(data.data);
 		});
 	}
 }

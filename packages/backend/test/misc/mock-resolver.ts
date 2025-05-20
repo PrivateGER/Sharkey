@@ -7,14 +7,10 @@ import type { Config } from '@/config.js';
 import type { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import type { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import type { ApRequestService } from '@/core/activitypub/ApRequestService.js';
-import { Resolver } from '@/core/activitypub/ApResolverService.js';
 import type { IObject, IObjectWithId } from '@/core/activitypub/type.js';
 import type { HttpRequestService } from '@/core/HttpRequestService.js';
-import type { InstanceActorService } from '@/core/InstanceActorService.js';
 import type { LoggerService } from '@/core/LoggerService.js';
-import type { MetaService } from '@/core/MetaService.js';
 import type { UtilityService } from '@/core/UtilityService.js';
-import { bindThis } from '@/decorators.js';
 import type {
 	FollowRequestsRepository,
 	MiMeta,
@@ -26,6 +22,9 @@ import type {
 import { ApLogService } from '@/core/ApLogService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
 import { fromTuple } from '@/misc/from-tuple.js';
+import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { bindThis } from '@/decorators.js';
+import { Resolver } from '@/core/activitypub/ApResolverService.js';
 
 type MockResponse = {
 	type: string;
@@ -46,7 +45,7 @@ export class MockResolver extends Resolver {
 			{} as NoteReactionsRepository,
 			{} as FollowRequestsRepository,
 			{} as UtilityService,
-			{} as InstanceActorService,
+			{} as SystemAccountService,
 			{} as ApRequestService,
 			{} as HttpRequestService,
 			{} as ApRendererService,

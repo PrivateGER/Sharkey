@@ -28,7 +28,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map((status: Entity.Status) => this.mastoConverters.convertStatus(status, me)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Querystring: TimelineArgs }>('/v1/timelines/home', async (request, reply) => {
@@ -38,7 +38,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map((status: Entity.Status) => this.mastoConverters.convertStatus(status, me)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { hashtag?: string }, Querystring: TimelineArgs }>('/v1/timelines/tag/:hashtag', async (request, reply) => {
@@ -50,7 +50,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map((status: Entity.Status) => this.mastoConverters.convertStatus(status, me)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string }, Querystring: TimelineArgs }>('/v1/timelines/list/:id', async (request, reply) => {
@@ -62,7 +62,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map(async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Querystring: TimelineArgs }>('/v1/conversations', async (request, reply) => {
@@ -72,7 +72,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map((conversation: Entity.Conversation) => this.mastoConverters.convertConversation(conversation, me)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/lists/:id', async (_request, reply) => {
@@ -82,7 +82,7 @@ export class ApiTimelineMastodon {
 			const data = await client.getList(_request.params.id);
 			const response = convertList(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get('/v1/lists', async (request, reply) => {
@@ -91,7 +91,7 @@ export class ApiTimelineMastodon {
 			const response = data.data.map((list: Entity.List) => convertList(list));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.get<{ Params: { id?: string }, Querystring: TimelineArgs }>('/v1/lists/:id/accounts', async (request, reply) => {
@@ -102,7 +102,7 @@ export class ApiTimelineMastodon {
 			const response = await Promise.all(data.data.map((account: Entity.Account) => this.mastoConverters.convertAccount(account)));
 
 			attachMinMaxPagination(request, reply, response);
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.post<{ Params: { id?: string }, Querystring: { accounts_id?: string[] } }>('/v1/lists/:id/accounts', async (_request, reply) => {
@@ -112,7 +112,7 @@ export class ApiTimelineMastodon {
 			const client = this.clientService.getClient(_request);
 			const data = await client.addAccountsToList(_request.params.id, _request.query.accounts_id);
 
-			reply.send(data.data);
+			return reply.send(data.data);
 		});
 
 		fastify.delete<{ Params: { id?: string }, Querystring: { accounts_id?: string[] } }>('/v1/lists/:id/accounts', async (_request, reply) => {
@@ -122,7 +122,7 @@ export class ApiTimelineMastodon {
 			const client = this.clientService.getClient(_request);
 			const data = await client.deleteAccountsFromList(_request.params.id, _request.query.accounts_id);
 
-			reply.send(data.data);
+			return reply.send(data.data);
 		});
 
 		fastify.post<{ Body: { title?: string } }>('/v1/lists', async (_request, reply) => {
@@ -132,7 +132,7 @@ export class ApiTimelineMastodon {
 			const data = await client.createList(_request.body.title);
 			const response = convertList(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.put<{ Params: { id?: string }, Body: { title?: string } }>('/v1/lists/:id', async (_request, reply) => {
@@ -143,7 +143,7 @@ export class ApiTimelineMastodon {
 			const data = await client.updateList(_request.params.id, _request.body.title);
 			const response = convertList(data.data);
 
-			reply.send(response);
+			return reply.send(response);
 		});
 
 		fastify.delete<{ Params: { id?: string } }>('/v1/lists/:id', async (_request, reply) => {
@@ -152,7 +152,7 @@ export class ApiTimelineMastodon {
 			const client = this.clientService.getClient(_request);
 			await client.deleteList(_request.params.id);
 
-			reply.send({});
+			return reply.send({});
 		});
 	}
 }
