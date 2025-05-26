@@ -60,7 +60,7 @@ export class MiMeta {
 	public maintainerEmail: string | null;
 
 	@Column('boolean', {
-		default: false,
+		default: true,
 	})
 	public disableRegistration: boolean;
 
@@ -431,7 +431,7 @@ export class MiMeta {
 	@Column('varchar', {
 		length: 1024,
 		default: 'https://activitypub.software/TransFem-org/Sharkey/',
-		nullable: false,
+		nullable: true,
 	})
 	public repositoryUrl: string | null;
 
@@ -618,8 +618,8 @@ export class MiMeta {
 	})
 	public enableAchievements: boolean;
 
-	@Column('varchar', {
-		length: 2048, nullable: true,
+	@Column('text', {
+		nullable: true,
 	})
 	public robotsTxt: string | null;
 
@@ -649,7 +649,7 @@ export class MiMeta {
 	public bannedEmailDomains: string[];
 
 	@Column('varchar', {
-		length: 1024, array: true, default: '{ "admin", "administrator", "root", "system", "maintainer", "host", "mod", "moderator", "owner", "superuser", "staff", "auth", "i", "me", "everyone", "all", "mention", "mentions", "example", "user", "users", "account", "accounts", "official", "help", "helps", "support", "supports", "info", "information", "informations", "announce", "announces", "announcement", "announcements", "notice", "notification", "notifications", "dev", "developer", "developers", "tech", "misskey" }',
+		length: 1024, array: true, default: '{admin,administrator,root,system,maintainer,host,mod,moderator,owner,superuser,staff,auth,i,me,everyone,all,mention,mentions,example,user,users,account,accounts,official,help,helps,support,supports,info,information,informations,announce,announces,announcement,announcements,notice,notification,notifications,dev,developer,developers,tech,misskey}',
 	})
 	public preservedUsernames: string[];
 
@@ -664,22 +664,22 @@ export class MiMeta {
 	public enableFanoutTimelineDbFallback: boolean;
 
 	@Column('integer', {
-		default: 300,
+		default: 800,
 	})
 	public perLocalUserUserTimelineCacheMax: number;
 
 	@Column('integer', {
-		default: 100,
+		default: 800,
 	})
 	public perRemoteUserUserTimelineCacheMax: number;
 
 	@Column('integer', {
-		default: 300,
+		default: 800,
 	})
 	public perUserHomeTimelineCacheMax: number;
 
 	@Column('integer', {
-		default: 300,
+		default: 800,
 	})
 	public perUserListTimelineCacheMax: number;
 
@@ -695,9 +695,9 @@ export class MiMeta {
 
 	@Column('varchar', {
 		length: 500,
-		nullable: true,
+		default: '❤️',
 	})
-	public defaultLike: string | null;
+	public defaultLike: string;
 
 	@Column('varchar', {
 		length: 256, array: true, default: '{}',
@@ -720,7 +720,7 @@ export class MiMeta {
 	public urlPreviewMaximumContentLength: number;
 
 	@Column('boolean', {
-		default: true,
+		default: false,
 	})
 	public urlPreviewRequireContentLength: boolean;
 

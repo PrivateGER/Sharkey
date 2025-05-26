@@ -88,14 +88,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							:isAnim="allowAnim"
 							:isBlock="true"
 						/>
-						<div v-if="translating || translation != null" :class="$style.translation">
-							<MkLoading v-if="translating" mini/>
-							<div v-else-if="translation && translation.text != null">
-								<b>{{ i18n.tsx.translatedFrom({ x: translation.sourceLang }) }}: </b>
-								<Mfm :text="translation.text" :isBlock="true" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis" class="_selectable"/>
-							</div>
-							<div v-else>{{ i18n.ts.translationFailed }}</div>
-						</div>
+						<SkNoteTranslation :note="note" :translation="translation" :translating="translating"></SkNoteTranslation>
 						<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 						<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
 					</div>
@@ -104,7 +97,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :author="appearNote.user" :emojiUrls="appearNote.emojis" :class="$style.poll" @click.stop/>
 					<div v-if="isEnabledUrlPreview">
-						<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="[appearNote.renote?.id]" :class="$style.urlPreview" @click.stop/>
+						<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" :class="$style.urlPreview" @click.stop/>
 					</div>
 					<div v-if="appearNote.renote" :class="$style.quote"><SkNoteSimple :note="appearNote.renote" :class="$style.quoteNote"/></div>
 					<button v-if="isLong && collapsed" :class="$style.collapsed" class="_button" @click.stop @click="collapsed = false">
@@ -192,7 +185,7 @@ import * as mfm from '@transfem-org/sfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
-import { host } from '@@/js/config.js';
+import * as config from '@@/js/config.js';
 import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import type { Ref } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
@@ -241,6 +234,9 @@ import { getPluginHandlers } from '@/plugin.js';
 import { DI } from '@/di.js';
 import { useRouter } from '@/router.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
+import SkNoteTranslation from '@/components/SkNoteTranslation.vue';
+import { getSelfNoteIds } from '@/utility/get-self-note-ids.js';
+import { extractPreviewUrls } from '@/utility/extract-preview-urls.js';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -308,7 +304,8 @@ const galleryEl = useTemplateRef('galleryEl');
 const isMyRenote = $i && ($i.id === note.value.userId);
 const showContent = ref(prefer.s.uncollapseCW);
 const parsed = computed(() => appearNote.value.text ? mfm.parse(appearNote.value.text) : null);
-const urls = computed(() => parsed.value ? extractUrlFromMfm(parsed.value).filter((url) => appearNote.value.renote?.url !== url && appearNote.value.renote?.uri !== url) : null);
+const urls = computed(() => parsed.value ? extractPreviewUrls(props.note, parsed.value) : null);
+const selfNoteIds = computed(() => getSelfNoteIds(props.note));
 const isLong = shouldCollapsed(appearNote.value, urls.value ?? []);
 const collapsed = ref(prefer.s.expandLongNote && appearNote.value.cw == null && isLong ? false : appearNote.value.cw == null && isLong);
 const isDeleted = ref(false);
@@ -331,7 +328,7 @@ const allowAnim = ref(prefer.s.advancedMfm && prefer.s.animatedMfm);
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
-	url: appearNote.value.url ?? appearNote.value.uri ?? `https://${host}/notes/${appearNote.value.id}`,
+	url: appearNote.value.url ?? appearNote.value.uri ?? `${config.url}/notes/${appearNote.value.id}`,
 }));
 
 const mergedCW = computed(() => computeMergedCw(appearNote.value));
@@ -1201,13 +1198,6 @@ function emitUpdReaction(emoji: string, delta: number) {
 .replyIcon {
 	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
-}
-
-.translation {
-	border: solid 0.5px var(--MI_THEME-divider);
-	border-radius: var(--MI-radius);
-	padding: 12px;
-	margin-top: 8px;
 }
 
 .urlPreview {

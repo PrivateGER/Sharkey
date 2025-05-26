@@ -481,6 +481,10 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			defaultLike: {
+				type: 'string',
+				optional: false, nullable: false,
+			},
 			description: {
 				type: 'string',
 				optional: false, nullable: true,

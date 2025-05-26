@@ -81,7 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, ref, shallowRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { computeMergedCw } from '@@/js/compute-merged-cw.js';
-import { host } from '@@/js/config.js';
+import * as config from '@@/js/config.js';
 import type { Visibility } from '@/utility/boost-quote.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
@@ -150,7 +150,7 @@ const isRenote = (
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
-	url: appearNote.value.url ?? appearNote.value.uri ?? `https://${host}/notes/${appearNote.value.id}`,
+	url: appearNote.value.url ?? appearNote.value.uri ?? `${config.url}/notes/${appearNote.value.id}`,
 }));
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {

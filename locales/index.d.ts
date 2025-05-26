@@ -2447,7 +2447,7 @@ export interface Locale extends ILocale {
      */
     "disablePagesScript": string;
     /**
-     * リモートユーザー情報の更新
+     * Refresh remote data
      */
     "updateRemoteUser": string;
     /**
@@ -13070,6 +13070,10 @@ export interface Locale extends ILocale {
      */
     "wordMuteTestNoMatch": string;
     /**
+     * All word mutes are *case-sensitive* and match on any substring, including part of a longer word or name. You can use regular expressions for more precise control.
+     */
+    "wordMuteWarning": string;
+    /**
      * Bubble timeline
      */
     "bubbleTimeline": string;
@@ -13089,6 +13093,58 @@ export interface Locale extends ILocale {
      * Users popular on {name}
      */
     "popularUsersLocal": ParameterizedString<"name">;
+    /**
+     * Silenced
+     */
+    "silenced": string;
+    /**
+     * Total followers
+     */
+    "totalFollowers": string;
+    /**
+     * Total following
+     */
+    "totalFollowing": string;
+    /**
+     * Local followers
+     */
+    "localFollowers": string;
+    /**
+     * Local following
+     */
+    "localFollowing": string;
+    /**
+     * Remote followers
+     */
+    "remoteFollowers": string;
+    /**
+     * Remote following
+     */
+    "remoteFollowing": string;
+    /**
+     * Activity Pub
+     */
+    "activityPub": string;
+    /**
+     * IP
+     */
+    "ip": string;
+    /**
+     * The date is when IP address was first used.
+     */
+    "ipTip": string;
+    /**
+     * Period
+     */
+    "rolePeriod": string;
+    /**
+     * Assigned
+     */
+    "roleAssigned": string;
+    /**
+     * automatic
+     */
+    "roleAutomatic": string;
     /**
      * Translation timeout
      */

@@ -236,6 +236,8 @@ export class HttpRequestService {
 
 	@bindThis
 	public async getActivityJson(url: string, isLocalAddressAllowed = false): Promise<IObjectWithId> {
+		this.apUtilityService.assertApUrl(url);
+
 		const res = await this.send(url, {
 			method: 'GET',
 			headers: {

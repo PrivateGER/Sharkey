@@ -1106,6 +1106,7 @@ watch([
 	fontSize,
 	useSystemFont,
 	makeEveryTextElementsSelectable,
+	noteDesign,
 ], async () => {
 	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
 });

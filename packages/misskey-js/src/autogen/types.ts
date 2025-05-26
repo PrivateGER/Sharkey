@@ -9259,6 +9259,7 @@ export type operations = {
             libreTranslateKey: string | null;
             defaultDarkTheme: string | null;
             defaultLightTheme: string | null;
+            defaultLike: string;
             description: string | null;
             disableRegistration: boolean;
             impressumUrl: string | null;
@@ -11222,6 +11223,14 @@ export type operations = {
                 expiresAt: string | null;
                 roleId: string;
               })[];
+            followStats: {
+              totalFollowing: number;
+              totalFollowers: number;
+              localFollowing: number;
+              localFollowers: number;
+              remoteFollowing: number;
+              remoteFollowers: number;
+            };
           };
         };
       };
@@ -12129,7 +12138,7 @@ export type operations = {
           description?: string | null;
           defaultLightTheme?: string | null;
           defaultDarkTheme?: string | null;
-          defaultLike?: string | null;
+          defaultLike?: string;
           cacheRemoteFiles?: boolean;
           cacheRemoteSensitiveFiles?: boolean;
           emailRequiredForSignup?: boolean;
