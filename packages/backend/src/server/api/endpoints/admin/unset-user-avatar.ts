@@ -50,7 +50,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 				avatarBlurhash: null,
 			});
 
-			this.moderationLogService.log(me, 'unsetUserAvatar', {
+			await this.moderationLogService.log(me, 'unsetUserAvatar', {
 				userId: user.id,
 				userUsername: user.username,
 				userHost: user.host,
