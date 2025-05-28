@@ -65,10 +65,15 @@ export class VideoProcessingService {
 	 */
 	@bindThis
 	public async webOptimizeVideo(source: string, mimeType: string): Promise<void> {
-		const supportedMimeTypes = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+		const supportedMimeTypes = new Map([
+			['video/mp4', 'mp4'],
+			['video/quicktime', 'mov'],
+			['video/webm', 'webm'],
+		]);
 
-		if (!supportedMimeTypes.has(mimeType)) {
-			this.logger.debug(`Skipping web optimization for unsupported MIME type: ${mimeType}`);
+		const outputFormat = supportedMimeTypes.get(mimeType);
+		if (!outputFormat) {
+			this.logger.info(`Skipping web optimization for unsupported MIME type: ${mimeType}`);
 			return;
 		}
 
@@ -77,17 +82,23 @@ export class VideoProcessingService {
 		try {
 			await new Promise<void>((resolve, reject) => {
 				FFmpeg(source)
+					.format(outputFormat) // Specify output format
 					.addOutputOptions('-c copy') // Copy streams without re-encoding
 					.addOutputOptions('-movflags +faststart')
 					.on('error', reject)
-					.on('end', () => resolve())
+					.on('end', async () => {
+						try {
+							// Replace original file with optimized version
+							const fs = await import('node:fs/promises');
+							await fs.copyFile(tempPath, source);
+							this.logger.info(`Web-optimized video: ${source}`);
+							resolve();
+						} catch (copyError) {
+							reject(copyError);
+						}
+					})
 					.save(tempPath);
 			});
-
-			// Replace original file with optimized version
-			const fs = await import('node:fs/promises');
-			await fs.copyFile(tempPath, source);
-			this.logger.debug(`Web-optimized video: ${source}`);
 		} catch (error) {
 			this.logger.warn(`Failed to web-optimize video: ${source}`, { error });
 			throw error;
