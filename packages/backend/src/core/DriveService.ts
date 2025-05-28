@@ -159,6 +159,10 @@ export class DriveService {
 		// thunbnail, webpublic を必要なら生成
 		const alts = await this.generateAlts(path, type, !file.uri);
 
+		if (type && type.startsWith('video/')) {
+			await this.videoProcessingService.webOptimizeVideo(path, type);
+		}
+
 		if (this.meta.useObjectStorage) {
 		//#region ObjectStorage params
 			let [ext] = (name.match(/\.([a-zA-Z0-9_-]+)$/) ?? ['']);
