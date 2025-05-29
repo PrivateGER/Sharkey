@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkStickyContainer>
 	<template #header><MkPageHeader :actions="headerActions" :tabs="headerTabs"/></template>
 	<MkPullToRefresh :refresher="() => fetchPosts">
-		<MkSpacer :contentMax="800">
+		<div class="_spacer" style="--MI_SPACER-w: 800px;">
 			<div class="top-posts">
 				<div v-if="!$i" class="empty">
 					<img src="https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/frontend/assets/about-icon.png" class="_ghost"/>
@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 			</div>
-		</MkSpacer>
+		</div>
 	</MkPullToRefresh>
 </MkStickyContainer>
 </template>

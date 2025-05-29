@@ -22,7 +22,7 @@ definePage(() => ({
 <MkStickyContainer>
 	<template #header><MkPageHeader v-model:tab="tab" :tabs="headerTabs"/></template>
 
-	<MkSpacer :contentMax="800">
+	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<h1>PlasmaTrap-owned services</h1>
 		<p>There are several more things being hosted by PlasmaTrap, we aren't just a Sharkey server!</p>
 
@@ -116,7 +116,7 @@ definePage(() => ({
 
 		<p>PlasmaTrap is also available as a Tor hidden service, which is a mirror of the main site and will behave mostly the same. It's a bit slower than the main site (but still a very fast Hidden Service).<br />It will be available wherever you can connect to Tor.</p>
 
-	</MkSpacer>
+	</div>
 </MkStickyContainer>
 </template>
 

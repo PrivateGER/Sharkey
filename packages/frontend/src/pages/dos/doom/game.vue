@@ -6,11 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkStickyContainer>
 	<template #header><MkPageHeader/></template>
-	<MkSpacer :contentMax="800">
+	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div class="_gaps">
 			<iframe src="/client-assets/doom/doom.html" height="535" width="800" frameborder="0" border="0"></iframe>
 		</div>
-	</MkSpacer>
+	</div>
 </MkStickyContainer>
 </template>
 
