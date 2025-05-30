@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="viewTransitionName: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
 			<MkA :class="$style.item" :activeClass="$style.active" to="/services">
-				<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Services</span>
+				<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Info</span>
 			</MkA>
 			<button class="_button" :class="$style.item" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw" style="viewTransitionName: navbar-more;"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>

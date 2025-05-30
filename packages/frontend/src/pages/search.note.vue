@@ -188,7 +188,6 @@ const searchQuery = ref(toRef(props, 'query').value);
 const hostInput = ref(toRef(props, 'host').value);
 const order = ref(true);
 const filetype = ref<'image' | 'video' | 'audio' | 'module' | 'flash' | null>(null);
-const similarSearch = ref(false);
 
 const user = shallowRef<Misskey.entities.UserDetailed | null>(null);
 
@@ -347,7 +346,6 @@ async function search() {
 			...searchParams.value,
 			order: order.value ? 'desc' : 'asc',
 			filetype: filetype.value,
-			similarSearch: similarSearch.value,
 		},
 	};
 
