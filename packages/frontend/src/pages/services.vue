@@ -93,11 +93,11 @@ definePage(() => ({
 			<p>There are several more things being hosted by PlasmaTrap, we aren't just a Sharkey server!</p>
 
 			<!-- PlasmaTrap.net -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<i class="ph-planet ph-bold"></i>
 				</template>
-				<template #header>
+				<template #label>
 					PlasmaTrap.NET
 				</template>
 				<div style="padding: 16px;">
@@ -108,14 +108,14 @@ definePage(() => ({
 						</MkButton>
 					</div>
 				</div>
-			</MkContainer>
+			</MkFolder>
 
 			<!-- Uptime Kuma -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<img :src="uptimekumalogo" alt="Uptime Kuma logo" style="max-width: 20px;"/>
 				</template>
-				<template #header>
+				<template #label>
 					Uptime Kuma
 				</template>
 				<div style="padding: 16px;">
@@ -126,14 +126,14 @@ definePage(() => ({
 						</MkButton>
 					</div>
 				</div>
-			</MkContainer>
+			</MkFolder>
 
 			<!-- Excalidraw -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<img :src="excalidrawlogo" alt="Excalidraw logo" style="max-width: 20px;"/>
 				</template>
-				<template #header>
+				<template #label>
 					Excalidraw
 				</template>
 				<div style="padding: 16px;">
@@ -147,14 +147,14 @@ definePage(() => ({
 						</MkButton>
 					</div>
 				</div>
-			</MkContainer>
+			</MkFolder>
 
 			<!-- Ntfy -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<img :src="ntfylogo" alt="Ntfy logo" style="max-width: 20px"/>
 				</template>
-				<template #header>
+				<template #label>
 					Ntfy
 				</template>
 				<div style="padding: 16px;">
@@ -165,14 +165,14 @@ definePage(() => ({
 						</MkButton>
 					</div>
 				</div>
-			</MkContainer>
+			</MkFolder>
 
 			<!-- Bluesky PDS -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<img :src="bskylogo" alt="Bsky logo" style="max-height: 20px;"/>
 				</template>
-				<template #header>
+				<template #label>
 					Bluesky PDS
 				</template>
 				<div style="padding: 16px;">
@@ -185,14 +185,14 @@ definePage(() => ({
 					<p>Bluesky is a the main implementation of ATProto, a protocol that aims to be a decentralized social media protocol, similar to ActivityPub. The PDS is a server storing user content.</p>
 					<p>To receive an invite code for the PlasmaTrap PDS, send a message to <MkMention username="admin" host="plasmatrap.com"/>.</p>
 				</div>
-			</MkContainer>
+			</MkFolder>
 
 			<!-- Tor Hidden Service -->
-			<MkContainer>
+			<MkFolder :defaultOpen="false">
 				<template #icon>
 					<img :src="torlogo" alt="Tor logo" style="max-height: 20px;"/>
 				</template>
-				<template #header>
+				<template #label>
 					Hidden Service
 				</template>
 				<div style="padding: 16px;">
@@ -203,7 +203,7 @@ definePage(() => ({
 						</MkButton>
 					</div>
 				</div>
-			</MkContainer>
+			</MkFolder>
 		</div>
 	</div>
 </MkStickyContainer>
