@@ -623,7 +623,7 @@ export const ROUTE_DEF = [{
 {
 	path: '/services',
 	component: page(() => import('@/pages/services.vue')),
-	loginRequired: true,
+	loginRequired: false,
 }, {
 	path: '/:(*)',
 	component: page(() => import('@/pages/not-found.vue')),
