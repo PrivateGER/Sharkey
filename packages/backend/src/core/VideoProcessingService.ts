@@ -3,21 +3,31 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import fs from 'node:fs/promises';
 import { Inject, Injectable } from '@nestjs/common';
 import FFmpeg from 'fluent-ffmpeg';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { ImageProcessingService } from '@/core/ImageProcessingService.js';
 import type { IImage } from '@/core/ImageProcessingService.js';
-import { createTempDir, createTemp } from '@/misc/create-temp.js';
+import { createTemp, createTempDir } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { appendQuery, query } from '@/misc/prelude/url.js';
-import type Logger from "@/logger.js";
-import {LoggerService} from "@/core/LoggerService.js";
+import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
+
+// faststart is only supported for MP4, M4A, M4W and MOV files (the MOV family).
+// WebM (and Matroska) files always support faststart-like behavior.
+const supportedMimeTypes = new Map([
+	['video/mp4', 'mp4'],
+	['video/m4a', 'mp4'],
+	['video/m4v', 'mp4'],
+	['video/quicktime', 'mov'],
+]);
 
 @Injectable()
 export class VideoProcessingService {
-	private logger: Logger;
+	private readonly logger: Logger;
 
 	constructor(
 		@Inject(DI.config)
@@ -27,7 +37,7 @@ export class VideoProcessingService {
 
 		private loggerService: LoggerService,
 	) {
-		this.logger = this.loggerService.getLogger("video-processing");
+		this.logger = this.loggerService.getLogger('video-processing');
 	}
 
 	@bindThis
@@ -55,6 +65,19 @@ export class VideoProcessingService {
 		}
 	}
 
+	@bindThis
+	public getExternalVideoThumbnailUrl(url: string): string | null {
+		if (this.config.videoThumbnailGenerator == null) return null;
+
+		return appendQuery(
+			`${this.config.videoThumbnailGenerator}/thumbnail.webp`,
+			query({
+				thumbnail: '1',
+				url,
+			}),
+		);
+	}
+
 	/**
 	 * Optimize video for web playback by adding faststart flag.
 	 * This allows the video to start playing before it is fully downloaded.
@@ -65,15 +88,9 @@ export class VideoProcessingService {
 	 */
 	@bindThis
 	public async webOptimizeVideo(source: string, mimeType: string): Promise<void> {
-		const supportedMimeTypes = new Map([
-			['video/mp4', 'mp4'],
-			['video/quicktime', 'mov'],
-			['video/webm', 'webm'],
-		]);
-
 		const outputFormat = supportedMimeTypes.get(mimeType);
 		if (!outputFormat) {
-			this.logger.info(`Skipping web optimization for unsupported MIME type: ${mimeType}`);
+			this.logger.debug(`Skipping web optimization for unsupported MIME type: ${mimeType}`);
 			return;
 		}
 
@@ -89,7 +106,6 @@ export class VideoProcessingService {
 					.on('end', async () => {
 						try {
 							// Replace original file with optimized version
-							const fs = await import('node:fs/promises');
 							await fs.copyFile(tempPath, source);
 							this.logger.info(`Web-optimized video: ${source}`);
 							resolve();
@@ -105,19 +121,6 @@ export class VideoProcessingService {
 		} finally {
 			cleanup();
 		}
-	}
-
-	@bindThis
-	public getExternalVideoThumbnailUrl(url: string): string | null {
-		if (this.config.videoThumbnailGenerator == null) return null;
-
-		return appendQuery(
-			`${this.config.videoThumbnailGenerator}/thumbnail.webp`,
-			query({
-				thumbnail: '1',
-				url,
-			}),
-		);
 	}
 }
 

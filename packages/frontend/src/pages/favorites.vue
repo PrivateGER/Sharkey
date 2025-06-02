@@ -15,6 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 
 			<template #default="{ items }">
+				<!-- TODO replace with SkDateSeparatedList when merged -->
 				<MkDateSeparatedList v-slot="{ item }" :items="items" :direction="'down'" :noGap="false" :ad="false">
 					<DynamicNote :key="item.id" :note="item.note" :class="$style.note"/>
 				</MkDateSeparatedList>

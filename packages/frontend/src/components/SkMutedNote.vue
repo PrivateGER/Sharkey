@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkUserName :user="note.user"/>
 	</template>
 </I18n>
-<I18n v-else-if="prefer.s.showSoftWordMutedWord" :src="i18n.ts.userSaysSomething" tag="small">
+<I18n v-else-if="!prefer.s.showSoftWordMutedWord" :src="i18n.ts.userSaysSomething" tag="small">
 	<template #name>
 		<MkUserName :user="note.user"/>
 	</template>

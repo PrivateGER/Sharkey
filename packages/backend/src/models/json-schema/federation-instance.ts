@@ -135,5 +135,9 @@ export const packedFederationInstanceSchema = {
 			type: 'string',
 			optional: true, nullable: true,
 		},
+		isBubbled: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 	},
 } as const;

@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
+import { IsNull, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { SkLatestNote, MiFollowing } from '@/models/_.js';
 import type { NotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -130,7 +130,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.leftJoinAndSelect('note.renote', 'renote')
 				.leftJoinAndSelect('reply.user', 'replyUser')
 				.leftJoinAndSelect('renote.user', 'renoteUser')
-				.leftJoinAndSelect('note.channel', 'channel')
+
+				// Exclude channel notes
+				.andWhere({ channelId: IsNull() })
 			;
 
 			// Limit to files, if requested
@@ -145,11 +147,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Hide blocked users / instances
 			query.andWhere('"user"."isSuspended" = false');
-			query.andWhere('("replyUser" IS NULL OR "replyUser"."isSuspended" = false)');
-			query.andWhere('("renoteUser" IS NULL OR "renoteUser"."isSuspended" = false)');
 			this.queryService.generateBlockedHostQueryForNote(query);
 
-			// Respect blocks and mutes
+			// Respect blocks, mutes, and privacy
+			this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateBlockedUserQueryForNotes(query, me);
 			this.queryService.generateMutedUserQueryForNotes(query, me);
 
@@ -161,7 +162,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Query and return the next page
 			const notes = await query.getMany();
-			return await this.noteEntityService.packMany(notes, me);
+			return await this.noteEntityService.packMany(notes, me, { skipHide: true });
 		});
 	}
 }

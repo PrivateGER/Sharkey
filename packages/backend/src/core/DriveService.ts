@@ -160,7 +160,11 @@ export class DriveService {
 		const alts = await this.generateAlts(path, type, !file.uri);
 
 		if (type && type.startsWith('video/')) {
-			await this.videoProcessingService.webOptimizeVideo(path, type);
+			try {
+				await this.videoProcessingService.webOptimizeVideo(path, type);
+			} catch (err) {
+				this.registerLogger.warn(`Video optimization failed: ${err instanceof Error ? err.message : String(err)}`, { error: err });
+			}
 		}
 
 		if (this.meta.useObjectStorage) {

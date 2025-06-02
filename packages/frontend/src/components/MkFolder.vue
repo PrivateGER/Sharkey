@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl" :class="$style.root" role="group" :aria-expanded="opened">
-	<MkStickyContainer>
+	<MkStickyContainer :sticky="sticky">
 		<template #header>
 			<button :class="[$style.header, { [$style.opened]: opened }]" class="_button" role="button" data-cy-folder-header @click="toggle">
 				<div :class="$style.headerIcon"><slot name="icon"></slot></div>
@@ -34,7 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			>
 				<KeepAlive>
 					<div v-show="opened">
-						<MkStickyContainer>
+						<MkStickyContainer :sticky="sticky">
 							<template #header>
 								<div v-if="$slots.header" :class="$style.inBodyHeader">
 									<slot name="header"></slot>
@@ -73,12 +73,14 @@ const props = withDefaults(defineProps<{
 	withSpacer?: boolean;
 	spacerMin?: number;
 	spacerMax?: number;
+	sticky?: boolean;
 }>(), {
 	defaultOpen: false,
 	maxHeight: null,
 	withSpacer: true,
 	spacerMin: 14,
 	spacerMax: 22,
+	sticky: true,
 });
 
 const rootEl = useTemplateRef('rootEl');

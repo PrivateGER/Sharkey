@@ -690,7 +690,7 @@ seems to do a decent job)
 * re-generate locales (`pnpm run build-assets`) and commit
 * build the frontend: `rm -rf built/; NODE_ENV=development pnpm --filter=frontend --filter=frontend-embed --filter=frontend-shared build` (the `development` tells it to keep some of the original filenames in the built files)
 * make sure there aren't any new `ti-*` classes (Tabler Icons), and replace them with appropriate `ph-*` ones (Phosphor Icons) in [`vite.replaceicons.ts`](packages/frontend/vite.replaceIcons.ts).
-    * This command should show you want to change: `grep -ohrP '(?<=["'\'']ti )(ti-(?!fw)[\w\-]+)' --exclude \*.map -- built/ | sort -u`.
+    * This command should show you want to change: `grep -ohrP '(?<=["'\''](ti )?)(ti-(?!fw)[\w\-]+)' --exclude \*.map -- built/ | sort -u`.
     * NOTE: `ti-fw` is a special class that's defined by Misskey, leave it alone.
     * After every change, re-build the frontend and check again, until there are no more `ti-*` classes in the built files.
     * Commit!

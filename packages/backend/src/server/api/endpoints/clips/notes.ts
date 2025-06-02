@@ -92,10 +92,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.andWhere('clipNote.clipId = :clipId', { clipId: clip.id });
 
 			this.queryService.generateBlockedHostQueryForNote(query);
+			this.queryService.generateVisibilityQuery(query, me);
 			if (me) {
-				await this.queryService.generateVisibilityQuery(query, me);
 				this.queryService.generateMutedUserQueryForNotes(query, me);
 				this.queryService.generateBlockedUserQueryForNotes(query, me);
+				this.queryService.generateMutedUserRenotesQueryForNotes(query, me);
 			}
 
 			const notes = await query

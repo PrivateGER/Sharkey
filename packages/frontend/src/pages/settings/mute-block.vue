@@ -12,10 +12,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div class="_gaps_s">
 			<SearchMarker
+				v-slot="slotProps"
 				:label="i18n.ts.wordMute"
 				:keywords="['note', 'word', 'soft', 'mute', 'hide']"
 			>
-				<MkFolder>
+				<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ph-envelope ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts.wordMute }}</template>
 
@@ -37,10 +38,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</SearchMarker>
 
 			<SearchMarker
+				v-slot="slotProps"
 				:label="i18n.ts.hardWordMute"
 				:keywords="['note', 'word', 'hard', 'mute', 'hide']"
 			>
-				<MkFolder>
+				<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ph-x-square ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts.hardWordMute }}</template>
 
@@ -55,10 +57,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</SearchMarker>
 
 			<SearchMarker
+				v-slot="slotProps"
 				:label="i18n.ts.instanceMute"
 				:keywords="['note', 'server', 'instance', 'host', 'federation', 'mute', 'hide']"
 			>
-				<MkFolder v-if="instance.federation !== 'none'">
+				<MkFolder v-if="instance.federation !== 'none'" :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ti ti-planet-off"></i></template>
 					<template #label>{{ i18n.ts.instanceMute }}</template>
 
@@ -67,9 +70,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</SearchMarker>
 
 			<SearchMarker
+				v-slot="slotProps"
 				:keywords="['renote', 'mute', 'hide', 'user']"
 			>
-				<MkFolder>
+				<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ti ti-repeat-off"></i></template>
 					<template #label><SearchLabel>{{ i18n.ts.mutedUsers }} ({{ i18n.ts.renote }})</SearchLabel></template>
 
@@ -102,10 +106,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</SearchMarker>
 
 			<SearchMarker
+				v-slot="slotProps"
 				:label="i18n.ts.mutedUsers"
 				:keywords="['note', 'mute', 'hide', 'user']"
 			>
-				<MkFolder>
+				<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ti ti-eye-off"></i></template>
 					<template #label>{{ i18n.ts.mutedUsers }}</template>
 
@@ -140,10 +145,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</SearchMarker>
 
 			<SearchMarker
+				v-slot="slotProps"
 				:label="i18n.ts.blockedUsers"
 				:keywords="['block', 'user']"
 			>
-				<MkFolder>
+				<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 					<template #icon><i class="ti ti-ban"></i></template>
 					<template #label>{{ i18n.ts.blockedUsers }}</template>
 
@@ -222,12 +228,6 @@ const expandedMuteItems = ref([]);
 const expandedBlockItems = ref([]);
 
 const showSoftWordMutedWord = prefer.model('showSoftWordMutedWord');
-
-watch([
-	showSoftWordMutedWord,
-], async () => {
-	await reloadAsk({ reason: i18n.ts.reloadToApplySetting, unison: true });
-});
 
 async function unrenoteMute(user, ev) {
 	os.popupMenu([{

@@ -12,6 +12,7 @@ import { RoleService } from '@/core/RoleService.js';
 import type { MiMeta } from '@/models/Meta.js';
 import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import Channel, { MiChannelService } from '../channel.js';
 
 class BubbleTimelineChannel extends Channel {
@@ -26,6 +27,7 @@ class BubbleTimelineChannel extends Channel {
 	constructor(
 		private metaService: MetaService,
 		private roleService: RoleService,
+		private readonly utilityService: UtilityService,
 		noteEntityService: NoteEntityService,
 
 		id: string,
@@ -56,12 +58,15 @@ class BubbleTimelineChannel extends Channel {
 		if (note.visibility !== 'public') return;
 		if (note.channelId != null) return;
 		if (note.user.host == null) return;
-		if (!this.instance.bubbleInstances.includes(note.user.host)) return;
+		if (!this.utilityService.isBubbledHost(note.user.host)) return;
 		if (note.user.requireSigninToViewContents && this.user == null) return;
 
 		if (isRenotePacked(note) && !isQuotePacked(note) && !this.withRenotes) return;
 
-		if (note.user.isSilenced && !this.following[note.userId] && note.userId !== this.user!.id) return;
+		if (note.user.isSilenced) {
+			if (!this.user) return;
+			if (note.userId !== this.user.id && !this.following[note.userId]) return;
+		}
 
 		if (this.isNoteMutedOrBlocked(note)) return;
 
@@ -88,6 +93,7 @@ export class BubbleTimelineChannelService implements MiChannelService<false> {
 		private metaService: MetaService,
 		private roleService: RoleService,
 		private noteEntityService: NoteEntityService,
+		private readonly utilityService: UtilityService,
 	) {
 	}
 
@@ -96,6 +102,7 @@ export class BubbleTimelineChannelService implements MiChannelService<false> {
 		return new BubbleTimelineChannel(
 			this.metaService,
 			this.roleService,
+			this.utilityService,
 			this.noteEntityService,
 			id,
 			connection,

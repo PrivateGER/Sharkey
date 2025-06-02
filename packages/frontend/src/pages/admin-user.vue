@@ -20,19 +20,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<span class="_monospace">{{ user.id }}</span>
 							<button v-tooltip="i18n.ts.copy" class="_textButton" style="margin-left: 0.5em;" @click="copyToClipboard(user.id)"><i class="ti ti-copy"></i></button>
 						</span>
-						<span class="state">
-							<span v-if="!approved" class="silenced">{{ i18n.ts.notApproved }}</span>
-							<span v-if="approved && !user.host" class="moderator">{{ i18n.ts.approved }}</span>
-							<span v-if="suspended" class="suspended">{{ i18n.ts.suspended }}</span>
-							<span v-if="silenced" class="silenced">{{ i18n.ts.silenced }}</span>
-							<span v-if="moderator" class="moderator">{{ i18n.ts.moderator }}</span>
-						</span>
 					</div>
 				</div>
 
+				<SkBadgeStrip v-if="badges.length > 0" :badges="badges"></SkBadgeStrip>
+
 				<MkInfo v-if="isSystem">{{ i18n.ts.isSystemAccount }}</MkInfo>
 
-				<MkFolder v-if="!isSystem">
+				<MkFolder v-if="!isSystem" :sticky="false">
 					<template #icon><i class="ph-list-bullets ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts.details }}</template>
 					<div style="display: flex; flex-direction: column; gap: 1em;">
@@ -89,7 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</MkFolder>
 
-				<MkFolder v-if="info">
+				<MkFolder v-if="info" :sticky="false">
 					<template #icon><i class="ph-scroll ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts._role.policies }}</template>
 					<div class="_gaps">
@@ -99,7 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</MkFolder>
 
-				<MkFolder v-if="iAmAdmin && ips && ips.length > 0">
+				<MkFolder v-if="iAmAdmin && ips && ips.length > 0" :sticky="false">
 					<template #icon><i class="ph-network ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts.ip }}</template>
 					<MkInfo>{{ i18n.ts.ipTip }}</MkInfo>
@@ -109,7 +104,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</MkFolder>
 
-				<MkFolder v-if="iAmModerator" :defaultOpen="moderationNote.length > 0">
+				<MkFolder v-if="iAmModerator" :defaultOpen="moderationNote.length > 0" :sticky="false">
 					<template #icon><i class="ph-stamp ph-bold ph-lg"></i></template>
 					<template #label>{{ i18n.ts.moderationNote }}</template>
 					<MkTextarea v-model="moderationNote" manualSave @update:modelValue="onModerationNoteChanged">
@@ -248,6 +243,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, defineAsyncComponent, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
+import type { Badge } from '@/components/SkBadgeStrip.vue';
 import MkChart from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
@@ -272,6 +268,7 @@ import MkPagination from '@/components/MkPagination.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkNumber from '@/components/MkNumber.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard';
+import SkBadgeStrip from '@/components/SkBadgeStrip.vue';
 
 const props = withDefaults(defineProps<{
 	userId: string;
@@ -304,6 +301,98 @@ const filesPagination = {
 	})),
 };
 
+const badges = computed(() => {
+	const arr: Badge[] = [];
+	if (info.value && user.value) {
+		if (info.value.isSuspended) {
+			arr.push({
+				key: 'suspended',
+				label: i18n.ts.suspended,
+				style: 'error',
+			});
+		}
+
+		if (info.value.isSilenced) {
+			arr.push({
+				key: 'silenced',
+				label: i18n.ts.silenced,
+				style: 'warning',
+			});
+		}
+
+		if (info.value.alwaysMarkNsfw) {
+			arr.push({
+				key: 'nsfw',
+				label: i18n.ts.nsfw,
+				style: 'warning',
+			});
+		}
+
+		if (user.value.mandatoryCW) {
+			arr.push({
+				key: 'cw',
+				label: i18n.ts.cw,
+				style: 'warning',
+			});
+		}
+
+		if (info.value.isHibernated) {
+			arr.push({
+				key: 'hibernated',
+				label: i18n.ts.hibernated,
+				style: 'neutral',
+			});
+		}
+
+		if (info.value.isAdministrator) {
+			arr.push({
+				key: 'admin',
+				label: i18n.ts.administrator,
+				style: 'success',
+			});
+		} else if (info.value.isModerator) {
+			arr.push({
+				key: 'mod',
+				label: i18n.ts.moderator,
+				style: 'success',
+			});
+		}
+
+		if (user.value.host == null) {
+			if (info.value.email) {
+				if (info.value.emailVerified) {
+					arr.push({
+						key: 'verified',
+						label: i18n.ts.verified,
+						style: 'success',
+					});
+				} else {
+					arr.push({
+						key: 'not_verified',
+						label: i18n.ts.notVerified,
+						style: 'success',
+					});
+				}
+			}
+
+			if (info.value.approved) {
+				arr.push({
+					key: 'approved',
+					label: i18n.ts.approved,
+					style: 'success',
+				});
+			} else {
+				arr.push({
+					key: 'not_approved',
+					label: i18n.ts.notApproved,
+					style: 'warning',
+				});
+			}
+		}
+	}
+	return arr;
+});
+
 const announcementsStatus = ref<'active' | 'archived'>('active');
 
 const announcementsPagination = {
@@ -323,10 +412,13 @@ function createFetcher() {
 		userId: props.userId,
 	}), iAmAdmin ? misskeyApi('admin/get-user-ips', {
 		userId: props.userId,
-	}) : Promise.resolve(null)]).then(([_user, _info, _ips]) => {
+	}) : Promise.resolve(null), iAmAdmin ? misskeyApi('ap/get', {
+		uri: `${url}/users/${props.userId}`,
+	}).catch(() => null) : null]).then(([_user, _info, _ips, _ap]) => {
 		user.value = _user;
 		info.value = _info;
 		ips.value = _ips;
+		ap.value = _ap;
 		moderator.value = info.value.isModerator;
 		silenced.value = info.value.isSilenced;
 		approved.value = info.value.approved;
@@ -338,23 +430,30 @@ function createFetcher() {
 	});
 }
 
-function refreshUser() {
-	init.value = createFetcher();
+async function refreshUser() {
+	// Not a typo - createFetcher() returns a function()
+	await createFetcher()();
 }
 
 async function onMandatoryCWChanged(value: string) {
-	await os.apiWithDialog('admin/cw-user', { userId: props.userId, cw: value });
-	refreshUser();
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/cw-user', { userId: props.userId, cw: value });
+		await refreshUser();
+	});
 }
 
 async function onModerationNoteChanged(value: string) {
-	await misskeyApi('admin/update-user-note', { userId: props.userId, text: value });
-	refreshUser();
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/update-user-note', { userId: props.userId, text: value });
+		refreshUser();
+	});
 }
 
 async function updateRemoteUser() {
-	await os.apiWithDialog('federation/update-remote-user', { userId: user.value.id });
-	refreshUser();
+	await os.promiseDialog(async () => {
+		await misskeyApi('federation/update-remote-user', { userId: props.userId });
+		refreshUser();
+	});
 }
 
 async function resetPassword() {
@@ -368,7 +467,7 @@ async function resetPassword() {
 		const { password } = await misskeyApi('admin/reset-password', {
 			userId: user.value.id,
 		});
-		os.alert({
+		await os.alert({
 			type: 'success',
 			text: i18n.tsx.newPasswordIs({ password }),
 		});
@@ -383,7 +482,7 @@ async function toggleNSFW(v) {
 	if (confirm.canceled) {
 		markedAsNSFW.value = !v;
 	} else {
-		await misskeyApi(v ? 'admin/nsfw-user' : 'admin/unnsfw-user', { userId: user.value.id });
+		await misskeyApi(v ? 'admin/nsfw-user' : 'admin/unnsfw-user', { userId: props.userId });
 		await refreshUser();
 	}
 }
@@ -396,8 +495,10 @@ async function toggleSilence(v) {
 	if (confirm.canceled) {
 		silenced.value = !v;
 	} else {
-		await misskeyApi(v ? 'admin/silence-user' : 'admin/unsilence-user', { userId: user.value.id });
-		await refreshUser();
+		await os.promiseDialog(async () => {
+			await misskeyApi(v ? 'admin/silence-user' : 'admin/unsilence-user', { userId: props.userId });
+			await refreshUser();
+		});
 	}
 }
 
@@ -409,8 +510,10 @@ async function toggleSuspend(v) {
 	if (confirm.canceled) {
 		suspended.value = !v;
 	} else {
-		await misskeyApi(v ? 'admin/suspend-user' : 'admin/unsuspend-user', { userId: user.value.id });
-		await refreshUser();
+		await os.promiseDialog(async () => {
+			await misskeyApi(v ? 'admin/suspend-user' : 'admin/unsuspend-user', { userId: props.userId });
+			await refreshUser();
+		});
 	}
 }
 
@@ -422,11 +525,13 @@ async function toggleRejectQuotes(v: boolean): Promise<void> {
 	if (confirm.canceled) {
 		rejectQuotes.value = !v;
 	} else {
-		await misskeyApi('admin/reject-quotes', {
-			userId: props.userId,
-			rejectQuotes: v,
+		await os.promiseDialog(async () => {
+			await misskeyApi('admin/reject-quotes', {
+				userId: props.userId,
+				rejectQuotes: v,
+			});
+			await refreshUser();
 		});
-		await refreshUser();
 	}
 }
 
@@ -436,17 +541,10 @@ async function unsetUserAvatar() {
 		text: i18n.ts.unsetUserAvatarConfirm,
 	});
 	if (confirm.canceled) return;
-	const process = async () => {
-		await misskeyApi('admin/unset-user-avatar', { userId: user.value.id });
-		os.success();
-	};
-	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/unset-user-avatar', { userId: props.userId });
+		await refreshUser();
 	});
-	refreshUser();
 }
 
 async function unsetUserBanner() {
@@ -455,17 +553,10 @@ async function unsetUserBanner() {
 		text: i18n.ts.unsetUserBannerConfirm,
 	});
 	if (confirm.canceled) return;
-	const process = async () => {
-		await misskeyApi('admin/unset-user-banner', { userId: user.value.id });
-		os.success();
-	};
-	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/unset-user-banner', { userId: props.userId });
+		await refreshUser();
 	});
-	refreshUser();
 }
 
 async function deleteAllFiles() {
@@ -474,17 +565,10 @@ async function deleteAllFiles() {
 		text: i18n.ts.deleteAllFilesConfirm,
 	});
 	if (confirm.canceled) return;
-	const process = async () => {
-		await misskeyApi('admin/delete-all-files-of-a-user', { userId: user.value.id });
-		os.success();
-	};
-	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/delete-all-files-of-a-user', { userId: props.userId });
+		await refreshUser();
 	});
-	await refreshUser();
 }
 
 async function deleteAccount() {
@@ -504,7 +588,7 @@ async function deleteAccount() {
 			userId: user.value.id,
 		});
 	} else {
-		os.alert({
+		await os.alert({
 			type: 'error',
 			text: 'input not match',
 		});
@@ -544,18 +628,22 @@ async function assignRole() {
 		: period === 'oneMonth' ? Date.now() + (1000 * 60 * 60 * 24 * 30)
 		: null;
 
-	await os.apiWithDialog('admin/roles/assign', { roleId, userId: user.value.id, expiresAt });
-	refreshUser();
+	await os.promiseDialog(async () => {
+		await misskeyApi('admin/roles/assign', { roleId, userId: props.userId, expiresAt });
+		await refreshUser();
+	});
 }
 
 async function unassignRole(role, ev) {
-	os.popupMenu([{
+	await os.popupMenu([{
 		text: i18n.ts.unassign,
 		icon: 'ti ti-x',
 		danger: true,
 		action: async () => {
-			await os.apiWithDialog('admin/roles/unassign', { roleId: role.id, userId: user.value.id });
-			refreshUser();
+			await os.promiseDialog(async () => {
+				await misskeyApi('admin/roles/unassign', { roleId: role.id, userId: props.userId });
+				await refreshUser();
+			});
 		},
 	}], ev.currentTarget ?? ev.target);
 }
@@ -589,14 +677,6 @@ watch(() => props.userId, () => {
 	init.value = createFetcher();
 }, {
 	immediate: true,
-});
-
-watch(user, () => {
-	misskeyApi('ap/get', {
-		uri: user.value.uri ?? `${url}/users/${user.value.id}`,
-	}).then(res => {
-		ap.value = res;
-	});
 });
 
 const headerActions = computed(() => []);
@@ -782,6 +862,7 @@ definePage(() => ({
 	cursor: pointer;
 }
 
+// Sync with instance-info.vue
 .buttonStrip {
 	margin: calc(var(--MI-margin) / 2 * -1);
 

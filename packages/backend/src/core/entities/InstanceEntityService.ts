@@ -43,7 +43,7 @@ export class InstanceEntityService {
 			isNotResponding: instance.isNotResponding,
 			isSuspended: instance.suspensionState !== 'none',
 			suspensionState: instance.suspensionState,
-			isBlocked: this.utilityService.isBlockedHost(this.meta.blockedHosts, instance.host),
+			isBlocked: instance.isBlocked,
 			softwareName: instance.softwareName,
 			softwareVersion: instance.softwareVersion,
 			openRegistrations: instance.openRegistrations,
@@ -51,8 +51,8 @@ export class InstanceEntityService {
 			description: instance.description,
 			maintainerName: instance.maintainerName,
 			maintainerEmail: instance.maintainerEmail,
-			isSilenced: this.utilityService.isSilencedHost(this.meta.silencedHosts, instance.host),
-			isMediaSilenced: this.utilityService.isMediaSilencedHost(this.meta.mediaSilencedHosts, instance.host),
+			isSilenced: instance.isSilenced,
+			isMediaSilenced: instance.isMediaSilenced,
 			iconUrl: instance.iconUrl,
 			faviconUrl: instance.faviconUrl,
 			themeColor: instance.themeColor,
@@ -62,6 +62,7 @@ export class InstanceEntityService {
 			rejectReports: instance.rejectReports,
 			rejectQuotes: instance.rejectQuotes,
 			moderationNote: iAmModerator ? instance.moderationNote : null,
+			isBubbled: this.utilityService.isBubbledHost(instance.host),
 		};
 	}
 

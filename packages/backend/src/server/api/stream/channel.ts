@@ -65,6 +65,9 @@ export default abstract class Channel {
 	 * ミュートとブロックされてるを処理する
 	 */
 	protected isNoteMutedOrBlocked(note: Packed<'Note'>): boolean {
+		// Ignore notes that require sign-in
+		if (note.user.requireSigninToViewContents && !this.user) return true;
+
 		// 流れてきたNoteがインスタンスミュートしたインスタンスが関わる
 		if (isInstanceMuted(note, new Set<string>(this.userProfile?.mutedInstances ?? [])) && !this.following[note.userId]) return true;
 

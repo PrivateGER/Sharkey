@@ -43,6 +43,18 @@ export interface IObjectWithId extends IObject {
 	id: string;
 }
 
+export function isObjectWithId(object: IObject): object is IObjectWithId {
+	return typeof(object.id) === 'string';
+}
+
+export interface IAnonymousObject extends IObject {
+	id: undefined;
+}
+
+export function isAnonymousObject(object: IObject): object is IAnonymousObject {
+	return object.id === undefined;
+}
+
 /**
  * Get array of ActivityStreams Objects id
  */
@@ -125,47 +137,45 @@ export interface IActivity extends IObject {
 	};
 }
 
-export interface ICollection extends IObject {
+export interface CollectionBase extends IObject {
+	totalItems?: number;
+	first?: IObject | string;
+	last?: IObject | string;
+	current?: IObject | string;
+	partOf?: IObject | string;
+	next?: IObject | string;
+	prev?: IObject | string;
+	items?: ApObject;
+	orderedItems?: ApObject;
+}
+
+export interface ICollection extends CollectionBase {
 	type: 'Collection';
 	totalItems: number;
-	first?: IObject | string;
-	last?: IObject | string;
-	current?: IObject | string;
 	items?: ApObject;
+	orderedItems?: undefined;
 }
 
-export interface IOrderedCollection extends IObject {
+export interface IOrderedCollection extends CollectionBase {
 	type: 'OrderedCollection';
 	totalItems: number;
-	first?: IObject | string;
-	last?: IObject | string;
-	current?: IObject | string;
+	items?: undefined;
 	orderedItems?: ApObject;
 }
 
-export interface ICollectionPage extends IObject {
+export interface ICollectionPage extends CollectionBase {
 	type: 'CollectionPage';
-	totalItems: number;
-	first?: IObject | string;
-	last?: IObject | string;
-	current?: IObject | string;
-	partOf?: IObject | string;
-	next?: IObject | string;
-	prev?: IObject | string;
 	items?: ApObject;
+	orderedItems?: undefined;
 }
 
-export interface IOrderedCollectionPage extends IObject {
+export interface IOrderedCollectionPage extends CollectionBase {
 	type: 'OrderedCollectionPage';
-	totalItems: number;
-	first?: IObject | string;
-	last?: IObject | string;
-	current?: IObject | string;
-	partOf?: IObject | string;
-	next?: IObject | string;
-	prev?: IObject | string;
+	items?: undefined;
 	orderedItems?: ApObject;
 }
+
+export type AnyCollection = ICollection | IOrderedCollection | ICollectionPage | IOrderedCollectionPage;
 
 export const validPost = ['Note', 'Question', 'Article', 'Audio', 'Document', 'Image', 'Page', 'Video', 'Event'];
 
@@ -269,7 +279,7 @@ export const isCollectionPage = (object: IObject): object is ICollectionPage =>
 export const isOrderedCollectionPage = (object: IObject): object is IOrderedCollectionPage =>
 	getApType(object) === 'OrderedCollectionPage';
 
-export const isCollectionOrOrderedCollection = (object: IObject): object is ICollection | IOrderedCollection =>
+export const isCollectionOrOrderedCollection = (object: IObject): object is AnyCollection =>
 	isCollection(object) || isOrderedCollection(object) || isCollectionPage(object) || isOrderedCollectionPage(object);
 
 export interface IApPropertyValue extends IObject {

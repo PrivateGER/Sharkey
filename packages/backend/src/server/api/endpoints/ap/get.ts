@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApResolverService } from '@/core/activitypub/ApResolverService.js';
+import { isCollectionOrOrderedCollection, isOrderedCollection, isOrderedCollectionPage } from '@/core/activitypub/type.js';
 
 export const meta = {
 	tags: ['federation'],
@@ -33,6 +34,9 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		uri: { type: 'string' },
+		expandCollectionItems: { type: 'boolean' },
+		expandCollectionLimit: { type: 'integer', nullable: true },
+		allowAnonymous: { type: 'boolean' },
 	},
 	required: ['uri'],
 } as const;
@@ -44,7 +48,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const resolver = this.apResolverService.createResolver();
-			const object = await resolver.resolve(ps.uri);
+			const object = await resolver.resolve(ps.uri, ps.allowAnonymous ?? false);
+
+			if (ps.expandCollectionItems && isCollectionOrOrderedCollection(object)) {
+				const items = await resolver.resolveCollectionItems(object, ps.expandCollectionLimit, ps.allowAnonymous ?? false);
+
+				if (isOrderedCollection(object) || isOrderedCollectionPage(object)) {
+					object.orderedItems = items;
+				} else {
+					object.items = items;
+				}
+			}
+
 			return object;
 		});
 	}

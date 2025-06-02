@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</SearchMarker>
 						</div>
 
-						<SearchMarker :keywords="['emoji', 'style', 'native', 'system', 'fluent', 'twemoji']">
+						<SearchMarker :keywords="['emoji', 'style', 'native', 'system', 'fluent', 'twemoji', 'tossface']">
 							<MkPreferenceContainer k="emojiStyle">
 								<div>
 									<MkRadios v-model="emojiStyle">
@@ -107,6 +107,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<option value="native">{{ i18n.ts.native }}</option>
 										<option value="fluentEmoji">Fluent Emoji</option>
 										<option value="twemoji">Twemoji</option>
+										<option value="tossface">Tossface</option>
 									</MkRadios>
 									<div style="margin: 8px 0 0 0; font-size: 1.5em;"><Mfm :key="emojiStyle" text="🍮🍦🍭🍩🍰🍫🍬🥞🍪"/></div>
 								</div>
@@ -237,6 +238,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<!-- If one of the other options is selected show this as a blank other -->
 										<option v-if="!useCustomSearchEngine" value="">{{ i18n.ts.searchEngineOther }}</option>
 									</MkSelect>
+
+									<div v-if="useCustomSearchEngine">
+										<MkInput v-model="searchEngine" :max="300" :manualSave="true">
+											<template #label>{{ i18n.ts.searchEngineCusomURI }}</template>
+											<template #caption>{{ i18n.ts.searchEngineCustomURIDescription }}</template>
+										</MkInput>
+									</div>
 								</MkPreferenceContainer>
 							</SearchMarker>
 

@@ -36,7 +36,7 @@ import InstanceChart from '@/core/chart/charts/instance.js';
 import FederationChart from '@/core/chart/charts/federation.js';
 import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataService.js';
 import { UpdateInstanceQueue } from '@/core/UpdateInstanceQueue.js';
-import { getApHrefNullable, getApId, getApIds, getApType, getNullableApId, isAccept, isActor, isAdd, isAnnounce, isApObject, isBlock, isCollection, isCollectionOrOrderedCollection, isCreate, isDelete, isFlag, isFollow, isLike, isDislike, isMove, isPost, isReject, isRemove, isTombstone, isUndo, isUpdate, validActor, validPost, isActivity, IObjectWithId } from './type.js';
+import { getApHrefNullable, getApId, getApIds, getApType, getNullableApId, isAccept, isActor, isAdd, isAnnounce, isApObject, isBlock, isCollectionOrOrderedCollection, isCreate, isDelete, isFlag, isFollow, isLike, isDislike, isMove, isPost, isReject, isRemove, isTombstone, isUndo, isUpdate, validActor, validPost, isActivity, IObjectWithId } from './type.js';
 import { ApNoteService } from './models/ApNoteService.js';
 import { ApLoggerService } from './ApLoggerService.js';
 import { ApDbResolverService } from './ApDbResolverService.js';
@@ -106,22 +106,25 @@ export class ApInboxService {
 		let result = undefined as string | void;
 		if (isCollectionOrOrderedCollection(activity)) {
 			const results = [] as [string, string | void][];
-			// eslint-disable-next-line no-param-reassign
 			resolver ??= this.apResolverService.createResolver();
 
-			const items = toArray(isCollection(activity) ? activity.items : activity.orderedItems);
-			if (items.length >= resolver.getRecursionLimit()) {
-				throw new Error(`skipping activity: collection would surpass recursion limit: ${this.utilityService.extractDbHost(actor.uri)}`);
-			}
-
-			for (const item of items) {
-				const act = await resolver.resolve(item);
-				if (act.id == null || this.utilityService.extractDbHost(act.id) !== this.utilityService.extractDbHost(actor.uri)) {
-					this.logger.debug('skipping activity: activity id is null or mismatching');
-					continue;
+			const items = await resolver.resolveCollectionItems(activity);
+			for (let i = 0; i < items.length; i++) {
+				const act = items[i];
+				if (act.id != null) {
+					if (this.utilityService.extractDbHost(act.id) !== this.utilityService.extractDbHost(actor.uri)) {
+						this.logger.warn('skipping activity: activity id mismatch');
+						continue;
+					}
+				} else {
+					// Activity ID should only be string or undefined.
+					act.id = undefined;
 				}
+
 				try {
-					results.push([getApId(item), await this.performOneActivity(actor, act, resolver)]);
+					const id = getNullableApId(act) ?? `${getNullableApId(activity)}#${i}`;
+					const result = await this.performOneActivity(actor, act, resolver);
+					results.push([id, result]);
 				} catch (err) {
 					if (err instanceof Error || typeof err === 'string') {
 						this.logger.error(err);
@@ -216,6 +219,10 @@ export class ApInboxService {
 
 		const note = await this.apNoteService.resolveNote(object, { resolver });
 		if (!note) return `skip: target note not found ${targetUri}`;
+
+		if (note.userHost == null && note.localOnly) {
+			throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Cannot react to local-only note');
+		}
 
 		await this.apNoteService.extractEmojis(activity.tag ?? [], actor.host).catch(() => null);
 
@@ -369,6 +376,10 @@ export class ApInboxService {
 
 			if (!await this.noteEntityService.isVisibleForMe(renote, actor.id)) {
 				return 'skip: invalid actor for this activity';
+			}
+
+			if (renote.userHost == null && renote.localOnly) {
+				throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Cannot renote a local-only note');
 			}
 
 			this.logger.info(`Creating the (Re)Note: ${uri}`);

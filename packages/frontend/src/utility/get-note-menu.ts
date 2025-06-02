@@ -11,7 +11,7 @@ import type { Ref, ShallowRef } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { instance } from '@/instance.js';
+import { instance, policies } from '@/instance.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
@@ -342,7 +342,7 @@ export function getNoteMenu(props: {
 			});
 		}
 
-		if ($i.policies.canUseTranslator && instance.translatorAvailable) {
+		if (policies.value.canUseTranslator && instance.translatorAvailable) {
 			menuItems.push({
 				icon: 'ti ti-language-hiragana',
 				text: i18n.ts.translate,
@@ -496,6 +496,14 @@ export function getNoteMenu(props: {
 			});
 		} else {
 			menuItems.push(getNoteEmbedCodeMenu(appearNote, i18n.ts.embed));
+		}
+
+		if (policies.value.canUseTranslator && instance.translatorAvailable) {
+			menuItems.push({
+				icon: 'ti ti-language-hiragana',
+				text: i18n.ts.translate,
+				action: () => translateNote(appearNote.id, props.translation, props.translating),
+			});
 		}
 	}
 

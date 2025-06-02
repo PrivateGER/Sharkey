@@ -235,7 +235,7 @@ export class HttpRequestService {
 	}
 
 	@bindThis
-	public async getActivityJson(url: string, isLocalAddressAllowed = false): Promise<IObjectWithId> {
+	public async getActivityJson(url: string, isLocalAddressAllowed = false, allowAnonymous = false): Promise<IObjectWithId> {
 		this.apUtilityService.assertApUrl(url);
 
 		const res = await this.send(url, {
@@ -255,7 +255,11 @@ export class HttpRequestService {
 
 		// Make sure the object ID matches the final URL (which is where it actually exists).
 		// The caller (ApResolverService) will verify the ID against the original / entry URL, which ensures that all three match.
-		this.apUtilityService.assertIdMatchesUrlAuthority(activity, res.url);
+		if (allowAnonymous && activity.id == null) {
+			activity.id = res.url;
+		} else {
+			this.apUtilityService.assertIdMatchesUrlAuthority(activity, res.url);
+		}
 
 		return activity as IObjectWithId;
 	}

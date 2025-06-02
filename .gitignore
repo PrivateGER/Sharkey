@@ -87,3 +87,7 @@ vite.config.local-dev.ts.timestamp-*
 
 # Sharkey
 /packages/megalodon/lib
+
+# TypeScript
+.tsbuildinfo
+*.tsbuildinfo

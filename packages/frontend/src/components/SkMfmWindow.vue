@@ -100,6 +100,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 				<div class="section _block">
+					<div class="title">{{ i18n.ts._mfm.unixtime }}</div>
+					<div class="content">
+						<p>{{ i18n.ts._mfm.unixtimeDescription }}</p>
+						<div class="preview">
+							<Mfm :text="preview_unixtime"/>
+							<MkTextarea v-model="preview_unixtime"><template #label>MFM</template></MkTextarea>
+						</div>
+					</div>
+				</div>
+				<div class="section _block">
 					<div class="title">{{ i18n.ts._mfm.inlineCode }}</div>
 					<div class="content">
 						<p>{{ i18n.ts._mfm.inlineCodeDescription }}</p>
@@ -428,6 +438,9 @@ const preview_small = ref(
 );
 const preview_center = ref(
 	`<center>${i18n.ts._mfm.dummy}</center>`,
+);
+const preview_unixtime = ref(
+	`$[unixtime ${Math.floor(Date.now() / 1000)}]`,
 );
 const preview_inlineCode = ref('`<: "Hello, world!"`');
 const preview_blockCode = ref(

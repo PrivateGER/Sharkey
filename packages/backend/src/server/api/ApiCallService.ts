@@ -344,14 +344,14 @@ export class ApiCallService implements OnApplicationShutdown {
 		}
 
 		if (ep.meta.requireCredential || ep.meta.requireModerator || ep.meta.requireAdmin) {
-			if (user == null) {
+			if (user == null && ep.meta.requireCredential !== 'optional') {
 				throw new ApiError({
 					message: 'Credential required.',
 					code: 'CREDENTIAL_REQUIRED',
 					id: '1384574d-a912-4b81-8601-c7b1c4085df1',
 					httpStatusCode: 401,
 				});
-			} else if (user!.isSuspended) {
+			} else if (user?.isSuspended) {
 				throw new ApiError({
 					message: 'Your account has been suspended.',
 					code: 'YOUR_ACCOUNT_SUSPENDED',
@@ -372,8 +372,8 @@ export class ApiCallService implements OnApplicationShutdown {
 			}
 		}
 
-		if ((ep.meta.requireModerator || ep.meta.requireAdmin) && (this.meta.rootUserId !== user!.id)) {
-			const myRoles = await this.roleService.getUserRoles(user!.id);
+		if ((ep.meta.requireModerator || ep.meta.requireAdmin) && (this.meta.rootUserId !== user?.id)) {
+			const myRoles = user ? await this.roleService.getUserRoles(user) : [];
 			if (ep.meta.requireModerator && !myRoles.some(r => r.isModerator || r.isAdministrator)) {
 				throw new ApiError({
 					message: 'You are not assigned to a moderator role.',
@@ -392,9 +392,9 @@ export class ApiCallService implements OnApplicationShutdown {
 			}
 		}
 
-		if (ep.meta.requiredRolePolicy != null && (this.meta.rootUserId !== user!.id)) {
-			const myRoles = await this.roleService.getUserRoles(user!.id);
-			const policies = await this.roleService.getUserPolicies(user!.id);
+		if (ep.meta.requiredRolePolicy != null && (this.meta.rootUserId !== user?.id)) {
+			const myRoles = user ? await this.roleService.getUserRoles(user) : [];
+			const policies = await this.roleService.getUserPolicies(user ?? null);
 			if (!policies[ep.meta.requiredRolePolicy] && !myRoles.some(r => r.isAdministrator)) {
 				throw new ApiError({
 					message: 'You are not assigned to a required role.',
@@ -418,7 +418,7 @@ export class ApiCallService implements OnApplicationShutdown {
 		// Cast non JSON input
 		if ((ep.meta.requireFile || request.method === 'GET') && ep.params.properties) {
 			for (const k of Object.keys(ep.params.properties)) {
-				const param = ep.params.properties![k];
+				const param = ep.params.properties[k];
 				if (['boolean', 'number', 'integer'].includes(param.type ?? '') && typeof data[k] === 'string') {
 					try {
 						data[k] = JSON.parse(data[k]);

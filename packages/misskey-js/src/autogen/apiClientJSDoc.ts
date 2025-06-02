@@ -3840,7 +3840,7 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
-     * **Credential required**: *Yes* / **Permission**: *read:account*
+     * **Credential required**: *No*
      */
     request<E extends 'notes/polls/recommendation', P extends Endpoints[E]['req']>(
       endpoint: E,

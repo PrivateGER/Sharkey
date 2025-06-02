@@ -96,10 +96,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (!this.serverSettings.enableBotTrending) query.andWhere('user.isBot = FALSE');
 
-			await this.queryService.generateVisibilityQuery(query, me);
-			this.queryService.generateBlockedHostQueryForNote(query);
+			this.queryService.generateBlockedHostQueryForNote(query, undefined, false);
 			if (me) this.queryService.generateMutedUserQueryForNotes(query, me);
 			if (me) this.queryService.generateBlockedUserQueryForNotes(query, me);
+			if (me) this.queryService.generateMutedUserRenotesQueryForNotes(query, me);
 
 			const followings = me ? await this.cacheService.userFollowingsCache.fetch(me.id) : {};
 
@@ -160,7 +160,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (note.user?.isSuspended) return false;
 				if (note.userHost) {
 					if (!this.utilityService.isFederationAllowedHost(note.userHost)) return false;
-					if (this.utilityService.isSilencedHost(this.serverSettings.silencedHosts, note.userHost)) return false;
 				}
 				return true;
 			});

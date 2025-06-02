@@ -3317,7 +3317,7 @@ export type paths = {
      * notes/polls/recommendation
      * @description No description provided.
      *
-     * **Credential required**: *Yes* / **Permission**: *read:account*
+     * **Credential required**: *No*
      */
     post: operations['notes___polls___recommendation'];
   };
@@ -5294,6 +5294,7 @@ export type components = {
       rejectReports: boolean;
       rejectQuotes: boolean;
       moderationNote?: string | null;
+      isBubbled: boolean;
     };
     GalleryPost: {
       /**
@@ -11209,6 +11210,7 @@ export type operations = {
               }]>;
             };
             isModerator: boolean;
+            isAdministrator: boolean;
             isSystem: boolean;
             isSilenced: boolean;
             isSuspended: boolean;
@@ -12918,6 +12920,9 @@ export type operations = {
       content: {
         'application/json': {
           uri: string;
+          expandCollectionItems?: boolean;
+          expandCollectionLimit?: number | null;
+          allowAnonymous?: boolean;
         };
       };
     };
@@ -27493,7 +27498,7 @@ export type operations = {
    * notes/polls/recommendation
    * @description No description provided.
    *
-   * **Credential required**: *Yes* / **Permission**: *read:account*
+   * **Credential required**: *No*
    */
   notes___polls___recommendation: {
     requestBody: {
@@ -27505,6 +27510,10 @@ export type operations = {
           offset?: number;
           /** @default false */
           excludeChannels?: boolean;
+          /** @default null */
+          local?: boolean | null;
+          /** @default false */
+          expired?: boolean;
         };
       };
     };

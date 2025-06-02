@@ -105,10 +105,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const query = this.queryService.makePaginationQuery(this.noteReactionsRepository.createQueryBuilder('reaction'),
 				ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate)
 				.andWhere('reaction.userId = :userId', { userId: ps.userId })
-				.leftJoinAndSelect('reaction.note', 'note');
+				.innerJoinAndSelect('reaction.note', 'note');
 
 			await this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateBlockedHostQueryForNote(query);
+			if (me) {
+				this.queryService.generateMutedUserQueryForNotes(query, me);
+				this.queryService.generateBlockedUserQueryForNotes(query, me);
+				this.queryService.generateMutedUserRenotesQueryForNotes(query, me);
+			}
 
 			const reactions = (await query
 				.limit(ps.limit)

@@ -356,8 +356,8 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 
 		const [followingVisibility, followersVisibility] = await Promise.all(
 			[
-				this.isPublicCollection(person.following, resolver),
-				this.isPublicCollection(person.followers, resolver),
+				this.isPublicCollection(person.following, resolver, uri),
+				this.isPublicCollection(person.followers, resolver, uri),
 			].map((p): Promise<'public' | 'private'> => p
 				.then(isPublic => isPublic ? 'public' : 'private')
 				.catch(err => {
@@ -393,10 +393,18 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		//#endregion
 
 		//#region resolve counts
-		const _resolver = resolver ?? this.apResolverService.createResolver();
-		const outboxcollection = await _resolver.resolveCollection(person.outbox).catch(() => { return null; });
-		const followerscollection = await _resolver.resolveCollection(person.followers!).catch(() => { return null; });
-		const followingcollection = await _resolver.resolveCollection(person.following!).catch(() => { return null; });
+		const outboxCollection = person.outbox
+			? await resolver.resolveCollection(person.outbox, true, uri).catch(() => { return null; })
+			: null;
+		const followersCollection = person.followers
+			? await resolver.resolveCollection(person.followers, true, uri).catch(() => { return null; })
+			: null;
+		const followingCollection = person.following
+			? await resolver.resolveCollection(person.following, true, uri).catch(() => { return null; })
+			: null;
+
+		// Register the instance first, to avoid FK errors
+		await this.federatedInstanceService.fetchOrRegister(host);
 
 		try {
 			// Start transaction
@@ -423,9 +431,9 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 					host,
 					inbox: person.inbox,
 					sharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
-					notesCount: outboxcollection?.totalItems ?? 0,
-					followersCount: followerscollection?.totalItems ?? 0,
-					followingCount: followingcollection?.totalItems ?? 0,
+					notesCount: outboxCollection?.totalItems ?? 0,
+					followersCount: followersCollection?.totalItems ?? 0,
+					followingCount: followingCollection?.totalItems ?? 0,
 					followersUri: person.followers ? getApId(person.followers) : undefined,
 					featured: person.featured ? getApId(person.featured) : undefined,
 					uri: person.id,
@@ -574,8 +582,8 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 
 		const [followingVisibility, followersVisibility] = await Promise.all(
 			[
-				this.isPublicCollection(person.following, resolver),
-				this.isPublicCollection(person.followers, resolver),
+				this.isPublicCollection(person.following, resolver, exist.uri),
+				this.isPublicCollection(person.followers, resolver, exist.uri),
 			].map((p): Promise<'public' | 'private' | undefined> => p
 				.then(isPublic => isPublic ? 'public' : 'private')
 				.catch(err => {
@@ -799,13 +807,13 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		const _resolver = resolver ?? this.apResolverService.createResolver();
 
 		// Resolve to (Ordered)Collection Object
-		const collection = await _resolver.resolveCollection(user.featured).catch(err => {
+		const collection = user.featured ? await _resolver.resolveCollection(user.featured, true, user.uri).catch(err => {
 			if (err instanceof AbortError || err instanceof StatusError) {
 				this.logger.warn(`Failed to update featured notes: ${err.name}: ${err.message}`);
 			} else {
 				this.logger.error('Failed to update featured notes:', err);
 			}
-		});
+		}) : null;
 		if (!collection) return;
 
 		if (!isCollectionOrOrderedCollection(collection)) throw new UnrecoverableError(`featured ${user.featured} is not Collection or OrderedCollection in ${user.uri}`);
@@ -891,11 +899,13 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async isPublicCollection(collection: string | ICollection | IOrderedCollection | undefined, resolver: Resolver): Promise<boolean> {
+	private async isPublicCollection(collection: string | ICollection | IOrderedCollection | undefined, resolver: Resolver, sentFrom: string): Promise<boolean> {
 		if (collection) {
-			const resolved = await resolver.resolveCollection(collection);
-			if (resolved.first || (resolved as ICollection).items || (resolved as IOrderedCollection).orderedItems) {
-				return true;
+			const resolved = await resolver.resolveCollection(collection, true, sentFrom).catch(() => null);
+			if (resolved) {
+				if (resolved.first || (resolved as ICollection).items || (resolved as IOrderedCollection).orderedItems) {
+					return true;
+				}
 			}
 		}
 
