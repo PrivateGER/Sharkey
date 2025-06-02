@@ -44,16 +44,6 @@ export class ApiStatusMastodon {
 			const data = await client.getStatus(appearNote.id);
 			const response = await this.mastoConverters.convertStatus(data.data, me, { note: appearNote, user: appearNote.user });
 
-			// Fixup - Discord ignores CWs and renders the entire post.
-			if (response.sensitive && _request.headers['user-agent']?.match(/\bDiscordbot\//)) {
-				response.content = getNoteSummary(data.data satisfies Packed<'Note'>);
-				response.media_attachments = [];
-				response.in_reply_to_id = null;
-				response.in_reply_to_account_id = null;
-				response.reblog = null;
-				response.quote = null;
-			}
-
 			return reply.send(response);
 		});
 
