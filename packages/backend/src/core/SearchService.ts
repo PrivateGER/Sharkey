@@ -296,7 +296,7 @@ export class SearchService {
 			query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
 		}
 
-		this.queryService.generateVisibilityQuery(query, me);
+		await this.queryService.generateVisibilityQuery(query, me);
 		if (me) this.queryService.generateMutedUserQueryForUsers(query, me);
 		if (me) this.queryService.generateBlockQueryForUsers(query, me);
 
