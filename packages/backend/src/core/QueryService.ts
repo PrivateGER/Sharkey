@@ -94,7 +94,7 @@ export class QueryService {
 	@bindThis
 	public generateBlockQueryForUsers<E extends ObjectLiteral>(q: SelectQueryBuilder<E>, me: { id: MiUser['id'] }): SelectQueryBuilder<E> {
 		this.andNotBlockingUser(q, ':meId', 'user.id');
-		this.andNotBlockingUser(q, 'user.id', ':me.id');
+		this.andNotBlockingUser(q, 'user.id', ':meId');
 		return q.setParameters({ meId: me.id });
 	}
 
