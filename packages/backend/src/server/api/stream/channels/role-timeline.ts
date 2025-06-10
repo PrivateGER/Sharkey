@@ -9,6 +9,7 @@ import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
 import type { JsonObject } from '@/misc/json-value.js';
+import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 class RoleTimelineChannel extends Channel {
@@ -40,13 +41,34 @@ class RoleTimelineChannel extends Channel {
 	private async onEvent(data: GlobalEvents['roleTimeline']['payload']) {
 		if (data.type === 'note') {
 			const note = data.body;
+			const isMe = this.user?.id === note.userId;
 
+			// TODO this should be cached
 			if (!(await this.roleservice.isExplorable({ id: this.roleId }))) {
 				return;
 			}
 			if (note.visibility !== 'public') return;
 
 			if (this.isNoteMutedOrBlocked(note)) return;
+
+			if (note.reply) {
+				const reply = note.reply;
+				// 自分のフォローしていないユーザーの visibility: followers な投稿への返信は弾く
+				if (!this.isNoteVisibleToMe(reply)) return;
+				if (!this.following[note.userId]?.withReplies) {
+					// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
+					if (reply.userId !== this.user?.id && !isMe && reply.userId !== note.userId) return;
+				}
+			}
+
+			// 純粋なリノート（引用リノートでないリノート）の場合
+			if (isRenotePacked(note) && !isQuotePacked(note) && note.renote) {
+				if (note.renote.reply) {
+					const reply = note.renote.reply;
+					// 自分のフォローしていないユーザーの visibility: followers な投稿への返信のリノートは弾く
+					if (!this.isNoteVisibleToMe(reply)) return;
+				}
+			}
 
 			const clonedNote = await this.assignMyReaction(note);
 			await this.hideNote(clonedNote);

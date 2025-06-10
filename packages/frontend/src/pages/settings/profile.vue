@@ -163,6 +163,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<template #caption>{{ i18n.ts.flagAsBotDescription }}</template>
 						</MkSwitch>
 					</SearchMarker>
+
+					<SearchMarker
+						:label="i18n.ts.attributionDomains"
+						:keywords="['attribution', 'domains', 'preview', 'url']"
+					>
+						<AttributionDomainsSettings/>
+					</SearchMarker>
 				</div>
 			</MkFolder>
 		</SearchMarker>
@@ -172,6 +179,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, reactive, ref, watch, defineAsyncComponent } from 'vue';
+import AttributionDomainsSettings from './profile.attribution-domains-setting.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkSwitch from '@/components/MkSwitch.vue';

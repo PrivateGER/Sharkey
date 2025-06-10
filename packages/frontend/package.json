@@ -60,6 +60,7 @@
 		"misskey-reversi": "workspace:*",
 		"moment": "^2.30.1",
 		"photoswipe": "5.4.4",
+		"promise-limit": "2.7.0",
 		"punycode.js": "2.3.1",
 		"rollup": "4.40.0",
 		"sanitize-html": "2.16.0",

@@ -9,6 +9,7 @@
 
 import cluster from 'node:cluster';
 import { EventEmitter } from 'node:events';
+import { inspect } from 'node:util';
 import chalk from 'chalk';
 import Xev from 'xev';
 import Logger from '@/logger.js';
@@ -53,15 +54,22 @@ async function main() {
 
 	// Display detail of unhandled promise rejection
 	if (!envOption.quiet) {
-		process.on('unhandledRejection', console.dir);
+		process.on('unhandledRejection', e => {
+			try {
+				logger.error('Unhandled rejection:', inspect(e));
+			} catch {
+				console.error('Unhandled rejection:', inspect(e));
+			}
+		});
 	}
 
 	// Display detail of uncaught exception
 	process.on('uncaughtException', err => {
 		try {
-			logger.error(err);
-			console.trace(err);
-		} catch { }
+			logger.error('Uncaught exception:', err);
+		} catch {
+			console.error('Uncaught exception:', err);
+		}
 	});
 
 	// Dying away...

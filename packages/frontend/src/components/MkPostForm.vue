@@ -373,7 +373,9 @@ if (props.specified) {
 // keep cw when reply
 if (prefer.s.keepCw && props.reply && props.reply.cw) {
 	useCw.value = true;
-	cw.value = props.reply.cw;
+	cw.value = (prefer.s.keepCw === 'prepend-re' && !props.reply.cw.toLowerCase().startsWith('re:'))
+		? `RE: ${props.reply.cw}`
+		: props.reply.cw;
 }
 
 // apply default CW
@@ -557,6 +559,7 @@ async function toggleLocalOnly() {
 		if (confirm.result === 'no') return;
 
 		if (confirm.result === 'neverShow') {
+			prefer.commit('neverShowLocalOnlyInfo', 'true');
 			miLocalStorage.setItem('neverShowLocalOnlyInfo', 'true');
 		}
 	}

@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
-		<FormSuspense :p="init">
+<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :spacer="true" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+	<FormSuspense v-if="init" :p="init">
+		<div v-if="user && info">
 			<div v-if="tab === 'overview'" class="_gaps">
-				<div v-if="user" class="aeakzknw">
+				<div class="aeakzknw">
 					<MkAvatar class="avatar" :user="user" indicator link preview/>
 					<div class="body">
 						<span class="name"><MkUserName class="name" :user="user"/></span>
@@ -228,14 +228,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div v-else-if="tab === 'raw'" class="_gaps_m">
-				<MkObjectView v-if="info && $i.isAdmin" tall :value="info">
-				</MkObjectView>
+				<MkFolder :sticky="false" :defaultOpen="true">
+					<template #icon><i class="ph-user-circle ph-bold ph-lg"></i></template>
+					<template #label>{{ i18n.ts.user }}</template>
+					<template #header>
+						<div :class="$style.rawFolderHeader">
+							<span>{{ i18n.ts.rawUserDescription }}</span>
+							<button class="_textButton" @click="copyToClipboard(JSON.stringify(user, null, 4))"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</button>
+						</div>
+					</template>
 
-				<MkObjectView tall :value="user">
-				</MkObjectView>
+					<MkObjectView tall :value="user"/>
+				</MkFolder>
+
+				<MkFolder :sticky="false">
+					<template #icon><i class="ti ti-info-circle"></i></template>
+					<template #label>{{ i18n.ts.details }}</template>
+					<template #header>
+						<div :class="$style.rawFolderHeader">
+							<span>{{ i18n.ts.rawInfoDescription }}</span>
+							<button class="_textButton" @click="copyToClipboard(JSON.stringify(info, null, 4))"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</button>
+						</div>
+					</template>
+
+					<MkObjectView tall :value="info"/>
+				</MkFolder>
+
+				<MkFolder v-if="ap" :sticky="false">
+					<template #icon><i class="ph-globe ph-bold ph-lg"></i></template>
+					<template #label>{{ i18n.ts.activityPub }}</template>
+					<template #header>
+						<div :class="$style.rawFolderHeader">
+							<span>{{ i18n.ts.rawApDescription }}</span>
+							<button class="_textButton" @click="copyToClipboard(JSON.stringify(ap, null, 4))"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</button>
+						</div>
+					</template>
+					<MkObjectView tall :value="ap"/>
+				</MkFolder>
 			</div>
-		</FormSuspense>
-	</div>
+		</div>
+	</FormSuspense>
 </PageWithHeader>
 </template>
 
@@ -244,6 +276,7 @@ import { computed, defineAsyncComponent, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
 import type { Badge } from '@/components/SkBadgeStrip.vue';
+import type { ChartSrc } from '@/components/MkChart.vue';
 import MkChart from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
@@ -273,12 +306,20 @@ import SkBadgeStrip from '@/components/SkBadgeStrip.vue';
 const props = withDefaults(defineProps<{
 	userId: string;
 	initialTab?: string;
+	userHint?: Misskey.entities.UserDetailed;
+	infoHint?: Misskey.entities.AdminShowUserResponse;
+	ipsHint?: Misskey.entities.AdminGetUserIpsResponse;
+	apHint?: Misskey.entities.ApGetResponse;
 }>(), {
 	initialTab: 'overview',
+	userHint: undefined,
+	infoHint: undefined,
+	ipsHint: undefined,
+	apHint: undefined,
 });
 
 const tab = ref(props.initialTab);
-const chartSrc = ref('per-user-notes');
+const chartSrc = ref<ChartSrc>('per-user-notes');
 const user = ref<null | Misskey.entities.UserDetailed>();
 const init = ref<ReturnType<typeof createFetcher>>();
 const info = ref<Misskey.entities.AdminShowUserResponse | null>(null);
@@ -403,41 +444,49 @@ const announcementsPagination = {
 		status: announcementsStatus.value,
 	})),
 };
-const expandedRoles = ref([]);
+const expandedRoles = ref<string[]>([]);
 
-function createFetcher() {
-	return () => Promise.all([misskeyApi('users/show', {
-		userId: props.userId,
-	}), misskeyApi('admin/show-user', {
-		userId: props.userId,
-	}), iAmAdmin ? misskeyApi('admin/get-user-ips', {
-		userId: props.userId,
-	}) : Promise.resolve(null), iAmAdmin ? misskeyApi('ap/get', {
-		uri: `${url}/users/${props.userId}`,
-	}).catch(() => null) : null]).then(([_user, _info, _ips, _ap]) => {
+function createFetcher(withHint = true) {
+	return () => Promise.all([
+		(withHint && props.userHint) ? props.userHint : misskeyApi('users/show', {
+			userId: props.userId,
+		}),
+		(withHint && props.infoHint) ? props.infoHint : misskeyApi('admin/show-user', {
+			userId: props.userId,
+		}),
+		iAmAdmin
+			? (withHint && props.ipsHint) ? props.ipsHint : misskeyApi('admin/get-user-ips', {
+				userId: props.userId,
+			})
+			: null,
+		iAmAdmin
+			? (withHint && props.apHint) ? props.apHint : misskeyApi('ap/get', {
+				userId: props.userId,
+			}).catch(() => null) : null],
+	).then(async ([_user, _info, _ips, _ap]) => {
 		user.value = _user;
 		info.value = _info;
 		ips.value = _ips;
 		ap.value = _ap;
-		moderator.value = info.value.isModerator;
-		silenced.value = info.value.isSilenced;
-		approved.value = info.value.approved;
-		markedAsNSFW.value = info.value.alwaysMarkNsfw;
-		suspended.value = info.value.isSuspended;
-		rejectQuotes.value = user.value.rejectQuotes ?? false;
-		moderationNote.value = info.value.moderationNote;
-		mandatoryCW.value = user.value.mandatoryCW;
+		moderator.value = _info.isModerator;
+		silenced.value = _info.isSilenced;
+		approved.value = _info.approved;
+		markedAsNSFW.value = _info.alwaysMarkNsfw;
+		suspended.value = _info.isSuspended;
+		rejectQuotes.value = _user.rejectQuotes ?? false;
+		moderationNote.value = _info.moderationNote;
+		mandatoryCW.value = _user.mandatoryCW;
 	});
 }
 
 async function refreshUser() {
 	// Not a typo - createFetcher() returns a function()
-	await createFetcher()();
+	await createFetcher(false)();
 }
 
-async function onMandatoryCWChanged(value: string) {
+async function onMandatoryCWChanged(value: string | number) {
 	await os.promiseDialog(async () => {
-		await misskeyApi('admin/cw-user', { userId: props.userId, cw: value });
+		await misskeyApi('admin/cw-user', { userId: props.userId, cw: String(value) });
 		await refreshUser();
 	});
 }
@@ -445,14 +494,14 @@ async function onMandatoryCWChanged(value: string) {
 async function onModerationNoteChanged(value: string) {
 	await os.promiseDialog(async () => {
 		await misskeyApi('admin/update-user-note', { userId: props.userId, text: value });
-		refreshUser();
+		await refreshUser();
 	});
 }
 
 async function updateRemoteUser() {
 	await os.promiseDialog(async () => {
 		await misskeyApi('federation/update-remote-user', { userId: props.userId });
-		refreshUser();
+		await refreshUser();
 	});
 }
 
@@ -465,7 +514,7 @@ async function resetPassword() {
 		return;
 	} else {
 		const { password } = await misskeyApi('admin/reset-password', {
-			userId: user.value.id,
+			userId: props.userId,
 		});
 		await os.alert({
 			type: 'success',
@@ -577,15 +626,16 @@ async function deleteAccount() {
 		text: i18n.ts.deleteThisAccountConfirm,
 	});
 	if (confirm.canceled) return;
+	if (!user.value) return;
 
 	const typed = await os.inputText({
-		text: i18n.tsx.typeToConfirm({ x: user.value?.username }),
+		text: i18n.tsx.typeToConfirm({ x: user.value.username }),
 	});
 	if (typed.canceled) return;
 
-	if (typed.result === user.value?.username) {
+	if (typed.result === user.value.username) {
 		await os.apiWithDialog('admin/delete-account', {
-			userId: user.value.id,
+			userId: props.userId,
 		});
 	} else {
 		await os.alert({
@@ -648,7 +698,7 @@ async function unassignRole(role, ev) {
 	}], ev.currentTarget ?? ev.target);
 }
 
-function toggleRoleItem(role) {
+function toggleRoleItem(role: Misskey.entities.Role) {
 	if (expandedRoles.value.includes(role.id)) {
 		expandedRoles.value = expandedRoles.value.filter(x => x !== role.id);
 	} else {
@@ -657,6 +707,7 @@ function toggleRoleItem(role) {
 }
 
 function createAnnouncement() {
+	if (!user.value) return;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserAnnouncementEditDialog.vue')), {
 		user: user.value,
 	}, {
@@ -665,6 +716,7 @@ function createAnnouncement() {
 }
 
 function editAnnouncement(announcement) {
+	if (!user.value) return;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserAnnouncementEditDialog.vue')), {
 		user: user.value,
 		announcement,
@@ -869,5 +921,14 @@ definePage(() => ({
 	>* {
 		margin: calc(var(--MI-margin) / 2);
 	}
+}
+
+.rawFolderHeader {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: flex-start;
+	padding: var(--MI-marginHalf);
+	gap: var(--MI-marginHalf);
 }
 </style>

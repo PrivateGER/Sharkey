@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { In } from 'typeorm';
 import type { Packed } from '@/misc/json-schema.js';
 import type { MiInstance } from '@/models/Instance.js';
 import { bindThis } from '@/decorators.js';
@@ -11,13 +12,16 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { MiUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
-import { MiMeta } from '@/models/_.js';
+import type { InstancesRepository, MiMeta } from '@/models/_.js';
 
 @Injectable()
 export class InstanceEntityService {
 	constructor(
 		@Inject(DI.meta)
 		private meta: MiMeta,
+
+		@Inject(DI.instancesRepository)
+		private readonly instancesRepository: InstancesRepository,
 
 		private roleService: RoleService,
 
@@ -72,6 +76,29 @@ export class InstanceEntityService {
 		me?: { id: MiUser['id']; } | null | undefined,
 	) {
 		return Promise.all(instances.map(x => this.pack(x, me)));
+	}
+
+	@bindThis
+	public async fetchInstancesByHost(instances: (MiInstance | MiInstance['host'])[]): Promise<MiInstance[]> {
+		const result: MiInstance[] = [];
+
+		const toFetch: string[] = [];
+		for (const instance of instances) {
+			if (typeof(instance) === 'string') {
+				toFetch.push(instance);
+			} else {
+				result.push(instance);
+			}
+		}
+
+		if (toFetch.length > 0) {
+			const fetched = await this.instancesRepository.findBy({
+				host: In(toFetch),
+			});
+			result.push(...fetched);
+		}
+
+		return result;
 	}
 }
 

@@ -14,6 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				ref="text"
 				class="_selectable"
 				:text="message.text"
+				:parsedNotes="parsed"
 				:i="$i"
 				:nyaize="'respect'"
 				:enableEmojiMenu="true"
@@ -21,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			/>
 			<MkMediaList v-if="message.file" :mediaList="[message.file]" :class="$style.file"/>
 		</MkFukidashi>
-		<MkUrlPreview v-for="url in urls" :key="url" :url="url" :showAsQuote="!message.fromUser.rejectQuotes" style="margin: 8px 0;"/>
+		<SkUrlPreviewGroup :sourceNodes="parsed" :showAsQuote="!message.fromUser.rejectQuotes" style="margin: 8px 0;"/>
 		<div :class="$style.footer">
 			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
 			<MkTime :class="$style.time" :time="message.createdAt"/>
@@ -58,8 +59,6 @@ import { url } from '@@/js/config.js';
 import { isLink } from '@@/js/is-link.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { NormalizedChatMessage } from './room.vue';
-import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
-import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import { ensureSignin } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
@@ -74,6 +73,7 @@ import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import SkTransitionGroup from '@/components/SkTransitionGroup.vue';
+import SkUrlPreviewGroup from '@/components/SkUrlPreviewGroup.vue';
 
 const $i = ensureSignin();
 
@@ -83,7 +83,7 @@ const props = defineProps<{
 }>();
 
 const isMe = computed(() => props.message.fromUserId === $i.id);
-const urls = computed(() => props.message.text ? extractUrlFromMfm(mfm.parse(props.message.text)) : []);
+const parsed = computed(() => props.message.text ? mfm.parse(props.message.text) : []);
 
 provide(DI.mfmEmojiReactCallback, (reaction) => {
 	if ($i.policies.chatAvailability !== 'available') return;

@@ -211,7 +211,9 @@ rt {
 	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI_SPACER-max, 24px) * 2)));
 	margin: var(--MI_SPACER-max, 24px) auto;
 	container-type: inline-size;
+}
 
+._spacer > * {
 	/* 子に継承させない */
 	--MI_SPACER-w: initial;
 	--MI_SPACER-min: initial;
@@ -426,6 +428,14 @@ rt {
 	display: flex;
 	flex-direction: column;
 	gap: var(--MI-margin);
+}
+
+/**
+ * Use with _gaps, _gaps_m, or _gaps_s.
+ * Place the other class *first*!
+ */
+._h_gaps {
+	flex-direction: row;
 }
 
 ._buttons {

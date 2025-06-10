@@ -34,6 +34,7 @@ import { verifyFieldLinks } from '@/misc/verify-field-link.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import { notificationRecieveConfig } from '@/models/json-schema/user.js';
 import { userUnsignedFetchOptions } from '@/const.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiLoggerService } from '../../ApiLoggerService.js';
 import { ApiError } from '../../error.js';
 
@@ -263,6 +264,15 @@ export const paramDef = {
 			enum: userUnsignedFetchOptions,
 			nullable: false,
 		},
+		attributionDomains: {
+			type: 'array',
+			items: {
+				type: 'string',
+				minLength: 1,
+				maxLength: 128,
+			},
+			maxItems: 32,
+		},
 	},
 } as const;
 
@@ -373,6 +383,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 			if (ps.mutedInstances !== undefined) profileUpdates.mutedInstances = ps.mutedInstances;
 			if (ps.notificationRecieveConfig !== undefined) profileUpdates.notificationRecieveConfig = ps.notificationRecieveConfig;
+			if (ps.attributionDomains !== undefined) updates.attributionDomains = ps.attributionDomains;
 			if (typeof ps.isLocked === 'boolean') updates.isLocked = ps.isLocked;
 			if (typeof ps.isExplorable === 'boolean') updates.isExplorable = ps.isExplorable;
 			if (typeof ps.hideOnlineStatus === 'boolean') updates.hideOnlineStatus = ps.hideOnlineStatus;
@@ -506,7 +517,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 					// Retrieve the old account
 					const knownAs = await this.remoteUserResolveService.resolveUser(username, host).catch((e) => {
-						this.apiLoggerService.logger.warn(`failed to resolve dstination user: ${e}`);
+						this.apiLoggerService.logger.warn(`failed to resolve destination user: ${renderInlineError(e)}`);
 						throw new ApiError(meta.errors.noSuchUser);
 					});
 					if (knownAs.id === _user.id) throw new ApiError(meta.errors.forbiddenToSetYourself);
@@ -663,7 +674,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	// these two methods need to be kept in sync with
 	// `ApRendererService.renderPerson`
 	private userNeedsPublishing(oldUser: MiLocalUser, newUser: Partial<MiUser>): boolean {
-		const basicFields: (keyof MiUser)[] = ['avatarId', 'bannerId', 'backgroundId', 'isBot', 'username', 'name', 'isLocked', 'isExplorable', 'isCat', 'noindex', 'speakAsCat', 'movedToUri', 'alsoKnownAs', 'hideOnlineStatus', 'enableRss', 'requireSigninToViewContents', 'makeNotesFollowersOnlyBefore', 'makeNotesHiddenBefore'];
+		const basicFields: (keyof MiUser)[] = ['avatarId', 'bannerId', 'backgroundId', 'isBot', 'username', 'name', 'isLocked', 'isExplorable', 'isCat', 'noindex', 'speakAsCat', 'movedToUri', 'alsoKnownAs', 'hideOnlineStatus', 'enableRss', 'requireSigninToViewContents', 'makeNotesFollowersOnlyBefore', 'makeNotesHiddenBefore', 'attributionDomains'];
 		for (const field of basicFields) {
 			if ((field in newUser) && oldUser[field] !== newUser[field]) {
 				return true;

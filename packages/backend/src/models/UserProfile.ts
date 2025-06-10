@@ -17,7 +17,7 @@ export class MiUserProfile {
 	@PrimaryColumn(id())
 	public userId: MiUser['id'];
 
-	@OneToOne(type => MiUser, {
+	@OneToOne(() => MiUser, user => user.userProfile, {
 		onDelete: 'CASCADE',
 	})
 	@JoinColumn()

@@ -309,7 +309,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		if (this.isRenote(data)) {
 			if (data.renote.id === oldnote.id) {
-				throw new UnrecoverableError(`edit failed for ${oldnote.id}: cannot renote itself`);
+				throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', `edit failed for ${oldnote.id}: cannot renote itself`);
 			}
 
 			switch (data.renote.visibility) {
@@ -325,7 +325,7 @@ export class NoteEditService implements OnApplicationShutdown {
 				case 'followers':
 					// 他人のfollowers noteはreject
 					if (data.renote.userId !== user.id) {
-						throw new Error('Renote target is not public or home');
+						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
 					}
 
 					// Renote対象がfollowersならfollowersにする
@@ -333,7 +333,7 @@ export class NoteEditService implements OnApplicationShutdown {
 					break;
 				case 'specified':
 					// specified / direct noteはreject
-					throw new Error('Renote target is not public or home');
+					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
 			}
 		}
 

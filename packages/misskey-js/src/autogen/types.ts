@@ -4281,6 +4281,7 @@ export type components = {
         iconUrl: string | null;
         faviconUrl: string | null;
         themeColor: string | null;
+        isSilenced: boolean;
       };
       emojis: {
         [key: string]: string;
@@ -4292,6 +4293,7 @@ export type components = {
           iconUrl: string | null;
           displayOrder: number;
         })[];
+      attributionDomains: string[];
     };
     UserDetailedNotMeOnly: {
       /** Format: url */
@@ -6196,6 +6198,7 @@ export type operations = {
               assigneeId: string | null;
               reporter: components['schemas']['UserDetailedNotMe'];
               targetUser: components['schemas']['UserDetailedNotMe'];
+              targetInstance: components['schemas']['FederationInstance'] | null;
               assignee: components['schemas']['UserDetailedNotMe'] | null;
               forwarded: boolean;
               /** @enum {string|null} */
@@ -12919,7 +12922,11 @@ export type operations = {
     requestBody: {
       content: {
         'application/json': {
-          uri: string;
+          uri?: string | null;
+          /** Format: misskey:id */
+          userId?: string | null;
+          /** Format: misskey:id */
+          noteId?: string | null;
           expandCollectionItems?: boolean;
           expandCollectionLimit?: number | null;
           allowAnonymous?: boolean;
@@ -24260,7 +24267,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': Record<string, never>;
+          'application/json': unknown;
         };
       };
       /** @description Client error */
@@ -25185,6 +25192,7 @@ export type operations = {
           defaultCWPriority?: 'default' | 'parent' | 'defaultParent' | 'parentDefault';
           /** @enum {string} */
           allowUnsignedFetch?: 'never' | 'always' | 'essential' | 'staff';
+          attributionDomains?: string[];
         };
       };
     };
@@ -27230,12 +27238,6 @@ export type operations = {
           untilDate?: number;
           /** @default false */
           allowPartial?: boolean;
-          /** @default true */
-          includeMyRenotes?: boolean;
-          /** @default true */
-          includeRenotedMyNotes?: boolean;
-          /** @default true */
-          includeLocalRenotes?: boolean;
           /** @default false */
           withFiles?: boolean;
           /** @default true */
@@ -28651,12 +28653,6 @@ export type operations = {
           untilDate?: number;
           /** @default false */
           allowPartial?: boolean;
-          /** @default true */
-          includeMyRenotes?: boolean;
-          /** @default true */
-          includeRenotedMyNotes?: boolean;
-          /** @default true */
-          includeLocalRenotes?: boolean;
           /** @default false */
           withFiles?: boolean;
           /** @default true */
@@ -28857,12 +28853,6 @@ export type operations = {
           untilDate?: number;
           /** @default false */
           allowPartial?: boolean;
-          /** @default true */
-          includeMyRenotes?: boolean;
-          /** @default true */
-          includeRenotedMyNotes?: boolean;
-          /** @default true */
-          includeLocalRenotes?: boolean;
           /** @default true */
           withRenotes?: boolean;
           /**

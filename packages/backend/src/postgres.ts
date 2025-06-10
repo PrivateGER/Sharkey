@@ -145,7 +145,10 @@ class MyCustomLogger implements Logger {
 	@bindThis
 	private transformParameters(parameters?: any[]) {
 		if (this.props.enableQueryParamLogging && parameters && parameters.length > 0) {
-			return parameters.map(stringifyParameter);
+			return parameters.reduce((params, p, i) => {
+				params[`$${i + 1}`] = stringifyParameter(p);
+				return params;
+			}, {} as Record<string, string>);
 		}
 
 		return undefined;
@@ -158,7 +161,8 @@ class MyCustomLogger implements Logger {
 		const prefix = (this.props.printReplicationMode && queryRunner)
 			? `[${queryRunner.getReplicationMode()}] `
 			: undefined;
-		sqlLogger.info(this.transformQueryLog(query, { prefix }), this.transformParameters(parameters));
+		const transformed = this.transformQueryLog(query, { prefix });
+		sqlLogger.debug(`Query run: ${transformed}`, this.transformParameters(parameters));
 	}
 
 	@bindThis

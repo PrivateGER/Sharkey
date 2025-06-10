@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div v-if="instance" class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :spacer="true" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+	<div v-if="instance">
 		<!-- This empty div is preserved to avoid merge conflicts -->
 		<div>
 			<div v-if="tab === 'overview'" class="_gaps">
@@ -238,9 +238,14 @@ import SkBadgeStrip from '@/components/SkBadgeStrip.vue';
 
 const $style = useCssModule();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	host: string;
-}>();
+	metaHint?: Misskey.entities.AdminMetaResponse;
+	instanceHint?: Misskey.entities.FederationInstance;
+}>(), {
+	metaHint: undefined,
+	instanceHint: undefined,
+});
 
 const tab = ref('overview');
 
@@ -363,12 +368,16 @@ async function saveModerationNote() {
 	}
 }
 
-async function fetch(): Promise<void> {
+async function fetch(withHint = false): Promise<void> {
 	const [m, i] = await Promise.all([
-		iAmAdmin ? misskeyApi('admin/meta') : null,
-		misskeyApi('federation/show-instance', {
-			host: props.host,
-		}),
+		(withHint && props.metaHint)
+			? props.metaHint
+			: iAmAdmin ? misskeyApi('admin/meta') : null,
+		(withHint && props.instanceHint)
+			? props.instanceHint
+			: misskeyApi('federation/show-instance', {
+				host: props.host,
+			}),
 	]);
 	meta.value = m;
 	instance.value = i;
@@ -531,7 +540,7 @@ async function severAllFollowRelations(): Promise<void> {
 	});
 }
 
-fetch();
+fetch(true);
 
 const headerActions = computed(() => [{
 	text: `https://${props.host}`,

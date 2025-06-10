@@ -8,6 +8,7 @@ import { type UserUnsignedFetchOption, userUnsignedFetchOptions } from '@/const.
 import { MiInstance } from '@/models/Instance.js';
 import { id } from './util/id.js';
 import { MiDriveFile } from './DriveFile.js';
+import type { MiUserProfile } from './UserProfile.js';
 
 @Entity('user')
 @Index(['usernameLower', 'host'], { unique: true })
@@ -388,6 +389,15 @@ export class MiUser {
 		default: 'staff',
 	})
 	public allowUnsignedFetch: UserUnsignedFetchOption;
+
+	@Column('text', {
+		name: 'attributionDomains',
+		array: true, default: '{}',
+	})
+	public attributionDomains: string[];
+
+	@OneToOne('user_profile', (profile: MiUserProfile) => profile.user)
+	public userProfile: MiUserProfile | null;
 
 	constructor(data: Partial<MiUser>) {
 		if (data == null) return;

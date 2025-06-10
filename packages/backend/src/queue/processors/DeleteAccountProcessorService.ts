@@ -128,7 +128,7 @@ export class DeleteAccountProcessorService {
 				userId: user.id,
 			});
 
-			this.logger.succ('All clips have been deleted.');
+			this.logger.info('All clips have been deleted.');
 		}
 
 		{ // Delete favorites
@@ -136,7 +136,7 @@ export class DeleteAccountProcessorService {
 				userId: user.id,
 			});
 
-			this.logger.succ('All favorites have been deleted.');
+			this.logger.info('All favorites have been deleted.');
 		}
 
 		{ // Delete user relations
@@ -172,7 +172,7 @@ export class DeleteAccountProcessorService {
 				muteeId: user.id,
 			});
 
-			this.logger.succ('All user relations have been deleted.');
+			this.logger.info('All user relations have been deleted.');
 		}
 
 		{ // Delete reactions
@@ -206,7 +206,7 @@ export class DeleteAccountProcessorService {
 				}
 			}
 
-			this.logger.succ('All reactions have been deleted');
+			this.logger.info('All reactions have been deleted');
 		}
 
 		{ // Poll votes
@@ -238,7 +238,7 @@ export class DeleteAccountProcessorService {
 				});
 			}
 
-			this.logger.succ('All poll votes have been deleted');
+			this.logger.info('All poll votes have been deleted');
 		}
 
 		{ // Delete scheduled notes
@@ -254,7 +254,7 @@ export class DeleteAccountProcessorService {
 				userId: user.id,
 			});
 
-			this.logger.succ('All scheduled notes deleted');
+			this.logger.info('All scheduled notes deleted');
 		}
 
 		{ // Delete notes
@@ -312,7 +312,7 @@ export class DeleteAccountProcessorService {
 				}
 			}
 
-			this.logger.succ('All of notes deleted');
+			this.logger.info('All of notes deleted');
 		}
 
 		{ // Delete files
@@ -341,7 +341,7 @@ export class DeleteAccountProcessorService {
 				}
 			}
 
-			this.logger.succ('All of files deleted');
+			this.logger.info('All of files deleted');
 		}
 
 		{ // Delete actor logs
@@ -353,7 +353,7 @@ export class DeleteAccountProcessorService {
 			await this.apLogService.deleteInboxLogs(user.id)
 				.catch(err => this.logger.error(err, `Failed to delete AP logs for user '${user.uri}'`));
 
-			this.logger.succ('All AP logs deleted');
+			this.logger.info('All AP logs deleted');
 		}
 
 		// Do this BEFORE deleting the account!
@@ -379,7 +379,7 @@ export class DeleteAccountProcessorService {
 				await this.usersRepository.delete(user.id);
 			}
 
-			this.logger.succ('Account data deleted');
+			this.logger.info('Account data deleted');
 		}
 
 		{ // Send email notification

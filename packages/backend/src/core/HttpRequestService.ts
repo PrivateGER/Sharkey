@@ -331,7 +331,7 @@ export class HttpRequestService {
 		});
 
 		if (!res.ok && extra.throwErrorWhenResponseNotOk) {
-			throw new StatusError(`${res.status} ${res.statusText}`, res.status, res.statusText);
+			throw new StatusError(`request error from ${url}`, res.status, res.statusText);
 		}
 
 		if (res.ok) {

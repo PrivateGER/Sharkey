@@ -8,7 +8,7 @@ import _Ajv from 'ajv';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import Logger from '@/logger.js';
-import type { AntennasRepository } from '@/models/_.js';
+import type { AntennasRepository, UsersRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
@@ -59,6 +59,9 @@ export class ImportAntennasProcessorService {
 		@Inject(DI.antennasRepository)
 		private antennasRepository: AntennasRepository,
 
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
+
 		private queueLoggerService: QueueLoggerService,
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
@@ -68,12 +71,20 @@ export class ImportAntennasProcessorService {
 
 	@bindThis
 	public async process(job: Bull.Job<DBAntennaImportJobData>): Promise<void> {
+		const user = await this.usersRepository.findOneBy({ id: job.data.user.id });
+		if (user == null) {
+			this.logger.debug(`Skip: user ${job.data.user.id} does not exist`);
+			return;
+		}
+
+		this.logger.debug(`Importing blocking of ${job.data.user.id} ...`);
+
 		const now = new Date();
 		try {
 			for (const antenna of job.data.antenna) {
 				if (antenna.keywords.length === 0 || antenna.keywords[0].every(x => x === '')) continue;
 				if (!validate(antenna)) {
-					this.logger.warn('Validation Failed');
+					this.logger.warn('Antenna validation failed');
 					continue;
 				}
 				const result = await this.antennasRepository.insertOne({
@@ -92,11 +103,11 @@ export class ImportAntennasProcessorService {
 					withReplies: antenna.withReplies,
 					withFile: antenna.withFile,
 				});
-				this.logger.succ('Antenna created: ' + result.id);
+				this.logger.debug('Antenna created: ' + result.id);
 				this.globalEventService.publishInternalEvent('antennaCreated', result);
 			}
 		} catch (err: any) {
-			this.logger.error(err);
+			this.logger.error('Error importing antennas:', err);
 		}
 	}
 }

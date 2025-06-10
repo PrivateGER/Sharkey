@@ -14,6 +14,7 @@ import { DownloadService } from '@/core/DownloadService.js';
 import { UserMutingService } from '@/core/UserMutingService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserImportJobData } from '../types.js';
@@ -40,10 +41,9 @@ export class ImportMutingProcessorService {
 
 	@bindThis
 	public async process(job: Bull.Job<DbUserImportJobData>): Promise<void> {
-		this.logger.info(`Importing muting of ${job.data.user.id} ...`);
-
 		const user = await this.usersRepository.findOneBy({ id: job.data.user.id });
 		if (user == null) {
+			this.logger.debug(`Skip: user ${job.data.user.id} does not exist`);
 			return;
 		}
 
@@ -51,8 +51,11 @@ export class ImportMutingProcessorService {
 			id: job.data.fileId,
 		});
 		if (file == null) {
+			this.logger.debug(`Skip: file ${job.data.fileId} does not exist`);
 			return;
 		}
+
+		this.logger.info(`Importing muting of ${job.data.user.id} ...`);
 
 		const csv = await this.downloadService.downloadTextFile(file.url);
 
@@ -88,14 +91,14 @@ export class ImportMutingProcessorService {
 				// skip myself
 				if (target.id === job.data.user.id) continue;
 
-				this.logger.info(`Mute[${linenum}] ${target.id} ...`);
+				this.logger.debug(`Mute[${linenum}] ${target.id} ...`);
 
 				await this.userMutingService.mute(user, target);
 			} catch (e) {
-				this.logger.warn(`Error in line:${linenum} ${e}`);
+				this.logger.warn(`Error in line:${linenum} ${renderInlineError(e)}`);
 			}
 		}
 
-		this.logger.succ('Imported');
+		this.logger.debug('Imported');
 	}
 }

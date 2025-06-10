@@ -57,26 +57,22 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), ps.sinceId, ps.untilId)
 				.andWhere(new Brackets(qb => {
-					qb
-						.where('note.replyId = :noteId', { noteId: ps.noteId });
-						if (ps.showQuotes) {
-							qb.orWhere(new Brackets(qb => {
-								qb
-									.where('note.renoteId = :noteId', { noteId: ps.noteId })
-									.andWhere(new Brackets(qb => {
-										qb
-											.where('note.text IS NOT NULL')
-											.orWhere('note.fileIds != \'{}\'')
-											.orWhere('note.hasPoll = TRUE');
-									}));
-							}));
-						}
+					qb.orWhere('note.replyId = :noteId');
+
+					if (ps.showQuotes) {
+						qb.orWhere(new Brackets(qbb => this.queryService
+							.andIsQuote(qbb, 'note')
+							.andWhere('note.renoteId = :noteId'),
+						));
+					}
 				}))
 				.innerJoinAndSelect('note.user', 'user')
 				.leftJoinAndSelect('note.reply', 'reply')
 				.leftJoinAndSelect('note.renote', 'renote')
 				.leftJoinAndSelect('reply.user', 'replyUser')
-				.leftJoinAndSelect('renote.user', 'renoteUser');
+				.leftJoinAndSelect('renote.user', 'renoteUser')
+				.setParameters({ noteId: ps.noteId })
+				.limit(ps.limit);
 
 			await this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateBlockedHostQueryForNote(query);
@@ -85,7 +81,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.queryService.generateBlockedUserQueryForNotes(query, me);
 			}
 
-			const notes = await query.limit(ps.limit).getMany();
+			const notes = await query.getMany();
 
 			return await this.noteEntityService.packMany(notes, me);
 		});

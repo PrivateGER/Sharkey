@@ -613,6 +613,7 @@ export class ApRendererService {
 			enableRss: user.enableRss,
 			speakAsCat: user.speakAsCat,
 			attachment: attachment.length ? attachment : undefined,
+			attributionDomains: user.attributionDomains,
 		};
 
 		if (user.movedToUri) {

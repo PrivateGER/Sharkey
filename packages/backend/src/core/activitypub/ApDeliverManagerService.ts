@@ -57,7 +57,7 @@ class DeliverManager {
 	) {
 		// 型で弾いてはいるが一応ローカルユーザーかチェック
 		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-		if (actor.host != null) throw new Error('actor.host must be null');
+		if (actor.host != null) throw new Error(`deliver failed for ${actor.id}: host is not null`);
 
 		// パフォーマンス向上のためキューに突っ込むのはidのみに絞る
 		this.actor = {
@@ -124,12 +124,13 @@ class DeliverManager {
 				select: {
 					followerSharedInbox: true,
 					followerInbox: true,
+					followerId: true,
 				},
 			});
 
 			for (const following of followers) {
 				const inbox = following.followerSharedInbox ?? following.followerInbox;
-				if (inbox === null) throw new UnrecoverableError(`inbox is null: following ${following.id}`);
+				if (inbox === null) throw new UnrecoverableError(`deliver failed for ${this.actor.id}: follower ${following.followerId} inbox is null`);
 				inboxes.set(inbox, following.followerSharedInbox != null);
 			}
 		}

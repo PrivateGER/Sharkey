@@ -57,7 +57,7 @@ defineExpose({
 	&.noGap {
 		background: color-mix(in srgb, var(--MI_THEME-panel) 65%, transparent);
 
-		.note {
+		.note:not(:empty) {
 			border-bottom: solid 0.5px var(--MI_THEME-divider);
 		}
 

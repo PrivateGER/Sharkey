@@ -200,6 +200,10 @@ export const packedUserLiteSchema = {
 					type: 'string',
 					nullable: true, optional: false,
 				},
+				isSilenced: {
+					type: 'boolean',
+					nullable: false, optional: false,
+				},
 			},
 		},
 		emojis: {
@@ -234,6 +238,14 @@ export const packedUserLiteSchema = {
 						nullable: false, optional: false,
 					},
 				},
+			},
+		},
+		attributionDomains: {
+			type: 'array',
+			nullable: false, optional: false,
+			items: {
+				type: 'string',
+				nullable: false, optional: false,
 			},
 		},
 	},

@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { bindThis } from '@/decorators.js';
+import { StatusError } from '@/misc/status-error.js';
 import { CONTEXT, PRELOADED_CONTEXTS } from './misc/contexts.js';
 import { validateContentTypeSetAsJsonLD } from './misc/validator.js';
 import type { JsonLdDocument } from 'jsonld';
@@ -149,7 +150,7 @@ class JsonLd {
 			},
 		).then(res => {
 			if (!res.ok) {
-				throw new Error(`JSON-LD fetch failed with ${res.status} ${res.statusText}: ${url}`);
+				throw new StatusError(`failed to fetch JSON-LD from ${url}`, res.status, res.statusText);
 			} else {
 				return res.json();
 			}

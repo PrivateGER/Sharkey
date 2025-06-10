@@ -296,7 +296,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				case 'followers':
 					// 他人のfollowers noteはreject
 					if (data.renote.userId !== user.id) {
-						throw new Error('Renote target is not public or home');
+						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
 					}
 
 					// Renote対象がfollowersならfollowersにする
@@ -304,7 +304,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					break;
 				case 'specified':
 					// specified / direct noteはreject
-					throw new Error('Renote target is not public or home');
+					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
 			}
 		}
 
@@ -317,7 +317,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				if (data.renote.userId !== user.id) {
 					const blocked = await this.userBlockingService.checkBlocked(data.renote.userId, user.id);
 					if (blocked) {
-						throw new Error('blocked');
+						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is blocked');
 					}
 				}
 			}
@@ -489,10 +489,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		// should really not happen, but better safe than sorry
 		if (data.reply?.id === insert.id) {
-			throw new Error('A note can\'t reply to itself');
+			throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', 'A note can\'t reply to itself');
 		}
 		if (data.renote?.id === insert.id) {
-			throw new Error('A note can\'t renote itself');
+			throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', 'A note can\'t renote itself');
 		}
 
 		if (data.uri != null) insert.uri = data.uri;
@@ -548,8 +548,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 				err.name = 'duplicated';
 				throw err;
 			}
-
-			console.error(e);
 
 			throw e;
 		}

@@ -16,6 +16,7 @@ import { DriveService } from '@/core/DriveService.js';
 import { DownloadService } from '@/core/DownloadService.js';
 import { bindThis } from '@/decorators.js';
 import type { Config } from '@/config.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserImportJobData } from '../types.js';
@@ -45,18 +46,19 @@ export class ImportCustomEmojisProcessorService {
 
 	@bindThis
 	public async process(job: Bull.Job<DbUserImportJobData>): Promise<void> {
-		this.logger.info('Importing custom emojis ...');
-
 		const file = await this.driveFilesRepository.findOneBy({
 			id: job.data.fileId,
 		});
 		if (file == null) {
+			this.logger.debug(`Skip: file ${job.data.fileId} does not exist`);
 			return;
 		}
 
+		this.logger.info(`Importing custom emojis from ${file.id} (${file.name}) ...`);
+
 		const [path, cleanup] = await createTempDir();
 
-		this.logger.info(`Temp dir is ${path}`);
+		this.logger.debug(`Temp dir is ${path}`);
 
 		const destPath = path + '/emojis.zip';
 
@@ -65,14 +67,14 @@ export class ImportCustomEmojisProcessorService {
 			await this.downloadService.downloadUrl(file.url, destPath, { operationTimeout: this.config.import?.downloadTimeout, maxSize: this.config.import?.maxFileSize });
 		} catch (e) { // TODO: 何度か再試行
 			if (e instanceof Error || typeof e === 'string') {
-				this.logger.error(e);
+				this.logger.error('Error importing custom emojis:', e as Error);
 			}
 			throw e;
 		}
 
 		const outputPath = path + '/emojis';
 		try {
-			this.logger.succ(`Unzipping to ${outputPath}`);
+			this.logger.debug(`Unzipping to ${outputPath}`);
 			ZipReader.withDestinationPath(outputPath).viaBuffer(await fs.promises.readFile(destPath));
 			const metaRaw = fs.readFileSync(outputPath + '/meta.json', 'utf-8');
 			const meta = JSON.parse(metaRaw);
@@ -117,7 +119,7 @@ export class ImportCustomEmojisProcessorService {
 					});
 				} catch (e) {
 					if (e instanceof Error || typeof e === 'string') {
-						this.logger.error(`couldn't import ${emojiPath} for ${emojiInfo.name}: ${e}`);
+						this.logger.error(`couldn't import ${emojiPath} for ${emojiInfo.name}: ${renderInlineError(e)}`);
 					}
 					continue;
 				}
@@ -125,11 +127,9 @@ export class ImportCustomEmojisProcessorService {
 
 			cleanup();
 
-			this.logger.succ('Imported');
+			this.logger.debug('Imported');
 		} catch (e) {
-			if (e instanceof Error || typeof e === 'string') {
-				this.logger.error(e);
-			}
+			this.logger.error('Error importing custom emojis:', e as Error);
 			cleanup();
 			throw e;
 		}

@@ -389,7 +389,7 @@ function createLimitKey(limit: ParsedLimit, actor: string, value: string): strin
 	return `rl_${actor}_${limit.key}_${value}`;
 }
 
-class ConflictError extends Error {}
+export class ConflictError extends Error {}
 
 interface LimitCounter {
 	timestamp: number;

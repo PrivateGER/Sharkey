@@ -20,12 +20,14 @@ import { RoleService } from '@/core/RoleService.js';
 import type { Config } from '@/config.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiError } from './error.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { OnApplicationShutdown } from '@nestjs/common';
 import type { IEndpointMeta, IEndpoint } from './endpoints.js';
+import { renderFullError } from '@/misc/render-full-error.js';
 
 const accessDenied = {
 	message: 'Access denied.',
@@ -100,26 +102,26 @@ export class ApiCallService implements OnApplicationShutdown {
 			throw err;
 		} else {
 			const errId = randomUUID();
-			this.logger.error(`Internal error occurred in ${ep.name}: ${err.message}`, {
-				ep: ep.name,
-				ps: data,
-				e: {
-					message: err.message,
-					code: err.name,
-					stack: err.stack,
-					id: errId,
-				},
+			const fullError = renderFullError(err);
+			const message = typeof(fullError) === 'string'
+				? `Internal error id=${errId} occurred in ${ep.name}: ${fullError}`
+				: `Internal error id=${errId} occurred in ${ep.name}:`;
+			const data = typeof(fullError) === 'object'
+				? { e: fullError }
+				: {};
+			this.logger.error(message, {
+				user: userId ?? '<unauthenticated>',
+				...data,
 			});
 
 			if (this.config.sentryForBackend) {
-				Sentry.captureMessage(`Internal error occurred in ${ep.name}: ${err.message}`, {
+				Sentry.captureMessage(`Internal error occurred in ${ep.name}: ${renderInlineError(err)}`, {
 					level: 'error',
 					user: {
 						id: userId,
 					},
 					extra: {
 						ep: ep.name,
-						ps: data,
 						e: {
 							message: err.message,
 							code: err.name,

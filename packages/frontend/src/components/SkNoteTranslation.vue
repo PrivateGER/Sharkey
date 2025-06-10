@@ -33,7 +33,6 @@ if (_DEV_) {
 	watch(
 		[() => props.translation, () => props.translating],
 		([translation, translating]) => console.debug('Translation status changed: ', { translation, translating }),
-		{ immediate: true },
 	);
 }
 </script>

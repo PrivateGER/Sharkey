@@ -487,7 +487,10 @@ export class UserEntityService implements OnModuleInit {
 			includeSecrets: false,
 		}, options);
 
-		const user = typeof src === 'object' ? src : await this.usersRepository.findOneByOrFail({ id: src });
+		const user = typeof src === 'object' ? src : await this.usersRepository.findOneOrFail({
+			where: { id: src },
+			relations: { userProfile: true },
+		});
 
 		// migration
 		if (user.avatarId != null && user.avatarUrl === null) {
@@ -521,7 +524,7 @@ export class UserEntityService implements OnModuleInit {
 		const iAmModerator = me ? await this.roleService.isModerator(me as MiUser) : false;
 
 		const profile = isDetailed
-			? (opts.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }))
+			? (opts.userProfile ?? user.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }))
 			: null;
 
 		let relation: UserRelation | null = null;
@@ -556,7 +559,7 @@ export class UserEntityService implements OnModuleInit {
 			}
 		}
 
-		const mastoapi = !isDetailed ? opts.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }) : null;
+		const mastoapi = !isDetailed ? opts.userProfile ?? user.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }) : null;
 
 		const followingCount = profile == null ? null :
 			(profile.followingVisibility === 'public') || isMe || iAmModerator ? user.followingCount :
@@ -603,6 +606,7 @@ export class UserEntityService implements OnModuleInit {
 			enableRss: user.enableRss,
 			mandatoryCW: user.mandatoryCW,
 			rejectQuotes: user.rejectQuotes,
+			attributionDomains: user.attributionDomains,
 			isSilenced: user.isSilenced || this.roleService.getUserPolicies(user.id).then(r => !r.canPublicNote),
 			speakAsCat: user.speakAsCat ?? false,
 			approved: user.approved,
@@ -616,6 +620,7 @@ export class UserEntityService implements OnModuleInit {
 				iconUrl: instance.iconUrl,
 				faviconUrl: instance.faviconUrl,
 				themeColor: instance.themeColor,
+				isSilenced: instance.isSilenced,
 			} : undefined) : undefined,
 			followersCount: followersCount ?? 0,
 			followingCount: followingCount ?? 0,
@@ -783,8 +788,13 @@ export class UserEntityService implements OnModuleInit {
 		const _users = users.filter((user): user is MiUser => typeof user !== 'string');
 		if (_users.length !== users.length) {
 			_users.push(
-				...await this.usersRepository.findBy({
-					id: In(users.filter((user): user is string => typeof user === 'string')),
+				...await this.usersRepository.find({
+					where: {
+						id: In(users.filter((user): user is string => typeof user === 'string')),
+					},
+					relations: {
+						userProfile: true,
+					},
 				}),
 			);
 		}
@@ -798,8 +808,20 @@ export class UserEntityService implements OnModuleInit {
 		let pinNotes: Map<MiUser['id'], MiUserNotePining[]> = new Map();
 
 		if (options?.schema !== 'UserLite') {
-			profilesMap = await this.userProfilesRepository.findBy({ userId: In(_userIds) })
-				.then(profiles => new Map(profiles.map(p => [p.userId, p])));
+			const _profiles: MiUserProfile[] = [];
+			const _profilesToFetch: string[] = [];
+			for (const user of _users) {
+				if (user.userProfile) {
+					_profiles.push(user.userProfile);
+				} else {
+					_profilesToFetch.push(user.id);
+				}
+			}
+			if (_profilesToFetch.length > 0) {
+				const fetched = await this.userProfilesRepository.findBy({ userId: In(_profilesToFetch) });
+				_profiles.push(...fetched);
+			}
+			profilesMap = new Map(_profiles.map(p => [p.userId, p]));
 
 			const meId = me ? me.id : null;
 			if (meId) {

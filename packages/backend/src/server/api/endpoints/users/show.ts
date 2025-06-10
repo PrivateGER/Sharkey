@@ -13,6 +13,7 @@ import { RemoteUserResolveService } from '@/core/RemoteUserResolveService.js';
 import { DI } from '@/di-symbols.js';
 import PerUserPvChart from '@/core/chart/charts/per-user-pv.js';
 import { RoleService } from '@/core/RoleService.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiError } from '../../error.js';
 import { ApiLoggerService } from '../../ApiLoggerService.js';
 import type { FindOptionsWhere } from 'typeorm';
@@ -131,7 +132,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				// Lookup user
 				if (typeof ps.host === 'string' && typeof ps.username === 'string') {
 					user = await this.remoteUserResolveService.resolveUser(ps.username, ps.host).catch(err => {
-						this.apiLoggerService.logger.warn(`failed to resolve remote user: ${err}`);
+						this.apiLoggerService.logger.warn(`failed to resolve remote user: ${renderInlineError(err)}`);
 						throw new ApiError(meta.errors.failedToResolveRemoteUser);
 					});
 				} else {

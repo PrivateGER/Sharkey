@@ -9,6 +9,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { RemoteLoggerService } from './RemoteLoggerService.js';
 
 export type ILink = {
@@ -109,7 +110,7 @@ export class WebfingerService {
 			const template = (hostMeta['XRD']['Link'] as Array<any>).filter(p => p['@_rel'] === 'lrdd')[0]['@_template'];
 			return template.indexOf('{uri}') < 0 ? null : template;
 		} catch (err) {
-			this.logger.error(`error while request host-meta for ${url}: ${err}`);
+			this.logger.error(`error while request host-meta for ${url}: ${renderInlineError(err)}`);
 			return null;
 		}
 	}

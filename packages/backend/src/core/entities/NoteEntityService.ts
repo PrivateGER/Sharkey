@@ -17,6 +17,7 @@ import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { isPackedPureRenote } from '@/misc/is-renote.js';
+import type { Config } from '@/config.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { CacheService } from '../CacheService.js';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
@@ -91,6 +92,9 @@ export class NoteEntityService implements OnModuleInit {
 
 		@Inject(DI.channelsRepository)
 		private channelsRepository: ChannelsRepository,
+
+		@Inject(DI.config)
+		private readonly config: Config,
 
 		//private userEntityService: UserEntityService,
 		//private driveFileEntityService: DriveFileEntityService,
@@ -697,5 +701,10 @@ export class NoteEntityService implements OnModuleInit {
 				: `@${user.username}`;
 			return map;
 		}, {} as Record<string, string | undefined>);
+	}
+
+	@bindThis
+	public genLocalNoteUri(noteId: string): string {
+		return `${this.config.url}/notes/${noteId}`;
 	}
 }

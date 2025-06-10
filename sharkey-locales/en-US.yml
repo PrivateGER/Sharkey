@@ -601,6 +601,13 @@ roleAutomatic: "automatic"
 translationTimeoutLabel: "Translation timeout"
 translationTimeoutCaption: "Timeout in milliseconds for translation API requests."
 
+staffNotes: "Staff notes"
+instanceIconAlt: "Icon of {name}"
+
+attributionDomains: "Attribution Domains"
+attributionDomainsDescription: "A list of domains whose content can be attributed to you on link previews, separated by new-line. Any subdomain will also be valid. The following needs to be on the webpage:"
+writtenBy: "Written by {user}"
+
 followingPub: "Following (Pub)"
 followersSub: "Followers (Sub)"
 wellKnownResources: "Well-known resources"
@@ -613,3 +620,14 @@ bubble: "Bubble"
 verified: "Verified"
 notVerified: "Not Verified"
 hibernated: "Hibernated"
+
+keepCwDescription: "When replying to a post with a Content Warning, automatically use the same CW for the reply."
+keepCwDisabled: "Disabled (do not copy CWs)"
+keepCwEnabled: "Enabled (copy CWs verbatim)"
+keepCwPrependRe: "Enabled (copy CW and prepend \"RE:\")"
+
+noteFooterLabel: "Note controls"
+
+rawUserDescription: "Packed user data in its raw form. Most of these fields are public and visible to all users."
+rawInfoDescription: "Extended user data in its raw form. These fields are private and can only be accessed by moderators."
+rawApDescription: "ActivityPub user data in its raw form. These fields are public and accessible to other instances."

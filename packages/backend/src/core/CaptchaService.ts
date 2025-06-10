@@ -54,7 +54,7 @@ export class CaptchaError extends Error {
 	public readonly cause?: unknown;
 
 	constructor(code: CaptchaErrorCode, message: string, cause?: unknown) {
-		super(message);
+		super(message, cause ? { cause } : undefined);
 		this.code = code;
 		this.cause = cause;
 		this.name = 'CaptchaError';
@@ -117,7 +117,7 @@ export class CaptchaService {
 		}
 
 		const result = await this.getCaptchaResponse('https://www.recaptcha.net/recaptcha/api/siteverify', secret, response).catch(err => {
-			throw new CaptchaError(captchaErrorCodes.requestFailed, `recaptcha-request-failed: ${err}`);
+			throw new CaptchaError(captchaErrorCodes.requestFailed, `recaptcha-request-failed: ${err}`, err);
 		});
 
 		if (result.success !== true) {
@@ -133,7 +133,7 @@ export class CaptchaService {
 		}
 
 		const result = await this.getCaptchaResponse('https://hcaptcha.com/siteverify', secret, response).catch(err => {
-			throw new CaptchaError(captchaErrorCodes.requestFailed, `hcaptcha-request-failed: ${err}`);
+			throw new CaptchaError(captchaErrorCodes.requestFailed, `hcaptcha-request-failed: ${err}`, err);
 		});
 
 		if (result.success !== true) {
@@ -209,7 +209,7 @@ export class CaptchaService {
 		}
 
 		const result = await this.getCaptchaResponse('https://challenges.cloudflare.com/turnstile/v0/siteverify', secret, response).catch(err => {
-			throw new CaptchaError(captchaErrorCodes.requestFailed, `turnstile-request-failed: ${err}`);
+			throw new CaptchaError(captchaErrorCodes.requestFailed, `turnstile-request-failed: ${err}`, err);
 		});
 
 		if (result.success !== true) {
@@ -386,7 +386,7 @@ export class CaptchaService {
 				this.logger.info(err);
 				const error = err instanceof CaptchaError
 					? err
-					: new CaptchaError(captchaErrorCodes.unknown, `unknown error: ${err}`);
+					: new CaptchaError(captchaErrorCodes.unknown, `unknown error: ${err}`, err);
 				return {
 					success: false,
 					error,

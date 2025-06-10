@@ -386,7 +386,7 @@ function prepend(item: MisskeyEntity): void {
 		return;
 	}
 
-	if (_DEV_) console.log(isHead(), isPausingUpdate);
+	if (_DEV_) console.debug(isHead(), isPausingUpdate);
 
 	if (isHead() && !isPausingUpdate) unshiftItems([item]);
 	else prependQueue(item);

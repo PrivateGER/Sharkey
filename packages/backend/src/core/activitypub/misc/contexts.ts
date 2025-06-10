@@ -546,6 +546,10 @@ const extension_context_definition = {
 	featured: 'toot:featured',
 	discoverable: 'toot:discoverable',
 	indexable: 'toot:indexable',
+	attributionDomains: {
+		'@id': 'toot:attributionDomains',
+		'@type': '@id',
+	},
 	// schema
 	schema: 'http://schema.org#',
 	PropertyValue: 'schema:PropertyValue',

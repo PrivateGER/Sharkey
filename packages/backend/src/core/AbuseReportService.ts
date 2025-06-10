@@ -13,6 +13,7 @@ import { QueueService } from '@/core/QueueService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { IdService } from './IdService.js';
 
 @Injectable()
@@ -125,11 +126,11 @@ export class AbuseReportService {
 		const report = await this.abuseUserReportsRepository.findOneByOrFail({ id: reportId });
 
 		if (report.targetUserHost == null) {
-			throw new Error('The target user host is null.');
+			throw new IdentifiableError('0b1ce202-b2c1-4ee4-8af4-2742a51b383d', 'The target user host is null.');
 		}
 
 		if (report.forwarded) {
-			throw new Error('The report has already been forwarded.');
+			throw new IdentifiableError('5c008bdf-f0e8-4154-9f34-804e114516d7', 'The report has already been forwarded.');
 		}
 
 		await this.abuseUserReportsRepository.update(report.id, {

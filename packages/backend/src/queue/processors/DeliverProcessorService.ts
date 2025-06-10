@@ -133,23 +133,18 @@ export class DeliverProcessorService {
 				}
 			});
 
-			if (res instanceof StatusError) {
+			if (res instanceof StatusError && !res.isRetryable) {
 				// 4xx
-				if (!res.isRetryable) {
-					// 相手が閉鎖していることを明示しているため、配送停止する
-					if (job.data.isSharedInbox && res.statusCode === 410) {
-						this.federatedInstanceService.fetchOrRegister(host).then(i => {
-							this.federatedInstanceService.update(i.id, {
-								suspensionState: 'goneSuspended',
-							});
+				// 相手が閉鎖していることを明示しているため、配送停止する
+				if (job.data.isSharedInbox && res.statusCode === 410) {
+					this.federatedInstanceService.fetchOrRegister(host).then(i => {
+						this.federatedInstanceService.update(i.id, {
+							suspensionState: 'goneSuspended',
 						});
-						throw new Bull.UnrecoverableError(`${host} is gone`);
-					}
-					throw new Bull.UnrecoverableError(`${res.statusCode} ${res.statusMessage}`);
+					});
+					throw new Bull.UnrecoverableError(`${host} is gone`);
 				}
-
-				// 5xx etc.
-				throw new Error(`${res.statusCode} ${res.statusMessage}`);
+				throw new Bull.UnrecoverableError(`${res.statusCode} ${res.statusMessage}`);
 			} else {
 				// DNS error, socket error, timeout ...
 				throw res;

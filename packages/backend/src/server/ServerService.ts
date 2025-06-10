@@ -21,6 +21,7 @@ import { genIdenticon } from '@/misc/gen-identicon.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ActivityPubServerService } from './ActivityPubServerService.js';
 import { NodeinfoServerService } from './NodeinfoServerService.js';
 import { ApiServerService } from './api/ApiServerService.js';
@@ -277,7 +278,7 @@ export class ServerService implements OnApplicationShutdown {
 					this.logger.error(`Port ${this.config.port} is already in use by another process.`);
 					break;
 				default:
-					this.logger.error(err);
+					this.logger.error(`Unhandled error in server: ${renderInlineError(err)}`);
 					break;
 			}
 

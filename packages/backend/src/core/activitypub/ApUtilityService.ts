@@ -24,7 +24,7 @@ export class ApUtilityService {
 	public assertIdMatchesUrlAuthority(object: IObject, url: string): void {
 		// This throws if the ID is missing or invalid, but that's ok.
 		// Anonymous objects are impossible to verify, so we don't allow fetching them.
-		const id = getApId(object);
+		const id = getApId(object, url);
 
 		// Make sure the object ID matches the final URL (which is where it actually exists).
 		// The caller (ApResolverService) will verify the ID against the original / entry URL, which ensures that all three match.
@@ -80,7 +80,6 @@ export class ApUtilityService {
 	/**
 	 * Verifies that a provided URL is in a format acceptable for federation.
 	 * @throws {IdentifiableError} If URL cannot be parsed
-	 * @throws {IdentifiableError} If URL contains a fragment
 	 * @throws {IdentifiableError} If URL is not HTTPS
 	 */
 	public assertApUrl(url: string | URL): void {
@@ -91,11 +90,6 @@ export class ApUtilityService {
 			} catch {
 				throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid AP url ${url}: not a valid URL`);
 			}
-		}
-
-		// Hash component breaks federation
-		if (url.hash) {
-			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid AP url ${url}: contains a fragment (#)`);
 		}
 
 		// Must be HTTPS
