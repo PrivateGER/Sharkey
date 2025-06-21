@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script setup lang="ts">
 import * as Misskey from 'misskey-js';
-import * as mfm from '@transfem-org/sfm-js';
+import * as mfm from 'mfm-js';
 import { computed, ref, watch } from 'vue';
 import { versatileLang } from '@@/js/intl-const';
 import promiseLimit from 'promise-limit';

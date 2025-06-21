@@ -327,6 +327,12 @@ type AdminResolveAbuseUserReportRequest = operations['admin___resolve-abuse-user
 type AdminRolesAssignRequest = operations['admin___roles___assign']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRolesCloneRequest = operations['admin___roles___clone']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRolesCloneResponse = operations['admin___roles___clone']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRolesCreateRequest = operations['admin___roles___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1585,6 +1591,8 @@ declare namespace entities {
         AdminResetPasswordResponse,
         AdminResolveAbuseUserReportRequest,
         AdminRolesAssignRequest,
+        AdminRolesCloneRequest,
+        AdminRolesCloneResponse,
         AdminRolesCreateRequest,
         AdminRolesCreateResponse,
         AdminRolesDeleteRequest,

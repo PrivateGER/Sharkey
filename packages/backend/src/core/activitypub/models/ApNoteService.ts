@@ -6,6 +6,7 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
 import { UnrecoverableError } from 'bullmq';
+import promiseLimit from 'promise-limit';
 import { DI } from '@/di-symbols.js';
 import type { UsersRepository, PollsRepository, EmojisRepository, NotesRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
@@ -27,7 +28,10 @@ import { checkHttps } from '@/misc/check-https.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { isRetryableError } from '@/misc/is-retryable-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
-import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, IApDocument } from '../type.js';
+import { extractMediaFromHtml } from '@/core/activitypub/misc/extract-media-from-html.js';
+import { extractMediaFromMfm } from '@/core/activitypub/misc/extract-media-from-mfm.js';
+import { getContentByType } from '@/core/activitypub/misc/get-content-by-type.js';
+import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, IApDocument, isLink } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
 import { ApDbResolverService } from '../ApDbResolverService.js';
@@ -206,12 +210,10 @@ export class ApNoteService {
 		const cw = note.summary === '' ? null : note.summary;
 
 		// テキストのパース
-		let text: string | null = null;
-		if (note.source?.mediaType === 'text/x.misskeymarkdown' && typeof note.source.content === 'string') {
-			text = note.source.content;
-		} else if (typeof note._misskey_content !== 'undefined') {
-			text = note._misskey_content;
-		} else if (typeof note.content === 'string') {
+		let text =
+			getContentByType(note, 'text/x.misskeymarkdown') ??
+			getContentByType(note, 'text/markdown');
+		if (text == null && typeof note.content === 'string') {
 			text = this.apMfmService.htmlToMfm(note.content, note.tag);
 		}
 
@@ -248,21 +250,14 @@ export class ApNoteService {
 			}
 		}
 
+		const processErrors: string[] = [];
+
 		// 添付ファイル
-		const files: MiDriveFile[] = [];
-
-		for (const attach of toArray(note.attachment)) {
-			attach.sensitive ??= note.sensitive;
-			const file = await this.apImageService.resolveImage(actor, attach);
-			if (file) files.push(file);
-		}
-
-		// Some software (Peertube) attaches a thumbnail under "icon" instead of "attachment"
-		const icon = getBestIcon(note);
-		if (icon) {
-			icon.sensitive ??= note.sensitive;
-			const file = await this.apImageService.resolveImage(actor, icon);
-			if (file) files.push(file);
+		// Note: implementation moved to getAttachment function to avoid duplication.
+		// Please copy any upstream changes to that method! (It's in the bottom of this class)
+		const { files, hasFileError } = await this.getAttachments(note, actor);
+		if (hasFileError) {
+			processErrors.push('attachmentFailed');
 		}
 
 		// リプライ
@@ -284,7 +279,9 @@ export class ApNoteService {
 
 		// 引用
 		const quote = await this.getQuote(note, entryUri, resolver);
-		const processErrors = quote === null ? ['quoteUnavailable'] : null;
+		if (quote === null) {
+			processErrors.push('quoteUnavailable');
+		}
 
 		if (reply && reply.userHost == null && reply.localOnly) {
 			throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Cannot reply to local-only note');
@@ -328,7 +325,7 @@ export class ApNoteService {
 				files,
 				reply,
 				renote: quote ?? null,
-				processErrors,
+				processErrors: processErrors.length > 0 ? processErrors : null,
 				name: note.name,
 				cw,
 				text,
@@ -412,12 +409,10 @@ export class ApNoteService {
 		const cw = note.summary === '' ? null : note.summary;
 
 		// テキストのパース
-		let text: string | null = null;
-		if (note.source?.mediaType === 'text/x.misskeymarkdown' && typeof note.source.content === 'string') {
-			text = note.source.content;
-		} else if (typeof note._misskey_content !== 'undefined') {
-			text = note._misskey_content;
-		} else if (typeof note.content === 'string') {
+		let text =
+			getContentByType(note, 'text/x.misskeymarkdown') ??
+			getContentByType(note, 'text/markdown');
+		if (text == null && typeof note.content === 'string') {
 			text = this.apMfmService.htmlToMfm(note.content, note.tag);
 		}
 
@@ -446,21 +441,12 @@ export class ApNoteService {
 			}
 		}
 
+		const processErrors: string[] = [];
+
 		// 添付ファイル
-		const files: MiDriveFile[] = [];
-
-		for (const attach of toArray(note.attachment)) {
-			attach.sensitive ??= note.sensitive;
-			const file = await this.apImageService.resolveImage(actor, attach);
-			if (file) files.push(file);
-		}
-
-		// Some software (Peertube) attaches a thumbnail under "icon" instead of "attachment"
-		const icon = getBestIcon(note);
-		if (icon) {
-			icon.sensitive ??= note.sensitive;
-			const file = await this.apImageService.resolveImage(actor, icon);
-			if (file) files.push(file);
+		const { files, hasFileError } = await this.getAttachments(note, actor);
+		if (hasFileError) {
+			processErrors.push('attachmentFailed');
 		}
 
 		// リプライ
@@ -482,7 +468,9 @@ export class ApNoteService {
 
 		// 引用
 		const quote = await this.getQuote(note, entryUri, resolver);
-		const processErrors = quote === null ? ['quoteUnavailable'] : null;
+		if (quote === null) {
+			processErrors.push('quoteUnavailable');
+		}
 
 		if (quote && quote.userHost == null && quote.localOnly) {
 			throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Cannot quote a local-only note');
@@ -523,7 +511,7 @@ export class ApNoteService {
 				files,
 				reply,
 				renote: quote ?? null,
-				processErrors,
+				processErrors: processErrors.length > 0 ? processErrors : null,
 				name: note.name,
 				cw,
 				text,
@@ -657,9 +645,29 @@ export class ApNoteService {
 	 */
 	private async getQuote(note: IPost, entryUri: string, resolver: Resolver): Promise<MiNote | null | undefined> {
 		const quoteUris = new Set<string>();
-		if (note._misskey_quote) quoteUris.add(note._misskey_quote);
-		if (note.quoteUrl) quoteUris.add(note.quoteUrl);
-		if (note.quoteUri) quoteUris.add(note.quoteUri);
+		if (note._misskey_quote && typeof(note._misskey_quote as unknown) === 'string') quoteUris.add(note._misskey_quote);
+		if (note.quoteUrl && typeof(note.quoteUrl as unknown) === 'string') quoteUris.add(note.quoteUrl);
+		if (note.quoteUri && typeof(note.quoteUri as unknown) === 'string') quoteUris.add(note.quoteUri);
+
+		// https://codeberg.org/fediverse/fep/src/branch/main/fep/044f/fep-044f.md
+		if (note.quote && typeof(note.quote as unknown) === 'string') quoteUris.add(note.quote);
+
+		// https://codeberg.org/fediverse/fep/src/branch/main/fep/e232/fep-e232.md
+		const tags = toArray(note.tag).filter(tag => typeof(tag) === 'object' && isLink(tag));
+		for (const tag of tags) {
+			if (!tag.href || typeof (tag.href as unknown) !== 'string') continue;
+
+			const mediaTypes = toArray(tag.mediaType);
+			if (
+				!mediaTypes.includes('application/ld+json; profile="https://www.w3.org/ns/activitystreams"') &&
+				!mediaTypes.includes('application/activity+json')
+			) continue;
+
+			const rels = toArray(tag.rel);
+			if (!rels.includes('https://misskey-hub.net/ns#_misskey_quote')) continue;
+
+			quoteUris.add(tag.href);
+		}
 
 		// No quote, return undefined
 		if (quoteUris.size < 1) return undefined;
@@ -702,10 +710,95 @@ export class ApNoteService {
 		// Permanent error - return null
 		return null;
 	}
+
+	/**
+	 * Extracts and saves all media attachments from the provided note.
+	 * Returns an array of all the created files.
+	 */
+	private async getAttachments(note: IPost, actor: MiRemoteUser): Promise<{ files: MiDriveFile[], hasFileError: boolean }> {
+		const attachments = new Map<string, IApDocument & { url: string }>();
+
+		// Extract inline media from HTML content.
+		// Don't use source.content, _misskey_content, or anything else because those aren't HTML.
+		const htmlContent = getContentByType(note, 'text/html', true);
+		if (htmlContent) {
+			for (const attach of extractMediaFromHtml(htmlContent)) {
+				if (hasUrl(attach)) {
+					attachments.set(attach.url, attach);
+				}
+			}
+		}
+
+		// Extract inline media from MFM / markdown content.
+		const mfmContent =
+			getContentByType(note, 'text/x.misskeymarkdown') ??
+			getContentByType(note, 'text/markdown');
+		if (mfmContent) {
+			for (const attach of extractMediaFromMfm(mfmContent)) {
+				if (hasUrl(attach)) {
+					attachments.set(attach.url, attach);
+				}
+			}
+		}
+
+		// Some software (Peertube) attaches a thumbnail under "icon" instead of "attachment"
+		const icon = getBestIcon(note);
+		if (icon) {
+			if (hasUrl(icon)) {
+				attachments.set(icon.url, icon);
+			}
+		}
+
+		// Populate AP attachments last, to overwrite any "fallback" elements that may have been inlined in HTML.
+		// AP attachments should be considered canonical.
+		for (const attach of toArray(note.attachment)) {
+			if (hasUrl(attach)) {
+				attachments.set(attach.url, attach);
+			}
+		}
+
+		// Resolve all files w/ concurrency 2.
+		// This prevents one big file from blocking the others.
+		const limiter = promiseLimit<MiDriveFile | null>(2);
+		const results = await Promise
+			.all(Array
+				.from(attachments.values())
+				.map(attach => limiter(async () => {
+					attach.sensitive ??= note.sensitive;
+					return await this.resolveImage(actor, attach);
+				})));
+
+		// Process results
+		let hasFileError = false;
+		const files: MiDriveFile[] = [];
+		for (const result of results) {
+			if (result != null) {
+				files.push(result);
+			} else {
+				hasFileError = true;
+			}
+		}
+
+		return { files, hasFileError };
+	}
+
+	private async resolveImage(actor: MiRemoteUser, attachment: IApDocument & { url: string }): Promise<MiDriveFile | null> {
+		try {
+			return await this.apImageService.resolveImage(actor, attachment);
+		} catch (err) {
+			if (isRetryableError(err)) {
+				this.logger.warn(`Temporary failure to resolve attachment at ${attachment.url}: ${renderInlineError(err)}`);
+				throw err;
+			} else {
+				this.logger.warn(`Permanent failure to resolve attachment at ${attachment.url}: ${renderInlineError(err)}`);
+				return null;
+			}
+		}
+	}
 }
 
-function getBestIcon(note: IObject): IObject | null {
-	const icons: IObject[] = toArray(note.icon);
+function getBestIcon(note: IObject): IApDocument | null {
+	const icons: IApDocument[] = toArray(note.icon);
 	if (icons.length < 2) {
 		return icons[0] ?? null;
 	}
@@ -720,4 +813,9 @@ function getBestIcon(note: IObject): IObject | null {
 		if (i.height > best.height) return i;
 		return best;
 	}, null as IApDocument | null) ?? null;
+}
+
+// Need this to make TypeScript happy...
+function hasUrl<T extends IObject>(object: T): object is T & { url: string } {
+	return typeof(object.url) === 'string';
 }

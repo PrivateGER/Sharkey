@@ -148,6 +148,10 @@ export class ApiCallService implements OnApplicationShutdown {
 		request: FastifyRequest<{ Body: Record<string, unknown> | undefined, Querystring: Record<string, unknown> }>,
 		reply: FastifyReply,
 	): void {
+		// Tell crawlers not to index API endpoints.
+		// https://developers.google.com/search/docs/crawling-indexing/block-indexing
+		reply.header('X-Robots-Tag', 'noindex');
+
 		const body = request.method === 'GET'
 			? request.query
 			: request.body;

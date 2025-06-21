@@ -122,7 +122,7 @@ export class ReactionService {
 		}
 
 		// check visibility
-		if (!await this.noteEntityService.isVisibleForMe(note, user.id)) {
+		if (!await this.noteEntityService.isVisibleForMe(note, user.id, { me: user })) {
 			throw new IdentifiableError('68e9d2d1-48bf-42c2-b90a-b20e09fd3d48', 'Note not accessible for you.');
 		}
 

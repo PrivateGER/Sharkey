@@ -37,6 +37,7 @@ import InstanceChart from '@/core/chart/charts/instance.js';
 import FederationChart from '@/core/chart/charts/federation.js';
 import { FetchInstanceMetadataService } from '@/core/FetchInstanceMetadataService.js';
 import { UpdateInstanceQueue } from '@/core/UpdateInstanceQueue.js';
+import { CacheService } from '@/core/CacheService.js';
 import { getApHrefNullable, getApId, getApIds, getApType, getNullableApId, isAccept, isActor, isAdd, isAnnounce, isApObject, isBlock, isCollectionOrOrderedCollection, isCreate, isDelete, isFlag, isFollow, isLike, isDislike, isMove, isPost, isReject, isRemove, isTombstone, isUndo, isUpdate, validActor, validPost, isActivity, IObjectWithId } from './type.js';
 import { ApNoteService } from './models/ApNoteService.js';
 import { ApLoggerService } from './ApLoggerService.js';
@@ -98,6 +99,7 @@ export class ApInboxService {
 		private readonly instanceChart: InstanceChart,
 		private readonly federationChart: FederationChart,
 		private readonly updateInstanceQueue: UpdateInstanceQueue,
+		private readonly cacheService: CacheService,
 	) {
 		this.logger = this.apLoggerService.logger;
 	}
@@ -365,7 +367,7 @@ export class ApInboxService {
 			const renote = await this.apNoteService.resolveNote(target, { resolver, sentFrom: getApId(target) });
 			if (renote == null) return 'announce target is null';
 
-			if (!await this.noteEntityService.isVisibleForMe(renote, actor.id)) {
+			if (!await this.noteEntityService.isVisibleForMe(renote, actor.id, { me: actor })) {
 				return 'skip: invalid actor for this activity';
 			}
 
@@ -766,12 +768,7 @@ export class ApInboxService {
 			return 'skip: follower not found';
 		}
 
-		const isFollowing = await this.followingsRepository.exists({
-			where: {
-				followerId: follower.id,
-				followeeId: actor.id,
-			},
-		});
+		const isFollowing = await this.cacheService.userFollowingsCache.fetch(follower.id).then(f => f.has(actor.id));
 
 		if (isFollowing) {
 			await this.userFollowingService.unfollow(follower, actor);
@@ -830,12 +827,7 @@ export class ApInboxService {
 			},
 		});
 
-		const isFollowing = await this.followingsRepository.exists({
-			where: {
-				followerId: actor.id,
-				followeeId: followee.id,
-			},
-		});
+		const isFollowing = await this.cacheService.userFollowingsCache.fetch(actor.id).then(f => f.has(followee.id));
 
 		if (requestExist) {
 			await this.userFollowingService.cancelFollowRequest(followee, actor);

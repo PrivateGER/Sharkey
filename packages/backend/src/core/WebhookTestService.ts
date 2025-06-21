@@ -13,6 +13,7 @@ import { type WebhookEventTypes } from '@/models/Webhook.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { type UserWebhookPayload, UserWebhookService } from '@/core/UserWebhookService.js';
 import { QueueService } from '@/core/QueueService.js';
+import { IdService } from '@/core/IdService.js';
 import { ModeratorInactivityRemainingTime } from '@/queue/processors/CheckModeratorsActivityProcessorService.js';
 
 const oneDayMillis = 24 * 60 * 60 * 1000;
@@ -166,6 +167,7 @@ export class WebhookTestService {
 		private userWebhookService: UserWebhookService,
 		private systemWebhookService: SystemWebhookService,
 		private queueService: QueueService,
+		private readonly idService: IdService,
 	) {
 	}
 
@@ -449,6 +451,8 @@ export class WebhookTestService {
 				offsetX: it.offsetX,
 				offsetY: it.offsetY,
 			})),
+			createdAt: this.idService.parse(user.id).date.toISOString(),
+			description: '',
 			isBot: user.isBot,
 			isCat: user.isCat,
 			emojis: await this.customEmojiService.populateEmojis(user.emojis, user.host),

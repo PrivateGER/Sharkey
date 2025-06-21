@@ -79,14 +79,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						, 'source')
 						.innerJoin(MiNote, 'note', 'note.id = source.id');
 
-					// Mentioned or visible users can always access
-					//this.queryService.generateVisibilityQuery(query, me);
+					this.queryService.generateVisibilityQuery(qb, me);
 					this.queryService.generateBlockedHostQueryForNote(qb);
 					this.queryService.generateMutedUserQueryForNotes(qb, me);
 					this.queryService.generateMutedNoteThreadQuery(qb, me);
 					this.queryService.generateBlockedUserQueryForNotes(qb, me);
 					// A renote can't mention a user, so it will never appear here anyway.
-					//this.queryService.generateMutedUserRenotesQueryForNotes(query, me);
+					//this.queryService.generateMutedUserRenotesQueryForNotes(qb, me);
 
 					if (ps.visibility) {
 						qb.andWhere('note.visibility = :visibility', { visibility: ps.visibility });

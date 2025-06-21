@@ -57,19 +57,19 @@ export class MastodonDataService {
 			if (relations.reply) {
 				query.leftJoinAndSelect('note.reply', 'reply');
 				if (typeof(relations.reply) === 'object') {
-					if (relations.reply.reply) query.leftJoinAndSelect('note.reply.reply', 'replyReply');
-					if (relations.reply.renote) query.leftJoinAndSelect('note.reply.renote', 'replyRenote');
-					if (relations.reply.user) query.innerJoinAndSelect('note.reply.user', 'replyUser');
-					if (relations.reply.channel) query.leftJoinAndSelect('note.reply.channel', 'replyChannel');
+					if (relations.reply.reply) query.leftJoinAndSelect('reply.reply', 'replyReply');
+					if (relations.reply.renote) query.leftJoinAndSelect('reply.renote', 'replyRenote');
+					if (relations.reply.user) query.innerJoinAndSelect('reply.user', 'replyUser');
+					if (relations.reply.channel) query.leftJoinAndSelect('reply.channel', 'replyChannel');
 				}
 			}
 			if (relations.renote) {
 				query.leftJoinAndSelect('note.renote', 'renote');
 				if (typeof(relations.renote) === 'object') {
-					if (relations.renote.reply) query.leftJoinAndSelect('note.renote.reply', 'renoteReply');
-					if (relations.renote.renote) query.leftJoinAndSelect('note.renote.renote', 'renoteRenote');
-					if (relations.renote.user) query.innerJoinAndSelect('note.renote.user', 'renoteUser');
-					if (relations.renote.channel) query.leftJoinAndSelect('note.renote.channel', 'renoteChannel');
+					if (relations.renote.reply) query.leftJoinAndSelect('renote.reply', 'renoteReply');
+					if (relations.renote.renote) query.leftJoinAndSelect('renote.renote', 'renoteRenote');
+					if (relations.renote.user) query.innerJoinAndSelect('renote.user', 'renoteUser');
+					if (relations.renote.channel) query.leftJoinAndSelect('renote.channel', 'renoteChannel');
 				}
 			}
 			if (relations.user) {

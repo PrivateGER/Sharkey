@@ -12978,6 +12978,10 @@ export interface Locale extends ILocale {
          * Unable to process quote. This post may be missing context.
          */
         "quoteUnavailable": string;
+        /**
+         * One or more media attachments are unavailable and cannot be shown.
+         */
+        "attachmentFailed": string;
     };
     /**
      * Authorized Fetch
@@ -13281,6 +13285,10 @@ export interface Locale extends ILocale {
      * ActivityPub user data in its raw form. These fields are public and accessible to other instances.
      */
     "rawApDescription": string;
+    /**
+     * Signup Reason
+     */
+    "signupReason": string;
 }
 declare const locales: {
     [lang: string]: Locale;

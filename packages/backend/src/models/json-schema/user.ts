@@ -73,6 +73,16 @@ export const packedUserLiteSchema = {
 			type: 'string',
 			nullable: true, optional: false,
 		},
+		description: {
+			type: 'string',
+			nullable: true, optional: false,
+			example: 'Hi masters, I am Ai!',
+		},
+		createdAt: {
+			type: 'string',
+			nullable: false, optional: false,
+			format: 'date-time',
+		},
 		avatarDecorations: {
 			type: 'array',
 			nullable: false, optional: false,
@@ -278,11 +288,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 				nullable: false, optional: false,
 			},
 		},
-		createdAt: {
-			type: 'string',
-			nullable: false, optional: false,
-			format: 'date-time',
-		},
 		updatedAt: {
 			type: 'string',
 			nullable: true, optional: false,
@@ -323,11 +328,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 			type: 'boolean',
 			nullable: false, optional: false,
 			example: false,
-		},
-		description: {
-			type: 'string',
-			nullable: true, optional: false,
-			example: 'Hi masters, I am Ai!',
 		},
 		location: {
 			type: 'string',

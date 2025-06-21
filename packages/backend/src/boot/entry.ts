@@ -64,17 +64,35 @@ async function main() {
 	}
 
 	// Display detail of uncaught exception
-	process.on('uncaughtException', err => {
+	process.on('uncaughtExceptionMonitor', ((err, origin) => {
 		try {
-			logger.error('Uncaught exception:', err);
+			logger.error(`Uncaught exception (${origin}):`, err);
 		} catch {
-			console.error('Uncaught exception:', err);
+			console.error(`Uncaught exception (${origin}):`, err);
 		}
-	});
+	}));
 
 	// Dying away...
+	process.on('disconnect', () => {
+		try {
+			logger.warn('IPC channel disconnected! The process may soon die.');
+		} catch {
+			console.warn('IPC channel disconnected! The process may soon die.');
+		}
+	});
+	process.on('beforeExit', code => {
+		try {
+			logger.warn(`Event loop died! Process will exit with code ${code}.`);
+		} catch {
+			console.warn(`Event loop died! Process will exit with code ${code}.`);
+		}
+	});
 	process.on('exit', code => {
-		logger.info(`The process is going to exit with code ${code}`);
+		try {
+			logger.info(`The process is going to exit with code ${code}`);
+		} catch {
+			console.info(`The process is going to exit with code ${code}`);
+		}
 	});
 	//#endregion
 

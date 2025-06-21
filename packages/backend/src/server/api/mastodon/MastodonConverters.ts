@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Entity, MastodonEntity, MisskeyEntity } from 'megalodon';
-import mfm from '@transfem-org/sfm-js';
+import mfm from 'mfm-js';
 import { MastodonNotificationType } from 'megalodon/lib/src/mastodon/notification.js';
 import { NotificationType } from 'megalodon/lib/src/notification.js';
 import { DI } from '@/di-symbols.js';

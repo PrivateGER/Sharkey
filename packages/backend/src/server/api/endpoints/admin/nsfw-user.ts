@@ -47,7 +47,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				alwaysMarkNsfw: true,
 			});
 
-			await this.cacheService.userProfileCache.refresh(ps.userId);
+			await this.cacheService.userProfileCache.delete(ps.userId);
 		});
 	}
 }

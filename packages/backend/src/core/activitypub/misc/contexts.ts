@@ -540,6 +540,10 @@ const extension_context_definition = {
 	quoteUrl: 'as:quoteUrl',
 	fedibird: 'http://fedibird.com/ns#',
 	quoteUri: 'fedibird:quoteUri',
+	quote: {
+		'@id': 'https://w3id.org/fep/044f#quote',
+		'@type': '@id',
+	},
 	// Mastodon
 	toot: 'http://joinmastodon.org/ns#',
 	Emoji: 'toot:Emoji',

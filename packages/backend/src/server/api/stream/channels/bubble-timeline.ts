@@ -62,7 +62,7 @@ class BubbleTimelineChannel extends Channel {
 			const reply = note.reply;
 			// 自分のフォローしていないユーザーの visibility: followers な投稿への返信は弾く
 			if (!this.isNoteVisibleToMe(reply)) return;
-			if (!this.following[note.userId]?.withReplies) {
+			if (!this.following.get(note.userId)?.withReplies) {
 				// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
 				if (reply.userId !== this.user?.id && !isMe && reply.userId !== note.userId) return;
 			}

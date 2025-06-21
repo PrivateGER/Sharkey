@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps">
 			<div class="_buttons">
 				<MkButton primary rounded @click="edit"><i class="ti ti-pencil"></i> {{ i18n.ts.edit }}</MkButton>
+				<MkButton secondary rounded @click="clone"><i class="ti ti-copy"></i> {{ i18n.ts.clone }}</MkButton>
 				<MkButton danger rounded @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 			</div>
 			<MkFolder>
@@ -95,6 +96,13 @@ const role = reactive(await misskeyApi('admin/roles/show', {
 
 function edit() {
 	router.push('/admin/roles/' + role.id + '/edit');
+}
+
+async function clone() {
+	const newRole = await misskeyApi('admin/roles/clone', {
+		roleId: role.id,
+	});
+	router.push('/admin/roles/' + newRole.id + '/edit');
 }
 
 async function del() {

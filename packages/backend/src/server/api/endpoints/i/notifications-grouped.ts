@@ -104,53 +104,88 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// grouping
-			let groupedNotifications = [notifications[0]] as MiGroupedNotification[];
-			for (let i = 1; i < notifications.length; i++) {
-				const notification = notifications[i];
-				const prev = notifications[i - 1];
-				let prevGroupedNotification = groupedNotifications.at(-1)!;
+			const groupedNotifications : MiGroupedNotification[] = [];
+			// keep track of where reaction / renote notifications are, by note id
+			const reactionIdxByNoteId = new Map<string, number>();
+			const renoteIdxByNoteId = new Map<string, number>();
 
-				if (prev.type === 'reaction' && notification.type === 'reaction' && prev.noteId === notification.noteId) {
-					if (prevGroupedNotification.type !== 'reaction:grouped') {
-						groupedNotifications[groupedNotifications.length - 1] = {
+			// group notifications by type+note; notice that we don't try to
+			// split groups if they span a long stretch of time, because
+			// it's probably overkill: if the user has very few
+			// notifications, there should be very little difference; if the
+			// user has many notifications, the pagination will break the
+			// groups
+
+			// scan `notifications` newest-to-oldest
+			for (let i = 0; i < notifications.length; i++) {
+				const notification = notifications[i];
+
+				if (notification.type === 'reaction') {
+					const reactionIdx = reactionIdxByNoteId.get(notification.noteId);
+					if (reactionIdx === undefined) {
+						// first reaction to this note that we see, add it as-is
+						// and remember where we put it
+						groupedNotifications.push(notification);
+						reactionIdxByNoteId.set(notification.noteId, groupedNotifications.length - 1);
+						continue;
+					}
+
+					let prevReaction = groupedNotifications[reactionIdx] as FilterUnionByProperty<MiGroupedNotification, 'type', 'reaction:grouped'> | FilterUnionByProperty<MiGroupedNotification, 'type', 'reaction'>;
+					// if the previous reaction is not a group, make it into one
+					if (prevReaction.type !== 'reaction:grouped') {
+						prevReaction = groupedNotifications[reactionIdx] = {
 							type: 'reaction:grouped',
-							id: '',
-							createdAt: prev.createdAt,
-							noteId: prev.noteId!,
+							id: prevReaction.id, // this will be the newest id in this group
+							createdAt: prevReaction.createdAt,
+							noteId: prevReaction.noteId!,
 							reactions: [{
-								userId: prev.notifierId!,
-								reaction: prev.reaction!,
+								userId: prevReaction.notifierId!,
+								reaction: prevReaction.reaction!,
 							}],
 						};
-						prevGroupedNotification = groupedNotifications.at(-1)!;
 					}
-					(prevGroupedNotification as FilterUnionByProperty<MiGroupedNotification, 'type', 'reaction:grouped'>).reactions.push({
+					// add this new reaction to the existing group
+					(prevReaction as FilterUnionByProperty<MiGroupedNotification, 'type', 'reaction:grouped'>).reactions.push({
 						userId: notification.notifierId!,
 						reaction: notification.reaction!,
 					});
-					prevGroupedNotification.id = notification.id;
-					continue;
-				}
-				if (prev.type === 'renote' && notification.type === 'renote' && prev.targetNoteId === notification.targetNoteId) {
-					if (prevGroupedNotification.type !== 'renote:grouped') {
-						groupedNotifications[groupedNotifications.length - 1] = {
-							type: 'renote:grouped',
-							id: '',
-							createdAt: notification.createdAt,
-							noteId: prev.noteId!,
-							userIds: [prev.notifierId!],
-						};
-						prevGroupedNotification = groupedNotifications.at(-1)!;
-					}
-					(prevGroupedNotification as FilterUnionByProperty<MiGroupedNotification, 'type', 'renote:grouped'>).userIds.push(notification.notifierId!);
-					prevGroupedNotification.id = notification.id;
 					continue;
 				}
 
+				if (notification.type === 'renote') {
+					const renoteIdx = renoteIdxByNoteId.get(notification.targetNoteId);
+					if (renoteIdx === undefined) {
+						// first renote of this note that we see, add it as-is and
+						// remember where we put it
+						groupedNotifications.push(notification);
+						renoteIdxByNoteId.set(notification.targetNoteId, groupedNotifications.length - 1);
+						continue;
+					}
+
+					let prevRenote = groupedNotifications[renoteIdx] as FilterUnionByProperty<MiGroupedNotification, 'type', 'renote:grouped'> | FilterUnionByProperty<MiGroupedNotification, 'type', 'renote'>;
+					// if the previous renote is not a group, make it into one
+					if (prevRenote.type !== 'renote:grouped') {
+						prevRenote = groupedNotifications[renoteIdx] = {
+							type: 'renote:grouped',
+							id: prevRenote.id, // this will be the newest id in this group
+							createdAt: prevRenote.createdAt,
+							noteId: prevRenote.noteId!,
+							userIds: [prevRenote.notifierId!],
+						};
+					}
+					// add this new renote to the existing group
+					(prevRenote as FilterUnionByProperty<MiGroupedNotification, 'type', 'renote:grouped'>).userIds.push(notification.notifierId!);
+					continue;
+				}
+
+				// not a groupable notification, just push it
 				groupedNotifications.push(notification);
 			}
 
-			groupedNotifications = groupedNotifications.slice(0, ps.limit);
+			// sort the groups by their id, newest first
+			groupedNotifications.sort(
+				(a, b) => a.id < b.id ? 1 : a.id > b.id ? -1 : 0,
+			);
 
 			return await this.notificationEntityService.packGroupedMany(groupedNotifications, me.id);
 		});

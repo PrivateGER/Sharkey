@@ -3,7 +3,7 @@
 * SPDX-License-Identifier: AGPL-3.0-only
 */
 
-import { load as cheerio } from 'cheerio';
+import { load as cheerio } from 'cheerio/slim';
 import type { HttpRequestService } from '@/core/HttpRequestService.js';
 
 type Field = { name: string, value: string };

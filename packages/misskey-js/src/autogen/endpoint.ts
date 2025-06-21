@@ -98,6 +98,8 @@ import type {
 	AdminResetPasswordResponse,
 	AdminResolveAbuseUserReportRequest,
 	AdminRolesAssignRequest,
+	AdminRolesCloneRequest,
+	AdminRolesCloneResponse,
 	AdminRolesCreateRequest,
 	AdminRolesCreateResponse,
 	AdminRolesDeleteRequest,
@@ -738,6 +740,7 @@ export type Endpoints = {
 	'admin/reset-password': { req: AdminResetPasswordRequest; res: AdminResetPasswordResponse };
 	'admin/resolve-abuse-user-report': { req: AdminResolveAbuseUserReportRequest; res: EmptyResponse };
 	'admin/roles/assign': { req: AdminRolesAssignRequest; res: EmptyResponse };
+	'admin/roles/clone': { req: AdminRolesCloneRequest; res: AdminRolesCloneResponse };
 	'admin/roles/create': { req: AdminRolesCreateRequest; res: AdminRolesCreateResponse };
 	'admin/roles/delete': { req: AdminRolesDeleteRequest; res: EmptyResponse };
 	'admin/roles/list': { req: EmptyRequest; res: AdminRolesListResponse };

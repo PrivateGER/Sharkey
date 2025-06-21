@@ -4,7 +4,7 @@
  */
 
 import type * as Misskey from 'misskey-js';
-import type * as mfm from '@transfem-org/sfm-js';
+import type * as mfm from 'mfm-js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { getNoteUrls } from '@/utility/getNoteUrls';
 

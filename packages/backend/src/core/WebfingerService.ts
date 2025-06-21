@@ -5,7 +5,7 @@
 
 import { URL } from 'node:url';
 import { Injectable } from '@nestjs/common';
-import { XMLParser } from 'fast-xml-parser';
+import { load as cheerio } from 'cheerio/slim';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
@@ -101,14 +101,12 @@ export class WebfingerService {
 	private async fetchWebFingerTemplateFromHostMeta(url: string): Promise<string | null> {
 		try {
 			const res = await this.httpRequestService.getHtml(url, 'application/xrd+xml');
-			const options = {
-				ignoreAttributes: false,
-				isArray: (_name: string, jpath: string) => jpath === 'XRD.Link',
-			};
-			const parser = new XMLParser(options);
-			const hostMeta = parser.parse(res);
-			const template = (hostMeta['XRD']['Link'] as Array<any>).filter(p => p['@_rel'] === 'lrdd')[0]['@_template'];
-			return template.indexOf('{uri}') < 0 ? null : template;
+			const hostMeta = cheerio(res, {
+				xml: true,
+			});
+
+			const template = hostMeta('XRD > Link[rel="lrdd"][template*="{uri}"]').attr('template');
+			return template ?? null;
 		} catch (err) {
 			this.logger.error(`error while request host-meta for ${url}: ${renderInlineError(err)}`);
 			return null;

@@ -130,6 +130,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</FormSection>
 
+				<FormSection v-else-if="info.signupReason">
+					<template #label>{{ i18n.ts.signupReason }}</template>
+					{{ info.signupReason }}
+				</FormSection>
+
 				<FormSection v-if="!isSystem && user && iAmModerator">
 					<div class="_gaps">
 						<MkSwitch v-model="silenced" @update:modelValue="toggleSilence">{{ i18n.ts.silence }}</MkSwitch>

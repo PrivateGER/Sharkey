@@ -738,6 +738,17 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 	}
 
 	@bindThis
+	public async clone(role: MiRole, moderator?: MiUser): Promise<MiRole> {
+		const suffix = ' (cloned)';
+		const newName = role.name.slice(0, 256 - suffix.length) + suffix;
+
+		return this.create({
+			...role,
+			name: newName,
+		}, moderator);
+	}
+
+	@bindThis
 	public async delete(role: MiRole, moderator?: MiUser): Promise<void> {
 		await this.rolesRepository.delete({ id: role.id });
 		this.globalEventService.publishInternalEvent('roleDeleted', role);

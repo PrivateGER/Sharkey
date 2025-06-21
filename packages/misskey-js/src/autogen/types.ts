@@ -711,6 +711,15 @@ export type paths = {
      */
     post: operations['admin___roles___assign'];
   };
+  '/admin/roles/clone': {
+    /**
+     * admin/roles/clone
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:roles*
+     */
+    post: operations['admin___roles___clone'];
+  };
   '/admin/roles/create': {
     /**
      * admin/roles/create
@@ -4246,6 +4255,10 @@ export type components = {
       /** Format: url */
       avatarUrl: string | null;
       avatarBlurhash: string | null;
+      /** @example Hi masters, I am Ai! */
+      description: string | null;
+      /** Format: date-time */
+      createdAt: string;
       avatarDecorations: {
           /** Format: id */
           id: string;
@@ -4304,8 +4317,6 @@ export type components = {
       movedTo: string | null;
       alsoKnownAs: string[] | null;
       /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
       updatedAt: string | null;
       /** Format: date-time */
       lastFetchedAt: string | null;
@@ -4319,8 +4330,6 @@ export type components = {
       isSilenced: boolean;
       /** @example false */
       isSuspended: boolean;
-      /** @example Hi masters, I am Ai! */
-      description: string | null;
       location: string | null;
       /** @example 2018-03-12 */
       birthday: string | null;
@@ -10386,6 +10395,60 @@ export type operations = {
     };
   };
   /**
+   * admin/roles/clone
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:roles*
+   */
+  admin___roles___clone: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          roleId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': components['schemas']['Role'];
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/roles/create
    * @description No description provided.
    *
@@ -11236,6 +11299,7 @@ export type operations = {
               remoteFollowing: number;
               remoteFollowers: number;
             };
+            signupReason: string | null;
           };
         };
       };
@@ -19581,18 +19645,10 @@ export type operations = {
       200: {
         content: {
           'application/json': {
-            image?: {
-              link?: string;
-              url: string;
-              title?: string;
-            };
-            paginationLinks?: {
-              self?: string;
-              first?: string;
-              next?: string;
-              last?: string;
-              prev?: string;
-            };
+            type: string;
+            id?: string;
+            updated?: string;
+            author?: string;
             link?: string;
             title?: string;
             items: {
@@ -19600,33 +19656,15 @@ export type operations = {
                 guid?: string;
                 title?: string;
                 pubDate?: string;
-                creator?: string;
-                summary?: string;
-                content?: string;
-                isoDate?: string;
-                categories?: string[];
-                contentSnippet?: string;
-                enclosure?: {
-                  url: string;
-                  length?: number;
-                  type?: string;
-                };
+                description?: string;
+                media: {
+                    medium?: string;
+                    url?: string;
+                    type?: string;
+                    lang?: string;
+                  }[];
               }[];
-            feedUrl?: string;
             description?: string;
-            itunes?: {
-              image?: string;
-              owner?: {
-                name?: string;
-                email?: string;
-              };
-              author?: string;
-              summary?: string;
-              explicit?: string;
-              categories?: string[];
-              keywords?: string[];
-              [key: string]: unknown;
-            };
           };
         };
       };

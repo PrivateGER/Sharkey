@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div>{{ email }}</div>
 			</div>
 			<div>
-				<div :class="$style.label">Reason</div>
+				<div :class="$style.label">{{ i18n.ts.signupReason }}</div>
 				<div>{{ reason }}</div>
 			</div>
 		</div>

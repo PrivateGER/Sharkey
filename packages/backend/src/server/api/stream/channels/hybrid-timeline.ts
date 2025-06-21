@@ -62,7 +62,7 @@ class HybridTimelineChannel extends Channel {
 		// フォローしているチャンネルの投稿 の場合だけ
 		if (!(
 			(note.channelId == null && isMe) ||
-			(note.channelId == null && Object.hasOwn(this.following, note.userId)) ||
+			(note.channelId == null && this.following.has(note.userId)) ||
 			(note.channelId == null && (note.user.host == null && note.visibility === 'public')) ||
 			(note.channelId != null && this.followingChannels.has(note.channelId))
 		)) return;
@@ -74,7 +74,7 @@ class HybridTimelineChannel extends Channel {
 			const reply = note.reply;
 			// 自分のフォローしていないユーザーの visibility: followers な投稿への返信は弾く
 			if (!this.isNoteVisibleToMe(reply)) return;
-			if (!this.following[note.userId]?.withReplies && !this.withReplies) {
+			if (!this.following.get(note.userId)?.withReplies && !this.withReplies) {
 				// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
 				if (reply.userId !== this.user!.id && !isMe && reply.userId !== note.userId) return;
 			}

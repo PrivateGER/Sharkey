@@ -91,7 +91,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw err;
 			});
 
-			if (!(await this.noteEntityService.isVisibleForMe(note, me?.id ?? null))) {
+			if (!(await this.noteEntityService.isVisibleForMe(note, me?.id ?? null, { me }))) {
 				throw new ApiError(meta.errors.cannotTranslateInvisibleNote);
 			}
 

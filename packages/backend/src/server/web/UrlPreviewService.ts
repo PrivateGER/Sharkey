@@ -125,6 +125,10 @@ export class UrlPreviewService {
 		reply: FastifyReply,
 	): Promise<void> {
 		if (!this.meta.urlPreviewEnabled) {
+			// Tell crawlers not to index URL previews.
+			// https://developers.google.com/search/docs/crawling-indexing/block-indexing
+			reply.header('X-Robots-Tag', 'noindex');
+
 			return reply.code(403).send({
 				error: {
 					message: 'URL preview is disabled',

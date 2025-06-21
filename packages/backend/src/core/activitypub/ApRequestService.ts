@@ -6,7 +6,7 @@
 import * as crypto from 'node:crypto';
 import { URL } from 'node:url';
 import { Inject, Injectable } from '@nestjs/common';
-import { Window } from 'happy-dom';
+import { load as cheerio } from 'cheerio/slim';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import type { MiUser } from '@/models/User.js';
@@ -18,6 +18,8 @@ import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/validator.js';
 import type { IObject, IObjectWithId } from './type.js';
+import type { Cheerio, CheerioAPI } from 'cheerio/slim';
+import type { AnyNode } from 'domhandler';
 
 type Request = {
 	url: string;
@@ -219,53 +221,33 @@ export class ApRequestService {
 			(contentType ?? '').split(';')[0].trimEnd().toLowerCase() === 'text/html' &&
 			_followAlternate === true
 		) {
-			const html = await res.text();
-			const { window, happyDOM } = new Window({
-				settings: {
-					disableJavaScriptEvaluation: true,
-					disableJavaScriptFileLoading: true,
-					disableCSSFileLoading: true,
-					disableComputedStyleRendering: true,
-					handleDisabledFileLoadingAsSuccess: true,
-					navigation: {
-						disableMainFrameNavigation: true,
-						disableChildFrameNavigation: true,
-						disableChildPageNavigation: true,
-						disableFallbackToSetURL: true,
-					},
-					timer: {
-						maxTimeout: 0,
-						maxIntervalTime: 0,
-						maxIntervalIterations: 0,
-					},
-				},
-			});
-			const document = window.document;
+			let alternate: Cheerio<AnyNode> | null;
 			try {
-				document.documentElement.innerHTML = html;
+				const html = await res.text();
+				const document = cheerio(html);
 
 				// Search for any matching value in priority order:
 				// 1. Type=AP > Type=none > Type=anything
 				// 2. Alternate > Canonical
 				// 3. Page order (fallback)
-				const alternate =
-					document.querySelector('head > link[href][rel="alternate"][type="application/activity+json"]') ??
-					document.querySelector('head > link[href][rel="canonical"][type="application/activity+json"]') ??
-					document.querySelector('head > link[href][rel="alternate"]:not([type])') ??
-					document.querySelector('head > link[href][rel="canonical"]:not([type])') ??
-					document.querySelector('head > link[href][rel="alternate"]') ??
-					document.querySelector('head > link[href][rel="canonical"]');
-
-				if (alternate) {
-					const href = alternate.getAttribute('href');
-					if (href && this.apUtilityService.haveSameAuthority(url, href)) {
-						return await this.signedGet(href, user, allowAnonymous, false);
-					}
-				}
+				alternate = selectFirst(document, [
+					'head > link[href][rel="alternate"][type="application/activity+json"]',
+					'head > link[href][rel="canonical"][type="application/activity+json"]',
+					'head > link[href][rel="alternate"]:not([type])',
+					'head > link[href][rel="canonical"]:not([type])',
+					'head > link[href][rel="alternate"]',
+					'head > link[href][rel="canonical"]',
+				]);
 			} catch {
 				// something went wrong parsing the HTML, ignore the whole thing
-			} finally {
-				happyDOM.close().catch(err => {});
+				alternate = null;
+			}
+
+			if (alternate) {
+				const href = alternate.attr('href');
+				if (href && this.apUtilityService.haveSameAuthority(url, href)) {
+					return await this.signedGet(href, user, allowAnonymous, false);
+				}
 			}
 		}
 		//#endregion
@@ -284,4 +266,15 @@ export class ApRequestService {
 
 		return activity as IObjectWithId;
 	}
+}
+
+function selectFirst($: CheerioAPI, selectors: string[]): Cheerio<AnyNode> | null {
+	for (const selector of selectors) {
+		const selection = $(selector);
+		if (selection.length > 0) {
+			return selection;
+		}
+	}
+
+	return null;
 }

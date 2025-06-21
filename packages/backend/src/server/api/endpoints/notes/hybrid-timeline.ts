@@ -164,7 +164,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				excludeBots: !ps.withBots,
 				noteFilter: note => {
 					if (note.reply && note.reply.visibility === 'followers') {
-						if (!Object.hasOwn(followings, note.reply.userId) && note.reply.userId !== me.id) return false;
+						if (!followings.has(note.reply.userId) && note.reply.userId !== me.id) return false;
 					}
 
 					return true;

@@ -108,7 +108,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:isBlock="true"
 					class="_selectable"
 				/>
-				<a v-if="appearNote.renote != null" :class="$style.rn">RN:</a>
 				<SkNoteTranslation :note="note" :translation="translation" :translating="translating"></SkNoteTranslation>
 				<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 				<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
@@ -241,7 +240,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, useTemplateRef, watch } from 'vue';
-import * as mfm from '@transfem-org/sfm-js';
+import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import * as config from '@@/js/config.js';
@@ -424,6 +423,11 @@ provide(DI.mfmEmojiReactCallback, (reaction) => {
 
 const tab = ref(props.initialTab);
 const reactionTabType = ref<string | null>(null);
+
+// Auto-select the first page of reactions
+watch(appearNote, n => {
+	reactionTabType.value ??= Object.keys(n.reactions)[0] ?? null;
+}, { immediate: true });
 
 const renotesPagination = computed<Paging>(() => ({
 	endpoint: 'notes/renotes',

@@ -741,10 +741,17 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		this.hashtagService.updateUsertags(exist, tags);
 
 		// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
-		await this.followingsRepository.update(
-			{ followerId: exist.id },
-			{ followerSharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null },
-		);
+		if (exist.inbox !== person.inbox || exist.sharedInbox !== (person.sharedInbox ?? person.endpoints?.sharedInbox)) {
+			await this.followingsRepository.update(
+				{ followerId: exist.id },
+				{
+					followerInbox: person.inbox,
+					followerSharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
+				},
+			);
+
+			await this.cacheService.refreshFollowRelationsFor(exist.id);
+		}
 
 		await this.updateFeatured(exist.id, resolver).catch(err => {
 			// Permanent error implies hidden or inaccessible, which is a normal thing.

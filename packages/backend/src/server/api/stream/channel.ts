@@ -70,7 +70,7 @@ export default abstract class Channel {
 		if (!this.user) return false;
 		if (this.user.id === note.userId) return true;
 		if (note.visibility === 'followers') {
-			return this.following[note.userId] != null;
+			return this.following.has(note.userId);
 		}
 		if (!note.visibleUserIds) return false;
 		return note.visibleUserIds.includes(this.user.id);
@@ -84,7 +84,7 @@ export default abstract class Channel {
 		if (note.user.requireSigninToViewContents && !this.user) return true;
 
 		// 流れてきたNoteがインスタンスミュートしたインスタンスが関わる
-		if (isInstanceMuted(note, this.userMutedInstances) && !this.following[note.userId]) return true;
+		if (isInstanceMuted(note, this.userMutedInstances) && !this.following.has(note.userId)) return true;
 
 		// 流れてきたNoteがミュートしているユーザーが関わる
 		if (isUserRelated(note, this.userIdsWhoMeMuting)) return true;
@@ -101,7 +101,7 @@ export default abstract class Channel {
 		if (note.user.isSilenced || note.user.instance?.isSilenced) {
 			if (this.user == null) return true;
 			if (this.user.id === note.userId) return false;
-			if (this.following[note.userId] == null) return true;
+			if (!this.following.has(note.userId)) return true;
 		}
 
 		// TODO muted threads

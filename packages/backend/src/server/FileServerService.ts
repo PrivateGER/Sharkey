@@ -70,6 +70,10 @@ export class FileServerService {
 		fastify.addHook('onRequest', (request, reply, done) => {
 			reply.header('Content-Security-Policy', 'default-src \'none\'; img-src \'self\'; media-src \'self\'; style-src \'unsafe-inline\'');
 			reply.header('Access-Control-Allow-Origin', '*');
+
+			// Tell crawlers not to index files endpoints.
+			// https://developers.google.com/search/docs/crawling-indexing/block-indexing
+			reply.header('X-Robots-Tag', 'noindex');
 			done();
 		});
 

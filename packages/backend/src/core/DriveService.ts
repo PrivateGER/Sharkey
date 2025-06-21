@@ -164,7 +164,7 @@ export class DriveService {
 			try {
 				await this.videoProcessingService.webOptimizeVideo(path, type);
 			} catch (err) {
-				this.registerLogger.warn(`Video optimization failed: ${err instanceof Error ? err.message : String(err)}`, { error: err });
+				this.registerLogger.warn(`Video optimization failed: ${renderInlineError(err)}`);
 			}
 		}
 
@@ -367,7 +367,7 @@ export class DriveService {
 					this.registerLogger.debug('web image not created (not an required image)');
 				}
 			} catch (err) {
-				this.registerLogger.warn('web image not created (an error occurred)', err as Error);
+				this.registerLogger.warn(`web image not created: ${renderInlineError(err)}`);
 			}
 		} else {
 			if (satisfyWebpublic) this.registerLogger.debug('web image not created (original satisfies webpublic)');
@@ -386,7 +386,7 @@ export class DriveService {
 				thumbnail = await this.imageProcessingService.convertSharpToWebp(img, 498, 422);
 			}
 		} catch (err) {
-			this.registerLogger.warn('thumbnail not created (an error occurred)', err as Error);
+			this.registerLogger.warn(`Error creating thumbnail: ${renderInlineError(err)}`);
 		}
 		// #endregion thumbnail
 
@@ -420,27 +420,21 @@ export class DriveService {
 		);
 		if (this.meta.objectStorageSetPublicRead) params.ACL = 'public-read';
 
-		if (this.bunnyService.usingBunnyCDN(this.meta)) {
-			await this.bunnyService.upload(this.meta, key, stream).catch(
-				err => {
-					this.registerLogger.error(`Upload Failed: key = ${key}, filename = ${filename}`, err);
-				},
-			);
-		} else {
-			await this.s3Service.upload(this.meta, params)
-				.then(
-					result => {
-						if ('Bucket' in result) { // CompleteMultipartUploadCommandOutput
-							this.registerLogger.debug(`Uploaded: ${result.Bucket}/${result.Key} => ${result.Location}`);
-						} else { // AbortMultipartUploadCommandOutput
-							this.registerLogger.error(`Upload Result Aborted: key = ${key}, filename = ${filename}`);
-						}
-					})
-				.catch(
-					err => {
-						this.registerLogger.error(`Upload Failed: key = ${key}, filename = ${filename}`, err);
-					},
-				);
+		try {
+			if (this.bunnyService.usingBunnyCDN(this.meta)) {
+				await this.bunnyService.upload(this.meta, key, stream);
+			} else {
+				const result = await this.s3Service.upload(this.meta, params);
+				if ('Bucket' in result) { // CompleteMultipartUploadCommandOutput
+					this.registerLogger.debug(`Uploaded: ${result.Bucket}/${result.Key} => ${result.Location}`);
+				} else { // AbortMultipartUploadCommandOutput
+					this.registerLogger.error(`Upload Result Aborted: key = ${key}, filename = ${filename}`);
+					throw new Error('S3 upload aborted');
+				}
+			}
+		} catch (err) {
+			this.registerLogger.error(`Upload Failed: key = ${key}, filename = ${filename}: ${renderInlineError(err)}`);
+			throw err;
 		}
 	}
 
@@ -857,7 +851,7 @@ export class DriveService {
 			}
 		} catch (err: any) {
 			if (err.name === 'NoSuchKey') {
-				this.deleteLogger.warn(`The object storage had no such key to delete: ${key}. Skipping this.`, err as Error);
+				this.deleteLogger.warn(`The object storage had no such key to delete: ${key}. Skipping this.`);
 				return;
 			} else {
 				throw new Error(`Failed to delete the file from the object storage with the given key: ${key}`, {

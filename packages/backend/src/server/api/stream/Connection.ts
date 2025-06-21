@@ -36,7 +36,7 @@ export default class Connection {
 	private channels = new Map<string, Channel>();
 	private subscribingNotes = new Map<string, number>();
 	public userProfile: MiUserProfile | null = null;
-	public following: Record<string, Pick<MiFollowing, 'withReplies'> | undefined> = {};
+	public following: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> = new Map();
 	public followingChannels: Set<string> = new Set();
 	public userIdsWhoMeMuting: Set<string> = new Set();
 	public userIdsWhoBlockingMe: Set<string> = new Set();

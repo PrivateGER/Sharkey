@@ -21,6 +21,8 @@ import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { toArray } from '@/misc/prelude/array.js';
+import { isPureRenote } from '@/misc/is-renote.js';
+import { CacheService } from '@/core/CacheService.js';
 import { AnyCollection, getApId, getNullableApId, IObjectWithId, isCollection, isCollectionOrOrderedCollection, isCollectionPage, isOrderedCollection, isOrderedCollectionPage } from './type.js';
 import { ApDbResolverService } from './ApDbResolverService.js';
 import { ApRendererService } from './ApRendererService.js';
@@ -49,6 +51,7 @@ export class Resolver {
 		private loggerService: LoggerService,
 		private readonly apLogService: ApLogService,
 		private readonly apUtilityService: ApUtilityService,
+		private readonly cacheService: CacheService,
 		private recursionLimit = 256,
 	) {
 		this.history = new Set();
@@ -355,18 +358,20 @@ export class Resolver {
 
 		switch (parsed.type) {
 			case 'notes':
-				return this.notesRepository.findOneByOrFail({ id: parsed.id, userHost: IsNull() })
+				return this.notesRepository.findOneOrFail({ where: { id: parsed.id, userHost: IsNull() }, relations: { user: true, renote: true } })
 					.then(async note => {
-						const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
+						const author = note.user ?? await this.cacheService.findUserById(note.userId);
 						if (parsed.rest === 'activity') {
-							// this refers to the create activity and not the note itself
-							return this.apRendererService.addContext(this.apRendererService.renderCreate(await this.apRendererService.renderNote(note, author), note));
+							return await this.apRendererService.renderNoteOrRenoteActivity(note, author);
+						} else if (!isPureRenote(note)) {
+							const apNote = await this.apRendererService.renderNote(note, author);
+							return this.apRendererService.addContext(apNote);
 						} else {
-							return this.apRendererService.renderNote(note, author);
+							throw new IdentifiableError('732c2633-3395-4d51-a9b7-c7084774e3e7', `Failed to resolve local ${url}: cannot resolve a boost as note`);
 						}
 					}) as Promise<IObjectWithId>;
 			case 'users':
-				return this.usersRepository.findOneByOrFail({ id: parsed.id, host: IsNull() })
+				return this.cacheService.findLocalUserById(parsed.id)
 					.then(user => this.apRendererService.renderPerson(user as MiLocalUser));
 			case 'questions':
 				// Polls are indexed by the note they are attached to.
@@ -387,14 +392,8 @@ export class Resolver {
 					.then(async followRequest => {
 						if (followRequest == null) throw new IdentifiableError('a9d946e5-d276-47f8-95fb-f04230289bb0', `failed to resolve local ${url}: invalid follow request ID`);
 						const [follower, followee] = await Promise.all([
-							this.usersRepository.findOneBy({
-								id: followRequest.followerId,
-								host: IsNull(),
-							}),
-							this.usersRepository.findOneBy({
-								id: followRequest.followeeId,
-								host: Not(IsNull()),
-							}),
+							this.cacheService.findLocalUserById(followRequest.followerId),
+							this.cacheService.findLocalUserById(followRequest.followeeId),
 						]);
 						if (follower == null || followee == null) {
 							throw new IdentifiableError('06ae3170-1796-4d93-a697-2611ea6d83b6', `failed to resolve local ${url}: follower or followee does not exist`);
@@ -440,6 +439,7 @@ export class ApResolverService {
 		private loggerService: LoggerService,
 		private readonly apLogService: ApLogService,
 		private readonly apUtilityService: ApUtilityService,
+		private readonly cacheService: CacheService,
 	) {
 	}
 
@@ -465,6 +465,7 @@ export class ApResolverService {
 			this.loggerService,
 			this.apLogService,
 			this.apUtilityService,
+			this.cacheService,
 			opts?.recursionLimit,
 		);
 	}

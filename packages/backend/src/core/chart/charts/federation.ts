@@ -44,6 +44,7 @@ export default class FederationChart extends Chart<typeof schema> { // eslint-di
 	}
 
 	protected async tickMinor(): Promise<Partial<KVs<typeof schema>>> {
+		// TODO optimization: replace these with exists()
 		const pubsubSubQuery = this.followingsRepository.createQueryBuilder('f')
 			.select('f.followerHost')
 			.where('f.followerHost IS NOT NULL');

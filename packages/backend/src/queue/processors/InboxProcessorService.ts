@@ -21,7 +21,7 @@ import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { StatusError } from '@/misc/status-error.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
-import { JsonLdService } from '@/core/activitypub/JsonLdService.js';
+import { isSigned, JsonLdService } from '@/core/activitypub/JsonLdService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
 import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
@@ -184,8 +184,8 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		// また、signatureのsignerは、activity.actorと一致する必要がある
 		if (!httpSignatureValidated || authUser.user.uri !== actorId) {
 			// 一致しなくても、でもLD-Signatureがありそうならそっちも見る
-			const ldSignature = activity.signature;
-			if (ldSignature) {
+			if (isSigned(activity)) {
+				const ldSignature = activity.signature;
 				if (ldSignature.type !== 'RsaSignature2017') {
 					throw new Bull.UnrecoverableError(`skip: unsupported LD-signature type ${ldSignature.type}`);
 				}
@@ -207,24 +207,21 @@ export class InboxProcessorService implements OnApplicationShutdown {
 					throw new Bull.UnrecoverableError('skip: LD-SignatureのユーザーはpublicKeyを持っていませんでした');
 				}
 
-				const jsonLd = this.jsonLdService.use();
-
 				// LD-Signature検証
-				const verified = await jsonLd.verifyRsaSignature2017(activity, authUser.key.keyPem).catch(() => false);
+				const verified = await this.jsonLdService.verifyRsaSignature2017(activity, authUser.key.keyPem).catch(() => false);
 				if (!verified) {
 					throw new Bull.UnrecoverableError('skip: LD-Signatureの検証に失敗しました');
 				}
 
 				// アクティビティを正規化
-				delete activity.signature;
+				const copy = { ...activity, signature: undefined };
 				try {
-					activity = await jsonLd.compact(activity) as IActivity;
+					activity = await this.jsonLdService.compact(copy) as IActivity;
 				} catch (e) {
 					throw new Bull.UnrecoverableError(`skip: failed to compact activity: ${e}`);
 				}
 				// TODO: 元のアクティビティと非互換な形に正規化される場合は転送をスキップする
 				// https://github.com/mastodon/mastodon/blob/664b0ca/app/services/activitypub/process_collection_service.rb#L24-L29
-				activity.signature = ldSignature;
 
 				// もう一度actorチェック
 				if (authUser.user.uri !== actorId) {

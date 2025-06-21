@@ -18,6 +18,7 @@ import { SearchService } from '@/core/SearchService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { ReactionService } from '@/core/ReactionService.js';
 import { QueueService } from '@/core/QueueService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserDeleteJobData } from '../types.js';
@@ -94,6 +95,7 @@ export class DeleteAccountProcessorService {
 		private searchService: SearchService,
 		private reactionService: ReactionService,
 		private readonly apLogService: ApLogService,
+		private readonly cacheService: CacheService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('delete-account');
 	}
@@ -140,6 +142,22 @@ export class DeleteAccountProcessorService {
 		}
 
 		{ // Delete user relations
+			await this.cacheService.refreshFollowRelationsFor(user.id);
+			await this.cacheService.userFollowingsCache.delete(user.id);
+			await this.cacheService.userFollowingsCache.delete(user.id);
+			await this.cacheService.userBlockingCache.delete(user.id);
+			await this.cacheService.userBlockedCache.delete(user.id);
+			await this.cacheService.userMutingsCache.delete(user.id);
+			await this.cacheService.userMutingsCache.delete(user.id);
+			await this.cacheService.hibernatedUserCache.delete(user.id);
+			await this.cacheService.renoteMutingsCache.delete(user.id);
+			await this.cacheService.userProfileCache.delete(user.id);
+			this.cacheService.userByIdCache.delete(user.id);
+			this.cacheService.localUserByIdCache.delete(user.id);
+			if (user.token) {
+				this.cacheService.localUserByNativeTokenCache.delete(user.token);
+			}
+
 			await this.followingsRepository.delete({
 				followerId: user.id,
 			});
