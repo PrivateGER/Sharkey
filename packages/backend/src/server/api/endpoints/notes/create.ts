@@ -302,6 +302,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.noSuchRenoteTarget);
 				} else if (isRenote(renote) && !isQuote(renote)) {
 					throw new ApiError(meta.errors.cannotReRenote);
+				} else if (!await this.noteEntityService.isVisibleForMe(renote, me.id)) {
+					throw new ApiError(meta.errors.cannotRenoteDueToVisibility);
 				}
 
 				// Check blocking

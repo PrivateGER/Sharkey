@@ -40,6 +40,11 @@ export type RelationshipJobData = {
 	withReplies?: boolean;
 };
 
+export type CleanRemoteFilesJobData = {
+	keepFilesInUse: boolean;
+	olderThanSeconds: number;
+};
+
 export type DbJobData<T extends keyof DbJobMap> = DbJobMap[T];
 
 export type DbJobMap = {

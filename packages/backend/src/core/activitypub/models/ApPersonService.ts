@@ -31,7 +31,6 @@ import type UsersChart from '@/core/chart/charts/users.js';
 import type InstanceChart from '@/core/chart/charts/instance.js';
 import type { HashtagService } from '@/core/HashtagService.js';
 import { MiUserNotePining } from '@/models/UserNotePining.js';
-import { StatusError } from '@/misc/status-error.js';
 import type { UtilityService } from '@/core/UtilityService.js';
 import type { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
@@ -45,6 +44,7 @@ import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { verifyFieldLinks } from '@/misc/verify-field-link.js';
 import { isRetryableError } from '@/misc/is-retryable-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { getApId, getApType, isActor, isCollection, isCollectionOrOrderedCollection, isPropertyValue } from '../type.js';
 import { extractApHashtags } from './tag.js';
 import type { OnModuleInit } from '@nestjs/common';
@@ -55,10 +55,8 @@ import type { ApLoggerService } from '../ApLoggerService.js';
 
 import type { ApImageService } from './ApImageService.js';
 import type { IActor, ICollection, IObject, IOrderedCollection } from '../type.js';
-import { IdentifiableError } from '@/misc/identifiable-error.js';
 
 const nameLength = 128;
-const summaryLength = 2048;
 
 type Field = Record<'name' | 'value', string>;
 
@@ -220,7 +218,7 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 			if (!(typeof x.summary === 'string' && x.summary.length > 0)) {
 				throw new UnrecoverableError(`invalid Actor ${uri}: wrong summary`);
 			}
-			x.summary = truncate(x.summary, summaryLength);
+			x.summary = truncate(x.summary, this.config.maxRemoteBioLength);
 		}
 
 		const idHost = this.utilityService.punyHostPSLDomain(x.id);
@@ -458,9 +456,9 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 				let _description: string | null = null;
 
 				if (person._misskey_summary) {
-					_description = truncate(person._misskey_summary, summaryLength);
+					_description = truncate(person._misskey_summary, this.config.maxRemoteBioLength);
 				} else if (person.summary) {
-					_description = this.apMfmService.htmlToMfm(truncate(person.summary, summaryLength), person.tag);
+					_description = this.apMfmService.htmlToMfm(truncate(person.summary, this.config.maxRemoteBioLength), person.tag);
 				}
 
 				await transactionalEntityManager.save(new MiUserProfile({
@@ -575,7 +573,6 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		if (exist === null) return;
 		//#endregion
 
-		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
 
 		const object = hint ?? await resolver.resolve(uri);
@@ -717,9 +714,9 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		let _description: string | null = null;
 
 		if (person._misskey_summary) {
-			_description = truncate(person._misskey_summary, summaryLength);
+			_description = truncate(person._misskey_summary, this.config.maxRemoteBioLength);
 		} else if (person.summary) {
-			_description = this.apMfmService.htmlToMfm(truncate(person.summary, summaryLength), person.tag);
+			_description = this.apMfmService.htmlToMfm(truncate(person.summary, this.config.maxRemoteBioLength), person.tag);
 		}
 
 		await this.userProfilesRepository.update({ userId: exist.id }, {

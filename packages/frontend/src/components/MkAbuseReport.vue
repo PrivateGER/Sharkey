@@ -63,7 +63,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #label>{{ i18n.ts.details }}</template>
 			<div class="_gaps_s">
 				<Mfm :text="report.comment" :parsedNodes="parsedComment" :isBlock="true" :linkNavigationBehavior="'window'" :author="report.reporter" :nyaize="false" :isAnim="false"/>
-				<SkUrlPreviewGroup :sourceNodes="parsedComment" :compact="false" :detail="false" :showAsQuote="true"/>
+				<div class="_gaps_s" @click.stop>
+					<SkUrlPreviewGroup :sourceNodes="parsedComment" :compact="false" :detail="false" :showAsQuote="true"/>
+				</div>
 			</div>
 		</MkFolder>
 

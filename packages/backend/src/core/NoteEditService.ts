@@ -647,18 +647,15 @@ export class NoteEditService implements OnApplicationShutdown {
 			if (data.reply) {
 				// 通知
 				if (data.reply.userHost === null) {
-					const isThreadMuted = await this.noteThreadMutingsRepository.exists({
-						where: {
-							userId: data.reply.userId,
-							threadId: data.reply.threadId ?? data.reply.id,
-						},
-					});
+					const threadId = data.reply.threadId ?? data.reply.id;
 
 					const [
+						isThreadMuted,
 						userIdsWhoMeMuting,
-					] = data.reply.userId ? await Promise.all([
+					] = await Promise.all([
+						this.cacheService.threadMutingsCache.fetch(data.reply.userId).then(ms => ms.has(threadId)),
 						this.cacheService.userMutingsCache.fetch(data.reply.userId),
-					]) : [new Set<string>()];
+					]);
 
 					const muted = isUserRelated(note, userIdsWhoMeMuting);
 

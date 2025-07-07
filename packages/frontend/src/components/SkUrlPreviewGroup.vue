@@ -93,10 +93,9 @@ const urls = computed<string[]>(() => {
 	return [];
 });
 
-// todo un-ref these
 const isRefreshing = ref<Promise<void> | false>(false);
-const cachedNotes = ref(new Map<string, Misskey.entities.Note | null>());
-const cachedPreviews = ref(new Map<string, Summary | null>());
+const cachedNotes = new Map<string, Misskey.entities.Note | null>();
+const cachedPreviews = new Map<string, Summary | null>();
 const cachedUsers = new Map<string, Misskey.entities.User | null>();
 
 /**
@@ -151,7 +150,7 @@ async function fetchPreviews(): Promise<Summary[]> {
 }
 
 async function fetchPreview(url: string): Promise<Summary | null> {
-	const cached = cachedPreviews.value.get(url);
+	const cached = cachedPreviews.get(url);
 	if (cached) {
 		return cached;
 	}
@@ -163,15 +162,15 @@ async function fetchPreview(url: string): Promise<Summary | null> {
 	if (res?.ok) {
 		// Success - got the summary
 		const summary: Summary = await res.json();
-		cachedPreviews.value.set(url, summary);
+		cachedPreviews.set(url, summary);
 		if (summary.url !== url) {
-			cachedPreviews.value.set(summary.url, summary);
+			cachedPreviews.set(summary.url, summary);
 		}
 		return summary;
 	}
 
 	// Failed, blocked, or not found
-	cachedPreviews.value.set(url, null);
+	cachedPreviews.set(url, null);
 	return null;
 }
 
@@ -187,7 +186,7 @@ async function attachNote(summary: Summary, noteLimiter: Limiter<Misskey.entitie
 }
 
 async function fetchNote(noteUri: string): Promise<Misskey.entities.Note | null> {
-	const cached = cachedNotes.value.get(noteUri);
+	const cached = cachedNotes.get(noteUri);
 	if (cached) {
 		return cached;
 	}
@@ -197,15 +196,15 @@ async function fetchNote(noteUri: string): Promise<Misskey.entities.Note | null>
 		const note = response['object'];
 
 		// Success - got the note
-		cachedNotes.value.set(noteUri, note);
+		cachedNotes.set(noteUri, note);
 		if (note.uri && note.uri !== noteUri) {
-			cachedNotes.value.set(note.uri, note);
+			cachedNotes.set(note.uri, note);
 		}
 		return note;
 	}
 
 	// Failed, blocked, or not found
-	cachedNotes.value.set(noteUri, null);
+	cachedNotes.set(noteUri, null);
 	return null;
 }
 

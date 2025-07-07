@@ -341,6 +341,10 @@ id: 'aidx'
 #maxAltTextLength: 20000
 # Amount of characters that will be saved for remote media descriptions (alt text). Longer descriptions will be truncated to this length. (minimum: 1)
 #maxRemoteAltTextLength: 100000
+# Amount of characters that can be used when writing user bios. Longer descriptions will be rejected. (minimum: 1)
+#maxBioLength: 1500
+# Amount of characters that will be saved for remote user bios. Longer descriptions will be truncated to this length. (minimum: 1)
+#maxRemoteBioLength: 15000
 
 # Proxy for HTTP/HTTPS
 #proxy: http://127.0.0.1:3128

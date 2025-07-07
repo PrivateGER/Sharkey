@@ -117,6 +117,8 @@ export class MetaEntityService {
 			maxRemoteCwLength: this.config.maxRemoteCwLength,
 			maxAltTextLength: this.config.maxAltTextLength,
 			maxRemoteAltTextLength: this.config.maxRemoteAltTextLength,
+			maxBioLength: this.config.maxBioLength,
+			maxRemoteBioLength: this.config.maxRemoteBioLength,
 			defaultLightTheme,
 			defaultDarkTheme,
 			defaultLike: instance.defaultLike,

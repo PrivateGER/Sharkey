@@ -61,7 +61,7 @@
 		"tsc-alias": "1.8.15",
 		"tsconfig-paths": "4.2.0",
 		"typescript": "5.8.3",
-		"vite": "6.3.3",
+		"vite": "6.3.4",
 		"vite-plugin-turbosnap": "1.0.3",
 		"vue-component-type-helpers": "2.2.10",
 		"vue-eslint-parser": "10.1.3",

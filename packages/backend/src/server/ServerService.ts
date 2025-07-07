@@ -309,8 +309,13 @@ export class ServerService implements OnApplicationShutdown {
 
 	@bindThis
 	public async dispose(): Promise<void> {
+		this.logger.info('Disconnecting WebSocket clients...');
 		await this.streamingApiServerService.detach();
+
+		this.logger.info('Disconnecting HTTP clients....;');
 		await this.#fastify.close();
+
+		this.logger.info('Server disposed.');
 	}
 
 	/**

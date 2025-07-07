@@ -77,10 +77,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 							))
 							.setParameters({ meIdAsList: [me.id] })
 						, 'source')
-						.innerJoin(MiNote, 'note', 'note.id = source.id');
+						.innerJoin(MiNote, 'note', 'note.id = source.id')
+						.innerJoinAndSelect('note.user', 'user')
+						.leftJoinAndSelect('note.reply', 'reply')
+						.leftJoinAndSelect('note.renote', 'renote')
+						.leftJoinAndSelect('reply.user', 'replyUser')
+						.leftJoinAndSelect('renote.user', 'renoteUser');
 
 					this.queryService.generateVisibilityQuery(qb, me);
 					this.queryService.generateBlockedHostQueryForNote(qb);
+					this.queryService.generateSuspendedUserQueryForNote(qb);
 					this.queryService.generateMutedUserQueryForNotes(qb, me);
 					this.queryService.generateMutedNoteThreadQuery(qb, me);
 					this.queryService.generateBlockedUserQueryForNotes(qb, me);
@@ -99,11 +105,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 					return qb;
 				}, 'source', 'source.id = note.id')
-				.innerJoinAndSelect('note.user', 'user')
-				.leftJoinAndSelect('note.reply', 'reply')
-				.leftJoinAndSelect('note.renote', 'renote')
-				.leftJoinAndSelect('reply.user', 'replyUser')
-				.leftJoinAndSelect('renote.user', 'renoteUser')
 				.limit(ps.limit);
 
 			const mentions = await query.getMany();

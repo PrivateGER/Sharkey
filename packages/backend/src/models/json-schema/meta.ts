@@ -206,6 +206,14 @@ export const packedMetaLiteSchema = {
 			type: 'number',
 			optional: false, nullable: false,
 		},
+		maxBioLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
+		maxRemoteBioLength: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
 		ads: {
 			type: 'array',
 			optional: false, nullable: false,

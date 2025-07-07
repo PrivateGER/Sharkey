@@ -213,9 +213,9 @@ export function getNoteMenu(props: {
 				noteId: appearNote.id,
 			});
 
-			os.post({ initialNote: appearNote, renote: appearNote.renote, reply: appearNote.reply, channel: appearNote.channel });
+			os.post({ initialNote: appearNote, renote: appearNote.renote ?? undefined, reply: appearNote.reply ?? undefined, channel: appearNote.channel });
 
-			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
+			if ($i && Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
 				claimAchievement('noteDeletedWithin1min');
 			}
 		});
@@ -224,8 +224,8 @@ export function getNoteMenu(props: {
 	function edit(): void {
 		os.post({
 			initialNote: appearNote,
-			renote: appearNote.renote,
-			reply: appearNote.reply,
+			renote: appearNote.renote ?? undefined,
+			reply: appearNote.reply ?? undefined,
 			channel: appearNote.channel,
 			editId: appearNote.id,
 			initialFiles: appearNote.files,
@@ -242,6 +242,14 @@ export function getNoteMenu(props: {
 	function toggleThreadMute(mute: boolean): void {
 		os.apiWithDialog(mute ? 'notes/thread-muting/create' : 'notes/thread-muting/delete', {
 			noteId: appearNote.id,
+			noteOnly: false,
+		});
+	}
+
+	function toggleNoteMute(mute: boolean): void {
+		os.apiWithDialog(mute ? 'notes/thread-muting/create' : 'notes/thread-muting/delete', {
+			noteId: appearNote.id,
+			noteOnly: true,
 		});
 	}
 
@@ -293,9 +301,11 @@ export function getNoteMenu(props: {
 	const menuItems: MenuItem[] = [];
 
 	if ($i) {
+		/*
 		const statePromise = misskeyApi('notes/state', {
 			noteId: appearNote.id,
 		});
+		*/
 
 		if (props.currentClip?.userId === $i.id) {
 			menuItems.push({
@@ -352,15 +362,19 @@ export function getNoteMenu(props: {
 
 		menuItems.push({ type: 'divider' });
 
-		menuItems.push(statePromise.then(state => state.isFavorited ? {
-			icon: 'ti ti-star-off',
-			text: i18n.ts.unfavorite,
-			action: () => toggleFavorite(false),
-		} : {
-			icon: 'ti ti-star',
-			text: i18n.ts.favorite,
-			action: () => toggleFavorite(true),
-		}));
+		if (appearNote.isFavorited) {
+			menuItems.push({
+				icon: 'ti ti-star-off',
+				text: i18n.ts.unfavorite,
+				action: () => toggleFavorite(false),
+			});
+		} else {
+			menuItems.push({
+				icon: 'ti ti-star',
+				text: i18n.ts.favorite,
+				action: () => toggleFavorite(true),
+			});
+		}
 
 		menuItems.push({
 			type: 'parent',
@@ -369,15 +383,33 @@ export function getNoteMenu(props: {
 			children: () => getNoteClipMenu(props),
 		});
 
-		menuItems.push(statePromise.then(state => state.isMutedThread ? {
-			icon: 'ti ti-message-off',
-			text: i18n.ts.unmuteThread,
-			action: () => toggleThreadMute(false),
-		} : {
-			icon: 'ti ti-message-off',
-			text: i18n.ts.muteThread,
-			action: () => toggleThreadMute(true),
-		}));
+		if (appearNote.isMutingThread) {
+			menuItems.push({
+				icon: 'ti ti-message-off',
+				text: i18n.ts.unmuteThread,
+				action: () => toggleThreadMute(false),
+			});
+		} else {
+			menuItems.push({
+				icon: 'ti ti-message-off',
+				text: i18n.ts.muteThread,
+				action: () => toggleThreadMute(true),
+			});
+		}
+
+		if (appearNote.isMutingNote) {
+			menuItems.push({
+				icon: 'ti ti-message-off',
+				text: i18n.ts.unmuteNote,
+				action: () => toggleNoteMute(false),
+			});
+		} else {
+			menuItems.push({
+				icon: 'ti ti-message-off',
+				text: i18n.ts.muteNote,
+				action: () => toggleNoteMute(true),
+			});
+		}
 
 		if (appearNote.userId === $i.id) {
 			if (($i.pinnedNoteIds ?? []).includes(appearNote.id)) {

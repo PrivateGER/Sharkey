@@ -691,3 +691,18 @@ export async function captureWebhook<T = SystemWebhookPayload>(postAction: () =>
 
 	return JSON.parse(result) as T;
 }
+
+// the packed user inside each note returned by `users/notes` has the
+// latest `notesCount`, not the count at the time the note was
+// created, so we override it
+export function withNotesCount(notes: misskey.entities.Note[], count: number) {
+	return notes.map( note => {
+		return {
+			...note,
+			user: {
+				...note.user,
+				notesCount: count,
+			},
+		};
+	});
+}

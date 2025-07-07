@@ -612,6 +612,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 	@bindThis
 	public async onApplicationShutdown(signal?: string | undefined): Promise<void> {
+		this.logger.info('Stopping BullMQ workers...');
 		await this.stop();
+		this.logger.info('Workers disposed.');
 	}
 }

@@ -684,8 +684,11 @@ export class QueueService {
 	}
 
 	@bindThis
-	public createCleanRemoteFilesJob() {
-		return this.objectStorageQueue.add('cleanRemoteFiles', {}, {
+	public createCleanRemoteFilesJob(olderThanSeconds: number = 0, keepFilesInUse: boolean = false) {
+		return this.objectStorageQueue.add('cleanRemoteFiles', {
+			keepFilesInUse,
+			olderThanSeconds,
+		}, {
 			removeOnComplete: {
 				age: 3600 * 24 * 7, // keep up to 7 days
 				count: 30,

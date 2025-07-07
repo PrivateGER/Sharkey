@@ -16,8 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<div v-if="tab === 'pinned'" class="_gaps">
 		<div v-if="user.pinnedNotes.length < 1" class="_fullinfo">
-			<img :src="infoImageUrl" draggable="false" aria-hidden="true" :alt="i18n.ts.noNotes"/>
-			<div>{{ i18n.ts.noNotes }}</div>
+			<MkResult type="empty" :text="i18n.ts.noNotes"/>
 		</div>
 		<div v-else class="_panel">
 			<DynamicNote v-for="note of user.pinnedNotes" :key="note.id" class="note" :class="$style.pinnedNote" :note="note" :pinned="true"/>
@@ -33,7 +32,6 @@ import * as Misskey from 'misskey-js';
 import MkNotes from '@/components/MkNotes.vue';
 import MkTab from '@/components/MkTab.vue';
 import { i18n } from '@/i18n.js';
-import { infoImageUrl } from '@/instance.js';
 import DynamicNote from '@/components/DynamicNote.vue';
 
 const props = defineProps<{

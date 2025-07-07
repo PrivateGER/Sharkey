@@ -676,18 +676,15 @@ export class NoteCreateService implements OnApplicationShutdown {
 				});
 				// 通知
 				if (data.reply.userHost === null) {
-					const isThreadMuted = await this.noteThreadMutingsRepository.exists({
-						where: {
-							userId: data.reply.userId,
-							threadId: data.reply.threadId ?? data.reply.id,
-						},
-					});
+					const threadId = data.reply.threadId ?? data.reply.id;
 
 					const [
+						isThreadMuted,
 						userIdsWhoMeMuting,
-					] = data.reply.userId ? await Promise.all([
+					] = await Promise.all([
+						this.cacheService.threadMutingsCache.fetch(data.reply.userId).then(ms => ms.has(threadId)),
 						this.cacheService.userMutingsCache.fetch(data.reply.userId),
-					]) : [new Set<string>()];
+					]);
 
 					const muted = isUserRelated(note, userIdsWhoMeMuting);
 
@@ -705,14 +702,17 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 				// Notify
 				if (data.renote.userHost === null) {
-					const isThreadMuted = await this.noteThreadMutingsRepository.exists({
-						where: {
-							userId: data.renote.userId,
-							threadId: data.renote.threadId ?? data.renote.id,
-						},
-					});
+					const threadId = data.renote.threadId ?? data.renote.id;
 
-					const muted = data.renote.userId && isUserRelated(note, await this.cacheService.userMutingsCache.fetch(data.renote.userId));
+					const [
+						isThreadMuted,
+						userIdsWhoMeMuting,
+					] = await Promise.all([
+						this.cacheService.threadMutingsCache.fetch(data.renote.userId).then(ms => ms.has(threadId)),
+						this.cacheService.userMutingsCache.fetch(data.renote.userId),
+					]);
+
+					const muted = data.renote.userId && isUserRelated(note, userIdsWhoMeMuting);
 
 					if (!isThreadMuted && !muted) {
 						nm.push(data.renote.userId, type);
@@ -842,18 +842,23 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 	@bindThis
 	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
+		const [
+			threadMutings,
+			userMutings,
+		] = await Promise.all([
+			this.cacheService.threadMutingsCache.fetchMany(mentionedUsers.map(u => u.id)).then(ms => new Map(ms)),
+			this.cacheService.userMutingsCache.fetchMany(mentionedUsers.map(u => u.id)).then(ms => new Map(ms)),
+		]);
+
 		// Only create mention events for local users, and users for whom the note is visible
 		for (const u of mentionedUsers.filter(u => (note.visibility !== 'specified' || note.visibleUserIds.some(x => x === u.id)) && this.userEntityService.isLocalUser(u))) {
-			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
-				where: {
-					userId: u.id,
-					threadId: note.threadId ?? note.id,
-				},
-			});
+			const threadId = note.threadId ?? note.id;
+			const isThreadMuted = threadMutings.get(u.id)?.has(threadId);
 
-			const muted = u.id && isUserRelated(note, await this.cacheService.userMutingsCache.fetch(u.id));
+			const mutings = userMutings.get(u.id);
+			const isUserMuted = mutings != null && isUserRelated(note, mutings);
 
-			if (isThreadMuted || muted) {
+			if (isThreadMuted || isUserMuted) {
 				continue;
 			}
 

@@ -275,12 +275,8 @@ export class ReactionService {
 
 		// リアクションされたユーザーがローカルユーザーなら通知を作成
 		if (note.userHost === null) {
-			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
-				where: {
-					userId: note.userId,
-					threadId: note.threadId ?? note.id,
-				},
-			});
+			const threadId = note.threadId ?? note.id;
+			const isThreadMuted = await this.cacheService.threadMutingsCache.fetch(note.userId).then(ms => ms.has(threadId));
 
 			if (!isThreadMuted) {
 				this.notificationService.createNotification(note.userId, 'reaction', {

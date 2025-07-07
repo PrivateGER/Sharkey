@@ -555,7 +555,8 @@ export class ApRendererService {
 			quoteUrl: quote,
 			quoteUri: quote,
 			// https://codeberg.org/fediverse/fep/src/branch/main/fep/044f/fep-044f.md
-			quote: quote,
+			// Disabled since Mastodon hides the fallback link when this is set
+			// quote: quote,
 			published: this.idService.parse(note.id).date.toISOString(),
 			to,
 			cc,

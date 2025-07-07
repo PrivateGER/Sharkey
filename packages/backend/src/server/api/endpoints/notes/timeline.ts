@@ -99,8 +99,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const [
 				followings,
+				threadMutings,
 			] = await Promise.all([
 				this.cacheService.userFollowingsCache.fetch(me.id),
+				this.cacheService.threadMutingsCache.fetch(me.id),
 			]);
 
 			const timeline = this.fanoutTimelineEndpointService.timeline({
@@ -118,6 +120,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						if (!followings.has(note.reply.userId) && note.reply.userId !== me.id) return false;
 					}
 					if (!ps.withBots && note.user?.isBot) return false;
+
+					if (threadMutings.has(note.threadId ?? note.id)) return false;
 
 					return true;
 				},
@@ -164,9 +168,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query);
+		this.queryService.generateSuspendedUserQueryForNote(query);
 		this.queryService.generateSilencedUserQueryForNotes(query, me);
 		this.queryService.generateMutedUserQueryForNotes(query, me);
 		this.queryService.generateBlockedUserQueryForNotes(query, me);
+		this.queryService.generateMutedNoteThreadQuery(query, me);
 
 		if (ps.withFiles) {
 			query.andWhere('note.fileIds != \'{}\'');

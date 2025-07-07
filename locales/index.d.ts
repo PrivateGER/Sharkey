@@ -899,6 +899,10 @@ export interface Locale extends ILocale {
      */
     "software": string;
     /**
+     * ソフトウェア名
+     */
+    "softwareName": string;
+    /**
      * バージョン
      */
     "version": string;
@@ -5418,6 +5422,10 @@ export interface Locale extends ILocale {
      * フォルダを作って整理することもできます。
      */
     "driveAboutTip": string;
+    /**
+     * スクロールして閉じる
+     */
+    "scrollToClose": string;
     "_chat": {
         /**
          * まだメッセージはありません
@@ -5714,6 +5722,14 @@ export interface Locale extends ILocale {
          * デバイス間でインストールしたテーマを同期
          */
         "enableSyncThemesBetweenDevices": string;
+        /**
+         * ひっぱって更新
+         */
+        "enablePullToRefresh": string;
+        /**
+         * マウスでは、ホイールを押し込みながらドラッグします。
+         */
+        "enablePullToRefresh_description": string;
         "_chat": {
             /**
              * 送信者の名前を表示
@@ -5738,6 +5754,10 @@ export interface Locale extends ILocale {
          * 例: 「メインPC」、「スマホ」など
          */
         "profileNameDescription2": string;
+        /**
+         * プロファイルの管理
+         */
+        "manageProfiles": string;
     };
     "_preferencesBackup": {
         /**
@@ -5880,6 +5900,10 @@ export interface Locale extends ILocale {
              * サーバー応答なしのため停止中
              */
             "autoSuspendedForNotResponding": string;
+            /**
+             * 配信停止中のソフトウェアであるため停止中
+             */
+            "softwareSuspended": string;
         };
     };
     "_bubbleGame": {
@@ -6377,6 +6401,14 @@ export interface Locale extends ILocale {
          * 一定期間モデレーターのアクティビティが検出されなかった場合、スパム防止のためこの設定は自動でオフになります。
          */
         "thisSettingWillAutomaticallyOffWhenModeratorsInactive": string;
+        /**
+         * 配信停止中のソフトウェア
+         */
+        "deliverSuspendedSoftware": string;
+        /**
+         * 脆弱性などの理由で、サーバーのソフトウェアの名前及びバージョンの範囲を指定して配信を停止できます。このバージョン情報はサーバーが提供したものであり、信頼性は保証されません。バージョン指定には semver の範囲指定が使用できますが、>= 2024.3.1 と指定すると 2024.3.1-custom.0 のようなカスタムバージョンが含まれないため、>= 2024.3.1-0 のように prerelease の指定を行うことを推奨します。
+         */
+        "deliverSuspendedSoftwareDescription": string;
         /**
          * Logo URL
          */
@@ -12001,6 +12033,22 @@ export interface Locale extends ILocale {
      */
     "renoteMuted": string;
     /**
+     * Mute note
+     */
+    "muteNote": string;
+    /**
+     * Unmute note
+     */
+    "unmuteNote": string;
+    /**
+     * {name} said something in a muted post
+     */
+    "userSaysSomethingInMutedNote": ParameterizedString<"name">;
+    /**
+     * {name} said something in a muted thread
+     */
+    "userSaysSomethingInMutedThread": ParameterizedString<"name">;
+    /**
      * Mark all media from user as NSFW
      */
     "markAsNSFW": string;
@@ -12277,6 +12325,10 @@ export interface Locale extends ILocale {
      * Collapse files
      */
     "collapseFiles": string;
+    /**
+     * Clone
+     */
+    "clone": string;
     /**
      * Uncollapse CWs on notes
      */
@@ -13289,6 +13341,36 @@ export interface Locale extends ILocale {
      * Signup Reason
      */
     "signupReason": string;
+    "clearCachedFilesOptions": {
+        /**
+         * Delete all cached remote files
+         */
+        "title": string;
+        /**
+         * Only delete files older than:
+         */
+        "olderThan": string;
+        /**
+         * now
+         */
+        "now": string;
+        /**
+         * one week
+         */
+        "oneWeek": string;
+        /**
+         * one month
+         */
+        "oneMonth": string;
+        /**
+         * one year
+         */
+        "oneYear": string;
+        /**
+         * Don't delete files used as avatars&c
+         */
+        "keepFilesInUse": string;
+    };
 }
 declare const locales: {
     [lang: string]: Locale;

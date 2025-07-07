@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps" :class="$style.textRoot">
 	<Mfm :text="block.text ?? ''" :isBlock="true" :isNote="false"/>
-	<div v-if="isEnabledUrlPreview" class="_gaps_s">
-		<SkUrlPreviewGroup :sourceText="block.text" :showAsQuote="!page.user.rejectQuotes" @click.stop/>
+	<div v-if="isEnabledUrlPreview" class="_gaps_s" @click.stop>
+		<SkUrlPreviewGroup :sourceText="block.text" :showAsQuote="!page.user.rejectQuotes"/>
 	</div>
 </div>
 </template>

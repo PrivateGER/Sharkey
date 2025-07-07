@@ -78,9 +78,7 @@ class BubbleTimelineChannel extends Channel {
 			}
 		}
 
-		const clonedNote = await this.assignMyReaction(note);
-		await this.hideNote(clonedNote);
-
+		const clonedNote = await this.rePackNote(note);
 		this.send('note', clonedNote);
 	}
 

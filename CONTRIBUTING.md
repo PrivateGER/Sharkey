@@ -725,7 +725,12 @@ seems to do a decent job)
     * Commit!
 * double-check the new migration, that they won't conflict with our db changes: `git diff develop -- packages/backend/migration/`
 * `pnpm clean; pnpm build`
-* run tests `pnpm test; pnpm --filter backend test:e2e` (requires a test database, [see above](#testing)) and fix as much as you can.
-* run lint `pnpm --filter=backend --filter=frontend-shared lint` + `pnpm --filter=frontend --filter=frontend-embed eslint` and fix as much as you can.
+* run tests `pnpm test; pnpm --filter backend test:e2e` (requires a
+  test database, [see above](#testing)) and fix them all (the e2e
+  tests randomly fail with weird errors like `relation "users" does
+  not exist`, run them again if that happens)
+* run lint `pnpm --filter=backend --filter=frontend-shared lint` +
+  `pnpm --filter=frontend --filter=frontend-embed eslint` and fix all
+  the problems
 
 Then push and open a Merge Request.

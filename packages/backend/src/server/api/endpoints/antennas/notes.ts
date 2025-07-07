@@ -121,7 +121,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// https://github.com/misskey-dev/misskey/pull/15346#discussion_r1929950255
 
 			this.queryService.generateBlockedHostQueryForNote(query);
-			await this.queryService.generateVisibilityQuery(query, me);
+			this.queryService.generateSuspendedUserQueryForNote(query);
+			this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateMutedUserQueryForNotes(query, me);
 			this.queryService.generateBlockedUserQueryForNotes(query, me);
 			this.queryService.generateMutedUserRenotesQueryForNotes(query, me);

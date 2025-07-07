@@ -141,6 +141,13 @@ export const meta = {
 			code: 'MAX_CW_LENGTH',
 			id: '7004c478-bda3-4b4f-acb2-4316398c9d52',
 		},
+
+		maxBioLength: {
+			message: 'You tried setting a bio which is too long.',
+			code: 'MAX_BIO_LENGTH',
+			id: 'f3bb3543-8bd1-4e6d-9375-55efaf2b4102',
+			httpStatusCode: 422,
+		},
 	},
 
 	res: {
@@ -329,7 +336,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					updates.name = trimmedName === '' ? null : trimmedName;
 				}
 			}
-			if (ps.description !== undefined) profileUpdates.description = ps.description;
+			if (ps.description !== undefined) {
+				if (ps.description && ps.description.length > this.config.maxBioLength) {
+					throw new ApiError(meta.errors.maxBioLength);
+				}
+				profileUpdates.description = ps.description;
+			};
 			if (ps.followedMessage !== undefined) profileUpdates.followedMessage = ps.followedMessage;
 			if (ps.lang !== undefined) profileUpdates.lang = ps.lang;
 			if (ps.location !== undefined) profileUpdates.location = ps.location;

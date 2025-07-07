@@ -70,9 +70,7 @@ class RoleTimelineChannel extends Channel {
 				}
 			}
 
-			const clonedNote = await this.assignMyReaction(note);
-			await this.hideNote(clonedNote);
-
+			const clonedNote = await this.rePackNote(note);
 			this.send('note', clonedNote);
 		} else {
 			this.send(data.type, data.body);

@@ -770,4 +770,14 @@ export class MiMeta {
 		default: false,
 	})
 	public enableProxyAccount: boolean;
+
+	@Column('jsonb', {
+		default: [],
+	})
+	public deliverSuspendedSoftware: SoftwareSuspension[];
 }
+
+export type SoftwareSuspension = {
+	software: string,
+	versionRange: string,
+};

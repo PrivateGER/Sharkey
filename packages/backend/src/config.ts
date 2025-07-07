@@ -98,6 +98,8 @@ type Source = {
 	maxRemoteNoteLength?: number;
 	maxAltTextLength?: number;
 	maxRemoteAltTextLength?: number;
+	maxBioLength?: number;
+	maxRemoteBioLength?: number;
 
 	clusterLimit?: number;
 
@@ -278,6 +280,8 @@ export type Config = {
 	maxRemoteCwLength: number;
 	maxAltTextLength: number;
 	maxRemoteAltTextLength: number;
+	maxBioLength: number;
+	maxRemoteBioLength: number;
 	clusterLimit: number | undefined;
 	id: string;
 	outgoingAddress: string | undefined;
@@ -498,6 +502,8 @@ export function loadConfig(): Config {
 		maxRemoteCwLength: config.maxRemoteCwLength ?? 5000,
 		maxAltTextLength: config.maxAltTextLength ?? 20000,
 		maxRemoteAltTextLength: config.maxRemoteAltTextLength ?? 100000,
+		maxBioLength: config.maxBioLength ?? 1500,
+		maxRemoteBioLength: config.maxRemoteBioLength ?? 15000,
 		clusterLimit: config.clusterLimit,
 		outgoingAddress: config.outgoingAddress,
 		outgoingAddressFamily: config.outgoingAddressFamily,
@@ -701,7 +707,7 @@ function applyEnvOverrides(config: Source) {
 	_apply_top(['sentryForFrontend', 'browserTracingIntegration', 'routeLabel']);
 	_apply_top([['clusterLimit', 'deliverJobConcurrency', 'inboxJobConcurrency', 'relashionshipJobConcurrency', 'deliverJobPerSec', 'inboxJobPerSec', 'relashionshipJobPerSec', 'deliverJobMaxAttempts', 'inboxJobMaxAttempts']]);
 	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaDirectory', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator']]);
-	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'pidFile', 'filePermissionBits']]);
+	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'maxBioLength', 'maxRemoteBioLength', 'pidFile', 'filePermissionBits']]);
 	_apply_top(['import', ['downloadTimeout', 'maxFileSize']]);
 	_apply_top([['signToActivityPubGet', 'checkActivityPubGetSignature', 'setupPassword', 'disallowExternalApRedirect']]);
 	_apply_top(['logging', 'sql', ['disableQueryTruncation', 'enableQueryParamLogging']]);

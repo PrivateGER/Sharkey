@@ -6,7 +6,7 @@
 import * as Redis from 'ioredis';
 import { Inject } from '@nestjs/common';
 import { FakeInternalEventService } from './FakeInternalEventService.js';
-import type { BlockingsRepository, FollowingsRepository, MiUser, MutingsRepository, RenoteMutingsRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import type { BlockingsRepository, FollowingsRepository, MiUser, MutingsRepository, NoteThreadMutingsRepository, RenoteMutingsRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import type { MiLocalUser } from '@/models/User.js';
 import { MemoryKVCache, MemorySingleCache, RedisKVCache, RedisSingleCache } from '@/misc/cache.js';
 import { QuantumKVCache, QuantumKVOpts } from '@/misc/QuantumKVCache.js';
@@ -50,6 +50,9 @@ export class NoOpCacheService extends CacheService {
 		@Inject(DI.followingsRepository)
 		followingsRepository: FollowingsRepository,
 
+		@Inject(DI.noteThreadMutingsRepository)
+		noteThreadMutingsRepository: NoteThreadMutingsRepository,
+
 		@Inject(UserEntityService)
 		userEntityService: UserEntityService,
 	) {
@@ -65,6 +68,7 @@ export class NoOpCacheService extends CacheService {
 			blockingsRepository,
 			renoteMutingsRepository,
 			followingsRepository,
+			noteThreadMutingsRepository,
 			userEntityService,
 			fakeInternalEventService,
 		);
@@ -82,6 +86,8 @@ export class NoOpCacheService extends CacheService {
 		this.userBlockingCache = NoOpQuantumKVCache.copy(this.userBlockingCache, fakeInternalEventService);
 		this.userBlockedCache = NoOpQuantumKVCache.copy(this.userBlockedCache, fakeInternalEventService);
 		this.renoteMutingsCache = NoOpQuantumKVCache.copy(this.renoteMutingsCache, fakeInternalEventService);
+		this.threadMutingsCache = NoOpQuantumKVCache.copy(this.threadMutingsCache, fakeInternalEventService);
+		this.noteMutingsCache = NoOpQuantumKVCache.copy(this.noteMutingsCache, fakeInternalEventService);
 		this.userFollowingsCache = NoOpQuantumKVCache.copy(this.userFollowingsCache, fakeInternalEventService);
 		this.userFollowersCache = NoOpQuantumKVCache.copy(this.userFollowersCache, fakeInternalEventService);
 		this.hibernatedUserCache = NoOpQuantumKVCache.copy(this.hibernatedUserCache, fakeInternalEventService);

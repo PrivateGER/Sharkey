@@ -64,6 +64,20 @@ export const packedUserLiteSchema = {
 			example: 'misskey.example.com',
 			description: 'The local host is represented with `null`.',
 		},
+		createdAt: {
+			type: 'string',
+			nullable: false, optional: false,
+			format: 'date-time',
+		},
+		approved: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
+		description: {
+			type: 'string',
+			nullable: true, optional: false,
+			example: 'Hi masters, I am Ai!',
+		},
 		avatarUrl: {
 			type: 'string',
 			format: 'url',
@@ -72,16 +86,6 @@ export const packedUserLiteSchema = {
 		avatarBlurhash: {
 			type: 'string',
 			nullable: true, optional: false,
-		},
-		description: {
-			type: 'string',
-			nullable: true, optional: false,
-			example: 'Hi masters, I am Ai!',
-		},
-		createdAt: {
-			type: 'string',
-			nullable: false, optional: false,
-			format: 'date-time',
 		},
 		avatarDecorations: {
 			type: 'array',
@@ -215,6 +219,18 @@ export const packedUserLiteSchema = {
 					nullable: false, optional: false,
 				},
 			},
+		},
+		followersCount: {
+			type: 'number',
+			nullable: false, optional: false,
+		},
+		followingCount: {
+			type: 'number',
+			nullable: false, optional: false,
+		},
+		notesCount: {
+			type: 'number',
+			nullable: false, optional: false,
 		},
 		emojis: {
 			type: 'object',
@@ -376,18 +392,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 				nullable: false, optional: false,
 				format: 'url',
 			},
-		},
-		followersCount: {
-			type: 'number',
-			nullable: false, optional: false,
-		},
-		followingCount: {
-			type: 'number',
-			nullable: false, optional: false,
-		},
-		notesCount: {
-			type: 'number',
-			nullable: false, optional: false,
 		},
 		pinnedNoteIds: {
 			type: 'array',
@@ -715,18 +719,7 @@ export const packedMeDetailedOnlySchema = {
 			type: 'array',
 			nullable: false, optional: false,
 			items: {
-				type: 'object',
-				nullable: false, optional: false,
-				properties: {
-					name: {
-						type: 'string',
-						nullable: false, optional: false,
-					},
-					unlockedAt: {
-						type: 'number',
-						nullable: false, optional: false,
-					},
-				},
+				ref: 'Achievement',
 			},
 		},
 		loggedInDays: {
@@ -760,6 +753,10 @@ export const packedMeDetailedOnlySchema = {
 		},
 		emailVerified: {
 			type: 'boolean',
+			nullable: true, optional: true,
+		},
+		signupReason: {
+			type: 'string',
 			nullable: true, optional: true,
 		},
 		securityKeysList: {

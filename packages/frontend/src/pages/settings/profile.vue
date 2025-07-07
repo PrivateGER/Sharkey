@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</SearchMarker>
 
 		<SearchMarker :keywords="['description', 'bio']">
-			<MkTextarea v-model="profile.description" :max="500" tall manualSave mfmAutocomplete :mfmPreview="true">
+			<MkTextarea v-model="profile.description" :max="instance.maxBioLength" tall manualSave mfmAutocomplete :mfmPreview="true">
 				<template #label><SearchLabel>{{ i18n.ts._profile.description }}</SearchLabel></template>
 				<template #caption>{{ i18n.ts._profile.youCanIncludeHashtags }}</template>
 			</MkTextarea>
@@ -195,6 +195,7 @@ import { langmap } from '@/utility/langmap.js';
 import { definePage } from '@/page.js';
 import { claimAchievement } from '@/utility/achievements.js';
 import { store } from '@/store.js';
+import { instance } from '@/instance.js';
 import MkInfo from '@/components/MkInfo.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 
@@ -270,18 +271,13 @@ function save() {
 	}
 	os.apiWithDialog('i/update', {
 		// 空文字列をnullにしたいので??は使うな
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		name: profile.name || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		description: profile.description || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		followedMessage: profile.followedMessage || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+		// eslint-disable-next-line id-denylist
 		location: profile.location || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		birthday: profile.birthday || null,
 		listenbrainz: profile.listenbrainz || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 		lang: profile.lang || null,
 		isBot: !!profile.isBot,
 		isCat: !!profile.isCat,

@@ -160,6 +160,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				useDbFallback: true,
 				ignoreAuthorFromMute: true,
 				ignoreAuthorFromInstanceBlock: true,
+				ignoreAuthorFromUserSuspension: true,
 				excludeReplies: ps.withChannelNotes && !ps.withReplies, // userTimelineWithChannel may include replies
 				excludeNoFiles: ps.withChannelNotes && ps.withFiles, // userTimelineWithChannel may include notes without files
 				excludePureRenotes: !ps.withRenotes,
@@ -235,6 +236,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query, true);
+		this.queryService.generateSuspendedUserQueryForNote(query, true);
 		if (me) {
 			this.queryService.generateMutedUserQueryForNotes(query, me, { id: ps.userId });
 			this.queryService.generateBlockedUserQueryForNotes(query, me);
