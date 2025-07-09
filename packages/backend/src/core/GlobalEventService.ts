@@ -116,10 +116,7 @@ export interface NoteEventTypes {
 	deleted: {
 		deletedAt: Date;
 	};
-	updated: {
-		cw: string | null;
-		text: string;
-	};
+	updated: Record<string, never>;
 	reacted: {
 		reaction: string;
 		emoji?: {

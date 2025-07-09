@@ -645,10 +645,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			// Pack the note
 			const noteObj = await this.noteEntityService.pack(note, null, { skipHide: true, withReactionAndUserPairCache: true });
-			this.globalEventService.publishNoteStream(note.id, 'updated', {
-				cw: note.cw,
-				text: note.text ?? '',
-			});
+			this.globalEventService.publishNoteStream(note.id, 'updated', {});
 
 			await this.roleService.addNoteToRoleTimeline(noteObj);
 

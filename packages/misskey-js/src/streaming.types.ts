@@ -311,10 +311,7 @@ export type NoteUpdatedEvent = { id: Note['id'] } & ({
 } | {
 	id: Note['id'];
 	type: 'updated';
-	body: {
-		cw: string | null;
-		text: string;
-	};
+	body: Record<string, never>;
 } | {
 	type: 'deleted';
 	body: {
