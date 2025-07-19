@@ -13370,6 +13370,10 @@ export interface Locale extends ILocale {
          * Don't delete files used as avatars&c
          */
         "keepFilesInUse": string;
+        /**
+         * this option requires more complicated database queries, you may need to increase the value of db.extra.statement_timeout in the configuration file
+         */
+        "keepFilesInUseDescription": string;
     };
 }
 declare const locales: {
