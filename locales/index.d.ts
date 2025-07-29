@@ -12918,6 +12918,22 @@ export interface Locale extends ILocale {
      */
     "generatedAltTextSuccess": string;
     /**
+     * Vision Model
+     */
+    "altTextModel": string;
+    /**
+     * Fast
+     */
+    "altTextModelFast": string;
+    /**
+     * High Quality
+     */
+    "altTextModelQuality": string;
+    /**
+     * Experimental
+     */
+    "altTextModelExperimental": string;
+    /**
      * Default content warning for new posts
      */
     "defaultCW": string;

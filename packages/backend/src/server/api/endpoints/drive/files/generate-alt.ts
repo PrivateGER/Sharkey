@@ -61,6 +61,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		fileId: { type: 'string', format: 'misskey:id' },
+		modelType: { type: 'string', enum: ['fast', 'quality', 'experimental'], default: 'fast' },
 	},
 	required: ['fileId'],
 } as const;
@@ -95,8 +96,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				defaultHeaders: this.config.openai?.headers,
 			});
 
+			const selectedModel = this.config.openai?.models?.[ps.modelType] ?? 'google/gemini-2.5-flash';
+			
 			const response = await client.chat.completions.create({
-				model: this.config.openai?.model ?? 'openai/gpt-4o-mini',
+				model: selectedModel,
 				messages: [
 					{
 						role: 'system',

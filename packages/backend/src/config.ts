@@ -150,7 +150,11 @@ type Source = {
 		apiKey: string;
 		baseUrl: string;
 		headers: { [x: string]: string };
-		model: string;
+		models: {
+			fast: string;
+			quality: string;
+			experimental: string;
+		};
 	}
 
 	logging?: {
@@ -369,7 +373,11 @@ export type Config = {
 		apiKey: string;
 		baseUrl: string;
 		headers: { [x: string]: string };
-		model: string;
+		models: {
+			fast: string;
+			quality: string;
+			experimental: string;
+		};
 	}
 
 	websocketCompression?: boolean;
@@ -455,7 +463,11 @@ export function loadConfig(): Config {
 		apiKey: config.openai.apiKey,
 		baseUrl: config.openai.baseUrl ?? 'https://api.openai.com/v1',
 		headers: config.openai.headers ?? {},
-		model: config.openai.model,
+		models: {
+			fast: config.openai.models?.fast ?? 'google/gemini-2.5-flash',
+			quality: config.openai.models?.quality ?? 'google/gemini-2.5-pro',
+			experimental: config.openai.models?.experimental ?? 'thudm/glm-4.1v-9b-thinking',
+		},
 	} : undefined;
 
 	return {

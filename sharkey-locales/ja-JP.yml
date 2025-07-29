@@ -390,3 +390,11 @@ schedulePostList: "予約投稿一覧"
 _permissions:
   "read:notes-schedule": "予約投稿を見る"
   "write:notes-schedule": "予約投稿を作成・削除する"
+
+generateAltText: "代替テキストを生成"
+failedToGenerateAltText: "代替テキストの生成に失敗しました"
+generatedAltTextSuccess: "代替テキストが正常に生成されました。必要に応じて確認・編集してください。"
+altTextModel: "ビジョンモデル"
+altTextModelFast: "高速"
+altTextModelQuality: "高品質"
+altTextModelExperimental: "実験的"

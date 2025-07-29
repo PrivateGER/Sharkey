@@ -20,9 +20,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
-		<div>
+		<div v-if="isImage">
+			<MkSelect v-model="selectedModel" :style="{ marginTop: '16px' }">
+				<template #label>{{ i18n.ts.altTextModel }}</template>
+				<option value="fast">{{ i18n.ts.altTextModelFast }}</option>
+				<option value="quality">{{ i18n.ts.altTextModelQuality }}</option>
+				<option value="experimental">{{ i18n.ts.altTextModelExperimental }}</option>
+			</MkSelect>
 			<MkLoading v-if="loading" :style="{ marginTop: '16px' }"/>
-			<MkButton v-if="isImage" :style="{ marginTop: '16px' }" :disabled="loading" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
+			<MkButton :style="{ marginTop: '16px' }" :disabled="loading" @click="generateAltText">{{ i18n.ts.generateAltText }}</MkButton>
 		</div>
 	</div>
 </MkModalWindow>
@@ -36,6 +42,7 @@ import MkTextarea from '@/components/MkTextarea.vue';
 import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
+import MkSelect from '@/components/MkSelect.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
@@ -46,6 +53,7 @@ const props = defineProps<{
 
 const isImage = props.file.type.startsWith('image/');
 let loading = ref(false);
+const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
 
 const emit = defineEmits<{
 	(ev: 'done', v: string): void;
@@ -63,6 +71,7 @@ async function generateAltText() {
 	try {
 		const res = await misskeyApi('drive/files/generate-alt-text', {
 			fileId: props.file.id,
+			modelType: selectedModel.value,
 		});
 
 		if (!res) {

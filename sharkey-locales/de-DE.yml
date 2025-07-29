@@ -397,6 +397,14 @@ _noteSearch:
 
 mandatoryCW: "Inhaltswarnung erzwingen"
 mandatoryCWDescription: "Wendet eine Inhaltswarnung auf alle von diesem Benutzer erstellten Beiträge an. Wenn der Beitrag bereits eine Warnung hat, wird diese an das Ende angehängt."
+
+generateAltText: "Alternativtext generieren"
+failedToGenerateAltText: "Alternativtext konnte nicht generiert werden"
+generatedAltTextSuccess: "Alternativtext wurde erfolgreich generiert. Bitte überprüfen und bei Bedarf bearbeiten."
+altTextModel: "Vision-Modell"
+altTextModelFast: "Schnell"
+altTextModelQuality: "Hohe Qualität"
+altTextModelExperimental: "Experimentell"
 fetchLinkedNote: "Verknüpfte Notiz abrufen"
 
 _processErrors:

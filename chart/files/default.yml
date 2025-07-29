@@ -351,3 +351,13 @@ checkActivityPubGetSignature: false
 #     # Disable query truncation. If set to true, the full text of the query will be output to the log.
 #     # default: false
 #     disableQueryTruncation: false
+
+# OpenAI configuration for alt text generation
+# openai:
+#   apiKey: 'your-api-key-here'
+#   baseUrl: 'https://api.openai.com/v1'
+#   headers: {}
+#   models:
+#     fast: 'google/gemini-2.5-flash'
+#     quality: 'google/gemini-2.5-pro'
+#     experimental: 'thudm/glm-4.1v-9b-thinking'
