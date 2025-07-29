@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { notificationTypes, userExportableEntities } from '@/types.js';
+import { notificationTypes, userExportableEntities, userImportableEntities } from '@/types.js';
 
 const baseSchema = {
 	type: 'object',
@@ -327,6 +327,26 @@ export const packedNotificationSchema = {
 				type: 'string',
 				optional: false, nullable: false,
 				enum: userExportableEntities,
+			},
+			fileId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['importCompleted'],
+			},
+			importedEntity: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: userImportableEntities,
 			},
 			fileId: {
 				type: 'string',

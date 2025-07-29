@@ -9,7 +9,7 @@ import { In, IsNull } from 'typeorm';
 import type { BlockingsRepository, FollowingsRepository, MutingsRepository, RenoteMutingsRepository, MiUserProfile, UserProfilesRepository, UsersRepository, MiNote, MiFollowing, NoteThreadMutingsRepository } from '@/models/_.js';
 import { MemoryKVCache, RedisKVCache } from '@/misc/cache.js';
 import { QuantumKVCache } from '@/misc/QuantumKVCache.js';
-import type { MiLocalUser, MiUser } from '@/models/User.js';
+import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
@@ -385,6 +385,22 @@ export class CacheService implements OnApplicationShutdown {
 		return await this.localUserByIdCache.fetchMaybe(userId, async () => {
 			return await this.usersRepository.findOneBy({ id: userId, host: IsNull() }) as MiLocalUser | null ?? undefined;
 		}) ?? null;
+	}
+
+	@bindThis
+	public async findRemoteUserById(userId: MiUser['id']): Promise<MiRemoteUser | null> {
+		const user = await this.findUserById(userId);
+
+		if (user.host == null) {
+			return null;
+		}
+
+		return user as MiRemoteUser;
+	}
+
+	@bindThis
+	public findOptionalUserById(userId: MiUser['id']) {
+		return this.userByIdCache.fetchMaybe(userId, async () => await this.usersRepository.findOneBy({ id: userId }) ?? undefined);
 	}
 
 	@bindThis

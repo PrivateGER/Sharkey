@@ -75,6 +75,7 @@ export class MetaEntityService {
 			shortName: instance.shortName,
 			uri: this.config.url,
 			description: instance.description,
+			about: instance.about,
 			langs: instance.langs,
 			tosUrl: instance.termsOfServiceUrl,
 			repositoryUrl: instance.repositoryUrl,

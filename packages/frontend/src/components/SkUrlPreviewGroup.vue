@@ -1,6 +1,11 @@
 <!--
 SPDX-FileCopyrightText: hazelnoot and other Sharkey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+Displays a group of URL previews.
+
+If the URL to be previewed links to a note, it will be displayed as a quote.
+Attempts to avoid displaying the same preview twice, even if multiple URLs point to the same resource.
 -->
 
 <template>

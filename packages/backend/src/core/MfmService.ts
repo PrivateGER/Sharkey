@@ -377,7 +377,7 @@ export class MfmService {
 	}
 
 	@bindThis
-	public toHtml(nodes: mfm.MfmNode[] | null, mentionedRemoteUsers: IMentionedRemoteUsers = [], additionalAppenders: Appender[] = []) {
+	public toHtml(nodes: mfm.MfmNode[] | null, mentionedRemoteUsers: IMentionedRemoteUsers = [], additionalAppenders: Appender[] = [], inline = false) {
 		if (nodes == null) {
 			return null;
 		}
@@ -626,9 +626,15 @@ export class MfmService {
 			additionalAppender(doc, body);
 		}
 
-		return domserializer.render(body, {
+		let result = domserializer.render(body, {
 			encodeEntities: 'utf8'
 		});
+
+		if (inline) {
+			result = result.replace(/^<p>/, '').replace(/<\/p>$/, '');
+		}
+
+		return result;
 	}
 
 	// the toMastoApiHtml function was taken from Iceshrimp and written by zotan and modified by marie to work with the current MK version

@@ -8,6 +8,8 @@ deleteAndEditConfirm: "Are you sure you want to redraft this note? This means yo
 openRemoteProfile: "Open remote profile"
 trustedLinkUrlPatterns: "Link to external site warning exclusion list"
 trustedLinkUrlPatternsDescription: "Separate with spaces for an AND condition or with line breaks for an OR condition. Using surrounding keywords with slashes will turn them into a regular expression. If you write only the domain name, it will be a backward match."
+trustedDomainsList: "Link to external site warning exclusion list"
+trustedDomainsListDescription: "Following links to these domains will not show a warning. Write one domain per line."
 mutuals: "Mutuals"
 isLocked: "Private account"
 isAdmin: "Administrator"
@@ -216,6 +218,8 @@ _serverSettings:
   sidebarLogoUsageExample: "E.g. In the sidebar, to visitors and in the \"About\" page."
   inquiryUrl: "Contact URL"
   inquiryUrlDescription: "Specify the URL of a web page that contains a contact form or the instance operators' contact information."
+  aboutInstance: "About instance"
+  aboutInstanceDescription: "A longer description that will be displayed in the 'Instance Information' page, going in place of the regular instance description. Supports HTML."
 _accountMigration:
   moveAccountDescription: "This will migrate your account to a different one.\n　・Followers from this account will automatically be migrated to the new account\n　・This account will unfollow all users it is currently following\n　・You will be unable to create new notes etc. on this account\n\nWhile migration of followers is automatic, you must manually prepare some steps to migrate the list of users you are following. To do so, carry out a follows export that you will later import on the new account in the settings menu. The same procedure applies to your lists as well as your muted and blocked users.\n\n(This explanation applies to Sharkey v13.12.0 and later. Other ActivityPub software, such as Mastodon, might function differently.)"
 _achievements:
@@ -314,6 +318,7 @@ _notification:
   edited: "Note got edited"
   scheduledNoteFailed: "Posting scheduled note failed"
   scheduledNotePosted: "Scheduled Note was posted"
+  importOfXCompleted: "Import of {x} has been completed"
   _types:
     renote: "Boosts"
     edited: "Edits"
@@ -473,6 +478,8 @@ _auth:
   allowed: "Allowed"
 _announcement:
   new: "New"
+  confetti: "Throw confetti"
+  confettiDescription: "If enabled, the announcement will display a confetti effect when viewed."
 _deck:
   _columns:
     following: "Following"

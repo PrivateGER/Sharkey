@@ -4254,6 +4254,10 @@ export type components = {
       host: string | null;
       /** Format: date-time */
       createdAt: string;
+      /** Format: date-time */
+      updatedAt: string | null;
+      /** Format: date-time */
+      lastFetchedAt: string | null;
       approved: boolean;
       /** @example Hi masters, I am Ai! */
       description: string | null;
@@ -4320,10 +4324,6 @@ export type components = {
       /** Format: uri */
       movedTo: string | null;
       alsoKnownAs: string[] | null;
-      /** Format: date-time */
-      updatedAt: string | null;
-      /** Format: date-time */
-      lastFetchedAt: string | null;
       /** Format: url */
       bannerUrl: string | null;
       bannerBlurhash: string | null;
@@ -4640,6 +4640,7 @@ export type components = {
       display: 'dialog' | 'normal' | 'banner';
       needConfirmationToRead: boolean;
       silence: boolean;
+      confetti: boolean;
       forYou: boolean;
       isRead?: boolean;
     };
@@ -4910,6 +4911,17 @@ export type components = {
       type: 'exportCompleted';
       /** @enum {string} */
       exportedEntity: 'antenna' | 'blocking' | 'clip' | 'customEmoji' | 'favorite' | 'following' | 'muting' | 'note' | 'userList';
+      /** Format: id */
+      fileId: string;
+    }) | ({
+      /** Format: id */
+      id: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** @enum {string} */
+      type: 'importCompleted';
+      /** @enum {string} */
+      importedEntity: 'antenna' | 'blocking' | 'customEmoji' | 'following' | 'muting' | 'userList';
       /** Format: id */
       fileId: string;
     }) | {
@@ -6686,6 +6698,8 @@ export type operations = {
           silence?: boolean;
           /** @default false */
           needConfirmationToRead?: boolean;
+          /** @default false */
+          confetti?: boolean;
           /**
            * Format: misskey:id
            * @default null
@@ -6899,6 +6913,7 @@ export type operations = {
           forExistingUsers?: boolean;
           silence?: boolean;
           needConfirmationToRead?: boolean;
+          confetti?: boolean;
           isActive?: boolean;
         };
       };
@@ -7583,6 +7598,14 @@ export type operations = {
    * **Credential required**: *Yes* / **Permission**: *write:admin:drive*
    */
   'admin___drive___clean-remote-files': {
+    requestBody: {
+      content: {
+        'application/json': {
+          olderThanSeconds?: number;
+          keepFilesInUse?: boolean;
+        };
+      };
+    };
     responses: {
       /** @description OK (without any results) */
       204: {
@@ -10879,6 +10902,8 @@ export type operations = {
           untilId?: string;
           /** @default 10 */
           limit?: number;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -10891,7 +10916,7 @@ export type operations = {
               id: string;
               /** Format: date-time */
               createdAt: string;
-              user: components['schemas']['UserDetailed'];
+              user: components['schemas']['User'];
               /** Format: date-time */
               expiresAt: string | null;
             })[];
@@ -11387,6 +11412,8 @@ export type operations = {
            * @default null
            */
           hostname?: string | null;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -11394,7 +11421,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'][];
         };
       };
       /** @description Client error */
@@ -21834,6 +21861,8 @@ export type operations = {
           origin?: 'combined' | 'local' | 'remote';
           /** @default false */
           trending?: boolean;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -21841,7 +21870,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'][];
         };
       };
       /** @description Client error */
@@ -23881,8 +23910,8 @@ export type operations = {
           untilId?: string;
           /** @default true */
           markAsRead?: boolean;
-          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
-          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'importCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'importCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
         };
       };
     };
@@ -23949,8 +23978,8 @@ export type operations = {
           untilId?: string;
           /** @default true */
           markAsRead?: boolean;
-          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
-          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'importCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+          excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'edited' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'importCompleted' | 'login' | 'createToken' | 'scheduledNoteFailed' | 'scheduledNotePosted' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
         };
       };
     };
@@ -29811,11 +29840,19 @@ export type operations = {
    * **Credential required**: *No*
    */
   'pinned-users': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default true */
+          detail?: boolean;
+        };
+      };
+    };
     responses: {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'][];
         };
       };
       /** @description Client error */
@@ -30943,6 +30980,8 @@ export type operations = {
           untilId?: string;
           /** @default 10 */
           limit?: number;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -30953,7 +30992,7 @@ export type operations = {
           'application/json': {
               /** Format: misskey:id */
               id: string;
-              user: components['schemas']['UserDetailed'];
+              user: components['schemas']['User'];
             }[];
         };
       };
@@ -31616,6 +31655,8 @@ export type operations = {
            * @default null
            */
           hostname?: string | null;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -31623,7 +31664,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'][];
         };
       };
       /** @description Client error */
@@ -32139,6 +32180,8 @@ export type operations = {
           userId: string;
           /** @default 10 */
           limit?: number;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -32147,7 +32190,7 @@ export type operations = {
       200: {
         content: {
           'application/json': {
-              user: components['schemas']['UserDetailed'];
+              user: components['schemas']['User'];
               weight: number;
             }[];
         };
@@ -33160,6 +33203,8 @@ export type operations = {
           limit?: number;
           /** @default 0 */
           offset?: number;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -33167,7 +33212,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'][];
         };
       };
       /** @description Client error */
@@ -33502,6 +33547,8 @@ export type operations = {
           username?: string;
           /** @description The local host is represented with `null`. */
           host?: string | null;
+          /** @default true */
+          detail?: boolean;
         };
       };
     };
@@ -33509,7 +33556,7 @@ export type operations = {
       /** @description OK (with results) */
       200: {
         content: {
-          'application/json': components['schemas']['UserDetailed'] | components['schemas']['UserDetailed'][];
+          'application/json': components['schemas']['User'] | components['schemas']['User'][];
         };
       };
       /** @description Client error */

@@ -664,6 +664,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				shortName: instance.shortName,
 				uri: this.config.url,
 				description: instance.description,
+				about: instance.about,
 				langs: instance.langs,
 				tosUrl: instance.termsOfServiceUrl,
 				repositoryUrl: instance.repositoryUrl,

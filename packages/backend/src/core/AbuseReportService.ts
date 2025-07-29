@@ -14,6 +14,7 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
 import { IdService } from './IdService.js';
 
 @Injectable()
@@ -68,11 +69,11 @@ export class AbuseReportService {
 			reports.push(report);
 		}
 
-		return Promise.all([
+		trackPromise(Promise.all([
 			this.abuseReportNotificationService.notifyAdminStream(reports),
 			this.abuseReportNotificationService.notifySystemWebhook(reports, 'abuseReport'),
 			this.abuseReportNotificationService.notifyMail(reports),
-		]);
+		]));
 	}
 
 	/**

@@ -110,6 +110,7 @@ export type DbNoteImportJobData = {
 export type DBAntennaImportJobData = {
 	user: ThinUser,
 	antenna: Antenna
+	fileId: MiDriveFile['id'];
 };
 
 export type DbUserImportToDbJobData = {

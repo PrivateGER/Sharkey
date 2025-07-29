@@ -28,6 +28,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label>{{ i18n.ts.instanceDescription }}<span v-if="infoForm.modifiedStates.description" class="_modified">{{ i18n.ts.modified }}</span></template>
 					</MkTextarea>
 
+					<MkTextarea v-model="infoForm.state.about">
+						<template #label>{{ i18n.ts._serverSettings.aboutInstance }}<span v-if="infoForm.modifiedStates.about" class="_modified">{{ i18n.ts.modified }}</span></template>
+						<template #caption>{{ i18n.ts._serverSettings.aboutInstanceDescription }}</template>
+
+					</MkTextarea>
+
 					<FormSplit :minWidth="300">
 						<MkInput v-model="infoForm.state.maintainerName">
 							<template #label>{{ i18n.ts.maintainerName }}<span v-if="infoForm.modifiedStates.maintainerName" class="_modified">{{ i18n.ts.modified }}</span></template>
@@ -343,6 +349,7 @@ const infoForm = useForm({
 	name: meta.name ?? '',
 	shortName: meta.shortName ?? '',
 	description: meta.description ?? '',
+	about: meta.about ?? '',
 	maintainerName: meta.maintainerName ?? '',
 	maintainerEmail: meta.maintainerEmail ?? '',
 	tosUrl: meta.tosUrl ?? '',
@@ -356,6 +363,7 @@ const infoForm = useForm({
 		name: state.name,
 		shortName: state.shortName === '' ? null : state.shortName,
 		description: state.description,
+		about: state.about,
 		maintainerName: state.maintainerName,
 		maintainerEmail: state.maintainerEmail,
 		tosUrl: state.tosUrl,

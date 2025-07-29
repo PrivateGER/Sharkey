@@ -5,7 +5,7 @@
 
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { StatusError } from '@/misc/status-error.js';
-import { CaptchaError } from '@/core/CaptchaService.js';
+import { CaptchaError } from '@/misc/captcha-error.js';
 
 export function renderInlineError(err: unknown): string {
 	const parts: string[] = [];

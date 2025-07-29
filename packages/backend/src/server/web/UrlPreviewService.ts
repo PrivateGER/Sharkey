@@ -33,6 +33,7 @@ import { getIpHash } from '@/misc/get-ip-hash.js';
 import { isRetryableError } from '@/misc/is-retryable-error.js';
 import * as Acct from '@/misc/acct.js';
 import { isNote } from '@/core/activitypub/type.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 export type LocalSummalyResult = SummalyResult & {
@@ -260,7 +261,7 @@ export class UrlPreviewService {
 
 			return reply.code(200).send(summary);
 		} catch (err) {
-			this.logger.warn(`Failed to get preview of ${url} for ${lang}: ${err}`);
+			this.logger.warn(`Failed to get preview of ${url} for ${lang}: ${renderInlineError(err)}`);
 
 			reply.header('Cache-Control', 'max-age=3600');
 			return reply.code(422).send({

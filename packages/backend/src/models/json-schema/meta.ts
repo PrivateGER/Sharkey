@@ -43,6 +43,10 @@ export const packedMetaLiteSchema = {
 			type: 'string',
 			optional: false, nullable: true,
 		},
+		about: {
+			type: 'string',
+			optional: false, nullable: true,
+		},
 		langs: {
 			type: 'array',
 			optional: false, nullable: false,

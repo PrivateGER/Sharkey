@@ -100,7 +100,7 @@ export class ApNoteService {
 		actor?: MiRemoteUser,
 		user?: MiRemoteUser,
 	): Error | null {
-		this.apUtilityService.assertApUrl(uri);
+		this.utilityService.assertUrl(uri);
 		const expectHost = this.utilityService.extractDbHost(uri);
 		const apType = getApType(object);
 

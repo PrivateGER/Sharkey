@@ -439,7 +439,7 @@ export function loadConfig(): Config {
 	applyEnvOverrides(config);
 
 	const url = tryCreateUrl(config.url ?? process.env.MISSKEY_URL ?? '');
-	const version = meta.version;
+	const version = meta.gitVersion ?? meta.version;
 	const host = url.host;
 	const hostname = url.hostname;
 	const scheme = url.protocol.replace(/:$/, '');

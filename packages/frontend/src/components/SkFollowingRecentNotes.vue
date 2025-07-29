@@ -1,6 +1,8 @@
 <!--
 SPDX-FileCopyrightText: hazelnoot and other Sharkey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+List that displays the most recent note from each followed user, in order, with date separators.
 -->
 
 <template>

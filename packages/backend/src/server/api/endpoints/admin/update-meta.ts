@@ -67,6 +67,7 @@ export const paramDef = {
 		name: { type: 'string', nullable: true },
 		shortName: { type: 'string', nullable: true },
 		description: { type: 'string', nullable: true },
+		about: { type: 'string', nullable: true },
 		defaultLightTheme: { type: 'string', nullable: true },
 		defaultDarkTheme: { type: 'string', nullable: true },
 		defaultLike: { type: 'string' },
@@ -338,6 +339,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.description !== undefined) {
 				set.description = ps.description;
+			}
+
+			if (ps.about !== undefined) {
+				set.about = ps.about;
 			}
 
 			if (ps.defaultLightTheme !== undefined) {

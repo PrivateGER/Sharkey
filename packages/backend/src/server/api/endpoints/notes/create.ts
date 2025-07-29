@@ -27,10 +27,11 @@ export const meta = {
 
 	prohibitMoved: true,
 
+	// Up to 10 post burst, then 4/second
 	limit: {
-		duration: ms('1hour'),
-		max: 300,
-		minInterval: ms('1sec'),
+		type: 'bucket',
+		size: 10,
+		dripRate: 250,
 	},
 
 	kind: 'write:notes',

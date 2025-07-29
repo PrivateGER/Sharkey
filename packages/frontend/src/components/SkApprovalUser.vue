@@ -1,6 +1,8 @@
 <!--
 SPDX-FileCopyrightText: marie and other Sharkey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+Displays an account pending approval, with the signup reason and buttons to approve or delete it.
 -->
 
 <template>

@@ -9,7 +9,10 @@ import { bindThis } from '@/decorators.js';
 import { MetaService } from '@/core/MetaService.js';
 import { MiMeta } from '@/models/Meta.js';
 import Logger from '@/logger.js';
-import { LoggerService } from './LoggerService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import { CaptchaError } from '@/misc/captcha-error.js';
+
+export { CaptchaError } from '@/misc/captcha-error.js';
 
 export const supportedCaptchaProviders = ['none', 'hcaptcha', 'mcaptcha', 'recaptcha', 'turnstile', 'fc', 'testcaptcha'] as const;
 export type CaptchaProvider = typeof supportedCaptchaProviders[number];
@@ -48,18 +51,6 @@ export type CaptchaSetting = {
 		secretKey: string | null;
 	}
 };
-
-export class CaptchaError extends Error {
-	public readonly code: CaptchaErrorCode;
-	public readonly cause?: unknown;
-
-	constructor(code: CaptchaErrorCode, message: string, cause?: unknown) {
-		super(message, cause ? { cause } : undefined);
-		this.code = code;
-		this.cause = cause;
-		this.name = 'CaptchaError';
-	}
-}
 
 export type CaptchaSaveSuccess = {
 	success: true;

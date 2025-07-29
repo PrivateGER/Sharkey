@@ -35,19 +35,23 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const user = await this.cacheService.findUserById(ps.userId);
+			const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
 
-			await this.moderationLogService.log(me, 'nsfwUser', {
-				userId: ps.userId,
-				userUsername: user.username,
-				userHost: user.host,
-			});
+			if (profile.alwaysMarkNsfw) return;
+
+			const user = await this.cacheService.findUserById(ps.userId);
 
 			await this.userProfilesRepository.update(user.id, {
 				alwaysMarkNsfw: true,
 			});
 
 			await this.cacheService.userProfileCache.delete(ps.userId);
+
+			await this.moderationLogService.log(me, 'nsfwUser', {
+				userId: ps.userId,
+				userUsername: user.username,
+				userHost: user.host,
+			});
 		});
 	}
 }

@@ -69,6 +69,16 @@ export const packedUserLiteSchema = {
 			nullable: false, optional: false,
 			format: 'date-time',
 		},
+		updatedAt: {
+			type: 'string',
+			nullable: true, optional: false,
+			format: 'date-time',
+		},
+		lastFetchedAt: {
+			type: 'string',
+			nullable: true, optional: false,
+			format: 'date-time',
+		},
 		approved: {
 			type: 'boolean',
 			nullable: false, optional: false,
@@ -303,16 +313,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 				format: 'id',
 				nullable: false, optional: false,
 			},
-		},
-		updatedAt: {
-			type: 'string',
-			nullable: true, optional: false,
-			format: 'date-time',
-		},
-		lastFetchedAt: {
-			type: 'string',
-			nullable: true, optional: false,
-			format: 'date-time',
 		},
 		bannerUrl: {
 			type: 'string',

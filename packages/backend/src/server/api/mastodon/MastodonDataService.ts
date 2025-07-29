@@ -59,7 +59,7 @@ export class MastodonDataService {
 				if (typeof(relations.reply) === 'object') {
 					if (relations.reply.reply) query.leftJoinAndSelect('reply.reply', 'replyReply');
 					if (relations.reply.renote) query.leftJoinAndSelect('reply.renote', 'replyRenote');
-					if (relations.reply.user) query.innerJoinAndSelect('reply.user', 'replyUser');
+					if (relations.reply.user) query.leftJoinAndSelect('reply.user', 'replyUser');
 					if (relations.reply.channel) query.leftJoinAndSelect('reply.channel', 'replyChannel');
 				}
 			}
@@ -68,7 +68,7 @@ export class MastodonDataService {
 				if (typeof(relations.renote) === 'object') {
 					if (relations.renote.reply) query.leftJoinAndSelect('renote.reply', 'renoteReply');
 					if (relations.renote.renote) query.leftJoinAndSelect('renote.renote', 'renoteRenote');
-					if (relations.renote.user) query.innerJoinAndSelect('renote.user', 'renoteUser');
+					if (relations.renote.user) query.leftJoinAndSelect('renote.user', 'renoteUser');
 					if (relations.renote.channel) query.leftJoinAndSelect('renote.channel', 'renoteChannel');
 				}
 			}

@@ -51,7 +51,7 @@ function greet() {
 	}
 
 	bootLogger.info('Welcome to Sharkey!');
-	bootLogger.info(`Sharkey v${meta.version}`, null, true);
+	bootLogger.info(`Sharkey v${meta.gitVersion ?? meta.version}`, null, true);
 }
 
 /**
@@ -91,7 +91,7 @@ export async function masterMain() {
 			maxBreadcrumbs: 0,
 
 			// Set release version
-			release: 'Sharkey@' + meta.version,
+			release: 'Sharkey@' + (meta.gitVersion ?? meta.version),
 
 			...config.sentryForBackend.options,
 		});

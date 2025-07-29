@@ -1,6 +1,8 @@
 <!--
 SPDX-FileCopyrightText: syuilo and other misskey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+Detailed view of a note in the Sharkey style. Used when opening a note onto its own page.
 -->
 
 <template>

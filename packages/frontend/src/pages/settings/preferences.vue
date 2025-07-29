@@ -829,6 +829,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkPreferenceContainer>
 							</SearchMarker>
 
+							<SearchMarker :keywords="['warn', 'external', 'url']">
+								<MkPreferenceContainer k="trustedDomains">
+									<MkTextarea v-model="trustedDomains" :debounce="true">
+										<template #label><SearchLabel>{{ i18n.ts.trustedDomainsList }}</SearchLabel></template>
+										<template #caption>{{ i18n.ts.trustedDomainsListDescription }}</template>
+									</MkTextarea>
+								</MkPreferenceContainer>
+							</SearchMarker>
+
 							<SearchMarker :keywords="['image', 'photo', 'picture', 'media', 'thumbnail', 'new', 'tab']">
 								<MkPreferenceContainer k="imageNewTab">
 									<MkSwitch v-model="imageNewTab">
@@ -967,6 +976,7 @@ import FormLink from '@/components/form/link.vue';
 import MkLink from '@/components/MkLink.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkInput from '@/components/MkInput.vue';
+import MkTextarea from '@/components/MkTextarea.vue';
 import { store } from '@/store.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -1073,6 +1083,11 @@ const lang = prefer.model('lang');
 const fontSize = prefer.model('fontSize');
 const useSystemFont = prefer.model('useSystemFont');
 const cornerRadius = prefer.model('cornerRadius');
+const trustedDomains = prefer.model(
+	'trustedDomains',
+	(domainsList) => domainsList.join('\n'),
+	(domainsString) => domainsString.split('\n').map( d => d.trim() ).filter( x => x.length > 0),
+);
 
 watch([
 	hemisphere,

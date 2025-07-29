@@ -546,6 +546,8 @@ export class UserEntityService implements OnModuleInit {
 			avatarBlurhash: (user.avatarId == null ? null : user.avatarBlurhash),
 			description: mastoapi ? mastoapi.description : profile ? profile.description : '',
 			createdAt: this.idService.parse(user.id).date.toISOString(),
+			updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null,
+			lastFetchedAt: user.lastFetchedAt ? user.lastFetchedAt.toISOString() : null,
 			avatarDecorations: user.avatarDecorations.length > 0 ? this.avatarDecorationService.getAll().then(decorations => user.avatarDecorations.filter(ud => decorations.some(d => d.id === ud.id)).map(ud => ({
 				id: ud.id,
 				angle: ud.angle || undefined,
@@ -601,8 +603,6 @@ export class UserEntityService implements OnModuleInit {
 					? Promise.all(user.alsoKnownAs.map(uri => Promise.resolve(opts.userIdsByUri?.get(uri) ?? this.apPersonService.fetchPerson(uri).then(user => user?.id).catch(() => null))))
 						.then(xs => xs.length === 0 ? null : xs.filter(x => x != null))
 					: null,
-				updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null,
-				lastFetchedAt: user.lastFetchedAt ? user.lastFetchedAt.toISOString() : null,
 				bannerUrl: user.bannerId == null ? null : user.bannerUrl,
 				bannerBlurhash: user.bannerId == null ? null : user.bannerBlurhash,
 				backgroundUrl: user.backgroundId == null ? null : user.backgroundUrl,

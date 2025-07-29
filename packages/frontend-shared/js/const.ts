@@ -129,6 +129,7 @@ export const notificationTypes = [
 	'chatRoomInvitationReceived',
 	'achievementEarned',
 	'exportCompleted',
+	'importCompleted',
 	'login',
 	'createToken',
 	'test',

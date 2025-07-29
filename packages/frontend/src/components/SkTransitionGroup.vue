@@ -1,6 +1,11 @@
 <!--
 SPDX-FileCopyrightText: hazelnoot and other Sharkey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+List of elements, with animations for inserting, removing, and reordering items.
+
+Animation can be disabled with the "reduced animation" preferences.
+This component exists because Misskey's implementation of the reduced animation preference tends to break VueJS.
 -->
 
 <template>

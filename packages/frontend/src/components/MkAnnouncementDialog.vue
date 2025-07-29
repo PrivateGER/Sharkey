@@ -39,6 +39,7 @@ import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { updateCurrentAccountPartial } from '@/accounts.js';
+import { confetti } from '@/utility/confetti.js';
 
 const props = defineProps<{
 	announcement: Misskey.entities.Announcement;
@@ -83,6 +84,12 @@ function onBgClick() {
 const hasReachedBottom = ref(false);
 
 onMounted(() => {
+	if (props.announcement.confetti) {
+		confetti({
+			duration: 1000 * 3,
+		});
+	}
+
 	if (bottomEl.value && rootEl.value) {
 		const bottomElRect = bottomEl.value.getBoundingClientRect();
 		const rootElRect = rootEl.value.getBoundingClientRect();

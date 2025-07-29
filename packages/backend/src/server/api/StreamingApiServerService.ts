@@ -12,6 +12,7 @@ import { DI } from '@/di-symbols.js';
 import type { UsersRepository, MiAccessToken, MiUser, NoteReactionsRepository, NotesRepository, NoteFavoritesRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import type { Keyed, RateLimit } from '@/misc/rate-limit-utils.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { bindThis } from '@/decorators.js';
 import { CacheService } from '@/core/CacheService.js';
@@ -20,6 +21,7 @@ import { UserService } from '@/core/UserService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
@@ -38,6 +40,7 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 	#connectionsByClient = new Map<string, Set<WebSocket.WebSocket>>(); // key: IP / user ID -> value: connection
 	#cleanConnectionsIntervalId: NodeJS.Timeout | null = null;
 	readonly #globalEv = new EventEmitter();
+	#logger: Logger;
 
 	constructor(
 		@Inject(DI.redisForSub)
@@ -69,6 +72,7 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 		private config: Config,
 	) {
 		this.redisForSub.on('message', this.onRedis);
+		this.#logger = loggerService.getLogger('streaming', 'coral');
 	}
 
 	@bindThis
@@ -220,6 +224,11 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 					if (connectionsForClient.size < 1) {
 						this.#connectionsByClient.delete(limitActor);
 					}
+				});
+
+				ws.once('error', (e) => {
+					this.#logger.error(`Unhandled error in Streaming Api: ${renderInlineError(e)}`);
+					ws.terminate();
 				});
 
 				this.#wss.emit('connection', ws, request, {

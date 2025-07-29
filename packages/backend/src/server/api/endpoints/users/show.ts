@@ -30,13 +30,13 @@ export const meta = {
 		oneOf: [
 			{
 				type: 'object',
-				ref: 'UserDetailed',
+				ref: 'User',
 			},
 			{
 				type: 'array',
 				items: {
 					type: 'object',
-					ref: 'UserDetailed',
+					ref: 'User',
 				},
 			},
 		],
@@ -78,6 +78,11 @@ export const paramDef = {
 			type: 'string',
 			nullable: true,
 			description: 'The local host is represented with `null`.',
+		},
+		detail: {
+			type: 'boolean',
+			nullable: false,
+			default: true,
 		},
 	},
 	anyOf: [
@@ -125,7 +130,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					if (user != null) _users.push(user);
 				}
 
-				const _userMap = await this.userEntityService.packMany(_users, me, { schema: 'UserDetailed' })
+				const _userMap = await this.userEntityService.packMany(_users, me, { schema: ps.detail ? 'UserDetailed' : 'UserLite' })
 					.then(users => new Map(users.map(u => [u.id, u])));
 				return _users.map(u => _userMap.get(u.id)!);
 			} else {
@@ -156,7 +161,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 
 				return await this.userEntityService.pack(user, me, {
-					schema: 'UserDetailed',
+					schema: ps.detail ? 'UserDetailed' : 'UserLite',
 				});
 			}
 		});

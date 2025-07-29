@@ -615,11 +615,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.globalEventService.publishInternalEvent('localUserUpdated', { id: user.id });
 			}
 
-			const verified_links = await verifyFieldLinks(newFields, `${this.config.url}/@${user.username}`, this.httpRequestService);
+			const profileUrls = [
+				this.userEntityService.genLocalUserUri(user.id),
+				`${this.config.url}/@${user.username}`,
+			];
+			const verifiedLinks = await verifyFieldLinks(newFields, profileUrls, this.httpRequestService);
 
 			await this.userProfilesRepository.update(user.id, {
 				...profileUpdates,
-				verifiedLinks: verified_links,
+				verifiedLinks,
 			});
 
 			const iObj = await this.userEntityService.pack(user.id, user, {

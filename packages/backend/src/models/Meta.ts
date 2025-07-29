@@ -43,6 +43,11 @@ export class MiMeta {
 	})
 	public description: string | null;
 
+	@Column('text', {
+		nullable: true,
+	})
+	public about: string | null;
+
 	/**
 	 * メンテナの名前
 	 */

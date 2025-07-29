@@ -63,6 +63,12 @@ describe('MfmService', () => {
 			const output = '<p><ruby><span><i>some</i> text</span><rp>(</rp><rt>ignore me</rt><rp>)</rp></ruby></p>';
 			assert.equal(mfmService.toHtml(mfm.parse(input)), output);
 		});
+
+		test('inline', () => {
+			const input = 'https://example.com';
+			const output = '<a href="https://example.com">https://example.com</a>';
+			assert.equal(mfmService.toHtml(mfm.parse(input), [], [], true), output);
+		});
 	});
 
 	describe('toMastoApiHtml', () => {

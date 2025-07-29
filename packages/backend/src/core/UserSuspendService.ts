@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { Not, IsNull } from 'typeorm';
+import { Not, IsNull, DataSource } from 'typeorm';
 import type { FollowingsRepository, FollowRequestsRepository, UsersRepository } from '@/models/_.js';
 import { MiUser } from '@/models/User.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -21,6 +21,7 @@ import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
+import { InternalEventService } from '@/core/InternalEventService.js';
 
 @Injectable()
 export class UserSuspendService {
@@ -36,12 +37,16 @@ export class UserSuspendService {
 		@Inject(DI.followRequestsRepository)
 		private followRequestsRepository: FollowRequestsRepository,
 
+		@Inject(DI.db)
+		private db: DataSource,
+
 		private userEntityService: UserEntityService,
 		private queueService: QueueService,
 		private globalEventService: GlobalEventService,
 		private apRendererService: ApRendererService,
 		private moderationLogService: ModerationLogService,
 		private readonly cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 
 		loggerService: LoggerService,
 	) {
@@ -55,6 +60,8 @@ export class UserSuspendService {
 		await this.usersRepository.update(user.id, {
 			isSuspended: true,
 		});
+
+		await this.internalEventService.emit(user.host == null ? 'localUserUpdated' : 'remoteUserUpdated', { id: user.id });
 
 		await this.moderationLogService.log(moderator, 'suspend', {
 			userId: user.id,
@@ -73,6 +80,8 @@ export class UserSuspendService {
 		await this.usersRepository.update(user.id, {
 			isSuspended: false,
 		});
+
+		await this.internalEventService.emit(user.host == null ? 'localUserUpdated' : 'remoteUserUpdated', { id: user.id });
 
 		await this.moderationLogService.log(moderator, 'unsuspend', {
 			userId: user.id,
@@ -178,12 +187,12 @@ export class UserSuspendService {
 		// Freeze follow relations with all remote users
 		await this.followingsRepository
 			.createQueryBuilder('following')
-			.orWhere({
-				followeeId: user.id,
-				followerHost: Not(IsNull()),
-			})
 			.update({
 				isFollowerHibernated: true,
+			})
+			.where({
+				followeeId: user.id,
+				followerHost: Not(IsNull()),
 			})
 			.execute();
 	}
@@ -191,17 +200,16 @@ export class UserSuspendService {
 	@bindThis
 	private async unFreezeAll(user: MiUser): Promise<void> {
 		// Restore follow relations with all remote users
-		await this.followingsRepository
-			.createQueryBuilder('following')
-			.innerJoin(MiUser, 'follower', 'user.id = following.followerId')
-			.andWhere('follower.isHibernated = false') // Don't unfreeze if the follower is *actually* frozen
-			.andWhere({
-				followeeId: user.id,
-				followerHost: Not(IsNull()),
-			})
-			.update({
-				isFollowerHibernated: false,
-			})
-			.execute();
+
+		// TypeORM does not support UPDATE with JOIN: https://github.com/typeorm/typeorm/issues/564#issuecomment-310331468
+		await this.db.query(`
+			UPDATE "following"
+				SET "isFollowerHibernated" = false
+			FROM "user"
+			WHERE "user"."id" = "following"."followerId"
+				AND "user"."isHibernated" = false -- Don't unfreeze if the follower is *actually* frozen
+				AND "followeeId" = $1
+				AND "followeeHost" IS NOT NULL
+		`, [user.id]);
 	}
 }

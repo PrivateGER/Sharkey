@@ -19,6 +19,7 @@ import type Logger from '@/logger.js';
 
 import { bindThis } from '@/decorators.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
+import { UtilityService } from '@/core/UtilityService.js';
 
 @Injectable()
 export class DownloadService {
@@ -30,6 +31,7 @@ export class DownloadService {
 
 		private httpRequestService: HttpRequestService,
 		private loggerService: LoggerService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.logger = this.loggerService.getLogger('download');
 	}
@@ -38,6 +40,8 @@ export class DownloadService {
 	public async downloadUrl(url: string, path: string, options: { timeout?: number, operationTimeout?: number, maxSize?: number } = {} ): Promise<{
 		filename: string;
 	}> {
+		this.utilityService.assertUrl(url);
+
 		this.logger.debug(`Downloading ${chalk.cyan(url)} to ${chalk.cyanBright(path)} ...`);
 
 		const timeout = options.timeout ?? 30 * 1000;

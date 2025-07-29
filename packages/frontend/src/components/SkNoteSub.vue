@@ -1,6 +1,10 @@
 <!--
 SPDX-FileCopyrightText: marie and other Sharkey contributors
 SPDX-License-Identifier: AGPL-3.0-only
+
+Displays a sub-note in the Sharkey style. Used to display secondary notes in a given context.
+
+For example, when viewing a reply on the timeline, SkNoteSub will be used to display the note that is being replied to.
 -->
 
 <template>
