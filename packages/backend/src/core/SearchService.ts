@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, DataSource } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { type Config, FulltextSearchProvider } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -140,6 +140,8 @@ export class SearchService {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+		@Inject(DI.db)
+		private db: DataSource,
 		@Inject(DI.meilisearch)
 		private meilisearch: MeiliSearch | null,
 		@Inject(DI.notesRepository)
@@ -258,49 +260,69 @@ export class SearchService {
 		opts: SearchOpts,
 		pagination: SearchPagination,
 	): Promise<MiNote[]> {
-		const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
+		const queryRunner = this.db.createQueryRunner();
 
-		if (opts.userId) {
-			query.andWhere('note.userId = :userId', { userId: opts.userId });
-		} else if (opts.channelId) {
-			query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
-		}
+		try {
+			// Set query planner hints to force bitmap index scan (otherwise an inefficient plan is created)
+			await queryRunner.query('SET enable_seqscan = OFF');
+			await queryRunner.query('SET enable_indexscan = OFF');
 
-		query
-			.innerJoinAndSelect('note.user', 'user')
-			.leftJoinAndSelect('note.reply', 'reply')
-			.leftJoinAndSelect('note.renote', 'renote')
-			.leftJoinAndSelect('reply.user', 'replyUser')
-			.leftJoinAndSelect('renote.user', 'renoteUser');
+			// Create query builder using the queryRunner's manager
+			const query = this.queryService.makePaginationQuery(
+				queryRunner.manager.getRepository(MiNote).createQueryBuilder('note'),
+				pagination.sinceId,
+				pagination.untilId
+			);
 
-		query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
-
-		if (opts.order === 'asc') {
-			query
-				.addSelect('ts_rank_cd(note.tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
-				.orderBy('rank', 'DESC');
-		} else {
-			query
-				.orderBy('note.created_at', 'DESC');
-		}
-
-		if (opts.host) {
-			if (opts.host === '.') {
-				query.andWhere('note.userHost IS NULL');
-			} else {
-				query.andWhere('note.userHost = :host', { host: opts.host });
+			if (opts.userId) {
+				query.andWhere('note.userId = :userId', { userId: opts.userId });
+			} else if (opts.channelId) {
+				query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 			}
+
+			query
+				.innerJoinAndSelect('note.user', 'user')
+				.leftJoinAndSelect('note.reply', 'reply')
+				.leftJoinAndSelect('note.renote', 'renote')
+				.leftJoinAndSelect('reply.user', 'replyUser')
+				.leftJoinAndSelect('renote.user', 'renoteUser');
+
+			query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
+
+			if (opts.order === 'asc') {
+				query
+					.addSelect('ts_rank_cd(note.tsvector_embedding, websearch_to_tsquery(:q))', 'rank')
+					.orderBy('rank', 'DESC');
+			} else {
+				query
+					.orderBy('note.created_at', 'DESC');
+			}
+
+			if (opts.host) {
+				if (opts.host === '.') {
+					query.andWhere('note.userHost IS NULL');
+				} else {
+					query.andWhere('note.userHost = :host', { host: opts.host });
+				}
+			}
+
+			if (opts.filetype) {
+				query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
+			}
+
+			await this.queryService.generateVisibilityQuery(query, me);
+			if (me) this.queryService.generateMutedUserQueryForUsers(query, me);
+			if (me) this.queryService.generateBlockQueryForUsers(query, me);
+
+			return await query.limit(pagination.limit).getMany();
+		} finally {
+			// Reset the session settings
+			await queryRunner.query('SET enable_seqscan = ON');
+			await queryRunner.query('SET enable_indexscan = ON');
+
+			// Release the query runner
+			await queryRunner.release();
 		}
-
-		if (opts.filetype) {
-			query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
-		}
-
-		await this.queryService.generateVisibilityQuery(query, me);
-		if (me) this.queryService.generateMutedUserQueryForUsers(query, me);
-		if (me) this.queryService.generateBlockQueryForUsers(query, me);
-
-		return await query.limit(pagination.limit).getMany();
 	}
 
 	@bindThis
