@@ -308,6 +308,18 @@ export class UtilityService {
 	}
 
 	/**
+	 * Verifies that a provided URL is in a format acceptable for federation.
+	 */
+	public isValidUrl(url: string | URL, allowHttp?: boolean, allowFragment?: boolean): boolean {
+		try {
+			this.assertUrl(url, allowHttp, allowFragment);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
 	 * Checks if the URL contains HTTPS.
 	 * Additionally, allows HTTP in non-production environments.
 	 * Based on check-https.ts.
