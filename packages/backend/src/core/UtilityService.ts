@@ -279,7 +279,7 @@ export class UtilityService {
 	 * @throws {IdentifiableError} If URL contains credentials
 	 */
 	@bindThis
-	public assertUrl(url: string | URL, allowHttp?: boolean): URL | never {
+	public assertUrl(url: string | URL, allowHttp = false, allowFragment = false): URL | never {
 		// If string, parse and validate
 		if (typeof(url) === 'string') {
 			try {
@@ -297,6 +297,11 @@ export class UtilityService {
 		// Must not have credentials
 		if (url.username || url.password) {
 			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: contains embedded credentials`);
+		}
+
+		// Must not have a fragment (hash)
+		if (url.hash && !allowFragment) {
+			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: contains a fragment component (hash)`);
 		}
 
 		return url;

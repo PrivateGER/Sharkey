@@ -40,7 +40,8 @@ export class DownloadService {
 	public async downloadUrl(url: string, path: string, options: { timeout?: number, operationTimeout?: number, maxSize?: number } = {} ): Promise<{
 		filename: string;
 	}> {
-		this.utilityService.assertUrl(url);
+		// Allow fragments for backwards compatibility
+		this.utilityService.assertUrl(url, undefined, true);
 
 		this.logger.debug(`Downloading ${chalk.cyan(url)} to ${chalk.cyanBright(path)} ...`);
 
