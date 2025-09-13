@@ -286,8 +286,8 @@ export class ApPersonService implements OnModuleInit {
 			x.summary = truncate(x.summary, this.config.maxRemoteBioLength);
 		}
 
-		// Sanitize publicKey
-		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost);
+		// Sanitize publicKey (fragment / hash is allowed)
+		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost, undefined, { allowFragment: true });
 
 		return x;
 	}
