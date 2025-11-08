@@ -42,6 +42,19 @@ export class ApAudienceService {
 			others.map(id => limit(() => this.apPersonService.resolvePerson(id, resolver).catch(() => null))),
 		)).filter(x => x != null);
 
+		// If no audience is specified, then assume public
+		if (
+			toGroups.public.length === 0 && toGroups.followers.length === 0 &&
+			ccGroups.public.length === 0 && ccGroups.followers.length === 0 &&
+			others.length === 0
+		) {
+			return {
+				visibility: 'public',
+				mentionedUsers: [],
+				visibleUsers: [],
+			};
+		}
+
 		if (toGroups.public.length > 0) {
 			return {
 				visibility: 'public',

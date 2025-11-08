@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { ref, defineAsyncComponent } from 'vue';
+import { ref, defineAsyncComponent, onMounted } from 'vue';
 import { Interpreter, Parser, utils, values } from '@syuilo/aiscript';
 import { compareVersions } from 'compare-versions';
 import { v4 as uuid } from 'uuid';
@@ -15,6 +15,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { warningExternalWebsite } from '@/utility/warning-external-website.js';
+import { deepClone } from '@/utility/clone.js';
 
 export type Plugin = {
 	installId: string;
@@ -106,13 +107,15 @@ export async function authorizePlugin(plugin: Plugin) {
 			information: i18n.ts.pluginTokenRequestedDescription,
 			initialName: plugin.name,
 			initialPermissions: plugin.permissions,
+			withSharedAccess: false,
 		}, {
 			done: async result => {
-				const { name, permissions } = result;
+				const { name, permissions, rank } = result;
 				const { token } = await misskeyApi('miauth/gen-token', {
 					session: null,
 					name: name,
 					permission: permissions,
+					rank: rank,
 				});
 				res(token);
 			},
@@ -434,4 +437,27 @@ function createPluginEnv(opts: { plugin: Plugin; storageKey: string }): Record<s
 
 export function getPluginHandlers<K extends keyof HandlerDef>(type: K): HandlerDef[K][] {
 	return pluginHandlers.filter((x): x is PluginHandler<K> => x.type === type).map(x => x.ctx);
+}
+
+export function setupNoteViewInterruptors(note, isDeleted) {
+	const noteViewInterruptors = getPluginHandlers('note_view_interruptor');
+	if (noteViewInterruptors.length > 0) {
+		onMounted(async () => {
+			let result: Misskey.entities.Note | null = deepClone(note.value);
+			for (const interruptor of noteViewInterruptors) {
+				try {
+					result = await interruptor.handler(result!) as Misskey.entities.Note | null;
+					if (result === null) {
+						if (isDeleted !== null) {
+							isDeleted.value = true;
+						}
+						return;
+					}
+				} catch (err) {
+					console.error(err);
+				}
+			}
+			note.value = result as Misskey.entities.Note;
+		});
+	}
 }

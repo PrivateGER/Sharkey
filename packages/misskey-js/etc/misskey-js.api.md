@@ -153,7 +153,22 @@ type AdminCaptchaCurrentResponse = operations['admin___captcha___current']['resp
 type AdminCaptchaSaveRequest = operations['admin___captcha___save']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminCwInstanceRequest = operations['admin___cw-instance']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCwInstanceResponse = operations['admin___cw-instance']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCwNoteRequest = operations['admin___cw-note']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCwNoteResponse = operations['admin___cw-note']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminCwUserRequest = operations['admin___cw-user']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCwUserResponse = operations['admin___cw-user']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminDeclineUserRequest = operations['admin___decline-user']['requestBody']['content']['application/json'];
@@ -331,6 +346,12 @@ type AdminResetPasswordResponse = operations['admin___reset-password']['response
 
 // @public (undocumented)
 type AdminResolveAbuseUserReportRequest = operations['admin___resolve-abuse-user-report']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRolesAnnotateConditionRequest = operations['admin___roles___annotate-condition']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRolesAnnotateConditionResponse = operations['admin___roles___annotate-condition']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminRolesAssignRequest = operations['admin___roles___assign']['requestBody']['content']['application/json'];
@@ -1542,7 +1563,12 @@ declare namespace entities {
         AdminAvatarDecorationsUpdateRequest,
         AdminCaptchaCurrentResponse,
         AdminCaptchaSaveRequest,
+        AdminCwInstanceRequest,
+        AdminCwInstanceResponse,
+        AdminCwNoteRequest,
+        AdminCwNoteResponse,
         AdminCwUserRequest,
+        AdminCwUserResponse,
         AdminDeclineUserRequest,
         AdminDeleteAccountRequest,
         AdminDeleteAllFilesOfAUserRequest,
@@ -1602,6 +1628,8 @@ declare namespace entities {
         AdminResetPasswordRequest,
         AdminResetPasswordResponse,
         AdminResolveAbuseUserReportRequest,
+        AdminRolesAnnotateConditionRequest,
+        AdminRolesAnnotateConditionResponse,
         AdminRolesAssignRequest,
         AdminRolesCloneRequest,
         AdminRolesCloneResponse,
@@ -1959,6 +1987,10 @@ declare namespace entities {
         IRegistryScopesWithDomainResponse,
         IRegistrySetRequest,
         IRevokeTokenRequest,
+        ISharedAccessListRequest,
+        ISharedAccessListResponse,
+        ISharedAccessLoginRequest,
+        ISharedAccessLoginResponse,
         ISigninHistoryRequest,
         ISigninHistoryResponse,
         IUnpinRequest,
@@ -2746,6 +2778,18 @@ type IRevokeTokenRequest = operations['i___revoke-token']['requestBody']['conten
 function isAPIError(reason: Record<PropertyKey, unknown>): reason is APIError;
 
 // @public (undocumented)
+type ISharedAccessListRequest = operations['i___shared-access___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ISharedAccessListResponse = operations['i___shared-access___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ISharedAccessLoginRequest = operations['i___shared-access___login']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ISharedAccessLoginResponse = operations['i___shared-access___login']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type ISigninHistoryRequest = operations['i___signin-history']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -2951,11 +2995,11 @@ type ModerationLog = {
     type: 'setMandatoryCW';
     info: ModerationLogPayloads['setMandatoryCW'];
 } | {
-    type: 'setRemoteInstanceNSFW';
-    info: ModerationLogPayloads['setRemoteInstanceNSFW'];
+    type: 'setMandatoryCWForNote';
+    info: ModerationLogPayloads['setMandatoryCWForNote'];
 } | {
-    type: 'unsetRemoteInstanceNSFW';
-    info: ModerationLogPayloads['unsetRemoteInstanceNSFW'];
+    type: 'setMandatoryCWForInstance';
+    info: ModerationLogPayloads['setMandatoryCWForInstance'];
 } | {
     type: 'resetPassword';
     info: ModerationLogPayloads['resetPassword'];
@@ -3097,7 +3141,7 @@ type ModerationLog = {
 });
 
 // @public (undocumented)
-export const moderationLogTypes: readonly ["updateServerSettings", "suspend", "approve", "decline", "unsuspend", "updateUserNote", "addCustomEmoji", "updateCustomEmoji", "deleteCustomEmoji", "assignRole", "unassignRole", "createRole", "updateRole", "deleteRole", "clearQueue", "promoteQueue", "deleteDriveFile", "deleteNote", "createGlobalAnnouncement", "createUserAnnouncement", "updateGlobalAnnouncement", "updateUserAnnouncement", "deleteGlobalAnnouncement", "deleteUserAnnouncement", "resetPassword", "setMandatoryCW", "setRemoteInstanceNSFW", "unsetRemoteInstanceNSFW", "suspendRemoteInstance", "unsuspendRemoteInstance", "rejectRemoteInstanceReports", "acceptRemoteInstanceReports", "updateRemoteInstanceNote", "markSensitiveDriveFile", "unmarkSensitiveDriveFile", "resolveAbuseReport", "forwardAbuseReport", "updateAbuseReportNote", "createInvitation", "createAd", "updateAd", "deleteAd", "createAvatarDecoration", "updateAvatarDecoration", "deleteAvatarDecoration", "unsetUserAvatar", "unsetUserBanner", "createSystemWebhook", "updateSystemWebhook", "deleteSystemWebhook", "createAbuseReportNotificationRecipient", "updateAbuseReportNotificationRecipient", "deleteAbuseReportNotificationRecipient", "deleteAccount", "deletePage", "deleteFlash", "deleteGalleryPost", "deleteChatRoom"];
+export const moderationLogTypes: readonly ["updateServerSettings", "suspend", "approve", "decline", "unsuspend", "updateUserNote", "addCustomEmoji", "updateCustomEmoji", "deleteCustomEmoji", "assignRole", "unassignRole", "createRole", "updateRole", "deleteRole", "clearQueue", "promoteQueue", "deleteDriveFile", "deleteNote", "createGlobalAnnouncement", "createUserAnnouncement", "updateGlobalAnnouncement", "updateUserAnnouncement", "deleteGlobalAnnouncement", "deleteUserAnnouncement", "resetPassword", "setMandatoryCW", "setMandatoryCWForNote", "setMandatoryCWForInstance", "suspendRemoteInstance", "unsuspendRemoteInstance", "rejectRemoteInstanceReports", "acceptRemoteInstanceReports", "updateRemoteInstanceNote", "markSensitiveDriveFile", "unmarkSensitiveDriveFile", "resolveAbuseReport", "forwardAbuseReport", "updateAbuseReportNote", "createInvitation", "createAd", "updateAd", "deleteAd", "createAvatarDecoration", "updateAvatarDecoration", "deleteAvatarDecoration", "unsetUserAvatar", "unsetUserBanner", "createSystemWebhook", "updateSystemWebhook", "deleteSystemWebhook", "createAbuseReportNotificationRecipient", "updateAbuseReportNotificationRecipient", "deleteAbuseReportNotificationRecipient", "deleteAccount", "deletePage", "deleteFlash", "deleteGalleryPost", "deleteChatRoom"];
 
 // @public (undocumented)
 type MuteCreateRequest = operations['mute___create']['requestBody']['content']['application/json'];
@@ -3407,7 +3451,7 @@ type PartialRolePolicyOverride = Partial<{
 }>;
 
 // @public (undocumented)
-export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
+export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "read:admin:abuse-report:notification-recipient", "write:admin:abuse-report:notification-recipient", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:cw-note", "write:admin:cw-instance", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
 
 // @public (undocumented)
 type PingResponse = operations['ping']['responses']['200']['content']['application/json'];

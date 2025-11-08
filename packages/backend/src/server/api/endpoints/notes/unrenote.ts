@@ -69,9 +69,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// TODO inline this into the above query
 			for (const note of renotes) {
 				if (ps.quote) {
-					if (note.text) this.noteDeleteService.delete(await this.usersRepository.findOneByOrFail({ id: me.id }), note, false);
+					if (note.text) this.noteDeleteService.delete(me, note, false);
 				} else {
-					if (!note.text) this.noteDeleteService.delete(await this.usersRepository.findOneByOrFail({ id: me.id }), note, false);
+					if (!note.text) this.noteDeleteService.delete(me, note, false);
 				}
 			}
 		});

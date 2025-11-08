@@ -8,7 +8,7 @@ For example, when viewing a reply on the timeline, SkNoteSub will be used to dis
 -->
 
 <template>
-<div v-show="!isDeleted" v-if="!muted && !noteMuted" ref="el" :class="[$style.root, { [$style.children]: depth > 1, [$style.isReply]: props.isReply, [$style.detailed]: props.detailed }]">
+<SkMutedNote v-show="!isDeleted" ref="rootComp" :note="appearNote" :mutedClass="$style.muted" :expandedClass="[$style.root, { [$style.children]: depth > 1, [$style.isReply]: props.isReply, [$style.detailed]: props.detailed }]" @expandMute="n => emit('expandMute', n)">
 	<div v-if="!hideLine" :class="$style.line"></div>
 	<div :class="$style.main">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
@@ -23,11 +23,11 @@ For example, when viewing a reply on the timeline, SkNoteSub will be used to dis
 		<div :class="$style.body">
 			<SkNoteHeader :class="$style.header" :note="note" :classic="true" :mini="true"/>
 			<div :class="$style.content">
-				<p v-if="mergedCW != null" :class="$style.cw">
-					<Mfm v-if="mergedCW != ''" style="margin-right: 8px;" :text="mergedCW" :isBlock="true" :author="note.user" :nyaize="'respect'"/>
+				<p v-if="appearNote.cw != null" :class="$style.cw">
+					<Mfm v-if="appearNote.cw != ''" style="margin-right: 8px;" :text="appearNote.cw" :isBlock="true" :author="note.user" :nyaize="'respect'"/>
 					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
 				</p>
-				<div v-show="mergedCW == null || showContent">
+				<div v-show="appearNote.cw == null || showContent">
 					<MkSubNoteContent :class="$style.text" :note="note" :translating="translating" :translation="translation" :expandAllCws="props.expandAllCws"/>
 				</div>
 			</div>
@@ -84,21 +84,17 @@ For example, when viewing a reply on the timeline, SkNoteSub will be used to dis
 		</div>
 	</div>
 	<template v-if="depth < prefer.s.numberOfReplies">
-		<SkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [$style.single]: replies.length === 1 }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="props.isReply"/>
+		<SkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [$style.single]: replies.length === 1 }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="props.isReply" @expandMute="n => emit('expandMute', n)"/>
 	</template>
 	<div v-else :class="$style.more">
 		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ti ti-chevron-double-right"></i></MkA>
 	</div>
-</div>
-<div v-else :class="$style.muted" @click.stop="muted = false">
-	<SkMutedNote :muted="muted" :threadMuted="false" :noteMuted="noteMuted" :note="appearNote"></SkMutedNote>
-</div>
+</SkMutedNote>
 </template>
 
 <script lang="ts" setup>
 import { computed, inject, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
-import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import * as config from '@@/js/config.js';
 import type { Ref } from 'vue';
 import type { Visibility } from '@/utility/boost-quote.js';
@@ -114,7 +110,6 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { userPage } from '@/filters/user.js';
-import { checkMutes } from '@/utility/check-word-mute.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
@@ -127,6 +122,8 @@ import { useNoteCapture } from '@/use/use-note-capture.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
 import { instance, policies } from '@/instance';
 import { getAppearNote } from '@/utility/get-appear-note';
+import { setupNoteViewInterruptors } from '@/plugin.js';
+import { deepClone } from '@/utility/clone.js';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -146,7 +143,13 @@ const props = withDefaults(defineProps<{
 	onDeleteCallback: undefined,
 });
 
-const appearNote = computed(() => getAppearNote(props.note));
+const emit = defineEmits<{
+	(ev: 'expandMute', note: Misskey.entities.Note): void;
+}>();
+
+const note = ref(deepClone(props.note));
+
+const appearNote = computed(() => getAppearNote(note.value));
 
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || appearNote.value.userId === $i?.id);
 const hideLine = computed(() => props.detail);
@@ -167,8 +170,6 @@ const renoteTooltip = computeRenoteTooltip(appearNote);
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
 const replies = ref<Misskey.entities.Note[]>([]);
 
-const mergedCW = computed(() => computeMergedCw(appearNote.value));
-
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
 	url: appearNote.value.url ?? appearNote.value.uri ?? `${config.url}/notes/${appearNote.value.id}`,
@@ -176,20 +177,20 @@ const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 
 const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', null);
 
+setupNoteViewInterruptors(note, isDeleted);
+
 async function addReplyTo(replyNote: Misskey.entities.Note) {
 	replies.value.unshift(replyNote);
 	appearNote.value.repliesCount += 1;
 }
 
 async function removeReply(id: Misskey.entities.Note['id']) {
-	const replyIdx = replies.value.findIndex(note => note.id === id);
+	const replyIdx = replies.value.findIndex(reply => reply.id === id);
 	if (replyIdx >= 0) {
 		replies.value.splice(replyIdx, 1);
 		appearNote.value.repliesCount -= 1;
 	}
 }
-
-const { muted, noteMuted } = checkMutes(appearNote);
 
 useNoteCapture({
 	rootEl: el,
@@ -268,11 +269,11 @@ function like(): void {
 	}
 }
 
-function undoReact(note): void {
-	const oldReaction = note.myReaction;
+function undoReact(targetNote: Misskey.entities.Note): void {
+	const oldReaction = targetNote.myReaction;
 	if (!oldReaction) return;
 	misskeyApi('notes/reactions/delete', {
-		noteId: note.id,
+		noteId: targetNote.id,
 	});
 }
 
@@ -596,16 +597,9 @@ if (props.detail) {
 }
 
 .muted {
-	text-align: center;
-	padding: 8px !important;
 	border: 1px solid var(--MI_THEME-divider);
 	margin: 8px 8px 0 8px;
 	border-radius: var(--MI-radius-sm);
-	cursor: pointer;
-}
-
-.muted:hover {
-	background: var(--MI_THEME-buttonBg);
 }
 
 // avatar container with line

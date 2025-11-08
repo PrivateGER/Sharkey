@@ -34,6 +34,8 @@ export * as 'admin/avatar-decorations/list' from './endpoints/admin/avatar-decor
 export * as 'admin/avatar-decorations/update' from './endpoints/admin/avatar-decorations/update.js';
 export * as 'admin/captcha/current' from './endpoints/admin/captcha/current.js';
 export * as 'admin/captcha/save' from './endpoints/admin/captcha/save.js';
+export * as 'admin/cw-instance' from './endpoints/admin/cw-instance.js';
+export * as 'admin/cw-note' from './endpoints/admin/cw-note.js';
 export * as 'admin/cw-user' from './endpoints/admin/cw-user.js';
 export * as 'admin/decline-user' from './endpoints/admin/decline-user.js';
 export * as 'admin/delete-account' from './endpoints/admin/delete-account.js';
@@ -86,6 +88,7 @@ export * as 'admin/relays/list' from './endpoints/admin/relays/list.js';
 export * as 'admin/relays/remove' from './endpoints/admin/relays/remove.js';
 export * as 'admin/reset-password' from './endpoints/admin/reset-password.js';
 export * as 'admin/resolve-abuse-user-report' from './endpoints/admin/resolve-abuse-user-report.js';
+export * as 'admin/roles/annotate-condition' from './endpoints/admin/roles/annotate-condition.js';
 export * as 'admin/roles/assign' from './endpoints/admin/roles/assign.js';
 export * as 'admin/roles/create' from './endpoints/admin/roles/create.js';
 export * as 'admin/roles/clone' from './endpoints/admin/roles/clone.js';
@@ -295,6 +298,8 @@ export * as 'i/registry/scopes-with-domain' from './endpoints/i/registry/scopes-
 export * as 'i/registry/set' from './endpoints/i/registry/set.js';
 export * as 'i/revoke-token' from './endpoints/i/revoke-token.js';
 export * as 'i/signin-history' from './endpoints/i/signin-history.js';
+export * as 'i/shared-access/list' from './endpoints/i/shared-access/list.js';
+export * as 'i/shared-access/login' from './endpoints/i/shared-access/login.js';
 export * as 'i/unpin' from './endpoints/i/unpin.js';
 export * as 'i/update' from './endpoints/i/update.js';
 export * as 'i/update-email' from './endpoints/i/update-email.js';

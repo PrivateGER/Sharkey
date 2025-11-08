@@ -7,7 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { In, EntityNotFoundError } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { FollowRequestsRepository, NotesRepository, MiUser, UsersRepository } from '@/models/_.js';
+import type { FollowRequestsRepository, NotesRepository, MiUser, UsersRepository, AccessTokensRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
 import type { MiGroupedNotification, MiNotification } from '@/models/Notification.js';
 import type { MiNote } from '@/models/Note.js';
@@ -21,7 +21,7 @@ import type { OnModuleInit } from '@nestjs/common';
 import type { UserEntityService } from './UserEntityService.js';
 import type { NoteEntityService } from './NoteEntityService.js';
 
-const NOTE_REQUIRED_NOTIFICATION_TYPES = new Set(['note', 'mention', 'reply', 'renote', 'renote:grouped', 'quote', 'reaction', 'reaction:grouped', 'pollEnded', 'edited', 'scheduledNotePosted'] as (typeof groupedNotificationTypes[number])[]);
+const NOTE_REQUIRED_NOTIFICATION_TYPES = new Set(['note', 'mention', 'reply', 'renote', 'renote:grouped', 'quote', 'reaction', 'reaction:grouped', 'pollEnded', 'edited', 'scheduledNotePosted']);
 
 function undefOnMissing<T>(packPromise: Promise<T>): Promise<T | undefined> {
 	return packPromise.catch(err => {
@@ -48,6 +48,9 @@ export class NotificationEntityService implements OnModuleInit {
 
 		@Inject(DI.followRequestsRepository)
 		private followRequestsRepository: FollowRequestsRepository,
+
+		@Inject(DI.accessTokensRepository)
+		private readonly accessTokensRepository: AccessTokensRepository,
 
 		private cacheService: CacheService,
 	) {
@@ -198,6 +201,10 @@ export class NotificationEntityService implements OnModuleInit {
 				body: notification.customBody,
 				header: notification.customHeader,
 				icon: notification.customIcon,
+			} : {}),
+			...(notification.type === 'sharedAccessGranted' ? {
+				permCount: notification.permCount,
+				rank: notification.rank,
 			} : {}),
 		});
 	}

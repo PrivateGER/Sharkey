@@ -700,7 +700,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<option value="1"><span style="font-size: 15px;">Aa</span></option>
 								<option value="2"><span style="font-size: 16px;">Aa</span></option>
 								<option value="3"><span style="font-size: 17px;">Aa</span></option>
+								<option value="custom"><span style="font-size: 14px;">Custom</span></option>
 							</MkRadios>
+						</SearchMarker>
+
+						<SearchMarker :keywords="['font', 'size']">
+							<MkInput v-model="customFontSize" :min="12" :max="48" type="number" :step="1" :manualSave="true" :disabled="fontSize !== 'custom'">
+								<template #label><SearchLabel>{{ i18n.ts.customFontSize }}</SearchLabel></template>
+							</MkInput>
 						</SearchMarker>
 
 						<SearchMarker :keywords="['font', 'system', 'native']">
@@ -906,10 +913,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</MkFolder>
 						</SearchMarker>
 
-						<SearchMarker :keywords="['ad', 'show']">
+						<SearchMarker :keywords="['ad', 'show', 'hide']">
 							<MkPreferenceContainer k="forceShowAds">
-								<MkSwitch v-model="forceShowAds">
-									<template #label><SearchLabel>{{ i18n.ts.forceShowAds }}</SearchLabel></template>
+								<MkSwitch v-model="hideAds" :disabled="!$i.policies.canHideAds">
+									<template #label><SearchLabel>{{ i18n.ts.hideAds }}</SearchLabel></template>
 								</MkSwitch>
 							</MkPreferenceContainer>
 						</SearchMarker>
@@ -1081,6 +1088,7 @@ const defaultCW = ref($i.defaultCW);
 const defaultCWPriority = ref($i.defaultCWPriority);
 const lang = prefer.model('lang');
 const fontSize = prefer.model('fontSize');
+const customFontSize = prefer.model('customFontSize');
 const useSystemFont = prefer.model('useSystemFont');
 const cornerRadius = prefer.model('cornerRadius');
 const trustedDomains = prefer.model(
@@ -1088,6 +1096,9 @@ const trustedDomains = prefer.model(
 	(domainsList) => domainsList.join('\n'),
 	(domainsString) => domainsString.split('\n').map( d => d.trim() ).filter( x => x.length > 0),
 );
+
+// Inverted to map between "hide ads" and "force show ads"
+const hideAds = prefer.model('forceShowAds', x => !x, x => !x);
 
 watch([
 	hemisphere,

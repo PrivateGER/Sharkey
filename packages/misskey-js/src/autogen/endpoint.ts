@@ -38,7 +38,12 @@ import type {
 	AdminAvatarDecorationsUpdateRequest,
 	AdminCaptchaCurrentResponse,
 	AdminCaptchaSaveRequest,
+	AdminCwInstanceRequest,
+	AdminCwInstanceResponse,
+	AdminCwNoteRequest,
+	AdminCwNoteResponse,
 	AdminCwUserRequest,
+	AdminCwUserResponse,
 	AdminDeclineUserRequest,
 	AdminDeleteAccountRequest,
 	AdminDeleteAllFilesOfAUserRequest,
@@ -98,6 +103,8 @@ import type {
 	AdminResetPasswordRequest,
 	AdminResetPasswordResponse,
 	AdminResolveAbuseUserReportRequest,
+	AdminRolesAnnotateConditionRequest,
+	AdminRolesAnnotateConditionResponse,
 	AdminRolesAssignRequest,
 	AdminRolesCloneRequest,
 	AdminRolesCloneResponse,
@@ -455,6 +462,10 @@ import type {
 	IRegistryScopesWithDomainResponse,
 	IRegistrySetRequest,
 	IRevokeTokenRequest,
+	ISharedAccessListRequest,
+	ISharedAccessListResponse,
+	ISharedAccessLoginRequest,
+	ISharedAccessLoginResponse,
 	ISigninHistoryRequest,
 	ISigninHistoryResponse,
 	IUnpinRequest,
@@ -689,7 +700,9 @@ export type Endpoints = {
 	'admin/avatar-decorations/update': { req: AdminAvatarDecorationsUpdateRequest; res: EmptyResponse };
 	'admin/captcha/current': { req: EmptyRequest; res: AdminCaptchaCurrentResponse };
 	'admin/captcha/save': { req: AdminCaptchaSaveRequest; res: EmptyResponse };
-	'admin/cw-user': { req: AdminCwUserRequest; res: EmptyResponse };
+	'admin/cw-instance': { req: AdminCwInstanceRequest; res: AdminCwInstanceResponse };
+	'admin/cw-note': { req: AdminCwNoteRequest; res: AdminCwNoteResponse };
+	'admin/cw-user': { req: AdminCwUserRequest; res: AdminCwUserResponse };
 	'admin/decline-user': { req: AdminDeclineUserRequest; res: EmptyResponse };
 	'admin/delete-account': { req: AdminDeleteAccountRequest; res: EmptyResponse };
 	'admin/delete-all-files-of-a-user': { req: AdminDeleteAllFilesOfAUserRequest; res: EmptyResponse };
@@ -741,6 +754,7 @@ export type Endpoints = {
 	'admin/relays/remove': { req: AdminRelaysRemoveRequest; res: EmptyResponse };
 	'admin/reset-password': { req: AdminResetPasswordRequest; res: AdminResetPasswordResponse };
 	'admin/resolve-abuse-user-report': { req: AdminResolveAbuseUserReportRequest; res: EmptyResponse };
+	'admin/roles/annotate-condition': { req: AdminRolesAnnotateConditionRequest; res: AdminRolesAnnotateConditionResponse };
 	'admin/roles/assign': { req: AdminRolesAssignRequest; res: EmptyResponse };
 	'admin/roles/clone': { req: AdminRolesCloneRequest; res: AdminRolesCloneResponse };
 	'admin/roles/create': { req: AdminRolesCreateRequest; res: AdminRolesCreateResponse };
@@ -973,6 +987,8 @@ export type Endpoints = {
 	'i/registry/scopes-with-domain': { req: EmptyRequest; res: IRegistryScopesWithDomainResponse };
 	'i/registry/set': { req: IRegistrySetRequest; res: EmptyResponse };
 	'i/revoke-token': { req: IRevokeTokenRequest; res: EmptyResponse };
+	'i/shared-access/list': { req: ISharedAccessListRequest; res: ISharedAccessListResponse };
+	'i/shared-access/login': { req: ISharedAccessLoginRequest; res: ISharedAccessLoginResponse };
 	'i/signin-history': { req: ISigninHistoryRequest; res: ISigninHistoryResponse };
 	'i/unpin': { req: IUnpinRequest; res: IUnpinResponse };
 	'i/update': { req: IUpdateRequest; res: IUpdateResponse };

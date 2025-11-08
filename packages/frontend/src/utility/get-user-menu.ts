@@ -20,6 +20,7 @@ import { mainRouter } from '@/router.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
+import { warningExternalWebsite } from '@/utility/warning-external-website.js';
 
 export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router = mainRouter) {
 	const meId = $i ? $i.id : null;
@@ -102,6 +103,22 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		});
 	}
 
+	async function setMandatoryCW() {
+		const result = await os.inputText({
+			type: 'text',
+			title: i18n.ts.mandatoryCW,
+			text: i18n.ts.mandatoryCWDescription,
+			default: user.mandatoryCW ?? '',
+		});
+
+		if (result.canceled) return;
+
+		await os.apiWithDialog('admin/cw-user', {
+			userId: user.id,
+			cw: result.result || null,
+		});
+	}
+
 	async function getConfirmed(text: string): Promise<boolean> {
 		const confirm = await os.confirm({
 			type: 'question',
@@ -157,6 +174,10 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			action: () => {
 				router.push(`/admin/user/${user.id}`);
 			},
+		}, {
+			icon: 'ph-warning ph-bold ph-lg',
+			text: i18n.ts.mandatoryCW,
+			action: setMandatoryCW,
 		}, { type: 'divider' });
 	}
 
@@ -191,7 +212,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			text: i18n.ts.showOnRemote,
 			action: () => {
 				if (user.url == null) return;
-				window.open(user.url, '_blank', 'noopener');
+				warningExternalWebsite(user.url);
 			},
 		});
 	} else {

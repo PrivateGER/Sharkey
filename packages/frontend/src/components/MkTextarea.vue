@@ -174,7 +174,7 @@ onUnmounted(() => {
 	width: 100%;
 	min-width: 100%;
 	max-width: 100%;
-	min-height: 130px;
+	min-height: 9.29em;
 	margin: 0;
 	padding: 12px;
 	font: inherit;
@@ -211,7 +211,7 @@ onUnmounted(() => {
 
 .tall {
 	> .textarea {
-		min-height: 200px;
+		min-height: 14.29em;
 	}
 }
 

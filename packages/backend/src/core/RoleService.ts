@@ -31,6 +31,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { getCallerId } from '@/misc/attach-caller-id.js';
 
 export type RolePolicies = {
 	gtlAvailable: boolean;
@@ -70,6 +71,7 @@ export type RolePolicies = {
 	canImportUserLists: boolean;
 	chatAvailability: 'available' | 'readonly' | 'unavailable';
 	canTrend: boolean;
+	canViewFederation: boolean;
 };
 
 export const DEFAULT_POLICIES: RolePolicies = {
@@ -110,6 +112,7 @@ export const DEFAULT_POLICIES: RolePolicies = {
 	canImportUserLists: true,
 	chatAvailability: 'available',
 	canTrend: true,
+	canViewFederation: true,
 };
 
 @Injectable()
@@ -355,6 +358,39 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 	}
 
 	@bindThis
+	public annotateCond(user: MiUser, roles: MiRole[], value: RoleCondFormulaValue, followStats: FollowStats, results: { [k: string]: boolean }): boolean {
+		let result: boolean;
+		try {
+			switch (value.type) {
+				case 'and': {
+					result = true;
+					// Don't use every(), since that short-circuits.
+					// We need to run annotateCond() on every condition.
+					value.values.forEach(v => result = this.annotateCond(user, roles, v, followStats, results) && result);
+					break;
+				}
+				case 'or': {
+					result = false;
+					value.values.forEach(v => result = this.annotateCond(user, roles, v, followStats, results) || result);
+					break;
+				}
+				case 'not': {
+					result = !this.annotateCond(user, roles, value.value, followStats, results);
+					break;
+				}
+				default: {
+					result = this.evalCond(user, roles, value, followStats);
+				}
+			}
+		} catch (err) {
+			// TODO: log error
+			result = false;
+		}
+		results[value.id] = result;
+		return result;
+	}
+
+	@bindThis
 	public async getRoles() {
 		const roles = await this.rolesCache.fetch(() => this.rolesRepository.findBy({}));
 		return roles;
@@ -379,7 +415,21 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 		const assignedRoles = roles.filter(r => assigns.map(x => x.roleId).includes(r.id));
 		const user = typeof(userOrId) === 'object' ? userOrId : roles.some(r => r.target === 'conditional') ? await this.cacheService.findUserById(userOrId) : null;
 		const matchedCondRoles = roles.filter(r => r.target === 'conditional' && this.evalCond(user!, assignedRoles, r.condFormula, followStats));
-		return [...assignedRoles, ...matchedCondRoles];
+
+		let allRoles = [...assignedRoles, ...matchedCondRoles];
+
+		// Check for dropped token permissions
+		const rank = user ? getCallerId(user)?.accessToken?.rank : null;
+		if (rank != null) {
+			// Copy roles, since they come from a cache
+			allRoles = allRoles.map(role => ({
+				...role,
+				isModerator: role.isModerator && (rank === 'admin' || rank === 'mod'),
+				isAdministrator: role.isAdministrator && rank === 'admin',
+			}));
+		}
+
+		return allRoles;
 	}
 
 	/**
@@ -472,18 +522,29 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 			canImportUserLists: calc('canImportUserLists', vs => vs.some(v => v === true)),
 			chatAvailability: calc('chatAvailability', aggregateChatAvailability),
 			canTrend: calc('canTrend', vs => vs.some(v => v === true)),
+			canViewFederation: calc('canViewFederation', vs => vs.some(v => v === true)),
 		};
 	}
 
 	@bindThis
 	public async isModerator(user: { id: MiUser['id'] } | null): Promise<boolean> {
 		if (user == null) return false;
+
+		// Check for dropped token permissions
+		const rank = getCallerId(user)?.accessToken?.rank;
+		if (rank != null && rank !== 'admin' && rank !== 'mod') return false;
+
 		return (this.meta.rootUserId === user.id) || (await this.getUserRoles(user.id)).some(r => r.isModerator || r.isAdministrator);
 	}
 
 	@bindThis
 	public async isAdministrator(user: { id: MiUser['id'] } | null): Promise<boolean> {
 		if (user == null) return false;
+
+		// Check for dropped token permissions
+		const rank = getCallerId(user)?.accessToken?.rank;
+		if (rank != null && rank !== 'admin') return false;
+
 		return (this.meta.rootUserId === user.id) || (await this.getUserRoles(user.id)).some(r => r.isAdministrator);
 	}
 

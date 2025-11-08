@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkButton>
 	</div>
 </template>
-<div v-else-if="theNote" :class="[$style.link, { [$style.compact]: compact }]"><DynamicNoteSimple :note="theNote" :class="$style.body"/></div>
+<div v-else-if="theNote" :class="[$style.link, { [$style.compact]: compact }]"><DynamicNoteSimple :note="theNote" :class="$style.body" @expandMute="n => emit('expandMute', n)"/></div>
 <div v-else-if="!hidePreview">
 	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="maybeRelativeUrl" rel="nofollow noopener" :target="target" :title="url" @click.prevent="self ? true : warningExternalWebsite(url)" @click.stop>
 		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="prefer.s.dataSaver.urlPreview ? '' : { backgroundImage: `url('${thumbnail}')` }">
@@ -150,6 +150,10 @@ const props = withDefaults(defineProps<{
 	noteHint: undefined,
 	attributionHint: undefined,
 });
+
+const emit = defineEmits<{
+	(ev: 'expandMute', note: Misskey.entities.Note): void;
+}>();
 
 const MOBILE_THRESHOLD = 500;
 const isMobile = ref(deviceKind === 'smartphone' || window.innerWidth <= MOBILE_THRESHOLD);

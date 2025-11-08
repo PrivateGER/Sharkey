@@ -6014,6 +6014,22 @@ export interface Locale extends ILocale {
          */
         "new": string;
         /**
+         * Restrict to roles
+         */
+        "onlyForRoles": string;
+        /**
+         * Change role restrictions
+         */
+        "onlyForRolesChange": string;
+        /**
+         * Shown to everyone
+         */
+        "onlyForRolesUnrestricted": string;
+        /**
+         * Shown to members of {roles} roles
+         */
+        "onlyForRolesRestricted": ParameterizedString<"roles">;
+        /**
          * Throw confetti
          */
         "confetti": string;
@@ -6414,7 +6430,7 @@ export interface Locale extends ILocale {
          */
         "deliverSuspendedSoftware": string;
         /**
-         * 脆弱性などの理由で、サーバーのソフトウェアの名前及びバージョンの範囲を指定して配信を停止できます。このバージョン情報はサーバーが提供したものであり、信頼性は保証されません。バージョン指定には semver の範囲指定が使用できますが、>= 2024.3.1 と指定すると 2024.3.1-custom.0 のようなカスタムバージョンが含まれないため、>= 2024.3.1-0 のように prerelease の指定を行うことを推奨します。
+         * You can specify a range of names and versions of the server's software to stop delivery for vulnerability or other reasons. This version information is provided by the server and is not guaranteed to be reliable. A semver range specification can be used to specify the version, but specifying >= 2024.3.1 will not include custom versions such as 2024.3.1-custom.0, so it is recommended that a prerelease specification be used, such as >= 2024.3.1-0. Specifying * will match any name or version, even when the server doesn't provide one. You can also provide a regular expression like /^sharkey-/i or /^1-/
          */
         "deliverSuspendedSoftwareDescription": string;
         /**
@@ -7659,6 +7675,10 @@ export interface Locale extends ILocale {
              * Can appear in trending notes / users
              */
             "canTrend": string;
+            /**
+             * Can view federation stats and details of remote instances
+             */
+            "canViewFederation": string;
         };
         "_condition": {
             /**
@@ -7790,6 +7810,10 @@ export interface Locale extends ILocale {
          * This condition may be incorrect for remote users.
          */
         "remoteDataWarning": string;
+        /**
+         * Select a user to test the condition.
+         */
+        "selectTestUser": string;
     };
     "_sensitiveMediaDetection": {
         /**
@@ -9205,6 +9229,14 @@ export interface Locale extends ILocale {
          */
         "write:admin:cw-user": string;
         /**
+         * Apply mandatory CW on notes
+         */
+        "write:admin:cw-note": string;
+        /**
+         * Apply mandatory CW on instances
+         */
+        "write:admin:cw-instance": string;
+        /**
          * Silence users
          */
         "write:admin:silence-user": string;
@@ -9224,6 +9256,14 @@ export interface Locale extends ILocale {
          * Compose or delete scheduled notes
          */
         "write:notes-schedule": string;
+        /**
+         * Read abuse report notification recipients
+         */
+        "read:admin:abuse-report:notification-recipient": string;
+        /**
+         * Edit abuse report notification recipients
+         */
+        "write:admin:abuse-report:notification-recipient": string;
     };
     "_auth": {
         /**
@@ -10379,6 +10419,10 @@ export interface Locale extends ILocale {
              * Scheduled note was posted
              */
             "scheduledNotePosted": string;
+            /**
+             * The import has been completed
+             */
+            "importCompleted": string;
         };
         "_actions": {
             /**
@@ -10410,6 +10454,18 @@ export interface Locale extends ILocale {
          * Import of {x} has been completed
          */
         "importOfXCompleted": ParameterizedString<"x">;
+        /**
+         * Shared access granted
+         */
+        "sharedAccessGranted": string;
+        /**
+         * Shared access revoked
+         */
+        "sharedAccessRevoked": string;
+        /**
+         * Shared access login
+         */
+        "sharedAccessLogin": string;
     };
     "_deck": {
         /**
@@ -10941,13 +10997,13 @@ export interface Locale extends ILocale {
          */
         "setMandatoryCW": string;
         /**
-         * Set remote instance as NSFW
+         * Set content warning for note
          */
-        "setRemoteInstanceNSFW": string;
+        "setMandatoryCWForNote": string;
         /**
-         * Unset remote instance as NSFW
+         * Set content warning for instance
          */
-        "unsetRemoteInstanceNSFW": string;
+        "setMandatoryCWForInstance": string;
         /**
          * Rejected reports from remote instance
          */
@@ -12077,6 +12133,26 @@ export interface Locale extends ILocale {
      */
     "userSaysSomethingInMutedThread": ParameterizedString<"name">;
     /**
+     * {name} has been silenced by {host} staff
+     */
+    "silencedUserSaysSomething": ParameterizedString<"name" | "host">;
+    /**
+     * {name} has been silenced by {host} staff
+     */
+    "silencedInstanceSaysSomething": ParameterizedString<"name" | "host">;
+    /**
+     * {name} is flagged: "{cw}"
+     */
+    "userIsFlaggedAs": ParameterizedString<"name" | "cw">;
+    /**
+     * Note is flagged: "{cw}"
+     */
+    "noteIsFlaggedAs": ParameterizedString<"cw">;
+    /**
+     * {name} is flagged: "{cw}"
+     */
+    "instanceIsFlaggedAs": ParameterizedString<"name" | "cw">;
+    /**
      * Mark all media from user as NSFW
      */
     "markAsNSFW": string;
@@ -12481,6 +12557,14 @@ export interface Locale extends ILocale {
      * Failed to load note
      */
     "cannotLoadNote": string;
+    /**
+     * Please click [OK] to unsubscribe from announcement e-mails.
+     */
+    "clickToUnsubscribe": string;
+    /**
+     * There was a problem unsubscribing.
+     */
+    "unsubscribeError": string;
     "_flash": {
         /**
          * Flash Content Hidden
@@ -13054,9 +13138,25 @@ export interface Locale extends ILocale {
      */
     "mandatoryCW": string;
     /**
-     * Applies a content warning to all posts created by this user. If the post already has a CW, then this is appended to the end.
+     * Applies a content warning to all posts created by this user. The forced warnings will appear like a word mute to distinguish them from the author's own content warnings.
      */
     "mandatoryCWDescription": string;
+    /**
+     * Force content warning
+     */
+    "mandatoryCWForNote": string;
+    /**
+     * Applies an additional content warning to this post. The new warning will appear like a word mute to distinguish it from the author's own content warning.
+     */
+    "mandatoryCWForNoteDescription": string;
+    /**
+     * Force content warning
+     */
+    "mandatoryCWForInstance": string;
+    /**
+     * Applies a content warning to all posts originating from this instance. The forced warnings will appear like a word mute to distinguish them from the notes' own content warnings.
+     */
+    "mandatoryCWForInstanceDescription": string;
     /**
      * Fetch linked note
      */
@@ -13419,6 +13519,160 @@ export interface Locale extends ILocale {
          */
         "keepFilesInUseDescription": string;
     };
+    /**
+     * Custom font size
+     */
+    "customFontSize": string;
+    /**
+     * Hide ads
+     */
+    "hideAds": string;
+    /**
+     * Apps using this token will have no API access except for the functions listed below.
+     */
+    "permissionsDescription": string;
+    /**
+     * Apps using this token will have no administrative access except for the functions enabled below.
+     */
+    "adminPermissionsDescription": string;
+    /**
+     * Shared account
+     */
+    "sharedAccount": string;
+    /**
+     * Shared access
+     */
+    "sharedAccess": string;
+    /**
+     * Any accounts listed here will be granted access to the token and may use it to access this account.
+     */
+    "sharedAccessDescription": string;
+    /**
+     * Shared access allows another user to access your account without using your password. You may select exactly which features and data are available to guest users.
+     */
+    "sharedAccessDescription2": string;
+    /**
+     * Share access
+     */
+    "addGrantee": string;
+    /**
+     * Remove access
+     */
+    "removeGrantee": string;
+    /**
+     * Login with shared access
+     */
+    "loginWithSharedAccess": string;
+    /**
+     * Login with granted access to a shared account
+     */
+    "loginWithSharedAccessDescription": string;
+    /**
+     * You have not been granted shared access to any accounts
+     */
+    "noSharedAccess": string;
+    /**
+     * Expand
+     */
+    "expand": string;
+    /**
+     * Collapse
+     */
+    "collapse": string;
+    /**
+     * Permissions
+     */
+    "permissions": string;
+    /**
+     * Limit rank
+     */
+    "overrideRank": string;
+    /**
+     * Limits the user rank (admin, moderator, or user) for apps using this token.
+     */
+    "overrideRankDescription": string;
+    /**
+     * Rank
+     */
+    "rank": string;
+    "_ranks": {
+        /**
+         * Admin
+         */
+        "admin": string;
+        /**
+         * Moderator
+         */
+        "mod": string;
+        /**
+         * User
+         */
+        "user": string;
+        /**
+         * default
+         */
+        "default": string;
+    };
+    /**
+     * Permissions: {num}
+     */
+    "permissionsLabel": ParameterizedString<"num">;
+    /**
+     * You have been granted shared access to {target} with {rank} rank and {perms} permissions.
+     */
+    "sharedAccessGranted": ParameterizedString<"target" | "rank" | "perms">;
+    /**
+     * Shared access to {target} has been revoked.
+     */
+    "sharedAccessRevoked": ParameterizedString<"target">;
+    /**
+     * {target} logged in via shared access.
+     */
+    "sharedAccessLogin": ParameterizedString<"target">;
+    /**
+     * Unique name to record the purpose of this access token
+     */
+    "accessTokenNameDescription": string;
+    /**
+     * Are you sure you want to revoke this token?
+     */
+    "confirmRevokeToken": string;
+    /**
+     * Are you sure you want to revoke this token? {num} shared other users will lose shared access.
+     */
+    "confirmRevokeSharedToken": ParameterizedString<"num">;
+    /**
+     * Grant shared access
+     */
+    "grantSharedAccessButton": string;
+    /**
+     * No shared access listed
+     */
+    "grantSharedAccessNoSelection": string;
+    /**
+     * No shared access users were selected. Please add at least one user in the "shared access" section.
+     */
+    "grantSharedAccessNoSelection2": string;
+    /**
+     * Shared access granted
+     */
+    "grantSharedAccessSuccess": string;
+    /**
+     * Shared access has been granted to {num} users.
+     */
+    "grantSharedAccessSuccess2": ParameterizedString<"num">;
+    /**
+     * Are you sure you want to create a token with no permissions?
+     */
+    "tokenHasNoPermissionsConfirm": string;
+    /**
+     * Enable all read-only permissions
+     */
+    "enableAllRead": string;
+    /**
+     * Enable all write/edit permissions
+     */
+    "enableAllWrite": string;
 }
 declare const locales: {
     [lang: string]: Locale;

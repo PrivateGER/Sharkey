@@ -13,6 +13,7 @@ import type { MiApp } from '@/models/App.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isNativeUserToken } from '@/misc/token.js';
 import { bindThis } from '@/decorators.js';
+import { attachCallerId } from '@/misc/attach-caller-id.js';
 
 export class AuthenticationError extends Error {
 	constructor(message: string) {
@@ -62,6 +63,9 @@ export class AuthenticateService implements OnApplicationShutdown {
 				}, {
 					token: token, // miauth
 				}],
+				relations: {
+					user: true,
+				},
 			});
 
 			if (accessToken == null) {
@@ -72,10 +76,11 @@ export class AuthenticateService implements OnApplicationShutdown {
 				lastUsedAt: new Date(),
 			});
 
-			const user = await this.cacheService.localUserByIdCache.fetch(accessToken.userId,
-				() => this.usersRepository.findOneBy({
-					id: accessToken.userId,
-				}) as Promise<MiLocalUser>);
+			// Loaded by relation above
+			const user = accessToken.user as MiLocalUser;
+
+			// Attach token to user - this will be read by RoleService to drop admin/moderator permissions.
+			attachCallerId(user, { accessToken });
 
 			if (accessToken.appId) {
 				const app = await this.appCache.fetch(accessToken.appId,

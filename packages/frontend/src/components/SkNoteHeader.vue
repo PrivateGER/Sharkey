@@ -40,7 +40,7 @@ Header for a note in the Sharkey style, displaying info such as username and cre
 			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ph-television ph-bold ph-lg"></i></span>
 		</div>
 		<div :class="$style.info">
-			<SkInstanceTicker v-if="showTicker" style="cursor: pointer;" :instance="note.user.instance" :host="note.user.host" @click.stop="showOnRemote()"/>
+			<SkInstanceTicker v-if="showTicker" style="cursor: pointer;" :instance="note.user.instance" :host="note.user.host" @click.stop="showNoteOnOriginalInstance(note)"/>
 		</div>
 	</div>
 </header>
@@ -56,7 +56,7 @@ Header for a note in the Sharkey style, displaying info such as username and cre
 	<div v-if="note.user.badgeRoles" :class="$style.badgeRoles">
 		<img v-for="(role, i) in note.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl ?? ''"/>
 	</div>
-	<SkInstanceTicker v-if="showTicker && !isMobile && prefer.s.showTickerOnReplies" style="cursor: pointer; max-height: 5px; top: 3px; position: relative; margin-top: 0 !important;" :instance="note.user.instance" :host="note.user.host" @click.stop="showOnRemote()"/>
+	<SkInstanceTicker v-if="showTicker && !isMobile && prefer.s.showTickerOnReplies" style="cursor: pointer; max-height: 5px; top: 3px; position: relative; margin-top: 0 !important;" :instance="note.user.instance" :host="note.user.host" @click.stop="showNoteOnOriginalInstance(note)"/>
 	<div :class="$style.classicInfo">
 		<div v-if="mock">
 			<MkTime :time="note.createdAt" colored/>
@@ -89,6 +89,7 @@ import { prefer } from '@/preferences';
 import { useRouter } from '@/router';
 import { deviceKind } from '@/utility/device-kind';
 import SkInstanceTicker from '@/components/SkInstanceTicker.vue';
+import { showNoteOnOriginalInstance } from '@/utility/show-note-on-original-instance.js';
 
 const props = defineProps<{
 	note: Misskey.entities.Note;
@@ -105,11 +106,6 @@ const isMobile = ref(deviceKind === 'smartphone' || window.innerWidth <= MOBILE_
 async function menuVersions(): Promise<void> {
 	const { menu, cleanup } = await getNoteVersionsMenu({ note: props.note });
 	popupMenu(menu, menuVersionsButton.value).then(focus).finally(cleanup);
-}
-
-function showOnRemote() {
-	if (props.note.url ?? props.note.uri === undefined) router.push(notePage(props.note));
-	else window.open(props.note.url ?? props.note.uri);
 }
 
 const mock = inject(DI.mock, false);

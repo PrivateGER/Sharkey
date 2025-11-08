@@ -25,6 +25,7 @@ import { getAppearNote } from '@/utility/get-appear-note.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
+import { showNoteOnOriginalInstance } from '@/utility/show-note-on-original-instance.js';
 
 export async function getNoteClipMenu(props: {
 	note: Misskey.entities.Note;
@@ -146,6 +147,28 @@ export function getAbuseNoteMenu(note: Misskey.entities.Note, text: string): Men
 				initialComment: `${noteInfo}-----\n`,
 			}, {
 				closed: () => dispose(),
+			});
+		},
+	};
+}
+
+export function getMandatoryCWMenu(note: Misskey.entities.Note): MenuItem {
+	return {
+		icon: 'ph-warning ph-bold ph-lg',
+		text: i18n.ts.mandatoryCWForNote,
+		action: async () => {
+			const result = await os.inputText({
+				type: 'text',
+				title: i18n.ts.mandatoryCWForNote,
+				text: i18n.ts.mandatoryCWForNoteDescription,
+				default: note.mandatoryCW ?? '',
+			});
+
+			if (result.canceled) return;
+
+			await os.apiWithDialog('admin/cw-note', {
+				noteId: note.id,
+				cw: result.result || null,
 			});
 		},
 	};
@@ -337,7 +360,7 @@ export function getNoteMenu(props: {
 				icon: 'ti ti-external-link',
 				text: i18n.ts.showOnRemote,
 				action: () => {
-					window.open(appearNote.url ?? appearNote.uri, '_blank', 'noopener');
+					showNoteOnOriginalInstance(appearNote);
 				},
 			});
 		} else {
@@ -481,6 +504,9 @@ export function getNoteMenu(props: {
 
 		if (appearNote.userId === $i.id || $i.isModerator || $i.isAdmin) {
 			menuItems.push({ type: 'divider' });
+			if ($i.isModerator || $i.isAdmin) {
+				menuItems.push(getMandatoryCWMenu(appearNote));
+			}
 			if (appearNote.userId === $i.id) {
 				menuItems.push({
 					icon: 'ph-pencil-simple ph-bold ph-lg',
@@ -523,7 +549,7 @@ export function getNoteMenu(props: {
 				icon: 'ti ti-external-link',
 				text: i18n.ts.showOnRemote,
 				action: () => {
-					window.open(appearNote.url ?? appearNote.uri, '_blank', 'noopener');
+					showNoteOnOriginalInstance(appearNote);
 				},
 			});
 		} else {

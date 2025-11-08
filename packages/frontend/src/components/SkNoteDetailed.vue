@@ -6,13 +6,14 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 -->
 
 <template>
-<div
-	v-if="!muted && !threadMuted && !noteMuted"
+<SkMutedNote
 	v-show="!isDeleted"
-	ref="rootEl"
+	ref="rootComp"
 	v-hotkey="keymap"
+	:note="appearNote"
 	:class="$style.root"
 	:tabindex="isDeleted ? '-1' : '0'"
+	@expandMute="n => emit('expandMute', n)"
 >
 	<div v-if="appearNote.reply && appearNote.reply.replyId && !conversationLoaded" style="padding: 16px">
 		<MkButton style="margin: 0 auto;" primary rounded @click="loadConversation">{{ i18n.ts.loadConversation }}</MkButton>
@@ -43,9 +44,9 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 		</div>
 	</div>
 	<template v-if="appearNote.reply && appearNote.reply.replyId">
-		<SkNoteSub v-for="note in conversation" :key="note.id" :note="note" :expandAllCws="props.expandAllCws" detailed/>
+		<SkNoteSub v-for="note in conversation" :key="note.id" :note="note" :expandAllCws="props.expandAllCws" detailed @expandMute="n => emit('expandMute', n)"/>
 	</template>
-	<SkNoteSub v-if="appearNote.reply" :note="appearNote.reply" :class="$style.replyTo" :expandAllCws="props.expandAllCws" detailed/>
+	<SkNoteSub v-if="appearNote.reply" :note="appearNote.reply" :class="$style.replyTo" :expandAllCws="props.expandAllCws" detailed @expandMute="n => emit('expandMute', n)"/>
 	<article :id="appearNote.id" ref="noteEl" :class="$style.note" tabindex="-1" @contextmenu.stop="onContextmenu">
 		<header :class="$style.noteHeader">
 			<MkAvatar :class="$style.noteHeaderAvatar" :user="appearNote.user" indicator link preview/>
@@ -78,15 +79,15 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 						<span v-if="appearNote.updatedAt" ref="menuVersionsButton" style="margin-left: 0.5em;" title="Edited" @mousedown="menuVersions()"><i class="ph-pencil-simple ph-bold ph-lg"></i></span>
 						<span v-if="appearNote.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 					</div>
-					<SkInstanceTicker v-if="showTicker" :host="appearNote.user.host" :instance="appearNote.user.instance"/>
+					<SkInstanceTicker v-if="showTicker" style="cursor: pointer;" :host="appearNote.user.host" :instance="appearNote.user.instance" @click.stop="showNoteOnOriginalInstance(appearNote)"/>
 				</div>
 			</div>
 		</header>
 		<div :class="$style.noteContent">
-			<p v-if="mergedCW != null" :class="$style.cw">
+			<p v-if="appearNote.cw != null" :class="$style.cw">
 				<Mfm
-					v-if="mergedCW != ''"
-					:text="mergedCW"
+					v-if="appearNote.cw != ''"
+					:text="appearNote.cw"
 					:author="appearNote.user"
 					:nyaize="'respect'"
 					:enableEmojiMenu="true"
@@ -95,7 +96,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 				/>
 				<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll"/>
 			</p>
-			<div v-show="mergedCW == null || showContent">
+			<div v-show="appearNote.cw == null || showContent">
 				<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 				<Mfm
 					v-if="appearNote.text"
@@ -118,7 +119,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 				</div>
 				<MkPoll v-if="appearNote.poll" ref="pollViewer" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :class="$style.poll" :author="appearNote.user" :emojiUrls="appearNote.emojis"/>
 				<div v-if="isEnabledUrlPreview" class="_gaps_s" style="margin-top: 6px;" @click.stop>
-					<SkUrlPreviewGroup :sourceNodes="parsed" :sourceNote="appearNote" :compact="true" :detail="true" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds"/>
+					<SkUrlPreviewGroup :sourceNodes="parsed" :sourceNote="appearNote" :compact="true" :detail="true" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" @expandMute="n => emit('expandMute', n)"/>
 				</div>
 				<div v-if="appearNote.renote" :class="$style.quote"><SkNoteSimple :note="appearNote.renote" :class="$style.quoteNote" :expandAllCws="props.expandAllCws"/></div>
 			</div>
@@ -197,7 +198,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 			<div v-if="!repliesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
 			</div>
-			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true"/>
+			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
 		</div>
 		<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
 			<MkPagination :pagination="renotesPagination" :disableAutoLoad="true">
@@ -214,7 +215,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 			<div v-if="!quotesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadQuotes">{{ i18n.ts.loadReplies }}</MkButton>
 			</div>
-			<SkNoteSub v-for="note in quotes" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :reply="true"/>
+			<SkNoteSub v-for="note in quotes" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :reply="true" @expandMute="n => emit('expandMute', n)"/>
 		</div>
 		<div v-else-if="tab === 'reactions'" :class="$style.tab_reactions">
 			<div :class="$style.reactionTabs">
@@ -234,10 +235,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 			</MkPagination>
 		</div>
 	</div>
-</div>
-<div v-else class="_panel" :class="$style.muted" @click.stop="muted = false">
-	<SkMutedNote :muted="muted" :threadMuted="threadMuted" :noteMuted="noteMuted" :note="appearNote"></SkMutedNote>
-</div>
+</SkMutedNote>
 </template>
 
 <script lang="ts" setup>
@@ -246,7 +244,6 @@ import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import * as config from '@@/js/config.js';
-import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
 import type { Paging } from '@/components/MkPagination.vue';
 import type { Keymap } from '@/utility/hotkey.js';
@@ -262,7 +259,6 @@ import MkUsersTooltip from '@/components/MkUsersTooltip.vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import SkInstanceTicker from '@/components/SkInstanceTicker.vue';
 import { pleaseLogin } from '@/utility/please-login.js';
-import { checkMutes } from '@/utility/check-word-mute.js';
 import { userPage } from '@/filters/user.js';
 import { notePage } from '@/filters/note.js';
 import number from '@/filters/number.js';
@@ -290,12 +286,14 @@ import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { instance, isEnabledUrlPreview, policies } from '@/instance.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
 import { prefer } from '@/preferences.js';
-import { getPluginHandlers } from '@/plugin.js';
+import { setupNoteViewInterruptors } from '@/plugin.js';
 import { DI } from '@/di.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
 import SkNoteTranslation from '@/components/SkNoteTranslation.vue';
 import { getSelfNoteIds } from '@/utility/get-self-note-ids.js';
 import SkUrlPreviewGroup from '@/components/SkUrlPreviewGroup.vue';
+import MkNoteSub from '@/components/MkNoteSub.vue';
+import { showNoteOnOriginalInstance } from '@/utility/show-note-on-original-instance.js';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -305,35 +303,18 @@ const props = withDefaults(defineProps<{
 	initialTab: 'replies',
 });
 
+const emit = defineEmits<{
+	(ev: 'expandMute', note: Misskey.entities.Note): void;
+}>();
+
 const inChannel = inject('inChannel', null);
 
 const note = ref(deepClone(props.note));
 
-const isRemoteNote = computed(() => note.value.user.host !== null);
-
-// plugin
-const noteViewInterruptors = getPluginHandlers('note_view_interruptor');
-if (noteViewInterruptors.length > 0) {
-	onMounted(async () => {
-		let result: Misskey.entities.Note | null = deepClone(note.value);
-		for (const interruptor of noteViewInterruptors) {
-			try {
-				result = await interruptor.handler(result!) as Misskey.entities.Note | null;
-				if (result === null) {
-					isDeleted.value = true;
-					return;
-				}
-			} catch (err) {
-				console.error(err);
-			}
-		}
-		note.value = result as Misskey.entities.Note;
-	});
-}
-
 const isRenote = Misskey.note.isPureRenote(note.value);
 
-const rootEl = useTemplateRef('rootEl');
+const rootComp = useTemplateRef('rootComp');
+const rootEl = computed(() => rootComp.value?.rootEl ?? null);
 const noteEl = useTemplateRef('noteEl');
 const menuButton = useTemplateRef('menuButton');
 const renoteButton = useTemplateRef('renoteButton');
@@ -361,11 +342,9 @@ const quotes = ref<Misskey.entities.Note[]>([]);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
 
-const mergedCW = computed(() => computeMergedCw(appearNote.value));
-
 const renoteTooltip = computeRenoteTooltip(appearNote);
 
-const { muted, threadMuted, noteMuted } = checkMutes(appearNote);
+setupNoteViewInterruptors(note, isDeleted);
 
 watch(() => props.expandAllCws, (expandAllCws) => {
 	if (expandAllCws !== showContent.value) showContent.value = expandAllCws;
@@ -1282,16 +1261,7 @@ onUnmounted(() => {
 	border-radius: var(--MI-radius-sm) !important;
 }
 
-.muted {
-	padding: 8px;
-	text-align: center;
-	opacity: 0.7;
-	cursor: pointer;
-}
-
-.muted:hover {
-	background: var(--MI_THEME-buttonBg);
-}
+// Mute CSS moved to SkMutedNote.vue
 
 .badgeRoles {
 	margin: 0 .5em 0 0;

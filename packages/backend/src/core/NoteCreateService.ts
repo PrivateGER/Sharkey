@@ -57,6 +57,8 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
+import { isPureRenote } from '@/misc/is-renote.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention';
 
@@ -144,6 +146,7 @@ type Option = {
 	url?: string | null;
 	app?: MiApp | null;
 	processErrors?: string[] | null;
+	mandatoryCW?: string | null;
 };
 
 export type PureRenoteOption = Option & { renote: MiNote } & ({ text?: null } | { cw?: null } | { reply?: null } | { poll?: null } | { files?: null | [] });
@@ -222,6 +225,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private userBlockingService: UserBlockingService,
 		private cacheService: CacheService,
 		private latestNoteService: LatestNoteService,
+		private readonly noteVisibilityService: NoteVisibilityService,
 	) {
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
@@ -283,6 +287,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (data.renote) {
+			if (isPureRenote(data.renote)) {
+				throw new IdentifiableError('fd4cc33e-2a37-48dd-99cc-9b806eb2031a', 'Cannot renote a pure renote (boost)');
+			}
+
 			switch (data.renote.visibility) {
 				case 'public':
 					// public noteは無条件にrenote可能
@@ -296,7 +304,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				case 'followers':
 					// 他人のfollowers noteはreject
 					if (data.renote.userId !== user.id) {
-						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
+						throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Renote target is not public or home');
 					}
 
 					// Renote対象がfollowersならfollowersにする
@@ -304,24 +312,54 @@ export class NoteCreateService implements OnApplicationShutdown {
 					break;
 				case 'specified':
 					// specified / direct noteはreject
-					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
+					throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Renote target is not public or home');
+			}
+
+			if (data.renote.userId !== user.id) {
+				// Check local-only
+				if (data.renote.localOnly && user.host != null) {
+					throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Remote user cannot renote a local-only note');
+				}
+
+				// Check visibility
+				const visibilityCheck = await this.noteVisibilityService.checkNoteVisibilityAsync(data.renote, user.id);
+				if (!visibilityCheck.accessible) {
+					throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Cannot renote an invisible note');
+				}
+
+				// Check blocking
+				if (await this.userBlockingService.checkBlocked(data.renote.userId, user.id)) {
+					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is blocked');
+				}
+			}
+		}
+
+		if (data.reply) {
+			if (isPureRenote(data.reply)) {
+				throw new IdentifiableError('3ac74a84-8fd5-4bb0-870f-01804f82ce15', 'Cannot reply to a pure renote (boost)');
+			}
+
+			if (data.reply.userId !== user.id) {
+				// Check local-only
+				if (data.reply.localOnly && user.host != null) {
+					throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Remote user cannot reply to a local-only note');
+				}
+
+				// Check visibility
+				const visibilityCheck = await this.noteVisibilityService.checkNoteVisibilityAsync(data.reply, user.id);
+				if (!visibilityCheck.accessible) {
+					throw new IdentifiableError('b98980fa-3780-406c-a935-b6d0eeee10d1', 'Cannot reply to an invisible note');
+				}
+
+				// Check blocking
+				if (await this.userBlockingService.checkBlocked(data.reply.userId, user.id)) {
+					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Reply target is blocked');
+				}
 			}
 		}
 
 		// Check quote permissions
 		await this.checkQuotePermissions(data, user);
-
-		// Check blocking
-		if (this.isRenote(data) && !this.isQuote(data)) {
-			if (data.renote.userHost === null) {
-				if (data.renote.userId !== user.id) {
-					const blocked = await this.userBlockingService.checkBlocked(data.renote.userId, user.id);
-					if (blocked) {
-						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is blocked');
-					}
-				}
-			}
-		}
 
 		// 返信対象がpublicではないならhomeにする
 		if (data.reply && data.reply.visibility !== 'public' && data.visibility === 'public') {
@@ -414,14 +452,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 		}
 
-		if (user.host && !data.cw) {
-			await this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
-				if (i.isNSFW && !this.isPureRenote(data)) {
-					data.cw = 'Instance is marked as NSFW';
-				}
-			});
-		}
-
 		if (mentionedUsers.length > 0 && mentionedUsers.length > (await this.roleService.getUserPolicies(user.id)).mentionLimit) {
 			throw new IdentifiableError('9f466dab-c856-48cd-9e65-ff90ff750580', 'Note contains too many mentions');
 		}
@@ -485,15 +515,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 			renoteUserHost: data.renote ? data.renote.userHost : null,
 			userHost: user.host,
 			processErrors: data.processErrors,
+			mandatoryCW: data.mandatoryCW,
 		});
-
-		// should really not happen, but better safe than sorry
-		if (data.reply?.id === insert.id) {
-			throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', 'A note can\'t reply to itself');
-		}
-		if (data.renote?.id === insert.id) {
-			throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', 'A note can\'t renote itself');
-		}
 
 		if (data.uri != null) insert.uri = data.uri;
 		if (data.url != null) insert.url = data.url;
@@ -994,7 +1017,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			// 自分自身のHTL
 			if (note.userHost == null) {
-				if (note.visibility !== 'specified' || !note.visibleUserIds.some(v => v === user.id)) {
+				if (note.visibility !== 'specified' || !note.visibleUserIds.some(v => v === user.id) || note.userId === user.id) {
 					this.fanoutTimelineService.push(`homeTimeline:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 					if (note.fileIds.length > 0) {
 						this.fanoutTimelineService.push(`homeTimelineWithFiles:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);

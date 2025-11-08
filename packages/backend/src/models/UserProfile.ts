@@ -223,6 +223,11 @@ export class MiUserProfile {
 	})
 	public receiveAnnouncementEmail: boolean;
 
+	@Column('text', {
+		nullable: true,
+	})
+	public oneClickUnsubscribeToken: string | null;
+
 	@Column({
 		...id(),
 		nullable: true,

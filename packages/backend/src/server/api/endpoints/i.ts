@@ -66,7 +66,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				where: {
 					userId: user.id,
 				},
-				relations: ['user'],
 			});
 
 			if (userProfile == null) {
@@ -80,7 +79,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				userProfile.loggedInDates = [...userProfile.loggedInDates, today];
 			}
 
-			return await this.userEntityService.pack(userProfile.user!, userProfile.user!, {
+			return await this.userEntityService.pack(user, user, {
 				schema: 'MeDetailed',
 				includeSecrets: isSecure,
 				userProfile,

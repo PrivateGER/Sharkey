@@ -119,7 +119,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				font: ps.font,
 			}));
 
-			return await this.pageEntityService.pack(page);
+			return await this.pageEntityService.pack(page, me);
 		});
 	}
 }

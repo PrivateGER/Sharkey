@@ -52,6 +52,8 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
+import { isPureRenote } from '@/misc/is-renote.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention' | 'edited';
 
@@ -118,7 +120,7 @@ type MinimumUser = {
 	uri: MiUser['uri'];
 };
 
-type Option = {
+export type Option = {
 	createdAt?: Date | null;
 	name?: string | null;
 	text?: string | null;
@@ -141,6 +143,7 @@ type Option = {
 	updatedAt?: Date | null;
 	editcount?: boolean | null;
 	processErrors?: string[] | null;
+	mandatoryCW?: string | null;
 };
 
 @Injectable()
@@ -219,18 +222,13 @@ export class NoteEditService implements OnApplicationShutdown {
 		private cacheService: CacheService,
 		private latestNoteService: LatestNoteService,
 		private noteCreateService: NoteCreateService,
+		private readonly noteVisibilityService: NoteVisibilityService,
 	) {
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
 
 	@bindThis
-	public async edit(user: MiUser & {
-		id: MiUser['id'];
-		username: MiUser['username'];
-		host: MiUser['host'];
-		isBot: MiUser['isBot'];
-		noindex: MiUser['noindex'];
-	}, editid: MiNote['id'], data: Option, silent = false): Promise<MiNote> {
+	public async edit(user: MiUser, editid: MiNote['id'], data: Option, silent = false): Promise<MiNote> {
 		if (!editid) {
 			throw new UnrecoverableError('edit failed: missing editid');
 		}
@@ -308,8 +306,8 @@ export class NoteEditService implements OnApplicationShutdown {
 		}
 
 		if (this.isRenote(data)) {
-			if (data.renote.id === oldnote.id) {
-				throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', `edit failed for ${oldnote.id}: cannot renote itself`);
+			if (isPureRenote(data.renote)) {
+				throw new IdentifiableError('fd4cc33e-2a37-48dd-99cc-9b806eb2031a', 'Cannot renote a pure renote (boost)');
 			}
 
 			switch (data.renote.visibility) {
@@ -325,7 +323,7 @@ export class NoteEditService implements OnApplicationShutdown {
 				case 'followers':
 					// 他人のfollowers noteはreject
 					if (data.renote.userId !== user.id) {
-						throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
+						throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Renote target is not public or home');
 					}
 
 					// Renote対象がfollowersならfollowersにする
@@ -333,24 +331,44 @@ export class NoteEditService implements OnApplicationShutdown {
 					break;
 				case 'specified':
 					// specified / direct noteはreject
-					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is not public or home');
+					throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Renote target is not public or home');
+			}
+
+			if (data.renote.userId !== user.id) {
+				// Check local-only
+				if (data.renote.localOnly && user.host != null) {
+					throw new IdentifiableError('12e23cec-edd9-442b-aa48-9c21f0c3b215', 'Remote user cannot renote a local-only note');
+				}
+
+				// Check visibility
+				const visibilityCheck = await this.noteVisibilityService.checkNoteVisibilityAsync(data.renote, user.id);
+				if (!visibilityCheck.accessible) {
+					throw new IdentifiableError('be9529e9-fe72-4de0-ae43-0b363c4938af', 'Cannot renote an invisible note');
+				}
+
+				// Check blocking
+				if (await this.userBlockingService.checkBlocked(data.renote.userId, user.id)) {
+					throw new IdentifiableError('b6352a84-e5cd-4b05-a26c-63437a6b98ba', 'Renote target is blocked');
+				}
+			}
+
+			// Check for recursion
+			if (data.renote.id === oldnote.id) {
+				throw new IdentifiableError('33510210-8452-094c-6227-4a6c05d99f02', `edit failed for ${oldnote.id}: note cannot quote itself`);
+			}
+			for (let nextRenoteId = data.renote.renoteId; nextRenoteId != null;) {
+				if (nextRenoteId === oldnote.id) {
+					throw new IdentifiableError('ea93b7c2-3d6c-4e10-946b-00d50b1a75cb', `edit failed for ${oldnote.id}: note cannot quote a quote of itself`);
+				}
+
+				// TODO create something like threadId but for quotes, that way we don't need full recursion
+				const next = await this.notesRepository.findOne({ where: { id: nextRenoteId }, select: { renoteId: true } });
+				nextRenoteId = next?.renoteId ?? null;
 			}
 		}
 
 		// Check quote permissions
 		await this.noteCreateService.checkQuotePermissions(data, user);
-
-		// Check blocking
-		if (this.isRenote(data) && !this.isQuote(data)) {
-			if (data.renote.userHost === null) {
-				if (data.renote.userId !== user.id) {
-					const blocked = await this.userBlockingService.checkBlocked(data.renote.userId, user.id);
-					if (blocked) {
-						throw new Error('blocked');
-					}
-				}
-			}
-		}
 
 		// 返信対象がpublicではないならhomeにする
 		if (data.reply && data.reply.visibility !== 'public' && data.visibility === 'public') {
@@ -379,8 +397,6 @@ export class NoteEditService implements OnApplicationShutdown {
 			if (data.text === '') {
 				data.text = null;
 			}
-		} else {
-			data.text = null;
 		}
 
 		const maxCwLength = user.host == null
@@ -395,8 +411,6 @@ export class NoteEditService implements OnApplicationShutdown {
 			if (data.cw === '') {
 				data.cw = null;
 			}
-		} else {
-			data.cw = null;
 		}
 
 		let tags = data.apHashtags;
@@ -443,27 +457,22 @@ export class NoteEditService implements OnApplicationShutdown {
 			}
 		}
 
-		if (user.host && !data.cw) {
-			await this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
-				if (i.isNSFW && !this.noteCreateService.isPureRenote(data)) {
-					data.cw = 'Instance is marked as NSFW';
-				}
-			});
-		}
-
 		if (mentionedUsers.length > 0 && mentionedUsers.length > (await this.roleService.getUserPolicies(user.id)).mentionLimit) {
 			throw new IdentifiableError('9f466dab-c856-48cd-9e65-ff90ff750580', 'Note contains too many mentions');
 		}
 
 		const update: Partial<MiNote> = {};
-		if (data.text !== oldnote.text) {
+		if (data.text !== undefined && data.text !== oldnote.text) {
 			update.text = data.text;
 		}
-		if (data.cw !== oldnote.cw) {
+		if (data.cw !== undefined && data.cw !== oldnote.cw) {
 			update.cw = data.cw;
 		}
-		if (oldnote.hasPoll !== !!data.poll) {
+		if (data.poll !== undefined && oldnote.hasPoll !== !!data.poll) {
 			update.hasPoll = !!data.poll;
+		}
+		if (data.mandatoryCW !== undefined && oldnote.mandatoryCW !== data.mandatoryCW) {
+			update.mandatoryCW = data.mandatoryCW;
 		}
 
 		// TODO deep-compare files
@@ -526,6 +535,7 @@ export class NoteEditService implements OnApplicationShutdown {
 				renoteUserHost: data.renote ? data.renote.userHost : null,
 				userHost: user.host,
 				reactionAndUserPairCache: oldnote.reactionAndUserPairCache,
+				mandatoryCW: data.mandatoryCW,
 			});
 
 			if (data.uri != null) note.uri = data.uri;

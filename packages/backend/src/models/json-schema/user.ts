@@ -184,6 +184,10 @@ export const packedUserLiteSchema = {
 			type: 'boolean',
 			nullable: false, optional: false,
 		},
+		bypassSilence: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
 		requireSigninToViewContents: {
 			type: 'boolean',
 			nullable: false, optional: true,
@@ -227,6 +231,10 @@ export const packedUserLiteSchema = {
 				isSilenced: {
 					type: 'boolean',
 					nullable: false, optional: false,
+				},
+				mandatoryCW: {
+					type: 'string',
+					nullable: true, optional: false,
 				},
 			},
 		},
@@ -730,6 +738,13 @@ export const packedMeDetailedOnlySchema = {
 			type: 'object',
 			nullable: false, optional: false,
 			ref: 'RolePolicies',
+		},
+		permissions: {
+			type: 'array',
+			nullable: false, optional: false,
+			items: {
+				type: 'string',
+			},
 		},
 		twoFactorEnabled: {
 			type: 'boolean',

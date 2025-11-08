@@ -70,7 +70,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				visibility: ps.visibility,
 			});
 
-			return await this.flashEntityService.pack(flash);
+			return await this.flashEntityService.pack(flash, me);
 		});
 	}
 }
