@@ -1875,6 +1875,10 @@ _achievements:
       title: "Double🤯"
       description: "Two of the biggest objects in the bubble game at the same time"
       flavor: "You can fill a lunch box like this 🤯 🤯 a bit."
+    _reactedWithWrench:
+      title: "Certified Bad Post"
+      description: "Someone reacted to your post with a wrench emoji"
+      flavor: "Maybe reconsider that one..."
 _role:
   new: "New role"
   edit: "Edit role"
