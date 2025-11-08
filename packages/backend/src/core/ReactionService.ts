@@ -32,6 +32,7 @@ import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { PER_NOTE_REACTION_USER_PAIR_CACHE_MAX } from '@/const.js';
 import { CacheService } from '@/core/CacheService.js';
 import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
+import { AchievementService } from '@/core/AchievementService.js';
 import type { DataSource } from 'typeorm';
 
 const FALLBACK = '\u2764';
@@ -110,6 +111,7 @@ export class ReactionService {
 		private perUserReactionsChart: PerUserReactionsChart,
 		private readonly cacheService: CacheService,
 		private readonly noteVisibilityService: NoteVisibilityService,
+		private achievementService: AchievementService,
 	) {
 	}
 
@@ -286,6 +288,17 @@ export class ReactionService {
 					noteId: note.id,
 					reaction: reaction,
 				}, user.id);
+			}
+		}
+
+		// Check for wrench emoji achievement
+		// Trigger if someone else reacts to your note with wrench emoji (🔧) or any custom emoji containing "wrench"
+		if (note.userId !== user.id) {
+			const isWrenchReaction = decodedReaction.reaction === '🔧' ||
+				(decodedReaction.name && decodedReaction.name.toLowerCase().includes('wrench'));
+
+			if (isWrenchReaction) {
+				await this.achievementService.create(note.userId, 'reactedWithWrench');
 			}
 		}
 

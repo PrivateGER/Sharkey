@@ -85,6 +85,7 @@ export const ACHIEVEMENT_TYPES = [
 	'tutorialCompleted',
 	'bubbleGameExplodingHead',
 	'bubbleGameDoubleExplodingHead',
+	'reactedWithWrench',
 ] as const;
 
 export const ACHIEVEMENT_BADGES = {
@@ -477,6 +478,11 @@ export const ACHIEVEMENT_BADGES = {
 		img: '/fluent-emoji/1f92f.png',
 		bg: 'linear-gradient(0deg, rgb(255 77 77), rgb(247 155 214))',
 		frame: 'silver',
+	},
+	'reactedWithWrench': {
+		img: '/fluent-emoji/1f527.png',
+		bg: 'linear-gradient(0deg, rgb(144 224 255), rgb(255 168 252))',
+		frame: 'bronze',
 	},
 /* @see <https://github.com/misskey-dev/misskey/pull/10365#discussion_r1155511107>
 } as const satisfies Record<typeof ACHIEVEMENT_TYPES[number], {

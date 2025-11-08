@@ -407,4 +407,5 @@ export const ACHIEVEMENT_TYPES = [
 	'tutorialCompleted',
 	'bubbleGameExplodingHead',
 	'bubbleGameDoubleExplodingHead',
+	'reactedWithWrench',
 ] as const;
