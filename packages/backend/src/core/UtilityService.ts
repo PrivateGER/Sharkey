@@ -13,7 +13,7 @@ import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
 import type { MiMeta, SoftwareSuspension } from '@/models/Meta.js';
 import type { MiInstance } from '@/models/Instance.js';
-import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { IdentifiableError, errorCodes } from '@/misc/identifiable-error.js';
 import { EnvService } from '@/global/EnvService.js';
 import { getApId, type IObject } from '@/core/activitypub/type.js';
 
@@ -285,23 +285,23 @@ export class UtilityService {
 			try {
 				url = new URL(url);
 			} catch {
-				throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: not a valid URL`);
+				throw new IdentifiableError(errorCodes.urlValidationFailed, `invalid url ${url}: not a valid URL`);
 			}
 		}
 
 		// Must be HTTPS
 		if (!this.checkHttps(url, allowHttp)) {
-			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: unsupported protocol ${url.protocol}`);
+			throw new IdentifiableError(errorCodes.urlValidationFailed, `invalid url ${url}: unsupported protocol ${url.protocol}`);
 		}
 
 		// Must not have credentials
 		if (url.username || url.password) {
-			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: contains embedded credentials`);
+			throw new IdentifiableError(errorCodes.urlValidationFailed, `invalid url ${url}: contains embedded credentials`);
 		}
 
 		// Must not have a fragment (hash)
 		if (url.hash && !allowFragment) {
-			throw new IdentifiableError('0bedd29b-e3bf-4604-af51-d3352e2518af', `invalid url ${url}: contains a fragment component (hash)`);
+			throw new IdentifiableError(errorCodes.urlValidationFailed, `invalid url ${url}: contains a fragment component (hash)`);
 		}
 
 		return url;
