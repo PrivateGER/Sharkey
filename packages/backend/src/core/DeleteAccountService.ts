@@ -15,6 +15,7 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
+import { isLocalUser } from '@/models/User.js';
 
 @Injectable()
 export class DeleteAccountService {
@@ -59,7 +60,7 @@ export class DeleteAccountService {
 		}
 
 		// 物理削除する前にDelete activityを送信する
-		if (this.userEntityService.isLocalUser(user)) {
+		if (isLocalUser(user)) {
 			// 知り得る全SharedInboxにDelete配信
 			const content = this.apRendererService.addContext(this.apRendererService.renderDelete(this.userEntityService.genLocalUserUri(user.id), user));
 

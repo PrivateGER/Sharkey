@@ -11,7 +11,7 @@ import { UnrecoverableError } from 'bullmq';
 import { Element, Text } from 'domhandler';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import type { MiPartialLocalUser, MiLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser } from '@/models/User.js';
+import type { MiPartialLocalUser, MiLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser, MiPartialUser } from '@/models/User.js';
 import type { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiBlocking } from '@/models/Blocking.js';
 import type { MiRelay } from '@/models/Relay.js';

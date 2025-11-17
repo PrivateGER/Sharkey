@@ -15,6 +15,7 @@ import type { DriveFilesRepository, UsersRepository, DriveFoldersRepository, Use
 import type { Config } from '@/config.js';
 import Logger from '@/logger.js';
 import type { MiRemoteUser, MiUser } from '@/models/User.js';
+import { isLocalUser } from '@/models/User.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
 import { IdService } from '@/core/IdService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
@@ -531,7 +532,7 @@ export class DriveService {
 		//#region Check drive usage
 		if (user && !isLink) {
 			const usage = await this.driveFileEntityService.calcDriveUsageOf(user);
-			const isLocalUser = this.userEntityService.isLocalUser(user);
+			const isLocal = isLocalUser(user);
 
 			const policies = await this.roleService.getUserPolicies(user.id);
 			const driveCapacity = 1024 * 1024 * policies.driveCapacityMb;
@@ -540,7 +541,7 @@ export class DriveService {
 			this.registerLogger.debug(`overrideCap: ${driveCapacity}bytes, usage: ${usage}bytes, u+s: ${usage + info.size}bytes`);
 
 			if (maxFileSize < info.size) {
-				if (isLocalUser) {
+				if (isLocal) {
 					throw new IdentifiableError('f9e4e5f3-4df4-40b5-b400-f236945f7073', 'Max file size exceeded.');
 				} else {
 					// For remote users, throwing an exception will break Activity processing.
@@ -552,7 +553,7 @@ export class DriveService {
 			// If usage limit exceeded
 			// Repeat the "!isLink" check because it could be set to true by the previous block.
 			if (driveCapacity < usage + info.size && !isLink) {
-				if (isLocalUser) {
+				if (isLocal) {
 					throw new IdentifiableError('c6244ed2-a39a-4e1c-bf93-f0fbd7764fa6', 'No free space.', true);
 				}
 				await this.expireOldFile(await this.usersRepository.findOneByOrFail({ id: user.id }) as MiRemoteUser, driveCapacity - info.size);
@@ -607,7 +608,7 @@ export class DriveService {
 		file.maybeSensitive = info.sensitive;
 		file.maybePorn = info.porn;
 		file.isSensitive = user
-			? this.userEntityService.isLocalUser(user) && (profile!.alwaysMarkNsfw || profile!.defaultSensitive) ? true :
+			? isLocalUser(user) && (profile!.alwaysMarkNsfw || profile!.defaultSensitive) ? true :
 			sensitive ?? false
 			: false;
 

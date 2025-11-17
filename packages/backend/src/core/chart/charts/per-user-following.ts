@@ -6,6 +6,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Not, IsNull, DataSource } from 'typeorm';
 import type { MiUser } from '@/models/User.js';
+import { isLocalUser } from '@/models/User.js';
 import { AppLockService } from '@/core/AppLockService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { TimeService } from '@/global/TimeService.js';
@@ -71,8 +72,8 @@ export default class PerUserFollowingChart extends Chart<typeof schema> { // esl
 
 	@bindThis
 	public update(follower: { id: MiUser['id']; host: MiUser['host']; }, followee: { id: MiUser['id']; host: MiUser['host']; }, isFollow: boolean): void {
-		const prefixFollower = this.userEntityService.isLocalUser(follower) ? 'local' : 'remote';
-		const prefixFollowee = this.userEntityService.isLocalUser(followee) ? 'local' : 'remote';
+		const prefixFollower = isLocalUser(follower) ? 'local' : 'remote';
+		const prefixFollowee = isLocalUser(followee) ? 'local' : 'remote';
 
 		this.commit({
 			[`${prefixFollower}.followings.total`]: isFollow ? 1 : -1,

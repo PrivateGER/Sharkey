@@ -435,6 +435,8 @@ export type MiPartialRemoteUser = Partial<MiUser> & {
 	uri: string;
 };
 
+export type MiPartialUser = Partial<MiUser> & Pick<MiUser, 'id' | 'host' | 'uri'>;
+
 export function isRemoteUser(user: MiUser): user is MiRemoteUser;
 export function isRemoteUser<U extends PartialUser>(user: U): user is PartialRemoteUser<U>;
 export function isRemoteUser(user: { host: string | null }): user is { host: string } {
