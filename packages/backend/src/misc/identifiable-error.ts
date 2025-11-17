@@ -38,4 +38,7 @@ export const errorCodes = {
 
 	/** User has no valid featured collection (not defined, invalid, etc) */
 	noFeaturedCollection: '2aa4766e-b7d8-4291-a671-56800498b085',
+
+	/** String URL failed security or correctness validation */
+	urlValidationFailed: '0bedd29b-e3bf-4604-af51-d3352e2518af',
 } as const;
