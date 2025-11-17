@@ -30,10 +30,12 @@ export class IdentifiableError extends Error {
  * Standard error codes to reference throughout the app
  */
 export const errorCodes = {
-	// User has been deleted (hard or soft deleted)
+	/** User has been deleted (hard or soft deleted) */
 	userIsDeleted: '4cac9436-baa3-4955-a368-7628aea676cf',
-	// User is suspended (directly or by instance)
+
+	/** User is suspended (directly or by instance) */
 	userIsSuspended: '1e56d624-737f-48e4-beb6-0bdddb9fa809',
-	// User has no valid featured collection (not defined, invalid, etc)
+
+	/** User has no valid featured collection (not defined, invalid, etc) */
 	noFeaturedCollection: '2aa4766e-b7d8-4291-a671-56800498b085',
 } as const;
