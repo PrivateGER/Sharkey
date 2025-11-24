@@ -42,6 +42,7 @@ export class ClipEntityService {
 		const meId = me ? me.id : null;
 		const clip = typeof src === 'object' ? src : await this.clipsRepository.findOneByOrFail({ id: src });
 
+		// noinspection ES6MissingAwait
 		return await awaitAll({
 			id: clip.id,
 			createdAt: this.idService.parse(clip.id).date.toISOString(),
@@ -65,7 +66,7 @@ export class ClipEntityService {
 		const _users = clips.map(({ user, userId }) => user ?? userId);
 		const _userMap = await this.userEntityService.packMany(_users, me)
 			.then(users => new Map(users.map(u => [u.id, u])));
-		return Promise.all(clips.map(clip => this.pack(clip, me, { packedUser: _userMap.get(clip.userId) })));
+		return await Promise.all(clips.map(clip => this.pack(clip, me, { packedUser: _userMap.get(clip.userId) })));
 	}
 }
 

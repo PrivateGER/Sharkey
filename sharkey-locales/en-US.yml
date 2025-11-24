@@ -376,6 +376,7 @@ _moderationLogTypes:
   createPromo: "Created a note promo"
   addRelay: "Added a relay"
   removeRelay: "Removed a relay"
+  restartMigration: "Restarted migration for a user"
 
 _mfm:
   uncommonFeature: "This is not a widespread feature, it may not display properly on most other fedi software, including other Misskey forks"
@@ -728,3 +729,14 @@ grantSharedAccessSuccess2: "Shared access has been granted to {num} users."
 tokenHasNoPermissionsConfirm: "Are you sure you want to create a token with no permissions?"
 enableAllRead: "Enable all read-only permissions"
 enableAllWrite: "Enable all write/edit permissions"
+
+newAccount: "New account"
+alsoKnownAs: "Also known as"
+accountMigratedAt: "Migrated at"
+accountMigratedTo: "Migrated to"
+accountMigrationUri: "Migration URI"
+restartMigration: "Restart account migration"
+restartMigrationDescription: "Account migration was last attempted {date}. If the migration failed or was incomplete, then you may click this button to restart the process."
+restartMigrationConfirm: "Are you sure you want to restart this account migration?"
+
+backgroundQueue: "Background queue"

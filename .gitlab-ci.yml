@@ -128,13 +128,10 @@ backend_tests:
     - name: redis
       pull_policy: if-not-present
   script:
-    - >-
-      pnpm run build \
-        --filter=backend \
-        --filter=megalodon \
-        --filter=misskey-js
-    - pnpm run migrate
-    - pnpm run test --filter=backend
+    - pnpm run --filter backend build:pre
+    - pnpm run --filter backend build
+    - pnpm run --filter backend migrate
+    - pnpm run --filter backend test
   # Same as common, but MRs are only run if they modify the backend.
   rules:
     - if: $CI_PIPELINE_SOURCE == 'push' && ($CI_COMMIT_BRANCH == 'develop' || $CI_COMMIT_BRANCH == 'stable')
@@ -152,16 +149,9 @@ backend_tests:
 frontend_tests:
   <<: *test_common
   script:
-    - >-
-      pnpm run build \
-        --filter=frontend \
-        --filter=frontend-embed \
-        --filter=frontend-shared \
-        --filter=misskey-js \
-        --filter=misskey-bubble-game \
-        --filter=misskey-reversi \
-        --filter=sw
-    - pnpm run test --filter=frontend --filter=misskey-js
+    - pnpm run --filter frontend build:pre
+    - pnpm run --filter frontend build
+    - pnpm run --filter frontend test
   # Same as common, but MRs are only run if they modify the frontend.
   rules:
     - if: $CI_PIPELINE_SOURCE == 'push' && ($CI_COMMIT_BRANCH == 'develop' || $CI_COMMIT_BRANCH == 'stable')
@@ -181,6 +171,18 @@ frontend_tests:
         - 'sharkey-locales/**/*'
         - 'cypress/**/*'
         - 'assets/**/*'
+
+misskey-js_tests:
+  <<: *test_common
+  script:
+    - pnpm run --filter misskey-js build
+    - pnpm run --filter misskey-js test
+
+megalodon_tests:
+  <<: *test_common
+  script:
+    - pnpm run --filter megalodon build
+    - pnpm run --filter megalodon test
 
 get_image_tag:
   <<: *deploy_common

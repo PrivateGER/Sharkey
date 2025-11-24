@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { In } from 'typeorm';
 import { UnrecoverableError } from 'bullmq';
-import promiseLimit from 'promise-limit';
+import { ModuleRef } from '@nestjs/core';
 import { DI } from '@/di-symbols.js';
 import type { UsersRepository, PollsRepository, EmojisRepository, NotesRepository, MiMeta } from '@/models/_.js';
 import type { Config } from '@/config.js';
@@ -31,6 +31,10 @@ import { renderInlineError } from '@/misc/render-inline-error.js';
 import { extractMediaFromHtml } from '@/core/activitypub/misc/extract-media-from-html.js';
 import { extractMediaFromMfm } from '@/core/activitypub/misc/extract-media-from-mfm.js';
 import { getContentByType } from '@/core/activitypub/misc/get-content-by-type.js';
+import { promiseMap } from '@/misc/promise-map.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
+import { CustomEmojiService, encodeEmojiKey, isValidEmojiName } from '@/core/CustomEmojiService.js';
+import { TimeService } from '@/global/TimeService.js';
 import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, IApDocument, isLink } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
@@ -38,19 +42,22 @@ import { ApDbResolverService } from '../ApDbResolverService.js';
 import { ApResolverService } from '../ApResolverService.js';
 import { ApAudienceService } from '../ApAudienceService.js';
 import { ApUtilityService } from '../ApUtilityService.js';
-import { ApPersonService } from './ApPersonService.js';
 import { extractApHashtags } from './tag.js';
 import { ApMentionService } from './ApMentionService.js';
 import { ApQuestionService } from './ApQuestionService.js';
 import { ApImageService } from './ApImageService.js';
+import type { ApPersonService } from './ApPersonService.js';
 import type { Resolver } from '../ApResolverService.js';
-import type { IObject, IPost } from '../type.js';
+import type { IObject, IPost, IApEmoji } from '../type.js';
 
 @Injectable()
-export class ApNoteService {
+export class ApNoteService implements OnModuleInit {
+	private apPersonService: ApPersonService;
 	private logger: Logger;
 
 	constructor(
+		private readonly moduleRef: ModuleRef,
+
 		@Inject(DI.config)
 		private config: Config,
 
@@ -73,10 +80,6 @@ export class ApNoteService {
 		private apMfmService: ApMfmService,
 		private apResolverService: ApResolverService,
 
-		// 循環参照のため / for circular dependency
-		@Inject(forwardRef(() => ApPersonService))
-		private apPersonService: ApPersonService,
-
 		private utilityService: UtilityService,
 		private apAudienceService: ApAudienceService,
 		private apMentionService: ApMentionService,
@@ -89,8 +92,15 @@ export class ApNoteService {
 		private apDbResolverService: ApDbResolverService,
 		private apLoggerService: ApLoggerService,
 		private readonly apUtilityService: ApUtilityService,
+		private readonly customEmojiService: CustomEmojiService,
+		private readonly timeService: TimeService,
 	) {
 		this.logger = this.apLoggerService.logger;
+	}
+
+	@bindThis
+	public onModuleInit() {
+		this.apPersonService = this.moduleRef.get('ApPersonService');
 	}
 
 	@bindThis
@@ -198,7 +208,7 @@ export class ApNoteService {
 		const uri = getOneApId(note.attributedTo);
 
 		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
-		// eslint-disable-next-line no-param-reassign
+
 		actor ??= await this.apPersonService.fetchPerson(uri) as MiRemoteUser | undefined;
 		if (actor && actor.isSuspended) {
 			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `failed to create note ${entryUri}: actor ${uri} has been suspended`);
@@ -230,7 +240,6 @@ export class ApNoteService {
 		}
 		//#endregion
 
-		// eslint-disable-next-line no-param-reassign
 		actor ??= await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
 
 		// 解決した投稿者が凍結されていたらスキップ
@@ -268,7 +277,7 @@ export class ApNoteService {
 
 					return x;
 				})
-				.catch(async err => {
+				.catch(err => {
 					this.logger.warn(`error ${renderInlineError(err)} fetching inReplyTo ${note.inReplyTo} for note ${entryUri}`);
 					throw new IdentifiableError('1ebf0a96-2769-4973-a6c2-3dcbad409dff', `failed to create note ${entryUri}: could not fetch inReplyTo ${note.inReplyTo}`, true, err);
 				})
@@ -285,14 +294,14 @@ export class ApNoteService {
 			const poll = await this.pollsRepository.findOneByOrFail({ noteId: reply.id });
 
 			const tryCreateVote = async (name: string, index: number): Promise<null> => {
-				if (poll.expiresAt && Date.now() > new Date(poll.expiresAt).getTime()) {
+				if (poll.expiresAt && this.timeService.now > new Date(poll.expiresAt).getTime()) {
 					this.logger.warn(`vote to expired poll from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 				} else if (index >= 0) {
 					this.logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 					await this.pollService.vote(actor, reply, index);
 
 					// リモートフォロワーにUpdate配信
-					this.pollService.deliverQuestionUpdate(reply);
+					trackPromise(this.pollService.deliverQuestionUpdate(reply));
 				}
 				return null;
 			};
@@ -447,7 +456,7 @@ export class ApNoteService {
 
 					return x;
 				})
-				.catch(async err => {
+				.catch(err => {
 					this.logger.warn(`error ${renderInlineError(err)} fetching inReplyTo ${note.inReplyTo} for note ${entryUri}`);
 					throw new IdentifiableError('1ebf0a96-2769-4973-a6c2-3dcbad409dff', `failed to update note ${entryUri}: could not fetch inReplyTo ${note.inReplyTo}`, true, err);
 				})
@@ -464,14 +473,14 @@ export class ApNoteService {
 			const poll = await this.pollsRepository.findOneByOrFail({ noteId: reply.id });
 
 			const tryCreateVote = async (name: string, index: number): Promise<null> => {
-				if (poll.expiresAt && Date.now() > new Date(poll.expiresAt).getTime()) {
+				if (poll.expiresAt && this.timeService.now > new Date(poll.expiresAt).getTime()) {
 					this.logger.warn(`vote to expired poll from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 				} else if (index >= 0) {
 					this.logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 					await this.pollService.vote(actor, reply, index);
 
 					// リモートフォロワーにUpdate配信
-					this.pollService.deliverQuestionUpdate(reply);
+					trackPromise(this.pollService.deliverQuestionUpdate(reply));
 				}
 				return null;
 			};
@@ -554,7 +563,7 @@ export class ApNoteService {
 			const createFrom = haveSameAuthority ? value : uri;
 			return await this.createNote(createFrom, undefined, options.resolver, true);
 		} finally {
-			unlock();
+			await unlock();
 		}
 	}
 
@@ -563,60 +572,64 @@ export class ApNoteService {
 		// eslint-disable-next-line no-param-reassign
 		host = this.utilityService.toPuny(host);
 
-		const eomjiTags = toArray(tags).filter(isEmoji);
+		const eomjiTags: (IApEmoji & { name: string })[] = toArray(tags)
+			.filter(tag => isEmoji(tag))
+			.map(tag => ({
+				...tag,
+				name: tag.name.replaceAll(':', ''),
+			}))
+			.filter(tag => isValidEmojiName(tag.name));
 
-		const existingEmojis = await this.emojisRepository.findBy({
-			host,
-			name: In(eomjiTags.map(tag => tag.name.replaceAll(':', ''))),
-		});
+		const emojiKeys = eomjiTags.map(tag => encodeEmojiKey({ name: tag.name, host }));
+		const existingEmojis = await this.customEmojiService.emojisByKeyCache.fetchMany(emojiKeys);
 
-		return await Promise.all(eomjiTags.map(async tag => {
+		return await promiseMap(eomjiTags, async tag => {
 			const name = tag.name.replaceAll(':', '');
 			tag.icon = toSingle(tag.icon);
 
-			const exists = existingEmojis.find(x => x.name === name);
+			const exists = existingEmojis.values.find(x => x.name === name);
 
 			if (exists) {
 				if ((exists.updatedAt == null)
-					|| (tag.id != null && exists.uri == null)
-					|| (new Date(tag.updated) > exists.updatedAt)
+					|| (tag.id != null && exists.uri == null) // TODO should we check for ID changes?
+					|| (new Date(tag.updated) > exists.updatedAt) // TODO make sure tag.updated actually exists
 					|| (tag.icon.url !== exists.originalUrl)
+					// TODO check for license changes
+					// TODO check for sensitive changes
 				) {
-					await this.emojisRepository.update({
+					return await this.customEmojiService.updateEmoji({
 						host,
 						name,
 					}, {
 						uri: tag.id,
 						originalUrl: tag.icon.url,
 						publicUrl: tag.icon.url,
-						updatedAt: new Date(),
+						updatedAt: this.timeService.date,
 						// _misskey_license が存在しなければ `null`
 						license: (tag._misskey_license?.freeText ?? null),
 					});
-
-					const emoji = await this.emojisRepository.findOneBy({ host, name });
-					if (emoji == null) throw new Error(`emoji update failed: ${name}:${host}`);
-					return emoji;
 				}
 
 				return exists;
 			}
 
-			this.logger.info(`register emoji host=${host}, name=${name}`);
-
-			return await this.emojisRepository.insertOne({
+			return await this.customEmojiService.createEmoji({
 				id: this.idService.gen(),
 				host,
 				name,
 				uri: tag.id,
 				originalUrl: tag.icon.url,
 				publicUrl: tag.icon.url,
-				updatedAt: new Date(),
+				updatedAt: this.timeService.date,
 				aliases: [],
+				localOnly: false,
+				isSensitive: tag.sensitive === true,
 				// _misskey_license が存在しなければ `null`
-				license: (tag._misskey_license?.freeText ?? null)
+				license: (tag._misskey_license?.freeText ?? null),
 			});
-		}));
+		}, {
+			limit: 4,
+		});
 	}
 
 	/**
@@ -680,7 +693,7 @@ export class ApNoteService {
 			}
 		};
 
-		const results = await Promise.all(Array.from(quoteUris).map(u => resolveQuote(u)));
+		const results = await promiseMap(quoteUris, async u => resolveQuote(u), { limit: 2 });
 
 		// Success - return the quote
 		const quote = results.find(r => typeof(r) === 'object');
@@ -742,14 +755,10 @@ export class ApNoteService {
 
 		// Resolve all files w/ concurrency 2.
 		// This prevents one big file from blocking the others.
-		const limiter = promiseLimit<MiDriveFile | null>(2);
-		const results = await Promise
-			.all(Array
-				.from(attachments.values())
-				.map(attach => limiter(async () => {
-					attach.sensitive ??= note.sensitive;
-					return await this.resolveImage(actor, attach);
-				})));
+		const results = await promiseMap(attachments.values(), async attach => {
+			attach.sensitive ??= note.sensitive;
+			return await this.resolveImage(actor, attach);
+		}, { limit: 2 });
 
 		// Process results
 		let hasFileError = false;

@@ -28,6 +28,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { emojiRegex } from '@/misc/emoji-regex.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { TimeService } from '@/global/TimeService.js';
 
 const MAX_ROOM_MEMBERS = 30;
 const MAX_REACTIONS_PER_MESSAGE = 100;
@@ -91,6 +92,7 @@ export class ChatService {
 		private userFollowingService: UserFollowingService,
 		private customEmojiService: CustomEmojiService,
 		private moderationLogService: ModerationLogService,
+		private readonly timeService: TimeService,
 	) {
 	}
 
@@ -225,7 +227,7 @@ export class ChatService {
 
 		// 3秒経っても既読にならなかったらイベント発行
 		if (this.userEntityService.isLocalUser(toUser)) {
-			setTimeout(async () => {
+			this.timeService.startTimer(async () => {
 				const marker = await this.redisClient.get(`newUserChatMessageExists:${toUser.id}:${fromUser.id}`);
 
 				if (marker == null) return; // 既読
@@ -285,7 +287,7 @@ export class ChatService {
 		redisPipeline.exec();
 
 		// 3秒経っても既読にならなかったらイベント発行
-		setTimeout(async () => {
+		this.timeService.startTimer(async () => {
 			const redisPipeline = this.redisClient.pipeline();
 			for (const membership of membershipsOtherThanMe) {
 				redisPipeline.get(`newRoomChatMessageExists:${membership.userId}:${toRoom.id}`);
@@ -603,12 +605,12 @@ export class ChatService {
 
 	@bindThis
 	public async findMyRoomById(ownerId: MiUser['id'], roomId: MiChatRoom['id']) {
-		return this.chatRoomsRepository.findOneBy({ id: roomId, ownerId: ownerId });
+		return await this.chatRoomsRepository.findOneBy({ id: roomId, ownerId: ownerId });
 	}
 
 	@bindThis
 	public async findRoomById(roomId: MiChatRoom['id']) {
-		return this.chatRoomsRepository.findOne({ where: { id: roomId }, relations: ['owner'] });
+		return await this.chatRoomsRepository.findOne({ where: { id: roomId }, relations: ['owner'] });
 	}
 
 	@bindThis
@@ -820,7 +822,7 @@ export class ChatService {
 			reaction = normalizeEmojiString(reaction_);
 		} else {
 			const name = custom[1];
-			const emoji = (await this.customEmojiService.localEmojisCache.fetch()).get(name);
+			const emoji = await this.customEmojiService.emojisByKeyCache.fetchMaybe(name);
 
 			if (emoji == null) {
 				throw new Error('no such emoji');

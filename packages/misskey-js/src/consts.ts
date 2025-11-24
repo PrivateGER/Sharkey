@@ -9,7 +9,6 @@ import type {
 	Role,
 	ReversiGameDetailed,
 	SystemWebhook,
-	UserLite,
 	ChatRoom,
 } from './autogen/models.js';
 
@@ -92,6 +91,7 @@ export const permissions = [
 	'write:admin:unset-user-banner',
 	'write:admin:unsuspend-user',
 	'write:admin:reject-quotes',
+	'write:admin:restart-migration',
 	'write:admin:meta',
 	'write:admin:user-note',
 	'write:admin:roles',
@@ -337,6 +337,11 @@ export type ModerationLogPayloads = {
 		userHost: string | null;
 	};
 	resetPassword: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+	};
+	restartMigration: {
 		userId: string;
 		userUsername: string;
 		userHost: string | null;

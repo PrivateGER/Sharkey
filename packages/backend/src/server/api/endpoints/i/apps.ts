@@ -116,7 +116,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const tokens = await query.getMany();
 
-			const users = await this.cacheService.getUsers(tokens.flatMap(token => token.granteeIds));
+			const users = await this.cacheService.findUsersById(tokens.flatMap(token => token.granteeIds));
 			const packedUsers = await this.userEntityService.packMany(Array.from(users.values()), me);
 			const packedUserMap = new Map(packedUsers.map(u => [u.id, u]));
 

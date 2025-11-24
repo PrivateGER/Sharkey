@@ -18,6 +18,7 @@ import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { DI } from '@/di-symbols.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -261,6 +262,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private noteCreateService: NoteCreateService,
+		private readonly timeService: TimeService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (ps.text && ps.text.length > this.config.maxNoteLength) {
@@ -331,11 +333,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.poll) {
 				if (typeof ps.poll.expiresAt === 'number') {
-					if (ps.poll.expiresAt < Date.now()) {
+					if (ps.poll.expiresAt < this.timeService.now) {
 						throw new ApiError(meta.errors.cannotCreateAlreadyExpiredPoll);
 					}
 				} else if (typeof ps.poll.expiredAfter === 'number') {
-					ps.poll.expiresAt = Date.now() + ps.poll.expiredAfter;
+					ps.poll.expiresAt = this.timeService.now + ps.poll.expiredAfter;
 				}
 			}
 
@@ -351,7 +353,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// 投稿を作成
 			try {
 				const note = await this.noteCreateService.create(me, {
-					createdAt: new Date(),
+					createdAt: this.timeService.date,
 					files: files,
 					poll: ps.poll ? {
 						choices: ps.poll.choices,

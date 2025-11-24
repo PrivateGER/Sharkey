@@ -34,6 +34,7 @@
 	//#region Detect language & fetch translations
 	if (!localStorage.getItem('locale')) {
 		const supportedLangs = LANGS;
+		/** @type {string | null | undefined} */
 		let lang = localStorage.getItem('lang');
 		if (lang == null || !supportedLangs.includes(lang)) {
 			if (supportedLangs.includes(navigator.language)) {
@@ -154,12 +155,21 @@
 		document.head.appendChild(style);
 	}
 
+	/**
+	 * @param {string} styleText
+	 * @returns {Promise<void>}
+	 */
 	async function addStyle(styleText) {
 		let css = document.createElement('style');
 		css.appendChild(document.createTextNode(styleText));
 		document.head.appendChild(css);
 	}
 
+	/**
+	 * @param {string} code
+	 * @param {any} [details]
+	 * @returns {Promise<void>}
+	 */
 	async function renderError(code, details) {
 		// Cannot set property 'innerHTML' of null を回避
 		if (document.readyState === 'loading') {
@@ -233,7 +243,7 @@
 			<code>ERROR CODE: ${code}</code>
 		</summary>
 		<code>${details.toString()} ${JSON.stringify(details)}</code>`;
-		errorsElement.appendChild(detailsElement);
+		errorsElement?.appendChild(detailsElement);
 		addStyle(`
 		* {
 			font-family: BIZ UDGothic, Roboto, HelveticaNeue, Arial, sans-serif;

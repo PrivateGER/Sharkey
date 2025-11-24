@@ -11,6 +11,7 @@ import { IdService } from '@/core/IdService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { DI } from '@/di-symbols.js';
+import { TimeService } from '@/global/TimeService.js';
 import { CacheService } from '@/core/CacheService.js';
 
 export const meta = {
@@ -77,12 +78,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private idService: IdService,
 		private notificationService: NotificationService,
+		private readonly timeService: TimeService,
 		private readonly cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			// Validate grantees
 			if (ps.grantees && ps.grantees.length > 0) {
-				const grantees = await this.cacheService.getUsers(ps.grantees);
+				const grantees = await this.cacheService.findUsersById(ps.grantees);
 
 				if (grantees.size !== ps.grantees.length) {
 					throw new ApiError(meta.errors.noSuchUser);
@@ -98,7 +100,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// Generate access token
 			const accessToken = secureRndstr(32);
 
-			const now = new Date();
+			const now = this.timeService.date;
 
 			// Insert access token doc
 			await this.accessTokensRepository.insert({

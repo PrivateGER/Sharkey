@@ -11080,6 +11080,10 @@ export interface Locale extends ILocale {
          * Removed a relay
          */
         "removeRelay": string;
+        /**
+         * Restarted migration for a user
+         */
+        "restartMigration": string;
     };
     "_fileViewer": {
         /**
@@ -13673,6 +13677,42 @@ export interface Locale extends ILocale {
      * Enable all write/edit permissions
      */
     "enableAllWrite": string;
+    /**
+     * New account
+     */
+    "newAccount": string;
+    /**
+     * Also known as
+     */
+    "alsoKnownAs": string;
+    /**
+     * Migrated at
+     */
+    "accountMigratedAt": string;
+    /**
+     * Migrated to
+     */
+    "accountMigratedTo": string;
+    /**
+     * Migration URI
+     */
+    "accountMigrationUri": string;
+    /**
+     * Restart account migration
+     */
+    "restartMigration": string;
+    /**
+     * Account migration was last attempted {date}. If the migration failed or was incomplete, then you may click this button to restart the process.
+     */
+    "restartMigrationDescription": ParameterizedString<"date">;
+    /**
+     * Are you sure you want to restart this account migration?
+     */
+    "restartMigrationConfirm": string;
+    /**
+     * Background queue
+     */
+    "backgroundQueue": string;
 }
 declare const locales: {
     [lang: string]: Locale;
