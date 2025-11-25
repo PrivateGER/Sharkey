@@ -41,11 +41,11 @@ export type UpdateNoteJob = {
 };
 
 export type UpdateAccessTokenJob = {
-	lastUsedAt: Date;
+	lastUsedAt?: Date;
 };
 
 export type UpdateAntennaJob = {
-	isActive: boolean,
+	isActive?: boolean,
 	lastUsedAt?: Date,
 };
 
@@ -93,13 +93,13 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				collapse: (oldJob, newJob) => ({
 					latestRequestReceivedAt: maxDate(oldJob.latestRequestReceivedAt, newJob.latestRequestReceivedAt),
 					notRespondingSince: minDate(oldJob.notRespondingSince, newJob.notRespondingSince),
-					shouldUnsuspend: oldJob.shouldUnsuspend || newJob.shouldUnsuspend,
-					shouldSuspendGone: oldJob.shouldSuspendGone || newJob.shouldSuspendGone,
-					shouldSuspendNotResponding: oldJob.shouldSuspendNotResponding || newJob.shouldSuspendNotResponding,
-					notesCountDelta: (oldJob.notesCountDelta ?? 0) + (newJob.notesCountDelta ?? 0),
-					usersCountDelta: (oldJob.usersCountDelta ?? 0) + (newJob.usersCountDelta ?? 0),
-					followingCountDelta: (oldJob.followingCountDelta ?? 0) + (newJob.followingCountDelta ?? 0),
-					followersCountDelta: (oldJob.followersCountDelta ?? 0) + (newJob.followersCountDelta ?? 0),
+					shouldUnsuspend: or(oldJob.shouldUnsuspend, newJob.shouldUnsuspend),
+					shouldSuspendGone: or(oldJob.shouldSuspendGone, newJob.shouldSuspendGone),
+					shouldSuspendNotResponding: or(oldJob.shouldSuspendNotResponding, newJob.shouldSuspendNotResponding),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
+					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
+					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
 				perform: async (id, job) => {
 					// Have to check this because all properties are optional
@@ -158,9 +158,9 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				collapse: (oldJob, newJob) => ({
 					updatedAt: maxDate(oldJob.updatedAt, newJob.updatedAt),
 					lastActiveDate: maxDate(oldJob.lastActiveDate, newJob.lastActiveDate),
-					notesCountDelta: (oldJob.notesCountDelta ?? 0) + (newJob.notesCountDelta ?? 0),
-					followingCountDelta: (oldJob.followingCountDelta ?? 0) + (newJob.followingCountDelta ?? 0),
-					followersCountDelta: (oldJob.followersCountDelta ?? 0) + (newJob.followersCountDelta ?? 0),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
+					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
 				perform:
 					async (id, job) => {
@@ -197,9 +197,9 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				timeout: oneMinuteInterval,
 				limiter: 4, // High concurrency - this queue gets a lot of activity
 				collapse: (oldJob, newJob) => ({
-					repliesCountDelta: (oldJob.repliesCountDelta ?? 0) + (newJob.repliesCountDelta ?? 0),
-					renoteCountDelta: (oldJob.renoteCountDelta ?? 0) + (newJob.renoteCountDelta ?? 0),
-					clippedCountDelta: (oldJob.clippedCountDelta ?? 0) + (newJob.clippedCountDelta ?? 0),
+					repliesCountDelta: sum(oldJob.repliesCountDelta, newJob.repliesCountDelta),
+					renoteCountDelta: sum(oldJob.renoteCountDelta, newJob.renoteCountDelta),
+					clippedCountDelta: sum(oldJob.clippedCountDelta, newJob.clippedCountDelta),
 				}),
 				perform: async (id, job) => {
 					// Have to check this because all properties are optional
@@ -236,7 +236,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				timeout: fiveMinuteInterval,
 				limiter: 4,
 				collapse: (oldJob, newJob) => ({
-					isActive: oldJob.isActive || newJob.isActive,
+					isActive: or(oldJob.isActive, newJob.isActive),
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
 				perform: async (id, job) => await this.antennaService.updateAntenna(id, {
@@ -288,6 +288,8 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.dispose();
 	}
 }
+
+// TODO promote these to utilities
 
 function maxDate(first: Date, second: Date): Date;
 function maxDate(first: Date | null, second: Date | null): Date | null;
@@ -342,3 +344,48 @@ function minDate(first: Date | null | undefined, second: Date | null | undefined
 		: second;
 }
 
+function sum(first: number, second: number): number;
+function sum(first: number | null, second: number | null): number | null;
+function sum(first: number | undefined, second: number | undefined): number | undefined;
+function sum(first: number | null | undefined, second: number | null | undefined): number | null | undefined;
+
+function sum(first: number | null | undefined, second: number | null | undefined): number | null | undefined {
+	// If we only have one entry, then the other is the result byDefault
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely high, and is therefore higher than any other number.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both numbers are defined, then add directly.
+	return first + second;
+}
+
+function or(first: boolean, second: boolean): boolean;
+function or(first: boolean | null, second: boolean | null): boolean | null;
+function or(first: boolean | undefined, second: boolean | undefined): boolean | undefined;
+function or(first: boolean | null | undefined, second: boolean | null | undefined): boolean | null | undefined;
+
+function or(first: boolean | null | undefined, second: boolean | null | undefined): boolean | null | undefined {
+	// If we only have one entry, then the other is the result byDefault
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely true, and is therefore truer than any other boolean.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both booleans are defined, then compare directly.
+	return first || second;
+}
