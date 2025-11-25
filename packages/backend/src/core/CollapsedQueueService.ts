@@ -13,6 +13,7 @@ import { DI } from '@/di-symbols.js';
 import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/CacheManagementService.js';
 import { AntennaService } from '@/core/AntennaService.js';
 import { CacheService } from '@/core/CacheService.js';
+import type { DataSource } from 'typeorm';
 
 export type UpdateInstanceJob = {
 	latestRequestReceivedAt?: Date,
@@ -77,6 +78,9 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		@Inject(DI.followingsRepository)
 		private readonly followingsRepository: FollowingsRepository,
 
+		@Inject(DI.db)
+		private readonly db: DataSource,
+
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly internalEventService: InternalEventService,
 		private readonly antennaService: AntennaService,
@@ -101,11 +105,10 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
-				perform: async (id, job) => {
-					// Have to check this because all properties are optional
-					if (
-						job.latestRequestReceivedAt ||
-						job.notRespondingSince !== undefined ||
+				perform: async (host, job) => {
+					// Avoid empty UPDATE statements
+					if (!(job.latestRequestReceivedAt ||
+						job.notRespondingSince !== undefined || // This one allows null
 						job.shouldSuspendNotResponding ||
 						job.shouldSuspendGone ||
 						job.shouldUnsuspend ||
@@ -113,39 +116,95 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 						job.usersCountDelta ||
 						job.followingCountDelta ||
 						job.followersCountDelta
-					) {
-						await this.federatedInstanceService.update(id, {
-							// Direct update if defined
-							latestRequestReceivedAt: job.latestRequestReceivedAt,
-
-							// null (responding) > Date (not responding)
-							notRespondingSince: job.latestRequestReceivedAt
-								? null
-								: job.notRespondingSince,
-
-							// false (responding) > true (not responding)
-							isNotResponding: job.latestRequestReceivedAt
-								? false
-								: job.notRespondingSince
-									? true
-									: undefined,
-
-							// gone > none > auto
-							suspensionState: job.shouldSuspendGone
-								? 'goneSuspended'
-								: job.shouldUnsuspend
-									? 'none'
-									: job.shouldSuspendNotResponding
-										? 'autoSuspendedForNotResponding'
-										: undefined,
-
-							// Increment if defined
-							notesCount: job.notesCountDelta ? () => `"notesCount" + ${job.notesCountDelta}` : undefined,
-							usersCount: job.usersCountDelta ? () => `"usersCount" + ${job.usersCountDelta}` : undefined,
-							followingCount: job.followingCountDelta ? () => `"followingCount" + ${job.followingCountDelta}` : undefined,
-							followersCount: job.followersCountDelta ? () => `"followersCount" + ${job.followersCountDelta}` : undefined,
-						});
+					)) {
+						// TODO return a "skipped" sentinel
+						return;
 					}
+
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "instance" i');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.latestRequestReceivedAt) {
+						sets.add('i."latestRequestReceivedAt" = GREATEST(i."latestRequestReceivedAt", $?)', job.latestRequestReceivedAt);
+					}
+
+					// null (responding) > Date (not responding)
+					if (job.notRespondingSince != null) {
+						sets.add(`
+							i."notRespondingSince" =
+								CASE
+									WHEN "notRespondingSince" IS NULL THEN NULL
+									ELSE LEAST("notRespondingSince", $?)
+								END
+						`, job.notRespondingSince);
+					} else if (job.notRespondingSince === null) {
+						sets.add('i."notRespondingSince" = NULL');
+					}
+
+					// isNotResponding derives from latestRequestReceivedAt and notRespondingSince
+					if (job.latestRequestReceivedAt || job.notRespondingSince !== undefined) {
+						if (job.latestRequestReceivedAt || job.notRespondingSince === null) {
+							sets.add('i."isNotResponding" = false');
+						} else {
+							sets.add('i."isNotResponding" = true');
+						}
+					}
+
+					// manual > gone > none > auto
+					if (job.shouldSuspendGone) {
+						sets.add(`
+							i."suspensionState" =
+								CASE
+									WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									ELSE 'goneSuspended'
+								END
+						`);
+					} else if (job.shouldUnsuspend) {
+						sets.add(`
+							i."suspensionState" =
+								CASE
+									WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									WHEN i."suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+									ELSE 'none'
+								END
+						`);
+					} else if (job.shouldSuspendNotResponding) {
+						sets.add(`
+							i."suspensionState" =
+								CASE
+										WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+										WHEN i."suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+										WHEN i."notRespondingSince" IS NULL THEN 'none'
+										ELSE 'autoSuspendedForNotResponding'
+								END
+						`);
+					}
+
+					if (job.notesCountDelta) {
+						sets.add('i."notesCount" + $?', job.notesCountDelta);
+					}
+
+					if (job.usersCountDelta) {
+						sets.add('i."usersCount" + $?', job.usersCountDelta);
+					}
+
+					if (job.followersCountDelta) {
+						sets.add('i."followersCount" + $?', job.followersCountDelta);
+					}
+
+					if (job.followingCountDelta) {
+						sets.add('i."followingCount" + $?', job.followingCountDelta);
+					}
+
+					sb.add('WHERE i."host" = $?', host);
+					const query = sb.build();
+
+					// Update manually, then use service to refresh & sync
+					await this.db.query(query.sql, query.parameters);
+					await this.federatedInstanceService.refresh('host');
 				},
 			},
 		);
@@ -388,4 +447,77 @@ function or(first: boolean | null | undefined, second: boolean | null | undefine
 
 	// If both booleans are defined, then compare directly.
 	return first || second;
+}
+
+class SqlBuilder {
+	private readonly lines: string[] = [];
+	private readonly parameters: unknown[] = [];
+	private nextVarId = 1;
+
+	constructor() {}
+
+	private getNextReplacement(): string {
+		const replacement = '$' + this.nextVarId;
+		this.nextVarId++;
+		return replacement;
+	}
+
+	// https://typeorm.io/docs/data-source/data-source-api/
+	public add(sql: string, ...params: unknown[]): void {
+		// Populate the variable number for all parameters
+		const namedParams = new Map<string, string>();
+		sql = sql.replaceAll(/\$\?(\d+\b)?/g, match => {
+			// Named variable - store & reuse the mapping
+			if (match[1]) {
+				let name = namedParams.get(match[1]);
+				if (name == null) {
+					name = this.getNextReplacement();
+					namedParams.set(match[1], name);
+				}
+				return name;
+			}
+
+			// Unnamed variable
+			return this.getNextReplacement();
+		});
+
+		this.lines.push(sql);
+
+		this.parameters.push(...params);
+	}
+
+	public list(): SqlListBuilder {
+		return new SqlListBuilder(this, '    ');
+	}
+
+	public build() {
+		return {
+			sql: this.lines.join('\n'),
+			parameters: this.parameters,
+		};
+	}
+}
+
+class SqlListBuilder {
+	private isFirst = true;
+
+	constructor(
+		private readonly sqlBuilder: SqlBuilder,
+		private readonly indent: string,
+	) {}
+
+	add(sql: string, ...params: unknown[]): void {
+		if (this.isFirst) {
+			this.isFirst = false;
+		} else {
+			sql += ', ';
+		}
+
+		sql += this.indent;
+		this.sqlBuilder.add(sql, ...params);
+	}
+
+	public list(): SqlListBuilder {
+		return new SqlListBuilder(this.sqlBuilder, this.indent + '    ');
+	}
 }
