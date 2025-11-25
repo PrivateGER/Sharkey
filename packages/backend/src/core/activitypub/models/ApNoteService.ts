@@ -628,7 +628,7 @@ export class ApNoteService implements OnModuleInit {
 				license: (tag._misskey_license?.freeText ?? null),
 			});
 		}, {
-			limit: 4,
+			limiter: 4,
 		});
 	}
 
@@ -693,7 +693,7 @@ export class ApNoteService implements OnModuleInit {
 			}
 		};
 
-		const results = await promiseMap(quoteUris, async u => resolveQuote(u), { limit: 2 });
+		const results = await promiseMap(quoteUris, async u => resolveQuote(u), { limiter: 2 });
 
 		// Success - return the quote
 		const quote = results.find(r => typeof(r) === 'object');
@@ -758,7 +758,7 @@ export class ApNoteService implements OnModuleInit {
 		const results = await promiseMap(attachments.values(), async attach => {
 			attach.sensitive ??= note.sensitive;
 			return await this.resolveImage(actor, attach);
-		}, { limit: 2 });
+		}, { limiter: 2 });
 
 		// Process results
 		let hasFileError = false;

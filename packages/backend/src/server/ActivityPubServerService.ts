@@ -419,7 +419,7 @@ export class ActivityPubServerService {
 			const inStock = followings.length === limit + 1;
 			if (inStock) followings.pop();
 
-			const renderedFollowers = await promiseMap(followings, async following => this.apRendererService.renderFollowUser(following.followerId), { limit: 4 });
+			const renderedFollowers = await promiseMap(followings, async following => this.apRendererService.renderFollowUser(following.followerId), { limiter: 4 });
 			const rendered = this.apRendererService.renderOrderedCollectionPage(
 				`${partOf}?${url.query({
 					page: 'true',
@@ -516,7 +516,7 @@ export class ActivityPubServerService {
 			const inStock = followings.length === limit + 1;
 			if (inStock) followings.pop();
 
-			const renderedFollowees = await promiseMap(followings, async following => this.apRendererService.renderFollowUser(following.followeeId), { limit: 4 });
+			const renderedFollowees = await promiseMap(followings, async following => this.apRendererService.renderFollowUser(following.followeeId), { limiter: 4 });
 			const rendered = this.apRendererService.renderOrderedCollectionPage(
 				`${partOf}?${url.query({
 					page: 'true',
@@ -573,7 +573,7 @@ export class ActivityPubServerService {
 			.map(pin => pin.note)
 			.filter(note => !note.localOnly && ['public', 'home'].includes(note.visibility) && !isPureRenote(note));
 
-		const renderedNotes = await promiseMap(pinnedNotes, async note => await this.apRendererService.renderNote(note, user), { limit: 4 });
+		const renderedNotes = await promiseMap(pinnedNotes, async note => await this.apRendererService.renderNote(note, user), { limiter: 4 });
 
 		const rendered = this.apRendererService.renderOrderedCollection(
 			`${this.config.url}/users/${userId}/collections/featured`,

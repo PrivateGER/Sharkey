@@ -70,7 +70,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit)
 				.getMany();
 
-			return await promiseMap(followings, async x => await this.channelEntityService.pack(x.followeeId, me), { limit: 4 });
+			return await promiseMap(followings, async x => await this.channelEntityService.pack(x.followeeId, me), { limiter: 4 });
 		});
 	}
 }

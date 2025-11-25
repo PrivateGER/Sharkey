@@ -977,7 +977,7 @@ export class ApPersonService implements OnModuleInit {
 			}
 			return null;
 		}, {
-			limit: 2,
+			limiter: 2,
 		});
 
 		await this.db.transaction(async transactionalEntityManager => {

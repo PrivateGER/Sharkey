@@ -89,7 +89,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 				isPublic: true,
 			});
 
-			return await promiseMap(userLists, async x => await this.userListEntityService.pack(x, me?.id), { limit: 4 });
+			return await promiseMap(userLists, async x => await this.userListEntityService.pack(x, me?.id), { limiter: 4 });
 		});
 	}
 }

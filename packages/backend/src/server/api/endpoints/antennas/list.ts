@@ -53,7 +53,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				userId: me.id,
 			});
 
-			return await promiseMap(antennas, async x => await this.antennaEntityService.pack(x), { limit: 4 });
+			return await promiseMap(antennas, async x => await this.antennaEntityService.pack(x), { limiter: 4 });
 		});
 	}
 }

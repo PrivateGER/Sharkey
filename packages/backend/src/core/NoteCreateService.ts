@@ -894,7 +894,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		const allMentions = extractMentions(tokens);
 		const mentions = new Map(allMentions.map(m => [`${m.username.toLowerCase()}@${m.host?.toLowerCase()}`, m]));
 
-		const allMentionedUsers = await promiseMap(mentions.values(), async m => await this.remoteUserResolveService.resolveUser(m.username, m.host ?? user.host).catch(() => null), { limit: 2 });
+		const allMentionedUsers = await promiseMap(mentions.values(), async m => await this.remoteUserResolveService.resolveUser(m.username, m.host ?? user.host).catch(() => null), { limiter: 2 });
 		const mentionedUsers = new Map(allMentionedUsers.filter(u => u != null).map(u => [u.id, u]));
 
 		return Array.from(mentionedUsers.values());

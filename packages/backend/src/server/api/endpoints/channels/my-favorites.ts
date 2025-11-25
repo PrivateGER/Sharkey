@@ -57,7 +57,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const favorites = await query
 				.getMany();
 
-			return await promiseMap(favorites, async x => await this.channelEntityService.pack(x.channel!, me), { limit: 4 });
+			return await promiseMap(favorites, async x => await this.channelEntityService.pack(x.channel!, me), { limiter: 4 });
 		});
 	}
 }

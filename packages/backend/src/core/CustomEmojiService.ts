@@ -91,10 +91,13 @@ export class CustomEmojiService {
 	constructor(
 		@Inject(DI.redis)
 		private redisClient: Redis.Redis,
+
 		@Inject(DI.config)
 		private config: Config,
+
 		@Inject(DI.emojisRepository)
 		private emojisRepository: EmojisRepository,
+
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
@@ -578,7 +581,7 @@ export class CustomEmojiService {
 	 */
 	@bindThis
 	public async populateEmojis(emojiNames: string[], noteUserHost: string | null): Promise<Record<string, string>> {
-		const emojis = await promiseMap(emojiNames, async x => await this.populateEmoji(x, noteUserHost), { limit: 4 });
+		const emojis = await promiseMap(emojiNames, async x => await this.populateEmoji(x, noteUserHost), { limiter: 4 });
 		const res = {} as Record<string, string>;
 		for (let i = 0; i < emojiNames.length; i++) {
 			const resolvedEmoji = emojis[i];
