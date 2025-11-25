@@ -8,7 +8,7 @@ import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { bindThis } from '@/decorators.js';
 import { callAllAsync } from '@/misc/call-all.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import type { NotesRepository, AccessTokensRepository, MiAntenna, FollowingsRepository } from '@/models/_.js';
+import type { MiAntenna, FollowingsRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/CacheManagementService.js';
 import { AntennaService } from '@/core/AntennaService.js';
@@ -66,12 +66,6 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 	public readonly updateAntennaQueue: ManagedCollapsedQueue<UpdateAntennaJob>;
 
 	constructor(
-		@Inject(DI.notesRepository)
-		private readonly notesRepository: NotesRepository,
-
-		@Inject(DI.accessTokensRepository)
-		private readonly accessTokensRepository: AccessTokensRepository,
-
 		@Inject(DI.followingsRepository)
 		private readonly followingsRepository: FollowingsRepository,
 
@@ -323,9 +317,11 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
 				perform: async (id, job) => {
-					await this.accessTokensRepository.update({ id }, {
-						lastUsedAt: job.lastUsedAt,
-					});
+					await this.db.sql`
+						UPDATE "access_token" a
+						SET a."lastUsedAt" = GREATEST(a."lastUsedAt", ${job.lastUsedAt})
+						WHERE a."id" = ${id}
+					`;
 				},
 			},
 		);
