@@ -282,15 +282,34 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					renoteCountDelta: sum(oldJob.renoteCountDelta, newJob.renoteCountDelta),
 					clippedCountDelta: sum(oldJob.clippedCountDelta, newJob.clippedCountDelta),
 				}),
-				perform: async (id, job) => {
-					// Have to check this because all properties are optional
-					if (job.repliesCountDelta || job.renoteCountDelta || job.clippedCountDelta) {
-						await this.notesRepository.update({ id }, {
-							repliesCount: job.repliesCountDelta ? () => `"repliesCount" + ${job.repliesCountDelta}` : undefined,
-							renoteCount: job.renoteCountDelta ? () => `"renoteCount" + ${job.renoteCountDelta}` : undefined,
-							clippedCount: job.clippedCountDelta ? () => `"clippedCount" + ${job.clippedCountDelta}` : undefined,
-						});
+				perform: async (noteId, job) => {
+					// Avoid empty UPDATE statements
+					if (!(job.repliesCountDelta || job.renoteCountDelta || job.clippedCountDelta)) {
+						return;
 					}
+
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "note" n');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.repliesCountDelta) {
+						sets.add('n."repliesCount" + $?', job.repliesCountDelta);
+					}
+
+					if (job.renoteCountDelta) {
+						sets.add('n."renoteCount" + $?', job.renoteCountDelta);
+					}
+
+					if (job.clippedCountDelta) {
+						sets.add('n."clippedCount" + $?', job.clippedCountDelta);
+					}
+
+					sb.add('WHERE n."id" = $?', noteId);
+					const query = sb.build();
+
+					await this.db.query(query.sql, query.parameters);
 				},
 			},
 		);
