@@ -339,10 +339,33 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					isActive: or(oldJob.isActive, newJob.isActive),
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
-				perform: async (id, job) => await this.antennaService.updateAntenna(id, {
-					isActive: job.isActive,
-					lastUsedAt: job.lastUsedAt,
-				}),
+				perform: async (antennaId, job) => {
+					// Avoid empty UPDATE statements
+					if (!(job.isActive || job.lastUsedAt)) {
+						return;
+					}
+
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "antenna" a');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.isActive) {
+						sets.add('n."isActive" OR $?', job.isActive);
+					}
+
+					if (job.lastUsedAt) {
+						sets.add('i."lastUsedAt" = GREATEST(i."lastUsedAt", $?)', job.lastUsedAt);
+					}
+
+					sb.add('WHERE a."id" = $?', antennaId);
+					const query = sb.build();
+
+					// Manually update and sync caches
+					await this.db.query(query.sql, query.parameters);
+					await this.antennaService.refreshAntenna(antennaId);
+				},
 			},
 		);
 
