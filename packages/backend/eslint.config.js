@@ -122,6 +122,10 @@ export default [
 					'message': 'Cache constructor will produce an unmanaged instance. Use CacheManagementService.createQuantumKVCache() instead.',
 				},
 				{
+					'selector': 'NewExpression[callee.name=\'CollapsedQueue\']',
+					'message': 'Queue constructor will produce an unmanaged instance. Use CacheManagementService.createCollapsedQueue() instead.',
+				},
+				{
 					'selector': 'CallExpression[callee.property.name=\'delete\'][arguments.length=1] > ObjectExpression[properties.length=0]',
 					'message': 'repository.delete({}) will produce a runtime error. Use repository.deleteAll() instead.',
 				},

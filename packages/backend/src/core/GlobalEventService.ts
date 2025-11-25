@@ -277,8 +277,6 @@ export interface InternalEventTypes {
 	userListMemberBulkRemoved: { userListIds: MiUserList['id'][]; memberId: MiUser['id']; };
 	quantumCacheUpdated: { name: string, keys: string[] };
 	quantumCacheReset: { name: string };
-	collapsedQueueDefer: { name: string, key: string, deferred: boolean };
-	collapsedQueueEnqueue: { name: string, key: string, value: unknown };
 }
 
 type EventTypesToEventPayload<T> = EventUnionFromDictionary<UndefinedAsNullAll<SerializedAll<T>>>;

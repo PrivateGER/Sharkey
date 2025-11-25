@@ -7,11 +7,14 @@ import { Injectable } from '@nestjs/common';
 import { GodOfTimeService } from './GodOfTimeService.js';
 import { MockInternalEventService } from './MockInternalEventService.js';
 import { MockRedis } from './MockRedis.js';
-import type * as Redis from 'ioredis';
+import { MockConsole } from './MockConsole.js';
+import { MockEnvService } from './MockEnvService.js';
 import type { QuantumKVOpts } from '@/misc/QuantumKVCache.js';
 import type { RedisKVCacheOpts, RedisSingleCacheOpts, MemoryCacheOpts } from '@/misc/cache.js';
 import type { TimeService } from '@/global/TimeService.js';
 import type { InternalEventService } from '@/global/InternalEventService.js';
+import type * as Redis from 'ioredis';
+import { LoggerService } from '@/core/LoggerService.js';
 import {
 	CacheManagementService,
 	type ManagedMemoryKVCache,
@@ -32,12 +35,14 @@ export class FakeCacheManagementService extends CacheManagementService {
 		redisClient?: Redis.Redis;
 		timeService?: TimeService;
 		internalEventService?: InternalEventService;
+		loggerService?: LoggerService;
 	}) {
 		const timeService = opts?.timeService ?? new GodOfTimeService();
 		const redisClient = opts?.redisClient ?? new MockRedis(timeService);
 		const internalEventService = opts?.internalEventService ?? new MockInternalEventService();
+		const loggerService = opts?.loggerService ?? new LoggerService(new MockConsole(), timeService, new MockEnvService());
 
-		super(redisClient, timeService, internalEventService);
+		super(redisClient, timeService, internalEventService, loggerService);
 	}
 
 	createMemoryKVCache<T>(name: string, optsOrLifetime: number | MemoryCacheOpts): ManagedMemoryKVCache<T> {
