@@ -468,7 +468,7 @@ export class ApPersonService implements OnModuleInit {
 			: null;
 
 		// Register the instance first, to avoid FK errors
-		await this.federatedInstanceService.fetchOrRegister(host);
+		const instance = await this.federatedInstanceService.fetchOrRegister(host);
 
 		try {
 			// Start transaction
@@ -577,13 +577,13 @@ export class ApPersonService implements OnModuleInit {
 
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
-			this.federatedInstanceService.fetchOrRegister(host).then(async i => {
-				await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { usersCountDelta: 1 });
+			{
+				this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, { usersCountDelta: 1 });
 				if (this.meta.enableChartsForFederatedInstances) {
-					this.instanceChart.newUser(i.host);
+					this.instanceChart.newUser(instance.host);
 				}
-				await this.fetchInstanceMetadataService.fetchInstanceMetadataLazy(i);
-			});
+				await this.fetchInstanceMetadataService.fetchInstanceMetadataLazy(instance);
+			}
 		}
 
 		this.usersChart.update(user, true);

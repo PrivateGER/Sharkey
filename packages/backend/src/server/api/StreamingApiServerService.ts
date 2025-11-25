@@ -270,12 +270,11 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 
 			this.#connections.set(connection, this.timeService.now);
 
-			// TODO use collapsed queue
 			const userUpdateIntervalId = user ? this.timeService.startTimer(async () => {
-				await this.usersService.updateLastActiveDate(user);
+				this.usersService.updateLastActiveDate(user);
 			}, 1000 * 60 * 5, { repeated: true }) : null;
 			if (user) {
-				await this.usersService.updateLastActiveDate(user);
+				this.usersService.updateLastActiveDate(user);
 			}
 			const pong = () => {
 				this.#connections.set(connection, this.timeService.now);

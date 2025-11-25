@@ -584,14 +584,15 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
 			if (isRemoteUser(user)) {
-				this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
+				const i = await this.federatedInstanceService.fetchOrRegister(user.host);
+				{
 					if (!this.isRenote(note) || this.isQuote(note)) {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
 					}
 					if (this.meta.enableChartsForFederatedInstances) {
 						this.instanceChart.updateNote(i.host, note, true);
 					}
-				});
+				}
 			}
 		}
 
@@ -604,10 +605,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		if (!this.isRenote(note) || this.isQuote(note)) {
 			// Increment notes count (user)
-			await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { notesCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(user.id, { notesCountDelta: 1 });
 		}
 
-		await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
+		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
 
 		await this.pushToTl(note, user);
 
@@ -617,7 +618,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}, user);
 
 		if (data.reply) {
-			await this.collapsedQueueService.updateNoteQueue.enqueue(data.reply.id, { repliesCountDelta: 1 });
+			this.collapsedQueueService.updateNoteQueue.enqueue(data.reply.id, { repliesCountDelta: 1 });
 		}
 
 		if (data.reply == null) {
@@ -646,7 +647,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (this.isPureRenote(data)) {
-			await this.collapsedQueueService.updateNoteQueue.enqueue(data.renote.id, { renoteCountDelta: 1 });
+			this.collapsedQueueService.updateNoteQueue.enqueue(data.renote.id, { renoteCountDelta: 1 });
 			await this.incRenoteCount(data.renote, user);
 		}
 

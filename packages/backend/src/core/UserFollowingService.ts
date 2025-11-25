@@ -288,26 +288,28 @@ export class UserFollowingService implements OnModuleInit {
 		// Neither followee nor follower has moved.
 		if (!followeeUser.movedToUri && !followerUser.movedToUri) {
 			//#region Increment counts
-			await this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: 1 });
-			await this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: 1 });
 			//#endregion
 
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(follower.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: 1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowing(i.host, true);
 						}
-					});
+					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(followee.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: 1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowers(i.host, true);
 						}
-					});
+					}
 				}
 			}
 			//#endregion
@@ -398,26 +400,28 @@ export class UserFollowingService implements OnModuleInit {
 		// Neither followee nor follower has moved.
 		if (!follower.movedToUri && !followee.movedToUri) {
 			//#region Decrement following / followers counts
-			await this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: -1 });
-			await this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: -1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: -1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: -1 });
 			//#endregion
 
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(follower.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: -1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowing(i.host, false);
 						}
-					});
+					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(followee.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: -1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowers(i.host, false);
 						}
-					});
+					}
 				}
 			}
 			//#endregion

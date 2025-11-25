@@ -28,8 +28,8 @@ export class UserService {
 	}
 
 	@bindThis
-	public async updateLastActiveDate(user: MiUser): Promise<void> {
-		await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { lastActiveDate: this.timeService.date });
+	public updateLastActiveDate(user: MiUser): void {
+		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { lastActiveDate: this.timeService.date });
 	}
 
 	/**
