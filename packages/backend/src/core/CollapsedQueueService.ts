@@ -92,7 +92,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				limiter: 2, // Low concurrency, this table is slow for some reason
 				collapse: (oldJob, newJob) => ({
 					latestRequestReceivedAt: maxDate(oldJob.latestRequestReceivedAt, newJob.latestRequestReceivedAt),
-					notRespondingSince: maxDate(oldJob.notRespondingSince, newJob.notRespondingSince),
+					notRespondingSince: minDate(oldJob.notRespondingSince, newJob.notRespondingSince),
 					shouldUnsuspend: oldJob.shouldUnsuspend || newJob.shouldUnsuspend,
 					shouldSuspendGone: oldJob.shouldSuspendGone || newJob.shouldSuspendGone,
 					shouldSuspendNotResponding: oldJob.shouldSuspendNotResponding || newJob.shouldSuspendNotResponding,
@@ -289,29 +289,56 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 	}
 }
 
-function maxDate(first: Date | undefined, second: Date): Date;
-function maxDate(first: Date, second: Date | undefined): Date;
+function maxDate(first: Date, second: Date): Date;
+function maxDate(first: Date | null, second: Date | null): Date | null;
 function maxDate(first: Date | undefined, second: Date | undefined): Date | undefined;
 function maxDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined;
 
 function maxDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined {
-	if (first !== undefined && second !== undefined) {
-		if (first != null && second != null) {
-			if (first.getTime() > second.getTime()) {
-				return first;
-			} else {
-				return second;
-			}
-		} else {
-			// Null is considered infinitely in the future, and is therefore newer than any date.
-			return null;
-		}
-	} else if (first !== undefined) {
-		return first;
-	} else if (second !== undefined) {
+	// If we only have one entry, then the other is the max by default.
+	if (first === undefined) {
 		return second;
-	} else {
-		// Undefined in considered infinitely in the past, and is therefore older than any date.
-		return undefined;
 	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely in the future, and is therefore newer than any date.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both dates have values, then compare by raw time
+	return first.getTime() > second.getTime()
+		? first
+		: second;
 }
+
+function minDate(first: Date, second: Date): Date;
+function minDate(first: Date | null, second: Date | null): Date | null;
+function minDate(first: Date | undefined, second: Date | undefined): Date | undefined;
+function minDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined;
+
+function minDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined {
+	// If we only have one entry, then the other is the min by default.
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely in the future, and is therefore newer than any date.
+	if (first === null) {
+		return second;
+	}
+	if (second === null) {
+		return first;
+	}
+
+	// If both dates have values, then compare by raw time
+	return first.getTime() < second.getTime()
+		? first
+		: second;
+}
+
