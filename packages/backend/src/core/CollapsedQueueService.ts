@@ -8,7 +8,7 @@ import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { bindThis } from '@/decorators.js';
 import { callAllAsync } from '@/misc/call-all.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import type { UsersRepository, NotesRepository, AccessTokensRepository, MiAntenna, FollowingsRepository } from '@/models/_.js';
+import type { NotesRepository, AccessTokensRepository, MiAntenna, FollowingsRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/CacheManagementService.js';
 import { AntennaService } from '@/core/AntennaService.js';
@@ -66,9 +66,6 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 	public readonly updateAntennaQueue: ManagedCollapsedQueue<UpdateAntennaJob>;
 
 	constructor(
-		@Inject(DI.usersRepository)
-		private readonly usersRepository: UsersRepository,
-
 		@Inject(DI.notesRepository)
 		private readonly notesRepository: NotesRepository,
 
@@ -202,7 +199,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					sb.add('WHERE i."host" = $?', host);
 					const query = sb.build();
 
-					// Update manually, then use service to refresh & sync
+					// Manually update and sync caches
 					await this.db.query(query.sql, query.parameters);
 					await this.federatedInstanceService.refresh('host');
 				},
@@ -222,29 +219,54 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
 				perform:
-					async (id, job) => {
-						// Have to check this because all properties are optional
-						if (job.updatedAt || job.lastActiveDate || job.notesCountDelta || job.followingCountDelta || job.followersCountDelta) {
-							// Updating the user should implicitly mark them as active
-							const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
-							const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(id)).isHibernated;
+					async (userId, job) => {
+						// Avoid empty UPDATE statements
+						if (!(job.updatedAt || job.lastActiveDate || job.notesCountDelta || job.followingCountDelta || job.followersCountDelta)) {
+							return;
+						}
 
-							// Update user before the hibernation cache, because the latter may refresh from DB
-							await this.usersRepository.update({ id }, {
-								updatedAt: job.updatedAt,
-								lastActiveDate,
-								isHibernated: isWakingUp ? false : undefined,
-								notesCount: job.notesCountDelta ? () => `"notesCount" + ${job.notesCountDelta}` : undefined,
-								followingCount: job.followingCountDelta ? () => `"followingCount" + ${job.followingCountDelta}` : undefined,
-								followersCount: job.followersCountDelta ? () => `"followersCount" + ${job.followersCountDelta}` : undefined,
-							});
-							await this.internalEventService.emit('userUpdated', { id });
+						const sb = new SqlBuilder();
+						sb.add('UPDATE "user" u');
+						sb.add('SET');
 
-							// Wake up hibernated users
-							if (isWakingUp) {
-								await this.followingsRepository.update({ followerId: id }, { isFollowerHibernated: false });
-								await this.cacheService.hibernatedUserCache.set(id, false);
-							}
+						const sets = sb.list();
+
+						if (job.updatedAt) {
+							sets.add('u."updatedAt" = GREATEST(u."updatedAt", $?)', job.updatedAt);
+						}
+
+						const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
+						if (lastActiveDate) {
+							sets.add('u."lastActiveDate" = GREATEST(u."lastActiveDate", $?)', lastActiveDate);
+						}
+
+						const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(userId)).isHibernated;
+						if (isWakingUp) {
+							sets.add('u."isHibernated" = false');
+						}
+
+						if (job.notesCountDelta) {
+							sets.add('u."notesCount" + $?', job.notesCountDelta);
+						}
+
+						if (job.followersCountDelta) {
+							sets.add('u."followersCount" + $?', job.followersCountDelta);
+						}
+
+						if (job.followingCountDelta) {
+							sets.add('u."followingCount" + $?', job.followingCountDelta);
+						}
+
+						sb.add('WHERE u."id" = $?', userId);
+						const query = sb.build();
+
+						// Manually update and sync caches
+						await this.db.query(query.sql, query.parameters);
+						await this.internalEventService.emit('userUpdated', { id: userId });
+
+						if (isWakingUp) {
+							// Cache event is covered by user sync above
+							await this.followingsRepository.update({ followerId: userId }, { isFollowerHibernated: false });
 						}
 					},
 			},
