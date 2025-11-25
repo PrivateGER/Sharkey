@@ -394,7 +394,6 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 	public async performAllNow(): Promise<void> {
 		await callAllAsync([
 			async () => await this.updateInstanceQueue.performAllNow(),
-			async () => await this.updateInstanceQueue.performAllNow(),
 			async () => await this.updateUserQueue.performAllNow(),
 			async () => await this.updateNoteQueue.performAllNow(),
 			async () => await this.updateAccessTokenQueue.performAllNow(),
