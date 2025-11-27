@@ -521,8 +521,8 @@ export class NoteEntityService implements OnModuleInit {
 				packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>;
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>;
 				mentionHandles: Record<string, string | undefined>;
-				userFollowings: Map<string, Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>;
-				userBlockers: Map<string, Set<string>>;
+				userFollowings: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>;
+				userBlockers: Set<string>;
 				polls: Map<string, MiPoll>;
 				pollVotes: Map<string, Map<string, MiPollVote[]>>;
 				channels: Map<string, MiChannel>;
@@ -684,8 +684,8 @@ export class NoteEntityService implements OnModuleInit {
 
 		if (!opts.skipHide) {
 			await this.hideNoteAsync(packed, meId, {
-				userFollowings: meId ? opts._hint_?.userFollowings.get(meId) : null,
-				userBlockers: meId ? opts._hint_?.userBlockers.get(meId) : null,
+				userFollowings: opts._hint_?.userFollowings,
+				userBlockers: opts._hint_?.userBlockers,
 				userMutedNotes: opts._hint_?.mutedNotes,
 				userMutedThreads: opts._hint_?.mutedThreads,
 			});
@@ -745,10 +745,9 @@ export class NoteEntityService implements OnModuleInit {
 			// mentionHandles
 			this.getUserHandles(Array.from(mentionedUsers)),
 			// userFollowings
-			// TODO this might be wrong
-			this.cacheService.userFollowingsCache.fetchMany(userIds).then(fs => new Map(fs)),
+			me ? this.cacheService.userFollowingsCache.fetch(me.id) : new Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>(),
 			// userBlockers
-			this.cacheService.userBlockedCache.fetchMany(userIds).then(bs => new Map(bs)),
+			me ? this.cacheService.userBlockedCache.fetch(me.id) : new Set<string>,
 			// polls
 			this.pollsRepository.findBy({ noteId: In(noteIds) })
 				.then(polls => new Map(polls.map(p => [p.noteId, p]))),
