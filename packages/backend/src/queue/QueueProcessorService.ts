@@ -57,6 +57,8 @@ import { HibernateUsersProcessorService } from './processors/HibernateUsersProce
 import { BackgroundTaskProcessorService } from './processors/BackgroundTaskProcessorService.js';
 
 // ref. https://github.com/misskey-dev/misskey/pull/7635#issue-971097019
+// TODO respect 429 rate limit
+// TODO distribute based on number failing to the same host
 function httpRelatedBackoff(attemptsMade: number, type?: string, error?: Error) {
 	// Don't retry permanent errors
 	// https://docs.bullmq.io/guide/retrying-failing-jobs#custom-back-off-strategies
@@ -64,6 +66,7 @@ function httpRelatedBackoff(attemptsMade: number, type?: string, error?: Error) 
 		return -1;
 	}
 
+	// MIN((2^n) - 1 minutes, 8 hours) +- RAND(0%, 20%)
 	const baseDelay = 60 * 1000;	// 1min
 	const maxBackoff = 8 * 60 * 60 * 1000;	// 8hours
 	let backoff = (Math.pow(2, attemptsMade) - 1) * baseDelay;
