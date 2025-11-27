@@ -265,7 +265,9 @@ export class QueueService implements OnModuleInit {
 		await this.deliverQueue.addBulk(Array.from(inboxes.entries(), d => ({
 			name: d[0].replace('https://', '').replace('/inbox', ''),
 			data: {
-				user,
+				user: {
+					id: user.id,
+				},
 				content: contentBody,
 				digest,
 				to: d[0],
@@ -548,43 +550,43 @@ export class QueueService implements OnModuleInit {
 
 	@bindThis
 	public createImportTweetsToDbJob(user: ThinUser, targets: string[], note: MiNote['id'] | null) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importTweetsToDb', { user, target: rel, note }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importTweetsToDb', { user: { id: user.id }, target: rel, note }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportMastoToDbJob(user: ThinUser, targets: string[], note: MiNote['id'] | null) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importMastoToDb', { user, target: rel, note }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importMastoToDb', { user: { id: user.id }, target: rel, note }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportPleroToDbJob(user: ThinUser, targets: string[], note: MiNote['id'] | null) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importPleroToDb', { user, target: rel, note }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importPleroToDb', { user: { id: user.id }, target: rel, note }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportKeyNotesToDbJob(user: ThinUser, targets: string[], note: MiNote['id'] | null) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importKeyNotesToDb', { user, target: rel, note }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importKeyNotesToDb', { user: { id: user.id }, target: rel, note }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportIGToDbJob(user: ThinUser, targets: string[]) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importIGToDb', { user, target: rel }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importIGToDb', { user: { id: user.id }, target: rel }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportFBToDbJob(user: ThinUser, targets: string[]) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importFBToDb', { user, target: rel }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importFBToDb', { user: { id: user.id }, target: rel }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
 	@bindThis
 	public createImportFollowingToDbJob(user: ThinUser, targets: string[], withReplies?: boolean) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importFollowingToDb', { user, target: rel, withReplies }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importFollowingToDb', { user: { id: user.id }, target: rel, withReplies }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
@@ -630,7 +632,7 @@ export class QueueService implements OnModuleInit {
 
 	@bindThis
 	public createImportBlockingToDbJob(user: ThinUser, targets: string[]) {
-		const jobs = targets.map(rel => this.generateToDbJobData('importBlockingToDb', { user, target: rel }));
+		const jobs = targets.map(rel => this.generateToDbJobData('importBlockingToDb', { user: { id: user.id }, target: rel }));
 		return this.dbQueue.addBulk(jobs);
 	}
 
