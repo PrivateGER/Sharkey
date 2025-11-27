@@ -220,38 +220,38 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 						}
 
 						const sb = new SqlBuilder();
-						sb.add('UPDATE "user" u');
+						sb.add('UPDATE "user"');
 						sb.add('SET');
 
 						const sets = sb.list();
 
 						if (job.updatedAt) {
-							sets.add('u."updatedAt" = GREATEST(u."updatedAt", $?)', job.updatedAt);
+							sets.add('"updatedAt" = GREATEST("updatedAt", $?)', job.updatedAt);
 						}
 
 						const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
 						if (lastActiveDate) {
-							sets.add('u."lastActiveDate" = GREATEST(u."lastActiveDate", $?)', lastActiveDate);
+							sets.add('"lastActiveDate" = GREATEST("lastActiveDate", $?)', lastActiveDate);
 						}
 
 						const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(userId)).isHibernated;
 						if (isWakingUp) {
-							sets.add('u."isHibernated" = false');
+							sets.add('"isHibernated" = false');
 						}
 
 						if (job.notesCountDelta) {
-							sets.add('u."notesCount" + $?', job.notesCountDelta);
+							sets.add('"notesCount" + $?', job.notesCountDelta);
 						}
 
 						if (job.followersCountDelta) {
-							sets.add('u."followersCount" + $?', job.followersCountDelta);
+							sets.add('"followersCount" + $?', job.followersCountDelta);
 						}
 
 						if (job.followingCountDelta) {
-							sets.add('u."followingCount" + $?', job.followingCountDelta);
+							sets.add('"followingCount" + $?', job.followingCountDelta);
 						}
 
-						sb.add('WHERE u."id" = $?', userId);
+						sb.add('WHERE "id" = $?', userId);
 						const query = sb.build();
 
 						// Manually update and sync caches
@@ -283,24 +283,24 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					}
 
 					const sb = new SqlBuilder();
-					sb.add('UPDATE "note" n');
+					sb.add('UPDATE "note"');
 					sb.add('SET');
 
 					const sets = sb.list();
 
 					if (job.repliesCountDelta) {
-						sets.add('n."repliesCount" + $?', job.repliesCountDelta);
+						sets.add('"repliesCount" + $?', job.repliesCountDelta);
 					}
 
 					if (job.renoteCountDelta) {
-						sets.add('n."renoteCount" + $?', job.renoteCountDelta);
+						sets.add('"renoteCount" + $?', job.renoteCountDelta);
 					}
 
 					if (job.clippedCountDelta) {
-						sets.add('n."clippedCount" + $?', job.clippedCountDelta);
+						sets.add('"clippedCount" + $?', job.clippedCountDelta);
 					}
 
-					sb.add('WHERE n."id" = $?', noteId);
+					sb.add('WHERE "id" = $?', noteId);
 					const query = sb.build();
 
 					await this.db.query(query.sql, query.parameters);
@@ -318,9 +318,9 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				}),
 				perform: async (id, job) => {
 					await this.db.sql`
-						UPDATE "access_token" a
-						SET a."lastUsedAt" = GREATEST(a."lastUsedAt", ${job.lastUsedAt})
-						WHERE a."id" = ${id}
+						UPDATE "access_token"
+						SET "lastUsedAt" = GREATEST("lastUsedAt", ${job.lastUsedAt})
+						WHERE "id" = ${id}
 					`;
 				},
 			},
@@ -342,20 +342,20 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					}
 
 					const sb = new SqlBuilder();
-					sb.add('UPDATE "antenna" a');
+					sb.add('UPDATE "antenna"');
 					sb.add('SET');
 
 					const sets = sb.list();
 
 					if (job.isActive) {
-						sets.add('n."isActive" OR $?', job.isActive);
+						sets.add('"isActive" OR $?', job.isActive);
 					}
 
 					if (job.lastUsedAt) {
-						sets.add('i."lastUsedAt" = GREATEST(i."lastUsedAt", $?)', job.lastUsedAt);
+						sets.add('"lastUsedAt" = GREATEST("lastUsedAt", $?)', job.lastUsedAt);
 					}
 
-					sb.add('WHERE a."id" = $?', antennaId);
+					sb.add('WHERE "id" = $?', antennaId);
 					const query = sb.build();
 
 					// Manually update and sync caches
