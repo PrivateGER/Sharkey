@@ -113,84 +113,84 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					}
 
 					const sb = new SqlBuilder();
-					sb.add('UPDATE "instance" i');
+					sb.add('UPDATE "instance"');
 					sb.add('SET');
 
 					const sets = sb.list();
 
 					if (job.latestRequestReceivedAt) {
-						sets.add('i."latestRequestReceivedAt" = GREATEST(i."latestRequestReceivedAt", $?)', job.latestRequestReceivedAt);
+						sets.add('"latestRequestReceivedAt" = GREATEST("latestRequestReceivedAt", $?)', job.latestRequestReceivedAt);
 					}
 
 					// null (responding) > Date (not responding)
 					if (job.notRespondingSince != null) {
 						sets.add(`
-							i."notRespondingSince" =
+							"notRespondingSince" =
 								CASE
 									WHEN "notRespondingSince" IS NULL THEN NULL
 									ELSE LEAST("notRespondingSince", $?)
 								END
 						`, job.notRespondingSince);
 					} else if (job.notRespondingSince === null) {
-						sets.add('i."notRespondingSince" = NULL');
+						sets.add('"notRespondingSince" = NULL');
 					}
 
 					// isNotResponding derives from latestRequestReceivedAt and notRespondingSince
 					if (job.latestRequestReceivedAt || job.notRespondingSince !== undefined) {
 						if (job.latestRequestReceivedAt || job.notRespondingSince === null) {
-							sets.add('i."isNotResponding" = false');
+							sets.add('"isNotResponding" = false');
 						} else {
-							sets.add('i."isNotResponding" = true');
+							sets.add('"isNotResponding" = true');
 						}
 					}
 
 					// manual > gone > none > auto
 					if (job.shouldSuspendGone) {
 						sets.add(`
-							i."suspensionState" =
+							"suspensionState" =
 								CASE
-									WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
 									ELSE 'goneSuspended'
 								END
 						`);
 					} else if (job.shouldUnsuspend) {
 						sets.add(`
-							i."suspensionState" =
+							"suspensionState" =
 								CASE
-									WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
-									WHEN i."suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
 									ELSE 'none'
 								END
 						`);
 					} else if (job.shouldSuspendNotResponding) {
 						sets.add(`
-							i."suspensionState" =
+							"suspensionState" =
 								CASE
-										WHEN i."suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
-										WHEN i."suspensionState" = 'goneSuspended' THEN 'goneSuspended'
-										WHEN i."notRespondingSince" IS NULL THEN 'none'
+										WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+										WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+										WHEN "notRespondingSince" IS NULL THEN 'none'
 										ELSE 'autoSuspendedForNotResponding'
 								END
 						`);
 					}
 
 					if (job.notesCountDelta) {
-						sets.add('i."notesCount" + $?', job.notesCountDelta);
+						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
 					}
 
 					if (job.usersCountDelta) {
-						sets.add('i."usersCount" + $?', job.usersCountDelta);
+						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
 					}
 
 					if (job.followersCountDelta) {
-						sets.add('i."followersCount" + $?', job.followersCountDelta);
+						sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
 					}
 
 					if (job.followingCountDelta) {
-						sets.add('i."followingCount" + $?', job.followingCountDelta);
+						sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
 					}
 
-					sb.add('WHERE i."host" = $?', host);
+					sb.add('WHERE "host" = $?', host);
 					const query = sb.build();
 
 					// Manually update and sync caches
@@ -240,15 +240,15 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 						}
 
 						if (job.notesCountDelta) {
-							sets.add('"notesCount" + $?', job.notesCountDelta);
+							sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
 						}
 
 						if (job.followersCountDelta) {
-							sets.add('"followersCount" + $?', job.followersCountDelta);
+							sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
 						}
 
 						if (job.followingCountDelta) {
-							sets.add('"followingCount" + $?', job.followingCountDelta);
+							sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
 						}
 
 						sb.add('WHERE "id" = $?', userId);
@@ -289,15 +289,15 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					const sets = sb.list();
 
 					if (job.repliesCountDelta) {
-						sets.add('"repliesCount" + $?', job.repliesCountDelta);
+						sets.add('"repliesCount" = "repliesCount" + $?', job.repliesCountDelta);
 					}
 
 					if (job.renoteCountDelta) {
-						sets.add('"renoteCount" + $?', job.renoteCountDelta);
+						sets.add('"renoteCount" = "renoteCount" + $?', job.renoteCountDelta);
 					}
 
 					if (job.clippedCountDelta) {
-						sets.add('"clippedCount" + $?', job.clippedCountDelta);
+						sets.add('"clippedCount" = "clippedCount" + $?', job.clippedCountDelta);
 					}
 
 					sb.add('WHERE "id" = $?', noteId);
@@ -348,7 +348,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					const sets = sb.list();
 
 					if (job.isActive) {
-						sets.add('"isActive" OR $?', job.isActive);
+						sets.add('"isActive" = "isActive" OR $?', job.isActive);
 					}
 
 					if (job.lastUsedAt) {
