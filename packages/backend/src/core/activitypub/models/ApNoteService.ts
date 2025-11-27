@@ -35,7 +35,7 @@ import { promiseMap } from '@/misc/promise-map.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { CustomEmojiService, encodeEmojiKey, isValidEmojiName } from '@/core/CustomEmojiService.js';
 import { TimeService } from '@/global/TimeService.js';
-import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, IApDocument, isLink } from '../type.js';
+import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, isLink, getNullableApId } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
 import { ApDbResolverService } from '../ApDbResolverService.js';
@@ -48,7 +48,7 @@ import { ApQuestionService } from './ApQuestionService.js';
 import { ApImageService } from './ApImageService.js';
 import type { ApPersonService } from './ApPersonService.js';
 import type { Resolver } from '../ApResolverService.js';
-import type { IObject, IPost, IApEmoji } from '../type.js';
+import type { IObject, IPost, IApEmoji, IApDocument } from '../type.js';
 
 @Injectable()
 export class ApNoteService implements OnModuleInit {
