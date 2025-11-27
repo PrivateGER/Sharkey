@@ -566,10 +566,10 @@ class SqlListBuilder {
 		if (this.isFirst) {
 			this.isFirst = false;
 		} else {
-			sql += ', ';
+			sql = ', ' + sql;
 		}
 
-		sql += this.indent;
+		sql = this.indent + sql;
 		this.sqlBuilder.add(sql, ...params);
 	}
 
