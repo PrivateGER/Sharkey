@@ -204,17 +204,17 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		// Set up rate limiters
 		const fetcherConcurrency = opts.fetcherConcurrency
 			? Math.max(opts.fetcherConcurrency, 1)
-			: 4;
+			: 12;
 		this.fetcherLimiter = promiseLimit(fetcherConcurrency);
 
 		const optionalFetcherConcurrency = opts.optionalFetcherConcurrency
 			? Math.max(opts.optionalFetcherConcurrency, 1)
-			: 4;
+			: 12;
 		this.optionalFetcherLimiter = promiseLimit(optionalFetcherConcurrency);
 
 		const bulkFetcherConcurrency = opts.bulkFetcherConcurrency
 			? Math.max(opts.bulkFetcherConcurrency, 1)
-			: 2;
+			: 6;
 		this.bulkFetcherLimiter = promiseLimit(bulkFetcherConcurrency);
 
 		const globalConcurrency = opts.maxConcurrency
