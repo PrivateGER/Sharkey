@@ -585,28 +585,37 @@ export class ApNoteService implements OnModuleInit {
 
 		return await promiseMap(eomjiTags, async tag => {
 			const name = tag.name.replaceAll(':', '');
-			tag.icon = toSingle(tag.icon);
+
+			const icon = toSingle(tag.icon);
+			const newUrl = icon.url;
+
+			const now = this.timeService.date;
+			const newUpdatedAt = typeof(tag.updated) === 'string' ? new Date(tag.updated) : null;
+			const updatedAt = newUpdatedAt != null && !Number.isNaN(newUpdatedAt.getTime()) && newUpdatedAt.getTime() > now.getTime()
+				? newUpdatedAt
+				: now;
+
+			const newUri = getNullableApId(tag);
+			const newIsSensitive = tag.sensitive === true;
+			const newLicense = tag._misskey_license?.freeText ?? null;
 
 			const exists = existingEmojis.values.find(x => x.name === name);
-
 			if (exists) {
-				if ((exists.updatedAt == null)
-					|| (tag.id != null && exists.uri == null) // TODO should we check for ID changes?
-					|| (new Date(tag.updated) > exists.updatedAt) // TODO make sure tag.updated actually exists
-					|| (tag.icon.url !== exists.originalUrl)
-					// TODO check for license changes
-					// TODO check for sensitive changes
-				) {
+				const uriChanged = newUri !== exists.uri;
+				const urlChanged = newUrl !== exists.originalUrl || newUrl !== exists.publicUrl;
+				const licenseChanged = newLicense !== exists.license;
+				const isSensitiveChanged = newIsSensitive !== exists.isSensitive;
+				if (uriChanged || urlChanged || licenseChanged || isSensitiveChanged) {
 					return await this.customEmojiService.updateEmoji({
 						host,
 						name,
 					}, {
-						uri: tag.id,
-						originalUrl: tag.icon.url,
-						publicUrl: tag.icon.url,
-						updatedAt: this.timeService.date,
-						// _misskey_license が存在しなければ `null`
-						license: (tag._misskey_license?.freeText ?? null),
+						uri: uriChanged ? newUri : undefined,
+						originalUrl: urlChanged ? newUrl : undefined,
+						publicUrl: urlChanged ? newUrl : undefined,
+						updatedAt: updatedAt,
+						isSensitive: isSensitiveChanged ? newIsSensitive : undefined,
+						license: licenseChanged ? newLicense : undefined,
 					});
 				}
 
@@ -617,15 +626,14 @@ export class ApNoteService implements OnModuleInit {
 				id: this.idService.gen(),
 				host,
 				name,
-				uri: tag.id,
-				originalUrl: tag.icon.url,
-				publicUrl: tag.icon.url,
-				updatedAt: this.timeService.date,
+				uri: newUri,
+				originalUrl: newUrl,
+				publicUrl: newUrl,
+				updatedAt,
 				aliases: [],
 				localOnly: false,
-				isSensitive: tag.sensitive === true,
-				// _misskey_license が存在しなければ `null`
-				license: (tag._misskey_license?.freeText ?? null),
+				isSensitive: newIsSensitive,
+				license: newLicense,
 			});
 		}, {
 			limiter: 4,
