@@ -4,7 +4,7 @@
  */
 
 import * as mfm from 'mfm-js';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull, Not } from 'typeorm';
 import * as Redis from 'ioredis';
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
@@ -44,7 +44,6 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isReply } from '@/misc/is-reply.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
@@ -197,6 +196,9 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		@Inject(DI.pollsRepository)
 		private pollsRepository: PollsRepository,
+
+		@Inject(DI.noteReactionsRepository)
+		private readonly noteReactionsRepository: NoteReactionsRepository,
 
 		private noteEntityService: NoteEntityService,
 		private idService: IdService,
@@ -682,7 +684,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			//#region AP deliver
 			if (!data.localOnly && isLocalUser(user)) {
-				await trackTask(async () => {
+				{
 					const noteActivity = await this.apRendererService.renderNoteOrRenoteActivity(note, user, { renote: data.renote });
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
 
@@ -731,7 +733,7 @@ export class NoteEditService implements OnApplicationShutdown {
 					if (['public'].includes(note.visibility)) {
 						await this.relayService.deliverToRelays(user, noteActivity);
 					}
-				});
+				}
 			}
 			//#endregion
 		}

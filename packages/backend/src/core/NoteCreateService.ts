@@ -51,7 +51,6 @@ import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { isReply } from '@/misc/is-reply.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
@@ -747,7 +746,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			//#region AP deliver
 			if (!data.localOnly && isLocalUser(user)) {
-				await trackTask(async () => {
+				{
 					const noteActivity = await this.apRendererService.renderNoteOrRenoteActivity(note, user, { renote: data.renote });
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
 
@@ -778,7 +777,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					if (['public'].includes(note.visibility)) {
 						await this.relayService.deliverToRelays(user, noteActivity);
 					}
-				});
+				}
 			}
 			//#endregion
 		}

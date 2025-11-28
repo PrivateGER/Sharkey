@@ -30,7 +30,6 @@ import { isPureRenote } from '@/misc/is-renote.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { TimeService } from '@/global/TimeService.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import { Deduplicator } from '@/misc/deduplicator.js';
 
@@ -71,7 +70,7 @@ export class NoteDeleteService {
 	/**
 	 * 投稿を削除します。
 	 */
-	async delete(user: MiUser, note: MiNote, deleter?: MiUser, immediate = false) {
+	async delete(user: MiUser, note: MiNote, deleter?: MiUser, immediate = false): Promise<void> {
 		if (note.userId !== user.id) {
 			throw new Error(`Not deleting note ${note.id} because user ${user.id} is not the expected author ${note.userId}. This is likely a bug; please report this error to Sharkey team.`);
 		}
@@ -234,14 +233,12 @@ export class NoteDeleteService {
 				: this.apLogService.deleteObjectLogsDeferred(deletedUris));
 		}
 
-		await trackTask(async () => {
-			await Promise.allSettled(promises);
+		await Promise.allSettled(promises);
 
-			// This is deferred to make sure we don't race the enqueue() calls
-			if (immediate) {
-				await this.collapsedQueueService.performAllNow();
-			}
-		});
+		// This is deferred to make sure we don't race the enqueue() calls
+		if (immediate) {
+			await this.collapsedQueueService.performAllNow();
+		}
 	}
 
 	@bindThis
