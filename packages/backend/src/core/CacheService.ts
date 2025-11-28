@@ -599,16 +599,16 @@ export class CacheService implements OnApplicationShutdown {
 			},
 		});
 
-		this.internalEventService.on('usersUpdated', this.onUserEvent);
-		this.internalEventService.on('userChangeSuspendedState', this.onUserEvent);
-		this.internalEventService.on('userChangeDeletedState', this.onUserEvent);
-		this.internalEventService.on('remoteUserUpdated', this.onUserEvent);
-		this.internalEventService.on('localUserUpdated', this.onUserEvent);
-		this.internalEventService.on('userUpdated', this.onUserEvent);
-		this.internalEventService.on('userTokenRegenerated', this.onTokenEvent);
 		this.internalEventService.on('follow', this.onFollowEvent);
 		this.internalEventService.on('unfollow', this.onFollowEvent);
 		// For these, only listen to local events because quantum cache handles the sync.
+		this.internalEventService.on('usersUpdated', this.onUserChangeEvent, { ignoreRemote: true });
+		this.internalEventService.on('userChangeSuspendedState', this.onUserChangeEvent, { ignoreRemote: true });
+		this.internalEventService.on('remoteUserUpdated', this.onUserChangeEvent, { ignoreRemote: true });
+		this.internalEventService.on('localUserUpdated', this.onUserChangeEvent, { ignoreRemote: true });
+		this.internalEventService.on('userUpdated', this.onUserChangeEvent, { ignoreRemote: true });
+		this.internalEventService.on('userTokenRegenerated', this.onTokenEvent, { ignoreRemote: true });
+		this.internalEventService.on('userChangeDeletedState', this.onUserDeleteEvent, { ignoreRemote: true });
 		this.internalEventService.on('followChannel', this.onChannelEvent, { ignoreRemote: true });
 		this.internalEventService.on('unfollowChannel', this.onChannelEvent, { ignoreRemote: true });
 		this.internalEventService.on('updateUserProfile', this.onProfileEvent, { ignoreRemote: true });
@@ -623,43 +623,36 @@ export class CacheService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async onUserEvent<E extends 'userChangeSuspendedState' | 'userChangeDeletedState' | 'remoteUserUpdated' | 'localUserUpdated' | 'usersUpdated' | 'userUpdated'>(body: InternalEventTypes[E], _: E, isLocal: boolean): Promise<void> {
-		// Local instance is responsible for expanding these events into the appropriate Quantum events
-		if (!isLocal) return;
-
+	private async onUserChangeEvent<E extends 'userChangeSuspendedState' | 'remoteUserUpdated' | 'localUserUpdated' | 'usersUpdated' | 'userUpdated'>(body: InternalEventTypes[E]): Promise<void> {
 		const ids = 'ids' in body ? body.ids : [body.id];
-		if (ids.length === 0) return;
+		await this.userByIdCache.deleteMany(ids);
+	}
 
+	@bindThis
+	private async onUserDeleteEvent<E extends 'userChangeDeletedState'>(body: InternalEventTypes[E]): Promise<void> {
 		// Contains IDs of all lists where this user is a member.
-		const userListMemberships = this.listUserMembershipsCache
-			.entries()
-			.filter(e => ids.some(id => e[1].has(id)))
-			.map(e => e[0])
-			.toArray();
+		const userListMemberships = this.listUserMembershipsCache.get(body.id).keys();
 
 		await Promise.all([
-			this.userByIdCache.deleteMany(ids),
-			this.userProfileCache.deleteMany(ids),
-			this.userMutingsCache.deleteMany(ids),
-			this.userMutedCache.deleteMany(ids),
-			this.userBlockingCache.deleteMany(ids),
-			this.userBlockedCache.deleteMany(ids),
-			this.renoteMutingsCache.deleteMany(ids),
-			this.userFollowingsCache.deleteMany(ids),
-			this.userFollowersCache.deleteMany(ids),
-			this.hibernatedUserCache.deleteMany(ids),
-			this.threadMutingsCache.deleteMany(ids),
-			this.noteMutingsCache.deleteMany(ids),
-			this.userListMembershipsCache.deleteMany(ids),
+			this.userByIdCache.delete(body.id),
+			this.userProfileCache.delete(body.id),
+			this.userMutingsCache.delete(body.id),
+			this.userMutedCache.delete(body.id),
+			this.userBlockingCache.delete(body.id),
+			this.userBlockedCache.delete(body.id),
+			this.renoteMutingsCache.delete(body.id),
+			this.userFollowingsCache.delete(body.id),
+			this.userFollowersCache.delete(body.id),
+			this.hibernatedUserCache.delete(body.id),
+			this.threadMutingsCache.delete(body.id),
+			this.noteMutingsCache.delete(body.id),
+			this.userListMembershipsCache.delete(body.id),
 			this.listUserMembershipsCache.deleteMany(userListMemberships),
 		]);
 	}
 
 	@bindThis
-	private async onTokenEvent<E extends 'userTokenRegenerated'>(body: InternalEventTypes[E], _: E, isLocal: boolean): Promise<void> {
-		// Local instance is responsible for expanding these events into the appropriate Quantum events
-		if (!isLocal) return;
-
+	private async onTokenEvent<E extends 'userTokenRegenerated'>(body: InternalEventTypes[E]): Promise<void> {
 		await Promise.all([
 			this.nativeTokenCache.delete(body.oldToken),
 			this.nativeTokenCache.set(body.newToken, body.id),
@@ -926,15 +919,15 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	public dispose(): void {
-		this.internalEventService.off('usersUpdated', this.onUserEvent);
-		this.internalEventService.off('userChangeSuspendedState', this.onUserEvent);
-		this.internalEventService.off('userChangeDeletedState', this.onUserEvent);
-		this.internalEventService.off('remoteUserUpdated', this.onUserEvent);
-		this.internalEventService.off('localUserUpdated', this.onUserEvent);
-		this.internalEventService.off('userUpdated', this.onUserEvent);
-		this.internalEventService.off('userTokenRegenerated', this.onTokenEvent);
 		this.internalEventService.off('follow', this.onFollowEvent);
 		this.internalEventService.off('unfollow', this.onFollowEvent);
+		this.internalEventService.off('usersUpdated', this.onUserChangeEvent);
+		this.internalEventService.off('userChangeSuspendedState', this.onUserChangeEvent);
+		this.internalEventService.off('remoteUserUpdated', this.onUserChangeEvent);
+		this.internalEventService.off('localUserUpdated', this.onUserChangeEvent);
+		this.internalEventService.off('userUpdated', this.onUserChangeEvent);
+		this.internalEventService.off('userTokenRegenerated', this.onTokenEvent);
+		this.internalEventService.off('userChangeDeletedState', this.onUserDeleteEvent);
 		this.internalEventService.off('followChannel', this.onChannelEvent);
 		this.internalEventService.off('unfollowChannel', this.onChannelEvent);
 		this.internalEventService.off('updateUserProfile', this.onProfileEvent);
