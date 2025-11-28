@@ -140,7 +140,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee) && blocked) {
 			// リモートフォローを受けてブロックしていた場合は、エラーにするのではなくRejectを送り返しておしまい。
 			const content = this.apRendererService.addContext(this.apRendererService.renderReject(this.apRendererService.renderFollow(follower, followee, requestId), followee));
-			this.queueService.deliver(followee, content, follower.inbox, false);
+			await this.queueService.deliver(followee, content, follower.inbox, false);
 			return;
 		} else if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee) && blocking) {
 			// リモートフォローを受けてブロックされているはずの場合だったら、ブロック解除しておく。
@@ -382,13 +382,13 @@ export class UserFollowingService implements OnModuleInit {
 
 		if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
 			const content = this.apRendererService.addContext(this.apRendererService.renderUndo(this.apRendererService.renderFollow(follower as MiPartialLocalUser, followee as MiPartialRemoteUser), follower));
-			this.queueService.deliver(follower, content, followee.inbox, false);
+			await this.queueService.deliver(follower, content, followee.inbox, false);
 		}
 
 		if (this.userEntityService.isLocalUser(followee) && this.userEntityService.isRemoteUser(follower)) {
 			// local user has null host
 			const content = this.apRendererService.addContext(this.apRendererService.renderReject(this.apRendererService.renderFollow(follower as MiPartialRemoteUser, followee as MiPartialLocalUser), followee));
-			this.queueService.deliver(followee, content, follower.inbox, false);
+			await this.queueService.deliver(followee, content, follower.inbox, false);
 		}
 	}
 
@@ -523,7 +523,7 @@ export class UserFollowingService implements OnModuleInit {
 
 		if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
 			const content = this.apRendererService.addContext(this.apRendererService.renderFollow(follower as MiPartialLocalUser, followee as MiPartialRemoteUser, requestId ?? `${this.config.url}/follows/${followRequest.id}`));
-			this.queueService.deliver(follower, content, followee.inbox, false);
+			await this.queueService.deliver(follower, content, followee.inbox, false);
 		}
 	}
 
@@ -540,7 +540,7 @@ export class UserFollowingService implements OnModuleInit {
 			const content = this.apRendererService.addContext(this.apRendererService.renderUndo(this.apRendererService.renderFollow(follower as MiPartialLocalUser | MiPartialRemoteUser, followee as MiPartialRemoteUser), follower));
 
 			if (this.userEntityService.isLocalUser(follower)) { // 本来このチェックは不要だけどTSに怒られるので
-				this.queueService.deliver(follower, content, followee.inbox, false);
+				await this.queueService.deliver(follower, content, followee.inbox, false);
 			}
 		}
 

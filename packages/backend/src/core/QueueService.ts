@@ -199,7 +199,7 @@ export class QueueService implements OnModuleInit {
 	}
 
 	@bindThis
-	public deliver(user: ThinUser, content: IActivity | null, to: string | null, isSharedInbox: boolean) {
+	public async deliver(user: ThinUser, content: IActivity | null, to: string | null, isSharedInbox: boolean) {
 		if (content == null) return null;
 		if (to == null) return null;
 
@@ -218,7 +218,7 @@ export class QueueService implements OnModuleInit {
 
 		const label = to.replace('https://', '').replace('/inbox', '');
 
-		return this.deliverQueue.add(label, data, {
+		return await this.deliverQueue.add(label, data, {
 			attempts: this.config.deliverJobMaxAttempts ?? 12,
 			backoff: {
 				type: 'custom',
