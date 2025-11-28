@@ -56,8 +56,8 @@ export type UpdateChannelJob = {
 	usersCountDelta?: number,
 };
 
-const fiveMinuteInterval = 60 * 1000 * 5;
-const oneMinuteInterval = 60 * 1000;
+const oneMinute = 60 * 1000;
+const thirtySeconds = 1000 * 30;
 
 @Injectable()
 export class CollapsedQueueService implements OnApplicationShutdown {
@@ -90,7 +90,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateInstanceQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateInstance',
 			{
-				timeout: fiveMinuteInterval,
+				timeout: oneMinute,
 				limiter: 2, // Low concurrency, this table is slow for some reason
 				collapse: (oldJob, newJob) => ({
 					latestRequestReceivedAt: maxDate(oldJob.latestRequestReceivedAt, newJob.latestRequestReceivedAt),
@@ -210,7 +210,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateUserQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateUser',
 			{
-				timeout: oneMinuteInterval,
+				timeout: thirtySeconds,
 				limiter: 4, // High concurrency - this queue gets a lot of activity
 				collapse: (oldJob, newJob) => ({
 					updatedAt: maxDate(oldJob.updatedAt, newJob.updatedAt),
@@ -276,7 +276,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateNoteQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateNote',
 			{
-				timeout: oneMinuteInterval,
+				timeout: thirtySeconds,
 				limiter: 4, // High concurrency - this queue gets a lot of activity
 				collapse: (oldJob, newJob) => ({
 					repliesCountDelta: sum(oldJob.repliesCountDelta, newJob.repliesCountDelta),
@@ -318,7 +318,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateAccessTokenQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateAccessToken',
 			{
-				timeout: fiveMinuteInterval,
+				timeout: oneMinute,
 				limiter: 2,
 				collapse: (oldJob, newJob) => ({
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
@@ -336,7 +336,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateAntennaQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateAntenna',
 			{
-				timeout: fiveMinuteInterval,
+				timeout: oneMinute,
 				limiter: 4,
 				collapse: (oldJob, newJob) => ({
 					isActive: or(oldJob.isActive, newJob.isActive),
@@ -375,7 +375,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		this.updateChannelQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateChannel',
 			{
-				timeout: fiveMinuteInterval,
+				timeout: oneMinute,
 				limiter: 4,
 				collapse: (oldJob, newJob) => ({
 					lastNotedAt: maxDate(oldJob.lastNotedAt, newJob.lastNotedAt),
