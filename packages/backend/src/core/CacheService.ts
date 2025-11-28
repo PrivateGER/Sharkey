@@ -618,6 +618,8 @@ export class CacheService implements OnApplicationShutdown {
 		this.internalEventService.on('userListMemberBulkAdded', this.onListMemberEvent, { ignoreRemote: true });
 		this.internalEventService.on('userListMemberBulkUpdated', this.onListMemberEvent, { ignoreRemote: true });
 		this.internalEventService.on('userListMemberBulkRemoved', this.onListMemberEvent, { ignoreRemote: true });
+		this.internalEventService.on('blockingCreated', this.onBlockingEvent, { ignoreRemote: true });
+		this.internalEventService.on('blockingDeleted', this.onBlockingEvent, { ignoreRemote: true });
 	}
 
 	@bindThis
@@ -715,6 +717,14 @@ export class CacheService implements OnApplicationShutdown {
 		await Promise.all([
 			this.userListMembershipsCache.delete(body.memberId),
 			this.listUserMembershipsCache.deleteMany(userListIds),
+		]);
+	}
+
+	@bindThis
+	private async onBlockingEvent<E extends 'blockingCreated' | 'blockingDeleted'>(body: InternalEventTypes[E]): Promise<void> {
+		await Promise.all([
+			this.userBlockingCache.deleteMany([body.blockeeId, body.blockerId]),
+			this.userBlockedCache.deleteMany([body.blockeeId, body.blockerId]),
 		]);
 	}
 
@@ -934,6 +944,8 @@ export class CacheService implements OnApplicationShutdown {
 		this.internalEventService.off('userListMemberBulkAdded', this.onListMemberEvent);
 		this.internalEventService.off('userListMemberBulkUpdated', this.onListMemberEvent);
 		this.internalEventService.off('userListMemberBulkRemoved', this.onListMemberEvent);
+		this.internalEventService.off('blockingCreated', this.onBlockingEvent);
+		this.internalEventService.off('blockingDeleted', this.onBlockingEvent);
 	}
 
 	@bindThis

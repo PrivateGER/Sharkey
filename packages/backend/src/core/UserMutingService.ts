@@ -24,7 +24,21 @@ export class UserMutingService {
 	}
 
 	@bindThis
-	public async mute(user: MiUser, target: MiUser, expiresAt: Date | null = null): Promise<void> {
+	public async tryMute(user: { id: string }, target: { id: string }, expiresAt: Date | null = null): Promise<boolean> {
+		const hasExistingMute = await this.mutingsRepository.existsBy({
+			muterId: user.id,
+			muteeId: target.id,
+		});
+		if (hasExistingMute) {
+			return false;
+		}
+
+		await this.mute(user, target, expiresAt);
+		return true;
+	}
+
+	@bindThis
+	public async mute(user: { id: string }, target: { id: string }, expiresAt: Date | null = null): Promise<void> {
 		await this.mutingsRepository.insert({
 			id: this.idService.gen(),
 			expiresAt: expiresAt ?? null,
@@ -33,6 +47,20 @@ export class UserMutingService {
 		});
 
 		await this.cacheService.userMutingsCache.delete(user.id);
+	}
+
+	@bindThis
+	public async tryUnmute(user: { id: string }, target: { id: string }): Promise<boolean> {
+		const mutes = await this.mutingsRepository.findBy({
+			muterId: user.id,
+			muteeId: target.id,
+		});
+		if (mutes.length < 1) {
+			return false;
+		}
+
+		await this.unmute(mutes);
+		return true;
 	}
 
 	@bindThis
