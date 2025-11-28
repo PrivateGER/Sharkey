@@ -9,6 +9,7 @@ import * as OTPAuth from 'otpauth';
 import { DI } from '@/di-symbols.js';
 import type { MiUserProfile, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import type { MiLocalUser } from '@/models/User.js';
 
@@ -20,6 +21,8 @@ export class UserAuthService {
 
 		@Inject(DI.userProfilesRepository)
 		private userProfilesRepository: UserProfilesRepository,
+
+		private readonly internalEventService: InternalEventService,
 	) {
 	}
 
@@ -29,6 +32,7 @@ export class UserAuthService {
 			await this.userProfilesRepository.update({ userId: profile.userId }, {
 				twoFactorBackupSecret: profile.twoFactorBackupSecret.filter((secret) => secret !== token),
 			});
+			await this.internalEventService.emit('updateUserProfile', { userId: profile.userId });
 		} else {
 			const delta = OTPAuth.TOTP.validate({
 				secret: OTPAuth.Secret.fromBase32(profile.twoFactorSecret!),

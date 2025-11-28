@@ -13,7 +13,10 @@ import { EmailService } from '@/core/EmailService.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 import { L_CHARS, secureRndstr } from '@/misc/secure-rndstr.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
+import { CacheService } from '@/core/CacheService.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
 import { ApiError } from '../../error.js';
 
@@ -79,10 +82,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private emailService: EmailService,
 		private userAuthService: UserAuthService,
 		private globalEventService: GlobalEventService,
+		private readonly cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const token = ps.token;
-			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: me.id });
+			const profile = await this.cacheService.userProfileCache.fetch(me.id);
 
 			if (profile.twoFactorEnabled) {
 				if (token == null) {
@@ -116,13 +121,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				emailVerifyCode: null,
 			});
 
-			const iObj = await this.userEntityService.pack(me.id, me, {
+			const iObj = await this.userEntityService.pack(me, me, {
 				schema: 'MeDetailed',
 				includeSecrets: true,
 			});
 
 			// Publish meUpdated event
-			this.globalEventService.publishMainStream(me.id, 'meUpdated', iObj);
+			await this.globalEventService.publishMainStream(me.id, 'meUpdated', iObj);
 
 			if (ps.email != null) {
 				const code = secureRndstr(16, { chars: L_CHARS });
@@ -133,11 +138,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 				const link = `${this.config.url}/verify-email/${code}`;
 
-				this.emailService.sendEmail(ps.email, 'Email verification',
+				trackPromise(this.emailService.sendEmail(ps.email, 'Email verification',
 					`To verify email, please click this link:<br><a href="${link}">${link}</a>`,
-					`To verify email, please click this link: ${link}`);
+					`To verify email, please click this link: ${link}`));
 			}
 
+			await this.internalEventService.emit('updateUserProfile', { userId: me.id });
 			return iObj;
 		});
 	}

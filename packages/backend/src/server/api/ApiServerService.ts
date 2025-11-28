@@ -20,6 +20,7 @@ import { SigninApiService } from './SigninApiService.js';
 import { SigninWithPasskeyApiService } from './SigninWithPasskeyApiService.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 @Injectable()
 export class ApiServerService {
@@ -44,6 +45,7 @@ export class ApiServerService {
 		private signinApiService: SigninApiService,
 		private signinWithPasskeyApiService: SigninWithPasskeyApiService,
 		private cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -163,7 +165,7 @@ export class ApiServerService {
 				receiveAnnouncementEmail: false,
 			});
 			if (affected) {
-				await this.cacheService.userProfileCache.delete(request.params.user);
+				await this.internalEventService.emit('updateUserProfile', { userId: request.params.user });
 				return ["Unsubscribed."];
 			} else {
 				reply.code(401);

@@ -11,6 +11,7 @@ import { DI } from '@/di-symbols.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -54,6 +55,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private userProfilesRepository: UserProfilesRepository,
 
 		private moderationLogService: ModerationLogService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.usersRepository.findOneBy({ id: ps.userId });
@@ -80,8 +82,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}, {
 				password: hash,
 			});
+			await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 
-			this.moderationLogService.log(me, 'resetPassword', {
+			await this.moderationLogService.log(me, 'resetPassword', {
 				userId: user.id,
 				userUsername: user.username,
 				userHost: user.host,

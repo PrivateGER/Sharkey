@@ -25,6 +25,7 @@ import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { SigninService } from './SigninService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 @Injectable()
 export class SignupApiService {
@@ -64,6 +65,7 @@ export class SignupApiService {
 		private loggerService: LoggerService,
 		private readonly timeService: TimeService,
 		private readonly envService: EnvService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		this.logger = this.loggerService.getLogger('Signup');
 	}
@@ -343,6 +345,7 @@ export class SignupApiService {
 				emailVerified: true,
 				emailVerifyCode: null,
 			});
+			await this.internalEventService.emit('updateUserProfile', { userId: profile.userId });
 
 			const ticket = await this.registrationTicketsRepository.findOneBy({ pendingUserId: pendingUser.id });
 			if (ticket) {

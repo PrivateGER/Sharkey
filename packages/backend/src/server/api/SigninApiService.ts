@@ -32,6 +32,7 @@ import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 // Up to 10 attempts, then 1 per minute
 const signinRateLimit: Keyed<RateLimit> = {
@@ -68,7 +69,7 @@ export class SigninApiService {
 		private userAuthService: UserAuthService,
 		private webAuthnService: WebAuthnService,
 		private captchaService: CaptchaService,
-
+		private readonly internalEventService: InternalEventService,
 		private readonly envService: EnvService,
 	) {
 	}
@@ -249,8 +250,12 @@ export class SigninApiService {
 					await this.userProfilesRepository.update(user.id, {
 						password: newHash,
 					});
+					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 				}
-				if (!this.meta.approvalRequiredForSignup && !user.approved) this.usersRepository.update(user.id, { approved: true });
+				if (!this.meta.approvalRequiredForSignup && !user.approved) {
+					await this.usersRepository.update(user.id, { approved: true });
+					await this.internalEventService.emit('userUpdated', { id: user.id });
+				}
 
 				return this.signinService.signin(request, reply, user);
 			} else {
@@ -273,6 +278,7 @@ export class SigninApiService {
 					await this.userProfilesRepository.update(user.id, {
 						password: newHash,
 					});
+					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 				}
 				await this.userAuthService.twoFactorAuthenticate(profile, token);
 			} catch (e) {
@@ -281,7 +287,10 @@ export class SigninApiService {
 				});
 			}
 
-			if (!this.meta.approvalRequiredForSignup && !user.approved) this.usersRepository.update(user.id, { approved: true });
+			if (!this.meta.approvalRequiredForSignup && !user.approved) {
+				await this.usersRepository.update(user.id, { approved: true });
+				await this.internalEventService.emit('userUpdated', { id: user.id });
+			}
 
 			return this.signinService.signin(request, reply, user);
 		} else if (body.credential) {

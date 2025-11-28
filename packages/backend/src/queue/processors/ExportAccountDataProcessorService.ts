@@ -758,7 +758,7 @@ export class ExportAccountDataProcessorService {
 				cleanup();
 				archiveCleanup();
 				if (profile.email) {
-					this.emailService.sendEmail(profile.email,
+					await this.emailService.sendEmail(profile.email,
 						'Your data archive is ready',
 						`Click the following link to download the archive: ${driveFile.url}<br/>It is also available in your drive.`,
 						`Click the following link to download the archive: ${driveFile.url}\r\n\r\nIt is also available in your drive.`,
@@ -768,7 +768,7 @@ export class ExportAccountDataProcessorService {
 			});
 			archive.pipe(archiveStream);
 			archive.directory(path, false);
-			archive.finalize();
+			await archive.finalize();
 		});
 	}
 

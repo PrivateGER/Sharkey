@@ -10,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
 	tags: ['reset password'],
@@ -49,6 +50,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private idService: IdService,
 		private readonly timeService: TimeService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const req = await this.passwordResetRequestsRepository.findOneByOrFail({
@@ -66,6 +68,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.userProfilesRepository.update(req.userId, {
 				password: hash,
 			});
+			await this.internalEventService.emit('updateUserProfile', { userId: req.userId });
 
 			await this.passwordResetRequestsRepository.delete(req.id);
 		});
