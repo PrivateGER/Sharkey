@@ -50,6 +50,12 @@ export type UpdateAntennaJob = {
 	lastUsedAt?: Date,
 };
 
+export type UpdateChannelJob = {
+	lastNotedAt?: Date,
+	notesCountDelta?: number,
+	usersCountDelta?: number,
+};
+
 const fiveMinuteInterval = 60 * 1000 * 5;
 const oneMinuteInterval = 60 * 1000;
 
@@ -64,6 +70,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 	public readonly updateNoteQueue: ManagedCollapsedQueue<UpdateNoteJob>;
 	public readonly updateAccessTokenQueue: ManagedCollapsedQueue<UpdateAccessTokenJob>;
 	public readonly updateAntennaQueue: ManagedCollapsedQueue<UpdateAntennaJob>;
+	public readonly updateChannelQueue: ManagedCollapsedQueue<UpdateChannelJob>;
 
 	constructor(
 		@Inject(DI.followingsRepository)
@@ -365,6 +372,49 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 			},
 		);
 
+		this.updateChannelQueue = this.cacheManagementService.createCollapsedQueue(
+			'updateChannel',
+			{
+				timeout: fiveMinuteInterval,
+				limiter: 4,
+				collapse: (oldJob, newJob) => ({
+					lastNotedAt: maxDate(oldJob.lastNotedAt, newJob.lastNotedAt),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
+				}),
+				perform: async (channelId, job) => {
+					// Avoid empty UPDATE statements
+					if (!(job.lastNotedAt || job.notesCountDelta || job.usersCountDelta)) {
+						return;
+					}
+
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "channel"');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.lastNotedAt) {
+						sets.add('"lastNotedAt" = GREATEST("lastNotedAt", $?)', job.lastNotedAt);
+					}
+
+					if (job.notesCountDelta) {
+						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+					}
+
+					if (job.usersCountDelta) {
+						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
+					}
+
+					sb.add('WHERE "id" = $?', channelId);
+					const query = sb.build();
+
+					// Manually update and sync caches
+					await this.db.query(query.sql, query.parameters);
+				},
+			},
+		);
+
 		this.internalEventService.on('userChangeDeletedState', this.onUserDeleted);
 		this.internalEventService.on('antennaDeleted', this.onAntennaDeleted);
 	}
@@ -395,6 +445,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 			async () => await this.updateNoteQueue.performAllNow(),
 			async () => await this.updateAccessTokenQueue.performAllNow(),
 			async () => await this.updateAntennaQueue.performAllNow(),
+			async () => await this.updateChannelQueue.performAllNow(),
 		]);
 	}
 
