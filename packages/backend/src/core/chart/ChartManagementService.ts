@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import { ChartLoggerService } from '@/core/chart/ChartLoggerService.js';
 import { TimeService, type TimerHandle } from '@/global/TimeService.js';
+import { EnvService } from '@/global/EnvService.js';
 import Logger from '@/logger.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import FederationChart from './charts/federation.js';
@@ -44,6 +45,7 @@ export class ChartManagementService implements OnApplicationShutdown {
 		private perUserDriveChart: PerUserDriveChart,
 		private apRequestChart: ApRequestChart,
 		private readonly timeService: TimeService,
+		private readonly envService: EnvService,
 
 		chartLoggerService: ChartLoggerService,
 	) {
@@ -78,7 +80,7 @@ export class ChartManagementService implements OnApplicationShutdown {
 	@bindThis
 	public async dispose(): Promise<void> {
 		this.timeService.stopTimer(this.saveIntervalId);
-		if (process.env.NODE_ENV !== 'test') {
+		if (this.envService.env.NODE_ENV !== 'test') {
 			this.logger.info('Saving charts for shutdown...');
 			for (const chart of this.charts) {
 				await chart.save().catch(err => {

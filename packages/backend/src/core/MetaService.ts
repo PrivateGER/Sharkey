@@ -13,6 +13,7 @@ import { bindThis } from '@/decorators.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import { TimeService, type TimerHandle } from '@/global/TimeService.js';
+import { EnvService } from '@/global/EnvService.js';
 import { MiInstance } from '@/models/Instance.js';
 import { diffArrays } from '@/misc/diff-arrays.js';
 import type { MetasRepository } from '@/models/_.js';
@@ -36,10 +37,11 @@ export class MetaService implements OnApplicationShutdown {
 		private featuredService: FeaturedService,
 		private globalEventService: GlobalEventService,
 		private readonly timeService: TimeService,
+		private readonly envService: EnvService,
 	) {
 		//this.onMessage = this.onMessage.bind(this);
 
-		if (process.env.NODE_ENV !== 'test') {
+		if (this.envService.env.NODE_ENV !== 'test') {
 			this.intervalId = this.timeService.startTimer(() => {
 				this.fetch(true).then(meta => {
 					// fetch内でもセットしてるけど仕様変更の可能性もあるため一応

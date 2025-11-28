@@ -12,6 +12,7 @@ import { DI } from '@/di-symbols.js';
 import { resetDb } from '@/misc/reset-db.js';
 import { MetaService } from '@/core/MetaService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { EnvService } from '@/global/EnvService.js';
 
 export const meta = {
 	tags: ['non-productive'],
@@ -49,9 +50,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private loggerService: LoggerService,
 		private metaService: MetaService,
 		private globalEventService: GlobalEventService,
+
+		envService: EnvService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			if (process.env.NODE_ENV !== 'test') throw new Error('NODE_ENV is not a test');
+			if (envService.env.NODE_ENV !== 'test') throw new Error('NODE_ENV is not a test');
 
 			const logger = this.loggerService.getLogger('reset-db');
 			logger.info('---- Resetting database...');

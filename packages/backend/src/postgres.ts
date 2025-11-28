@@ -333,9 +333,9 @@ export function createPostgresDataSource(config: Config, loggerService: LoggerSe
 				})) ?? [],
 			},
 		} : {}),
-		synchronize: process.env.NODE_ENV === 'test',
-		dropSchema: process.env.NODE_ENV === 'test',
-		cache: config.db.disableCache === false && process.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)
+		synchronize: envService.env.NODE_ENV === 'test',
+		dropSchema: envService.env.NODE_ENV === 'test',
+		cache: config.db.disableCache === false && envService.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)
 			type: 'ioredis',
 			options: {
 				...config.redis,

@@ -19,15 +19,15 @@ export async function server() {
 		logger: new NestLogger(),
 	});
 	app.enableShutdownHooks();
+	const envService = app.get(EnvService);
 
 	const serverService = app.get(ServerService);
 	await serverService.launch();
 
-	if (process.env.NODE_ENV !== 'test') {
+	if (envService.env.NODE_ENV !== 'test') {
 		app.get(ChartManagementService).start();
 	}
 
-	const envService = app.get(EnvService);
 	if (!envService.options.noDaemons) {
 		app.get(QueueStatsService).start();
 		app.get(ServerStatsService).start();

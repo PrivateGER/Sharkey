@@ -9,12 +9,14 @@ import { dirname, resolve } from 'node:path';
 import * as yaml from 'js-yaml';
 import { globSync } from 'glob';
 import ipaddr from 'ipaddr.js';
+import type { LoggerService } from '@/core/LoggerService.js';
 import Logger from './logger.js';
 import type * as Sentry from '@sentry/node';
 import type * as SentryVue from '@sentry/vue';
 import type { RedisOptions } from 'ioredis';
 import type { IPv4, IPv6 } from 'ipaddr.js';
-import type { LoggerService } from '@/core/LoggerService.js';
+
+/* eslint-disable no-restricted-properties */
 
 type RedisOptionsSource = Partial<RedisOptions> & {
 	host?: string;
