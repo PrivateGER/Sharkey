@@ -12,7 +12,7 @@ import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mf
 import { extractHashtags } from '@/misc/extract-hashtags.js';
 import type { IMentionedRemoteUsers } from '@/models/Note.js';
 import { MiNote } from '@/models/Note.js';
-import type { NoteEditsRepository, ChannelFollowingsRepository, ChannelsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, NotesRepository, NoteThreadMutingsRepository, UserListMembershipsRepository, UserProfilesRepository, UsersRepository, PollsRepository } from '@/models/_.js';
+import type { NoteEditsRepository, ChannelFollowingsRepository, ChannelsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, NotesRepository, NoteThreadMutingsRepository, UserListMembershipsRepository, UserProfilesRepository, UsersRepository, PollsRepository, NoteReactionsRepository } from '@/models/_.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import type { MiApp } from '@/models/App.js';
 import { concat } from '@/misc/prelude/array.js';
@@ -710,18 +710,34 @@ export class NoteEditService implements OnApplicationShutdown {
 						dm.addFollowersRecipe();
 					}
 
+					// TODO restore this in the note-edits branch
 					if (['public', 'home'].includes(note.visibility)) {
-						// Send edit event to all users who replied to,
-						// renoted a post or reacted to a note.
-						const noteId = note.id;
-						const users = await this.usersRepository.createQueryBuilder()
-							.where(
-								'id IN (SELECT "userId" FROM note WHERE "replyId" = :noteId OR "renoteId" = :noteId UNION SELECT "userId" FROM note_reaction WHERE "noteId" = :noteId)',
-								{ noteId },
-							)
-							.andWhere('host IS NOT NULL')
-							.getMany();
-						for (const u of users) {
+						// Send edit event to all users who replied to, renoted, or reacted to a note.
+						const rawUsers = await Promise.all([
+							this.notesRepository.createQueryBuilder('note')
+								.select('note.userId', 'userId')
+								.where({ replyId: note.id, userId: Not(note.userId), userHost: Not(IsNull()) })
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+							this.notesRepository.createQueryBuilder('note')
+								.select('note.userId', 'userId')
+								.where({ renoteId: note.id, userId: Not(note.userId), userHost: Not(IsNull()) })
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+							this.noteReactionsRepository.createQueryBuilder('reaction')
+								.select('reaction.userId', 'userId')
+								.where({ noteId: note.id, userId: Not(note.userId) })
+								.innerJoin('reaction.user', 'user')
+								.andWhere('user.host IS NOT NULL')
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+						]);
+
+						const allUserIds = rawUsers.flatMap(users => users.map(u => u.userId));
+						const uniqueUserIds = new Set(allUserIds);
+						const allUsers = await this.cacheService.findUsersById(uniqueUserIds);
+
+						for (const u of allUsers.values()) {
 							// User was verified to be remote by checking
 							// whether host IS NOT NULL in SQL query.
 							dm.addDirectRecipe(u as MiRemoteUser);
