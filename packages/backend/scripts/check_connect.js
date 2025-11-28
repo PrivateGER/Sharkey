@@ -10,14 +10,15 @@ import { LoggerService } from '../built/core/LoggerService.js';
 import { NativeTimeService } from '../built/global/TimeService.js';
 import { EnvService } from '../built/global/EnvService.js';
 
-const loggerService = new LoggerService(console, new NativeTimeService(), new EnvService());
+const envService = new EnvService();
+const loggerService = new LoggerService(console, new NativeTimeService(), envService);
 const config = loadConfig(loggerService);
 
 // createPostgresDataSource handles primaries and replicas automatically.
 // usually, it only opens connections first use, so we force it using
 // .initialize()
 async function connectToPostgres() {
-	const source = createPostgresDataSource(config, loggerService);
+	const source = createPostgresDataSource(config, loggerService, envService);
 	await source.initialize();
 	await source.destroy();
 }
