@@ -14,6 +14,7 @@ import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { ApiError } from '@/server/api/error.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
 	requireCredential: true,
@@ -67,6 +68,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private userProfilesRepository: UserProfilesRepository,
 
 		private userAuthService: UserAuthService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const token = ps.token;
@@ -95,6 +97,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.userProfilesRepository.update(me.id, {
 				twoFactorTempSecret: secret.base32,
 			});
+			await this.internalEventService.emit('updateUserProfile', { userId: me.id });
 
 			// Get the data URL of the authenticator URL
 			const totp = new OTPAuth.TOTP({

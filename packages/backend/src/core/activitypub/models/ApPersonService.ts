@@ -818,7 +818,7 @@ export class ApPersonService implements OnModuleInit {
 			location: person['vcard:Address'] ?? null,
 			listenbrainz: person.listenbrainz ?? null,
 		});
-		await this.cacheService.userProfileCache.delete(updated.id);
+		await this.internalEventService.emit('updateUserProfile', { userId: updated.id });
 
 		// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
 		if (updated.inbox !== person.inbox || updated.sharedInbox !== (person.sharedInbox ?? person.endpoints?.sharedInbox)) {

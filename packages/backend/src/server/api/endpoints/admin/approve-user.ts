@@ -1,9 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import type { UsersRepository } from '@/models/_.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { DI } from '@/di-symbols.js';
 import { EmailService } from '@/core/EmailService.js';
+import { CacheService } from '@/core/CacheService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -25,40 +28,43 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		@Inject(DI.usersRepository)
-		private usersRepository: UsersRepository,
+		private readonly usersRepository: UsersRepository,
 
-        @Inject(DI.userProfilesRepository)
-		private userProfilesRepository: UserProfilesRepository,
-
-		private moderationLogService: ModerationLogService,
-        private emailService: EmailService,
+		private readonly moderationLogService: ModerationLogService,
+		private readonly emailService: EmailService,
+		private readonly cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const user = await this.usersRepository.findOneBy({ id: ps.userId });
-
-			if (user == null) {
-				throw new Error('user not found');
-			}
-
-			const profile = await this.userProfilesRepository.findOneBy({ userId: ps.userId });
+			const [user, profile] = await Promise.all([
+				this.cacheService.findLocalUserById(ps.userId),
+				this.cacheService.userProfileCache.fetchMaybe(ps.userId),
+			]);
 
 			if (user.approved) return;
+
+			if (user.isDeleted) {
+				throw new Error('user not found or already deleted');
+			}
 
 			await this.usersRepository.update(user.id, {
 				approved: true,
 			});
 
 			if (profile?.email) {
-				this.emailService.sendEmail(profile.email, 'Account Approved',
+				trackPromise(this.emailService.sendEmail(profile.email, 'Account Approved',
 					'Your Account has been approved have fun socializing!',
-					'Your Account has been approved have fun socializing!');
+					'Your Account has been approved have fun socializing!'));
 			}
 
-			this.moderationLogService.log(me, 'approve', {
-				userId: user.id,
-				userUsername: user.username,
-				userHost: user.host,
-			});
+			await Promise.all([
+				this.internalEventService.emit('userUpdated', { id: user.id }),
+				this.moderationLogService.log(me, 'approve', {
+					userId: user.id,
+					userUsername: user.username,
+					userHost: user.host,
+				}),
+			]);
 		});
 	}
 }

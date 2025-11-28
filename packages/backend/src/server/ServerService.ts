@@ -35,6 +35,7 @@ import { ClientServerService } from './web/ClientServerService.js';
 import { OpenApiServerService } from './api/openapi/OpenApiServerService.js';
 import { MastodonApiServerService } from './api/mastodon/MastodonApiServerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 const _dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -75,6 +76,7 @@ export class ServerService implements OnApplicationShutdown {
 		private oauth2ProviderService: OAuth2ProviderService,
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly envService: EnvService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -256,8 +258,9 @@ export class ServerService implements OnApplicationShutdown {
 					emailVerified: true,
 					emailVerifyCode: null,
 				});
+				await this.internalEventService.emit('updateUserProfile', { userId: profile.userId });
 
-				this.globalEventService.publishMainStream(profile.userId, 'meUpdated', await this.userEntityService.pack(profile.userId, { id: profile.userId }, {
+				await this.globalEventService.publishMainStream(profile.userId, 'meUpdated', await this.userEntityService.pack(profile.userId, { id: profile.userId }, {
 					schema: 'MeDetailed',
 					includeSecrets: true,
 				}));

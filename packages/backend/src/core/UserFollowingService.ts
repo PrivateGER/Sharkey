@@ -377,8 +377,8 @@ export class UserFollowingService implements OnModuleInit {
 			this.userEntityService.pack(followeeUser, follower, {
 				schema: 'UserDetailedNotMe',
 			}).then(async packed => {
-				this.globalEventService.publishMainStream(follower.id, 'unfollow', packed);
-				this.webhookService.enqueueUserWebhook(follower.id, 'unfollow', { user: packed });
+				await this.globalEventService.publishMainStream(follower.id, 'unfollow', packed);
+				await this.webhookService.enqueueUserWebhook(follower.id, 'unfollow', { user: packed });
 			});
 		}
 
