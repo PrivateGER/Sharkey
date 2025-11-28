@@ -4,7 +4,7 @@
  */
 
 import { LoggerService } from '@nestjs/common';
-import { coreLogger } from '@/boot/coreLogger.js';
+import { coreLogger, coreEnvService } from '@/boot/coreLogger.js';
 
 const nestLogger = coreLogger.createSubLogger('nest', 'green');
 
@@ -37,7 +37,7 @@ export class NestLogger implements LoggerService {
    * Write a 'debug' level log.
    */
 	debug?(message: any, ...optionalParams: any[]) {
-		if (process.env.NODE_ENV === 'production') return;
+		if (coreEnvService.env.NODE_ENV === 'production' && !coreEnvService.options.verbose) return;
 		const ctx = optionalParams[0];
 		nestLogger.debug(ctx + ': ' + message);
 	}
@@ -46,7 +46,7 @@ export class NestLogger implements LoggerService {
    * Write a 'verbose' level log.
    */
 	verbose?(message: any, ...optionalParams: any[]) {
-		if (process.env.NODE_ENV === 'production') return;
+		if (coreEnvService.env.NODE_ENV === 'production' && !coreEnvService.options.verbose) return;
 		const ctx = optionalParams[0];
 		nestLogger.debug(ctx + ': ' + message);
 	}

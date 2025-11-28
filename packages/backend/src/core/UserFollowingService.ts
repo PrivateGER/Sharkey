@@ -29,6 +29,7 @@ import { AccountMoveService } from '@/core/AccountMoveService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import type { ThinUser } from '@/queue/types.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { EnvService } from '@/global/EnvService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
@@ -91,6 +92,7 @@ export class UserFollowingService implements OnModuleInit {
 		private instanceChart: InstanceChart,
 		private readonly internalEventService: InternalEventService,
 		private readonly collapsedQueueService: CollapsedQueueService,
+		private readonly envService: EnvService,
 
 		loggerService: LoggerService,
 	) {
@@ -173,7 +175,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (
 			followee.isLocked ||
 			(followeeProfile.carefulBot && follower.isBot) ||
-			(this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee) && process.env.FORCE_FOLLOW_REMOTE_USER_FOR_TESTING !== 'true') ||
+			(this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee) && this.envService.env.FORCE_FOLLOW_REMOTE_USER_FOR_TESTING !== 'true') ||
 			(this.userEntityService.isLocalUser(followee) && this.userEntityService.isRemoteUser(follower) && this.utilityService.isSilencedHost(this.meta.silencedHosts, follower.host))
 		) {
 			let autoAccept = false;

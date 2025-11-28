@@ -94,6 +94,11 @@ export default [
 					property: 'now',
 					message: 'Use TimeService.now instead.',
 				},
+				{
+					object: 'process',
+					property: 'env',
+					message: 'Use EnvService.env instead.',
+				},
 			],
 			'no-restricted-syntax': [
 				'error',

@@ -32,6 +32,7 @@ import { UserListService } from '@/core/UserListService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { EnvService } from '@/global/EnvService.js';
 import type Logger from '@/logger.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
@@ -89,6 +90,7 @@ export class AccountMoveService {
 		private readonly timeService: TimeService,
 		private readonly internalEventService: InternalEventService,
 		private readonly loggerService: LoggerService,
+		private readonly envService: EnvService,
 	) {
 		this.logger = this.loggerService.getLogger('account-move');
 	}
@@ -143,14 +145,14 @@ export class AccountMoveService {
 
 		// Publish meUpdated event
 		const iObj = await this.userEntityService.pack(src.id, src, { schema: 'MeDetailed', includeSecrets: true });
-		this.globalEventService.publishMainStream(src.id, 'meUpdated', iObj);
+		await this.globalEventService.publishMainStream(src.id, 'meUpdated', iObj);
 
 		// Unfollow after 24 hours
 		const followings = await this.cacheService.userFollowingsCache.fetch(src.id);
 		await this.queueService.createDelayedUnfollowJob(Array.from(followings.keys()).map(followeeId => ({
 			from: { id: src.id },
 			to: { id: followeeId },
-		})), process.env.NODE_ENV === 'test' ? 10000 : 1000 * 60 * 60 * 24);
+		})), this.envService.env.NODE_ENV === 'test' ? 10000 : 1000 * 60 * 60 * 24);
 
 		await this.queueService.createMoveJob(src, dst);
 

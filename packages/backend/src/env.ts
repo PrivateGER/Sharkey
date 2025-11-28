@@ -37,9 +37,6 @@ const testEnvOption: Readonly<EnvOption> = {
 	noDaemons: true,
 };
 
-/** @deprecated use EnvService when possible */
-export const envOption: EnvOption = createEnvOptions(() => process.env);
-
 export function createEnvOptions(getEnv: () => Partial<Record<string, string>>): EnvOption {
 	return new Proxy({} as EnvOption, {
 		get(target, key) {

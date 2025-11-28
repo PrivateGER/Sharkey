@@ -21,6 +21,7 @@ import { genIdenticon } from '@/misc/gen-identicon.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { EnvService } from '@/global/EnvService.js';
 import { bindThis } from '@/decorators.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ActivityPubServerService } from './ActivityPubServerService.js';
@@ -73,6 +74,7 @@ export class ServerService implements OnApplicationShutdown {
 		private loggerService: LoggerService,
 		private oauth2ProviderService: OAuth2ProviderService,
 		private readonly customEmojiService: CustomEmojiService,
+		private readonly envService: EnvService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -127,7 +129,7 @@ export class ServerService implements OnApplicationShutdown {
 					return;
 				}
 
-				const effectiveLocation = process.env.NODE_ENV === 'production' ? location : location.replace(/^http:\/\//, 'https://');
+				const effectiveLocation = this.envService.env.NODE_ENV === 'production' ? location : location.replace(/^http:\/\//, 'https://');
 				if (effectiveLocation.startsWith(`https://${this.config.host}/`)) {
 					done();
 					return;
