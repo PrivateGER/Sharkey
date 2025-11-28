@@ -200,9 +200,12 @@ export class NoteDeleteService {
 			promises.push(this.searchService.unindexNote(note));
 		}
 
-		// Actually delete the note.
-		// Don't put this in the promise array, since it needs to happen before the next section.
-		await this.notesRepository.delete({ id: note.id });
+		// Actually delete the notes, in reverse order (newest-to-oldest) to minimize load.
+		// Don't put this in the promise array, since it needs to happen before the next section!
+		const sortedNotes = allNotes.toSorted((a, b) => b.id.localeCompare(a.id));
+		for (const note of sortedNotes) {
+			await this.notesRepository.delete({ id: note.id });
+		}
 
 		// Update the Latest Note index / following feed *after* note is deleted
 		for (const note of allNotes) {
