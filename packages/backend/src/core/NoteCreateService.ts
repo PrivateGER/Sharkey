@@ -784,20 +784,17 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (data.channel) {
-			await this.channelsRepository.increment({ id: data.channel.id }, 'notesCount', 1);
-			await this.channelsRepository.update(data.channel.id, {
-				lastNotedAt: this.timeService.date,
-			});
-
-			await this.notesRepository.countBy({
+			// この処理が行われるのはノート作成後なので、ノートが一つしかなかったら最初の投稿だと判断できる
+			// TODO: とはいえノートを削除して何回も投稿すればその分だけインクリメントされる雑さもあるのでどうにかしたい
+			const userNotesInChannel = await this.notesRepository.countBy({
 				userId: user.id,
 				channelId: data.channel.id,
-			}).then(count => {
-				// この処理が行われるのはノート作成後なので、ノートが一つしかなかったら最初の投稿だと判断できる
-				// TODO: とはいえノートを削除して何回も投稿すればその分だけインクリメントされる雑さもあるのでどうにかしたい
-				if (count === 1) {
-					this.channelsRepository.increment({ id: data.channel!.id }, 'usersCount', 1);
-				}
+			});
+
+			this.collapsedQueueService.updateChannelQueue.enqueue(data.channel.id, {
+				notesCountDelta: 1,
+				usersCountDelta: userNotesInChannel === 1 ? 1 : undefined,
+				lastNotedAt: this.timeService.date,
 			});
 		}
 
