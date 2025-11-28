@@ -344,7 +344,7 @@ export function createPostgresDataSource(config: Config, loggerService: LoggerSe
 		} : false,
 		logging: log,
 		logger: new TypeORMLogger({
-			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation ?? !verbose,
+			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation ?? verbose,
 			enableQueryLogging: log,
 			enableQueryParamLogging: config.logging?.sql?.enableQueryParamLogging ?? verbose,
 			printReplicationMode: !!config.dbReplications,
