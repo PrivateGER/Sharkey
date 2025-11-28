@@ -85,8 +85,6 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		private readonly cacheService: CacheService,
 		private readonly cacheManagementService: CacheManagementService,
 	) {
-		// TODO make sure all caches are updated
-
 		this.updateInstanceQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateInstance',
 			{
@@ -103,22 +101,17 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
+				check: (_, job) =>
+					job.notRespondingSince !== undefined || // This one allows null
+					!!job.latestRequestReceivedAt ||
+					!!job.shouldSuspendNotResponding ||
+					!!job.shouldSuspendGone ||
+					!!job.shouldUnsuspend ||
+					!!job.notesCountDelta ||
+					!!job.usersCountDelta ||
+					!!job.followingCountDelta ||
+					!!job.followersCountDelta,
 				perform: async (host, job) => {
-					// Avoid empty UPDATE statements
-					if (!(job.latestRequestReceivedAt ||
-						job.notRespondingSince !== undefined || // This one allows null
-						job.shouldSuspendNotResponding ||
-						job.shouldSuspendGone ||
-						job.shouldUnsuspend ||
-						job.notesCountDelta ||
-						job.usersCountDelta ||
-						job.followingCountDelta ||
-						job.followersCountDelta
-					)) {
-						// TODO return a "skipped" sentinel
-						return;
-					}
-
 					const sb = new SqlBuilder();
 					sb.add('UPDATE "instance"');
 					sb.add('SET');
@@ -219,13 +212,14 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
+				check: (_, job) =>
+					!!job.updatedAt ||
+					!!job.lastActiveDate ||
+					!!job.notesCountDelta ||
+					!!job.followingCountDelta ||
+					!!job.followersCountDelta,
 				perform:
 					async (userId, job) => {
-						// Avoid empty UPDATE statements
-						if (!(job.updatedAt || job.lastActiveDate || job.notesCountDelta || job.followingCountDelta || job.followersCountDelta)) {
-							return;
-						}
-
 						const sb = new SqlBuilder();
 						sb.add('UPDATE "user"');
 						sb.add('SET');
@@ -283,12 +277,11 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					renoteCountDelta: sum(oldJob.renoteCountDelta, newJob.renoteCountDelta),
 					clippedCountDelta: sum(oldJob.clippedCountDelta, newJob.clippedCountDelta),
 				}),
+				check: (_, job) =>
+					!!job.repliesCountDelta ||
+					!!job.renoteCountDelta ||
+					!!job.clippedCountDelta,
 				perform: async (noteId, job) => {
-					// Avoid empty UPDATE statements
-					if (!(job.repliesCountDelta || job.renoteCountDelta || job.clippedCountDelta)) {
-						return;
-					}
-
 					const sb = new SqlBuilder();
 					sb.add('UPDATE "note"');
 					sb.add('SET');
@@ -323,6 +316,8 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 				collapse: (oldJob, newJob) => ({
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
+				check: (_, job) =>
+					!!job.lastUsedAt,
 				perform: async (id, job) => {
 					await this.db.sql`
 						UPDATE "access_token"
@@ -342,12 +337,10 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					isActive: or(oldJob.isActive, newJob.isActive),
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
+				check: (_, job) =>
+					!!job.isActive ||
+					!!job.lastUsedAt,
 				perform: async (antennaId, job) => {
-					// Avoid empty UPDATE statements
-					if (!(job.isActive || job.lastUsedAt)) {
-						return;
-					}
-
 					const sb = new SqlBuilder();
 					sb.add('UPDATE "antenna"');
 					sb.add('SET');
@@ -382,12 +375,11 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
 					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
 				}),
+				check: (_, job) =>
+					!!job.lastNotedAt ||
+					!!job.notesCountDelta ||
+					!!job.usersCountDelta,
 				perform: async (channelId, job) => {
-					// Avoid empty UPDATE statements
-					if (!(job.lastNotedAt || job.notesCountDelta || job.usersCountDelta)) {
-						return;
-					}
-
 					const sb = new SqlBuilder();
 					sb.add('UPDATE "channel"');
 					sb.add('SET');
