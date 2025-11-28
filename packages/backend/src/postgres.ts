@@ -12,6 +12,7 @@ import { Config } from '@/config.js';
 import type MisskeyLogger from '@/logger.js';
 import type { Data } from '@/logger.js';
 import type { LoggerService } from '@/core/LoggerService.js';
+import type { EnvService } from '@/global/EnvService.js';
 import { bindThis } from '@/decorators.js';
 
 import { MiAbuseUserReport } from '@/models/AbuseUserReport.js';
@@ -298,9 +299,10 @@ export const entities = [
 	...charts,
 ];
 
-const log = process.env.NODE_ENV !== 'production';
+export function createPostgresDataSource(config: Config, loggerService: LoggerService, envService: EnvService) {
+	const log = envService.env.NODE_ENV !== 'production' && !envService.options.quiet;
+	const verbose = envService.options.verbose;
 
-export function createPostgresDataSource(config: Config, loggerService: LoggerService) {
 	const dbLogger = loggerService.getLogger('db');
 	return new DataSource({
 		type: 'postgres',
@@ -342,9 +344,9 @@ export function createPostgresDataSource(config: Config, loggerService: LoggerSe
 		} : false,
 		logging: log,
 		logger: new TypeORMLogger({
-			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation,
+			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation ?? !verbose,
 			enableQueryLogging: log,
-			enableQueryParamLogging: config.logging?.sql?.enableQueryParamLogging,
+			enableQueryParamLogging: config.logging?.sql?.enableQueryParamLogging ?? verbose,
 			printReplicationMode: !!config.dbReplications,
 		}, dbLogger),
 		maxQueryExecutionTime: config.db.slowQueryThreshold,
