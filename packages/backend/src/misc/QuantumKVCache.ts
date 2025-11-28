@@ -14,7 +14,6 @@ import { FetchFailedError } from '@/misc/errors/FetchFailedError.js';
 import { KeyNotFoundError } from '@/misc/errors/KeyNotFoundError.js';
 import { QuantumCacheError } from '@/misc/errors/QuantumCacheError.js';
 import { DisposedError, DisposingError } from '@/misc/errors/DisposeError.js';
-import { trackPromise } from '@/misc/promise-tracker.js';
 import { withCleanup, withSignal } from '@/misc/promiseUtils.js';
 import { promiseTry } from '@/misc/promise-try.js';
 
@@ -657,9 +656,9 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 			// Wait for cleanup
 			await Promise.allSettled([
-				...this.activeFetchers.values().map(p => trackPromise(p)),
-				...this.activeOptionalFetchers.values().map(p => trackPromise(p)),
-				...this.activeBulkFetchers.values().map(p => trackPromise(p)),
+				...this.activeFetchers.values(),
+				...this.activeOptionalFetchers.values(),
+				...this.activeBulkFetchers.values(),
 			]);
 
 			// Purge memory for faster GC
