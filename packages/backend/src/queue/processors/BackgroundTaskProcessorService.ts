@@ -24,7 +24,6 @@ import { NoteEditService } from '@/core/NoteEditService.js';
 import { HashtagService } from '@/core/HashtagService.js';
 import { DriveService } from '@/core/DriveService.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { UserSuspendService } from '@/core/UserSuspendService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
@@ -314,9 +313,7 @@ export class BackgroundTaskProcessorService {
 		const user = await this.cacheService.findOptionalUserById(task.userId);
 		if (!user || user.isDeleted) return `Skipping post-suspend task: user ${task.userId} has been deleted`;
 
-		await trackTask(async () => {
-			await this.userSuspendService.postSuspend(user);
-		});
+		await this.userSuspendService.postSuspend(user);
 
 		return 'ok';
 	}
@@ -325,9 +322,7 @@ export class BackgroundTaskProcessorService {
 		const user = await this.cacheService.findOptionalUserById(task.userId);
 		if (!user || user.isDeleted) return `Skipping post-unsuspend task: user ${task.userId} has been deleted`;
 
-		await trackTask(async () => {
-			await this.userSuspendService.postUnsuspend(user);
-		});
+		await this.userSuspendService.postUnsuspend(user);
 
 		return 'ok';
 	}
