@@ -27,6 +27,17 @@ export class IdentifiableError extends Error {
 }
 
 /**
+ * Basic type guard for IdentifiableError.
+ * Accepts unknown, so it's usable in catch blocks.
+ */
+export function isIdentifiableError(error: unknown, id?: string): error is IdentifiableError {
+	if (error instanceof IdentifiableError) {
+		return id == null || id === error.id;
+	}
+	return false;
+}
+
+/**
  * Standard error codes to reference throughout the app
  */
 export const errorCodes = {
@@ -41,4 +52,19 @@ export const errorCodes = {
 
 	/** String URL failed security or correctness validation */
 	urlValidationFailed: '0bedd29b-e3bf-4604-af51-d3352e2518af',
+
+	/** ActivityPub object failed security or correctness validation */
+	apValidationFailed: '215f1d40-042c-4ca2-bd75-80ada243de33',
+
+	/** Federation with the host is not allowed, either because it is blocked or not allow-listed */
+	federationNotAllowed: '0a72bf24-2d9b-4f1d-886b-15aaa31adeda',
+
+	/** Note could not be federated as localOnly is true */
+	cannotFederateLocalOnlyNote: 'd25f66c9-2013-401e-af02-88e3796be12d',
+
+	/** An internal assertion / sanity check failed. This error typically indicates a software bug. */
+	assertionFailed: '8418fdc0-20ea-449d-a98e-5189d08d5ca9',
+
+	/** No suitable local user could be found to sign an outbound AP request. */
+	noFetchUser: 'a65d9a9a-e307-429f-aa96-630ba570e5f1',
 } as const;
