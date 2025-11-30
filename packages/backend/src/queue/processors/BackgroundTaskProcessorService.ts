@@ -136,8 +136,8 @@ export class BackgroundTaskProcessorService {
 			await this.apPersonService.updateFeatured(user);
 		} catch (err) {
 			if (err instanceof IdentifiableError) {
-				if (err.id === errorCodes.userIsSuspended) return err.message;
-				if (err.id === errorCodes.userIsDeleted) return err.message;
+				if (err.id === errorCodes.userSuspended) return err.message;
+				if (err.id === errorCodes.userNotFound) return err.message;
 				if (err.id === errorCodes.noFeaturedCollection) return err.message;
 			}
 			throw err;
