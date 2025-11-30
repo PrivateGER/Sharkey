@@ -27,7 +27,7 @@ import { bindThis } from '@/decorators.js';
 import type { InternalEventTypes } from '@/core/GlobalEventService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import * as Acct from '@/misc/acct.js';
-import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { IdentifiableError, errorCodes } from '@/misc/identifiable-error.js';
 import { TimeService } from '@/global/TimeService.js';
 import {
 	CacheManagementService,
@@ -723,7 +723,13 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	public async findUserById(userId: MiUser['id']): Promise<MiUser> {
-		return await this.userByIdCache.fetch(userId);
+		const user = await this.findOptionalUserById(userId);
+
+		if (user == null) {
+			throw new IdentifiableError(errorCodes.userNotFound, `User ${userId} not found`);
+		}
+
+		return user;
 	}
 
 	@bindThis
@@ -758,7 +764,7 @@ export class CacheService implements OnApplicationShutdown {
 		const user = await this.findUserById(userId);
 
 		if (!isLocalUser(user)) {
-			throw new IdentifiableError('aeac1339-2550-4521-a8e3-781f06d98656', 'User is not local');
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${userId} is not local`);
 		}
 
 		return user;
@@ -769,7 +775,7 @@ export class CacheService implements OnApplicationShutdown {
 		const user = await this.findOptionalUserById(userId);
 
 		if (user && !isLocalUser(user)) {
-			throw new IdentifiableError('aeac1339-2550-4521-a8e3-781f06d98656', 'User is not local');
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${userId} is not local`);
 		}
 
 		return user;
@@ -794,7 +800,7 @@ export class CacheService implements OnApplicationShutdown {
 		const user = await this.findUserById(userId);
 
 		if (!isRemoteUser(user)) {
-			throw new IdentifiableError('aeac1339-2550-4521-a8e3-781f06d98656', 'User is not remote');
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${userId} is not remote`);
 		}
 
 		return user;
@@ -805,7 +811,7 @@ export class CacheService implements OnApplicationShutdown {
 		const user = await this.findOptionalUserById(userId);
 
 		if (user && !isRemoteUser(user)) {
-			throw new IdentifiableError('aeac1339-2550-4521-a8e3-781f06d98656', 'User is not remote');
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${userId} is not remote`);
 		}
 
 		return user;

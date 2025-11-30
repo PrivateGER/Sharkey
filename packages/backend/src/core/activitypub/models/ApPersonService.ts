@@ -941,8 +941,8 @@ export class ApPersonService implements OnModuleInit {
 		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
 		const user = typeof(userOrId) === 'object' ? userOrId : await this.cacheService.findRemoteUserById(userId);
 
-		if (user.isDeleted) throw new IdentifiableError(errorCodes.userIsDeleted, `Can't update featured for ${userId}: user is deleted`);
-		if (user.isSuspended) throw new IdentifiableError(errorCodes.userIsSuspended, `Can't update featured for ${userId}: user is suspended`);
+		if (user.isDeleted) throw new IdentifiableError(errorCodes.userNotFound, `Can't update featured for ${userId}: user is deleted`);
+		if (user.isSuspended) throw new IdentifiableError(errorCodes.userSuspended, `Can't update featured for ${userId}: user is suspended`);
 		if (!user.featured) throw new IdentifiableError(errorCodes.noFeaturedCollection, `Can't update featured for ${userId}: no featured collection`);
 
 		this.logger.info(`Updating featured notes for: ${user.uri}`);
