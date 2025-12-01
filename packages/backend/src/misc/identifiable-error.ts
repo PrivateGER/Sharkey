@@ -45,7 +45,13 @@ export const errorCodes = {
 	userIsDeleted: '4cac9436-baa3-4955-a368-7628aea676cf',
 
 	/** User is suspended (directly or by instance) */
-	userIsSuspended: '1e56d624-737f-48e4-beb6-0bdddb9fa809',
+	userSuspended: '1e56d624-737f-48e4-beb6-0bdddb9fa809',
+
+	/** User was expected to be remote, but was local instead. */
+	userNotRemote: 'aeac1339-2550-4521-a8e3-781f06d98656',
+
+	/** User was expected to be local, but was remote instead. */
+	userNotLocal: 'feb908c1-d507-4157-9b44-2fa5540e2ad8',
 
 	/** User has no valid featured collection (not defined, invalid, etc) */
 	noFeaturedCollection: '2aa4766e-b7d8-4291-a671-56800498b085',
