@@ -73,4 +73,13 @@ export const errorCodes = {
 
 	/** No suitable local user could be found to sign an outbound AP request. */
 	noFetchUser: 'a65d9a9a-e307-429f-aa96-630ba570e5f1',
+
+	/** Note has been deleted (hard or soft deleted) */
+	noteNotFound: '39934113-e4f6-45d8-821b-a760c686bf1d',
+
+	/** Note was expected to be remote, but was local instead. */
+	noteNotRemote: '354e5bc8-e10b-462d-8ec5-5d5be07e34e1',
+
+	/** Note was expected to be local, but was remote instead. */
+	noteNotLocal: '0fac7056-2329-4ee7-88a0-a9d4dded3264',
 } as const;
