@@ -36,6 +36,7 @@ import { renderInlineError } from '@/misc/render-inline-error.js';
 import { CacheService } from '@/core/CacheService.js';
 import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 import { getApHrefNullable, getApId, getApIds, getApType, getNullableApId, isAccept, isActor, isAdd, isAnnounce, isApObject, isBlock, isCollectionOrOrderedCollection, isCreate, isDelete, isFlag, isFollow, isLike, isDislike, isMove, isPost, isReject, isRemove, isTombstone, isUndo, isUpdate, validActor, validPost, isActivity, IObjectWithId } from './type.js';
 import { ApNoteService } from './models/ApNoteService.js';
 import { ApLoggerService } from './ApLoggerService.js';
@@ -96,6 +97,7 @@ export class ApInboxService {
 		private readonly cacheService: CacheService,
 		private readonly noteVisibilityService: NoteVisibilityService,
 		private readonly timeService: TimeService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		this.logger = this.apLoggerService.logger;
 	}
@@ -572,7 +574,7 @@ export class ApInboxService {
 
 		const job = await this.queueService.createDeleteAccountJob(actor);
 
-		this.globalEventService.publishInternalEvent('remoteUserUpdated', { id: actor.id });
+		await this.internalEventService.emit('userChangeDeletedState', { id: actor.id, isDeleted: true });
 
 		return `ok: queued ${job.name} ${job.id}`;
 	}
