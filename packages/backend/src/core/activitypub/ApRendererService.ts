@@ -235,11 +235,10 @@ export class ApRendererService {
 
 	/**
 	 * Convert (local|remote)(Follower|Followee)ID to URL
-	 * @param id Follower|Followee ID
+	 * @param user User to render
 	 */
 	@bindThis
-	public async renderFollowUser(id: MiUser['id']): Promise<string> {
-		const user = await this.cacheService.findUserById(id) as MiPartialLocalUser | MiPartialRemoteUser;
+	public async renderFollowUser(user: MiPartialUser | MiPartialLocalUser | MiPartialRemoteUser): Promise<string> {
 		return this.userEntityService.getUserUri(user);
 	}
 

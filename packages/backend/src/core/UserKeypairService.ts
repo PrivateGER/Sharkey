@@ -49,6 +49,11 @@ export class UserKeypairService implements OnApplicationShutdown {
 	}
 
 	@bindThis
+	public async getUserKeypairMaybe(userId: MiUser['id']): Promise<MiUserKeypair | undefined> {
+		return await this.userKeypairCache.fetchMaybe(userId);
+	}
+
+	@bindThis
 	private async onUserDeleted(body: InternalEventTypes['userChangeDeletedState']): Promise<void> {
 		await this.userKeypairCache.delete(body.id);
 	}

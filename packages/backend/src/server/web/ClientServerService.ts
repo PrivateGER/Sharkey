@@ -47,6 +47,7 @@ import { FlashEntityService } from '@/core/entities/FlashEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { ReversiGameEntityService } from '@/core/entities/ReversiGameEntityService.js';
 import { AnnouncementEntityService } from '@/core/entities/AnnouncementEntityService.js';
 import { FeedService } from './FeedService.js';
@@ -122,6 +123,7 @@ export class ClientServerService {
 		private clientLoggerService: ClientLoggerService,
 		private readonly timeService: TimeService,
 		private readonly envService: EnvService,
+		private readonly cacheService: CacheService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -184,6 +186,7 @@ export class ClientServerService {
 		return (manifest);
 	}
 
+	// TODO cache this
 	@bindThis
 	private async generateCommonPugData(meta: MiMeta) {
 		return {
@@ -448,15 +451,12 @@ export class ClientServerService {
 		// URL preview endpoint
 		fastify.get<{ Querystring: { url: string; lang: string; } }>('/url', (request, reply) => this.urlPreviewService.handle(request, reply));
 
-		const getFeed = async (acct: string) => {
-			const { username, host } = Acct.parse(acct);
-			const user = await this.usersRepository.findOneBy({
-				usernameLower: username.toLowerCase(),
-				host: host ?? IsNull(),
-				isSuspended: false,
-				enableRss: true,
-				requireSigninToViewContents: false,
-			});
+		const getFeed = async (handle: string) => {
+			const acct = Acct.parse(handle);
+			let user = await this.cacheService.findOptionalUserByAcct(acct);
+			if (user?.isDeleted || user?.isSuspended || user?.requireSigninToViewContents || !user?.enableRss) {
+				user = undefined;
+			}
 
 			return user && await this.feedService.packFeed(user);
 		};
@@ -509,19 +509,19 @@ export class ClientServerService {
 		//#region SSR
 		// User
 		fastify.get<{ Params: { user: string; sub?: string; } }>('/@:user/:sub?', async (request, reply) => {
-			const { username, host } = Acct.parse(request.params.user);
-			const user = await this.usersRepository.findOneBy({
-				usernameLower: username.toLowerCase(),
-				host: host ?? IsNull(),
-				isSuspended: false,
-			});
+			const acct = Acct.parse(request.params.user);
+			let user = await this.cacheService.findOptionalUserByAcct(acct);
+			if (user?.isDeleted || user?.isSuspended) {
+				user = undefined;
+			}
 
 			vary(reply.raw, 'Accept');
 
 			if (user != null) {
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
+				const profile = await this.cacheService.userProfileCache.fetch(user.id);
 				const me = profile.fields
 					? profile.fields
+						// TODO parse this properly
 						.filter(filed => filed.value != null && filed.value.match(/^https?:/))
 						.map(field => field.value)
 					: [];
@@ -554,13 +554,9 @@ export class ClientServerService {
 		});
 
 		fastify.get<{ Params: { user: string; } }>('/users/:user', async (request, reply) => {
-			const user = await this.usersRepository.findOneBy({
-				id: request.params.user,
-				host: IsNull(),
-				isSuspended: false,
-			});
+			const user = await this.cacheService.findOptionalUserById(request.params.user);
 
-			if (user == null) {
+			if (user == null || user.isSuspended || user.requireSigninToViewContents || !user.enableRss) {
 				reply.code(404);
 				return;
 			}
@@ -579,13 +575,20 @@ export class ClientServerService {
 					id: request.params.note,
 					visibility: In(['public', 'home']),
 				},
-				relations: ['user'],
 			});
 
-			// TODO pack with current user, or the frontend can get bad data
-			if (note && !note.user!.requireSigninToViewContents) {
+			if (!note) {
+				return await renderBase(reply);
+			}
+
+			const [user, profile, commonData] = await Promise.all([
+				this.cacheService.findOptionalUserById(note.userId),
+				this.cacheService.userProfileCache.fetchMaybe(note.userId),
+				this.generateCommonPugData(this.meta),
+			]);
+
+			if (user && profile && !user.isDeleted && !user.isSuspended && !user.requireSigninToViewContents) {
 				const _note = await this.noteEntityService.pack(note);
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: note.userId });
 				reply.header('Cache-Control', 'public, max-age=15');
 				if (profile.preventAiLearning) {
 					reply.header('X-Robots-Tag', 'noimageai');
@@ -597,7 +600,7 @@ export class ClientServerService {
 					avatarUrl: _note.user.avatarUrl,
 					// TODO: Let locale changeable by instance setting
 					summary: getNoteSummary(_note),
-					...await this.generateCommonPugData(this.meta),
+					...commonData,
 					clientCtx: htmlSafeJsonStringify({
 						note: _note,
 					}),
@@ -609,22 +612,23 @@ export class ClientServerService {
 
 		// Page
 		fastify.get<{ Params: { user: string; page: string; } }>('/@:user/pages/:page', async (request, reply) => {
-			const { username, host } = Acct.parse(request.params.user);
-			const user = await this.usersRepository.findOneBy({
-				usernameLower: username.toLowerCase(),
-				host: host ?? IsNull(),
-			});
+			const acct = Acct.parse(request.params.user);
+			const user = await this.cacheService.findOptionalUserByAcct(acct);
+			if (user == null || user.isDeleted || user.isSuspended) {
+				return await renderBase(reply);
+			}
 
-			if (user == null) return;
+			const [page, profile, commonData] = await Promise.all([
+				this.pagesRepository.findOneBy({
+					name: request.params.page,
+					userId: user.id,
+				}),
+				this.cacheService.userProfileCache.fetchMaybe(user.id),
+				this.generateCommonPugData(this.meta),
+			]);
 
-			const page = await this.pagesRepository.findOneBy({
-				name: request.params.page,
-				userId: user.id,
-			});
-
-			if (page) {
+			if (page && profile) {
 				const _page = await this.pageEntityService.pack(page);
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: page.userId });
 				if (['public'].includes(page.visibility)) {
 					reply.header('Cache-Control', 'public, max-age=15');
 				} else {
@@ -638,7 +642,7 @@ export class ClientServerService {
 					page: _page,
 					profile,
 					avatarUrl: _page.user.avatarUrl,
-					...await this.generateCommonPugData(this.meta),
+					...commonData,
 				});
 			} else {
 				return await renderBase(reply);
@@ -652,8 +656,16 @@ export class ClientServerService {
 			});
 
 			if (flash) {
-				const _flash = await this.flashEntityService.pack(flash);
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: flash.userId });
+				const [_flash, user, profile, commonData] = await Promise.all([
+					this.flashEntityService.pack(flash),
+					this.cacheService.findOptionalUserById(flash.userId),
+					this.cacheService.userProfileCache.fetchMaybe(flash.userId),
+					this.generateCommonPugData(this.meta),
+				]);
+				if (!user || !profile || user.isSuspended || user.isDeleted) {
+					return await renderBase(reply);
+				}
+
 				reply.header('Cache-Control', 'public, max-age=15');
 				if (profile.preventAiLearning) {
 					reply.header('X-Robots-Tag', 'noimageai');
@@ -663,7 +675,7 @@ export class ClientServerService {
 					flash: _flash,
 					profile,
 					avatarUrl: _flash.user.avatarUrl,
-					...await this.generateCommonPugData(this.meta),
+					...commonData,
 				});
 			} else {
 				return await renderBase(reply);
@@ -674,11 +686,20 @@ export class ClientServerService {
 		fastify.get<{ Params: { clip: string; } }>('/clips/:clip', async (request, reply) => {
 			const clip = await this.clipsRepository.findOneBy({
 				id: request.params.clip,
+				isPublic: true,
 			});
 
-			if (clip && clip.isPublic) {
-				const _clip = await this.clipEntityService.pack(clip);
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: clip.userId });
+			if (clip) {
+				const [_clip, user, profile, commonData] = await Promise.all([
+					this.clipEntityService.pack(clip),
+					this.cacheService.findOptionalUserById(clip.userId),
+					this.cacheService.userProfileCache.fetchMaybe(clip.userId),
+					this.generateCommonPugData(this.meta),
+				]);
+				if (!user || !profile || user.isSuspended || user.isDeleted) {
+					return await renderBase(reply);
+				}
+
 				reply.header('Cache-Control', 'public, max-age=15');
 				if (profile.preventAiLearning) {
 					reply.header('X-Robots-Tag', 'noimageai');
@@ -688,7 +709,7 @@ export class ClientServerService {
 					clip: _clip,
 					profile,
 					avatarUrl: _clip.user.avatarUrl,
-					...await this.generateCommonPugData(this.meta),
+					...commonData,
 					clientCtx: htmlSafeJsonStringify({
 						clip: _clip,
 					}),
@@ -703,8 +724,16 @@ export class ClientServerService {
 			const post = await this.galleryPostsRepository.findOneBy({ id: request.params.post });
 
 			if (post) {
-				const _post = await this.galleryPostEntityService.pack(post);
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: post.userId });
+				const [_post, user, profile, commonData] = await Promise.all([
+					this.galleryPostEntityService.pack(post),
+					this.cacheService.findOptionalUserById(post.userId),
+					this.cacheService.userProfileCache.fetchMaybe(post.userId),
+					this.generateCommonPugData(this.meta),
+				]);
+				if (!user || !profile || user.isSuspended || user.isDeleted) {
+					return await renderBase(reply);
+				}
+
 				reply.header('Cache-Control', 'public, max-age=15');
 				if (profile.preventAiLearning) {
 					reply.header('X-Robots-Tag', 'noimageai');
@@ -714,7 +743,7 @@ export class ClientServerService {
 					post: _post,
 					profile,
 					avatarUrl: _post.user.avatarUrl,
-					...await this.generateCommonPugData(this.meta),
+					...commonData,
 				});
 			} else {
 				return await renderBase(reply);
@@ -793,19 +822,24 @@ export class ClientServerService {
 		fastify.get<{ Params: { user: string; } }>('/embed/user-timeline/:user', async (request, reply) => {
 			reply.removeHeader('X-Frame-Options');
 
-			const user = await this.usersRepository.findOneBy({
-				id: request.params.user,
-			});
+			const user = await this.cacheService.findOptionalUserById(request.params.user);
 
 			if (user == null) return;
 			if (user.host != null) return;
+			if (user.isDeleted) return;
+			if (user.isSuspended) return;
+			if (user.requireSigninToViewContents) return;
+			if (!user.enableRss) return;
 
-			const _user = await this.userEntityService.pack(user);
+			const [_user, commonData] = await Promise.all([
+				this.userEntityService.pack(user),
+				this.generateCommonPugData(this.meta),
+			]);
 
 			reply.header('Cache-Control', 'public, max-age=3600');
 			return await reply.view('base-embed', {
 				title: this.meta.name ?? 'Sharkey',
-				...await this.generateCommonPugData(this.meta),
+				...commonData,
 				embedCtx: htmlSafeJsonStringify({
 					user: _user,
 				}),

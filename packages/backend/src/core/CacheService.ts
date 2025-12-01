@@ -124,11 +124,13 @@ export class CacheService implements OnApplicationShutdown {
 
 	/**
 	 * Maps user IDs (key) to the map of user ID / MiFollowing instances (value) followed by that user.
+	 * Entries ordered in reverse-chronological (descending) order by follow time (id).
 	 */
 	public readonly userFollowingsCache: ManagedQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>;
 
 	/**
 	 * Maps user IDs (key) to the map of user ID / MiFollowing instances (value) following that user.
+	 * Entries ordered in reverse-chronological (descending) order by follow time (id).
 	 */
 	public readonly userFollowersCache: ManagedQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>;
 
@@ -486,14 +488,14 @@ export class CacheService implements OnApplicationShutdown {
 		this.userFollowingsCache = this.cacheManagementService.createQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>('userFollowings', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async followerId => {
-				const followings = await this.followingsRepository.findBy({ followerId: followerId });
+				const followings = await this.followingsRepository.find({ where: { followerId: followerId }, order: { id: 'DESC' } });
 				return new Map(followings.map(following => [following.followeeId, following]));
 			},
 			// no optionalFetcher needed
 			bulkFetcher: async followerIds => {
 				const groups = new Map<string, Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>();
 
-				const followings = await this.followingsRepository.findBy({ followerId: In(followerIds) });
+				const followings = await this.followingsRepository.find({ where: { followerId: In(followerIds) }, order: { id: 'DESC' } });
 				for (const following of followings) {
 					let group = groups.get(following.followerId);
 					if (!group) {
@@ -510,14 +512,14 @@ export class CacheService implements OnApplicationShutdown {
 		this.userFollowersCache = this.cacheManagementService.createQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>('userFollowers', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async followeeId => {
-				const followings = await this.followingsRepository.findBy({ followeeId: followeeId });
+				const followings = await this.followingsRepository.find({ where: { followeeId: followeeId }, order: { id: 'DESC' } });
 				return new Map(followings.map(following => [following.followerId, following]));
 			},
 			// no optionalFetcher needed
 			bulkFetcher: async followeeIds => {
 				const groups = new Map<string, Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>();
 
-				const followings = await this.followingsRepository.findBy({ followeeId: In(followeeIds) });
+				const followings = await this.followingsRepository.find({ where: { followeeId: In(followeeIds) }, order: { id: 'DESC' } });
 				for (const following of followings) {
 					let group = groups.get(following.followeeId);
 					if (!group) {
