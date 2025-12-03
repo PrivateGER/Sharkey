@@ -98,3 +98,9 @@ services:
 
 networks:
   shonk:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: "fd00:2::/64"
