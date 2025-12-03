@@ -348,7 +348,7 @@ export class HttpRequestService {
 
 		const parsedUrl = new URL(url);
 		const allowHttp = args.allowHttp || await isPrivateUrl(parsedUrl, this.lookup);
-		this.utilityService.assertUrl(parsedUrl, allowHttp);
+		this.utilityService.assertUrl(parsedUrl, { allowHttp });
 
 		const controller = new AbortController();
 		this.timeService.startTimer(() => {

@@ -41,7 +41,7 @@ export class DownloadService {
 		filename: string;
 	}> {
 		// Allow fragments for backwards compatibility
-		this.utilityService.assertUrl(url, undefined, true);
+		this.utilityService.assertUrl(url);
 
 		this.logger.debug(`Downloading ${chalk.cyan(url)} to ${chalk.cyanBright(path)} ...`);
 

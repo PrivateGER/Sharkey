@@ -124,7 +124,7 @@ export class ApNoteService implements OnModuleInit {
 		if (typeof(object.id) !== 'string') {
 			throw new UnrecoverableError(`invalid Note from ${uri}: wrong id type ${typeof(object.id)}`);
 		}
-		const parsedId = this.utilityService.assertUrl(object.id);
+		const parsedId = this.utilityService.assertUrl(object.id, { allowFragment: false });
 		const idHost = this.utilityService.punyHostPSLDomain(parsedId);
 		if (idHost !== expectHost) {
 			throw new UnrecoverableError(`invalid Note from ${uri}: wrong host in id ${object.id} (got ${parsedId}, expected ${expectHost})`);
