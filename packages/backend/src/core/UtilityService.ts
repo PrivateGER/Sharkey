@@ -275,11 +275,15 @@ export class UtilityService {
 	/**
 	 * Verifies that a provided URL is in a format acceptable for federation.
 	 * @throws {IdentifiableError} If URL cannot be parsed
-	 * @throws {IdentifiableError} If URL is not HTTPS
+	 * @throws {IdentifiableError} If URL is not HTTPS (or HTTP, if allowed)
+	 * @throws {IdentifiableError} If URL contains a fragment (if not allowed)
 	 * @throws {IdentifiableError} If URL contains credentials
 	 */
 	@bindThis
-	public assertUrl(url: string | URL, allowHttp = false, allowFragment = false): URL | never {
+	public assertUrl(url: string | URL, opts?: { allowHttp?: boolean, allowFragment?: boolean }): URL | never {
+		const allowHttp = opts?.allowHttp ?? false;
+		const allowFragment = opts?.allowFragment ?? true;
+
 		// If string, parse and validate
 		if (typeof(url) === 'string') {
 			try {
@@ -310,9 +314,9 @@ export class UtilityService {
 	/**
 	 * Verifies that a provided URL is in a format acceptable for federation.
 	 */
-	public isValidUrl(url: string | URL, allowHttp?: boolean, allowFragment?: boolean): boolean {
+	public isValidUrl(url: string | URL, opts?: { allowHttp?: boolean, allowFragment?: boolean }): boolean {
 		try {
-			this.assertUrl(url, allowHttp, allowFragment);
+			this.assertUrl(url, opts);
 			return true;
 		} catch {
 			return false;

@@ -221,7 +221,7 @@ export class ApPersonService implements OnModuleInit {
 		if (typeof(x.id) !== 'string') {
 			throw new UnrecoverableError(`invalid Actor ${uri}: wrong id type ${typeof(x.id)}`);
 		}
-		const parsedId = this.utilityService.assertUrl(x.id);
+		const parsedId = this.utilityService.assertUrl(x.id, { allowFragment: false });
 		const idHost = this.utilityService.punyHostPSLDomain(parsedId);
 		if (idHost !== expectHost) {
 			throw new UnrecoverableError(`invalid Actor ${uri}: wrong host in id ${x.id} (got ${parsedId}, expected ${expectHost})`);
@@ -287,7 +287,7 @@ export class ApPersonService implements OnModuleInit {
 		}
 
 		// Sanitize publicKey (fragment / hash is allowed)
-		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost, undefined, { allowFragment: true });
+		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost, undefined);
 
 		return x;
 	}

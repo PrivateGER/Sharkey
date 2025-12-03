@@ -147,7 +147,7 @@ export class ApUtilityService {
 		}
 
 		try {
-			const parsed = this.utilityService.assertUrl(valueId, urlOpts?.allowHttp, urlOpts?.allowFragment);
+			const parsed = this.utilityService.assertUrl(valueId, urlOpts);
 			const parsedHost = this.utilityService.punyHostPSLDomain(parsed);
 			if (parsedHost !== parentHost) {
 				// Exclude wrong host
