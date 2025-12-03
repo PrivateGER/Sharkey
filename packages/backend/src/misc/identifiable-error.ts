@@ -65,6 +65,9 @@ export const errorCodes = {
 	/** ActivityPub object failed security or correctness validation */
 	apValidationFailed: '215f1d40-042c-4ca2-bd75-80ada243de33',
 
+	/** ActivityPub resource could not be fetched due to an unexpected error. */
+	apFetchFailed: 'fe5a647e-09cb-4bcb-b582-3603fa7fac30',
+
 	/** Federation with the host is not allowed, either because it is blocked or not allow-listed */
 	federationNotAllowed: '0a72bf24-2d9b-4f1d-886b-15aaa31adeda',
 
