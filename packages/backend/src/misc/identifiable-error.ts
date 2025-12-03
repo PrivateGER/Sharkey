@@ -47,6 +47,9 @@ export const errorCodes = {
 	/** User is suspended (directly or by instance) */
 	userSuspended: '1e56d624-737f-48e4-beb6-0bdddb9fa809',
 
+	/** User is blocked by the target user(s) */
+	userBlocked: '3338392a-f764-498d-8855-db939dcf8c48',
+
 	/** User was expected to be remote, but was local instead. */
 	userNotRemote: 'aeac1339-2550-4521-a8e3-781f06d98656',
 
