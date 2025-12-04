@@ -143,8 +143,8 @@ export class ApInboxService {
 		}
 
 		// ついでにリモートユーザーの情報が古かったら更新しておく
-		if (actor.uri) {
-			if (actor.lastFetchedAt == null || this.timeService.now - actor.lastFetchedAt.getTime() > 1000 * 60 * 60 * 24) {
+		{
+			{
 				{
 					// 同一ユーザーの情報を再度処理するので、使用済みのresolverを再利用してはいけない
 					await this.apPersonService.updatePersonLazy(actor);
