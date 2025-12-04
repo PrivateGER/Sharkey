@@ -143,7 +143,7 @@ export class CacheService implements OnApplicationShutdown {
 	public readonly userFollowStatsCache: ManagedMemoryKVCache<FollowStats>;
 
 	/**
-	 * Maps user IDs (key) to the set of cahnnel IDs (value) followed by that user.
+	 * Maps user IDs (key) to the set of channel IDs (value) followed by that user.
 	 */
 	public readonly userFollowingChannelsCache: ManagedQuantumKVCache<Set<string>>;
 
