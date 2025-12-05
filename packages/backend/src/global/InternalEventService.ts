@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import type { GlobalEvents, InternalEventTypes } from '@/core/GlobalEventService.js';
@@ -18,8 +18,11 @@ export interface ListenerProps {
 	ignoreRemote?: boolean,
 }
 
+// Random 32-bit integer encoded as base-32
+const thisNodeId = Math.round(Math.random() * Math.pow(2, 32)).toString(32);
+
 @Injectable()
-export class InternalEventService implements OnApplicationShutdown {
+export class InternalEventService implements OnModuleInit, OnApplicationShutdown {
 	private readonly listeners = new Map<keyof EventTypes, Map<Listener<keyof EventTypes>, ListenerProps>>();
 
 	constructor(
@@ -31,9 +34,7 @@ export class InternalEventService implements OnApplicationShutdown {
 
 		@Inject(DI.config)
 		private readonly config: Pick<Config, 'host'>,
-	) {
-		this.redisForSub.on('message', this.onMessage);
-	}
+	) {}
 
 	@bindThis
 	public on<K extends keyof EventTypes>(type: K, listener: Listener<K>, props?: ListenerProps): void {
@@ -58,6 +59,7 @@ export class InternalEventService implements OnApplicationShutdown {
 		await this.redisForPub.publish(this.config.host, JSON.stringify({
 			channel: 'internal',
 			message: { type: type, body: value },
+			node: thisNodeId,
 		}));
 	}
 
@@ -83,8 +85,9 @@ export class InternalEventService implements OnApplicationShutdown {
 		const obj = JSON.parse(data);
 
 		if (obj.channel === 'internal') {
-			const { type, body } = obj.message as GlobalEvents['internal']['payload'];
-			if (!isLocalInternalEvent(body) || body._pid !== process.pid) {
+			const message = obj.message as GlobalEvents['internal'];
+			if (message.node !== thisNodeId) {
+				const { type, body } = message.payload;
 				await this.emitInternal(type, body as EventTypes[keyof EventTypes], false);
 			}
 		}
@@ -100,12 +103,14 @@ export class InternalEventService implements OnApplicationShutdown {
 	public onApplicationShutdown(): void {
 		this.dispose();
 	}
-}
 
-interface LocalInternalEvent {
-	_pid: number;
-}
+	@bindThis
+	public connect(): void {
+		this.redisForSub.on('message', this.onMessage);
+	}
 
-function isLocalInternalEvent(body: object): body is LocalInternalEvent {
-	return '_pid' in body && typeof(body._pid) === 'number';
+	@bindThis
+	public onModuleInit(): void {
+		this.connect();
+	}
 }

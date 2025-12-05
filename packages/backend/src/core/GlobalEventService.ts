@@ -281,6 +281,7 @@ type EventTypesToEventPayload<T> = EventUnionFromDictionary<UndefinedAsNullAll<S
 // name/messages(spec) pairs dictionary
 export type GlobalEvents = {
 	internal: {
+		node: string;
 		name: 'internal';
 		payload: EventTypesToEventPayload<InternalEventTypes>;
 	};
