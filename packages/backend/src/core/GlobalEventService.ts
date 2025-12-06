@@ -215,7 +215,7 @@ export interface ReversiGameEventTypes {
 // https://stackoverflow.com/questions/49311989/can-i-infer-the-type-of-a-value-using-extends-keyof-type
 // VS Codeの展開を防止するためにEvents型を定義
 type Events<T extends object> = { [K in keyof T]: { type: K; body: T[K]; } };
-type EventUnionFromDictionary<
+export type EventUnionFromDictionary<
 	T extends object,
 	U = Events<T>,
 > = U[keyof U];
