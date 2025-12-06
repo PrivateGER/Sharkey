@@ -6,7 +6,7 @@
 import { EntityNotFoundError } from 'typeorm';
 import promiseLimit from 'promise-limit';
 import { bindThis } from '@/decorators.js';
-import type { InternalEventService, EventTypes } from '@/global/InternalEventService.js';
+import type { InternalEventService, InternalEventTypes } from '@/global/InternalEventService.js';
 import { MemoryKVCache, type MemoryCacheServices } from '@/misc/cache.js';
 import { makeKVPArray, type KVPArray } from '@/misc/kvp-array.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
@@ -673,7 +673,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	}
 
 	@bindThis
-	private async onQuantumCacheUpdated(data: EventTypes['quantumCacheUpdated']): Promise<void> {
+	private async onQuantumCacheUpdated(data: InternalEventTypes['quantumCacheUpdated']): Promise<void> {
 		this.throwIfDisposed();
 
 		if (data.name === this.name) {
@@ -688,7 +688,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	}
 
 	@bindThis
-	private async onQuantumCacheReset(data: EventTypes['quantumCacheReset']): Promise<void> {
+	private async onQuantumCacheReset(data: InternalEventTypes['quantumCacheReset']): Promise<void> {
 		this.throwIfDisposed();
 
 		if (data.name === this.name) {
