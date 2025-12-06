@@ -35,7 +35,6 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { CacheService } from '@/core/CacheService.js';
 import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
-import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { getApHrefNullable, getApId, getApIds, getApType, getNullableApId, isAccept, isActor, isAdd, isAnnounce, isApObject, isBlock, isCollectionOrOrderedCollection, isCreate, isDelete, isFlag, isFollow, isLike, isDislike, isMove, isPost, isReject, isRemove, isTombstone, isUndo, isUpdate, validActor, validPost, isActivity, IObjectWithId } from './type.js';
 import { ApNoteService } from './models/ApNoteService.js';
@@ -96,7 +95,6 @@ export class ApInboxService {
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly cacheService: CacheService,
 		private readonly noteVisibilityService: NoteVisibilityService,
-		private readonly timeService: TimeService,
 		private readonly internalEventService: InternalEventService,
 	) {
 		this.logger = this.apLoggerService.logger;
