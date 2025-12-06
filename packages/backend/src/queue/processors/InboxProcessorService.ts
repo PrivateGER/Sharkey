@@ -30,7 +30,6 @@ import { DI } from '@/di-symbols.js';
 import { SkApInboxLog } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import { ApLogService, calculateDurationSince } from '@/core/ApLogService.js';
-import { TimeService } from '@/global/TimeService.js';
 import { isRetryableError } from '@/misc/is-retryable-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -71,7 +70,6 @@ export class InboxProcessorService implements OnApplicationShutdown {
 		private federationChart: FederationChart,
 		private queueLoggerService: QueueLoggerService,
 		private readonly apLogService: ApLogService,
-		private readonly timeService: TimeService,
 		private readonly queueService: QueueService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
