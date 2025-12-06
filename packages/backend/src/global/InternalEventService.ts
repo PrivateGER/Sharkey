@@ -18,7 +18,7 @@ export type EventValue<K extends keyof InternalEventTypes> = InternalEventTypes[
 type InternalEventMessage = {
 	node: string,
 	channel: 'internal',
-	payload: EventUnionFromDictionary<InternalEventTypes>,
+	message: EventUnionFromDictionary<InternalEventTypes>,
 };
 
 // This makes TypeScript shut up about casting Listener<T> to Listener<keyof InternalEventTypes>
@@ -69,9 +69,9 @@ export class InternalEventService implements OnModuleInit, OnApplicationShutdown
 	public async emit<K extends keyof InternalEventTypes>(type: K, value: EventValue<K>): Promise<void> {
 		await this.emitInternal(type, value, true);
 		await this.redisForPub.publish(this.config.host, JSON.stringify({
-			channel: 'internal',
-			payload: { type: type, body: value },
 			node: thisNodeId,
+			channel: 'internal',
+			message: { type: type, body: value },
 		}));
 	}
 
@@ -96,12 +96,9 @@ export class InternalEventService implements OnModuleInit, OnApplicationShutdown
 	private async onMessage(_: string, data: string): Promise<void> {
 		const obj = JSON.parse(data);
 
-		if (obj.channel === 'internal') {
-			const message = obj.message as InternalEventMessage;
-			if (message.node !== thisNodeId) {
-				const { type, body } = message.payload;
-				await this.emitInternal(type, body, false);
-			}
+		if (obj.channel === 'internal' && obj.node !== thisNodeId) {
+			const { type, body } = (obj as InternalEventMessage).message;
+			await this.emitInternal(type, body, false);
 		}
 	}
 
