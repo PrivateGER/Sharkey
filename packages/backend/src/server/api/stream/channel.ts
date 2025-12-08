@@ -240,8 +240,8 @@ export default abstract class Channel {
 		}
 
 		// Hide notes *after* we sync visibility
-		await this.noteEntityService.hideNotes(notes, this.user.id, {
 			userFollowings: myFollowings,
+		await this.noteEntityService.hideNotesAsync(notes, this.user, {
 		});
 
 		return clonedNote;
