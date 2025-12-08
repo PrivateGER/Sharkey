@@ -569,7 +569,7 @@ export class CacheService implements OnApplicationShutdown {
 		});
 
 		// Update caches based on changes to other caches.
-		this.hibernatedUserCache.on('onChanged', this.onHibernatedUserCacheChanged);
+		this.hibernatedUserCache.on('changed', this.onHibernatedUserCacheChanged);
 
 		// Update memory caches from local *and remote* events since the cache doesn't sync automatically.
 		this.internalEventService.on('follow', this.onFollowEvent);
@@ -932,7 +932,7 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	public dispose(): void {
-		this.hibernatedUserCache.off('onChanged', this.onHibernatedUserCacheChanged);
+		this.hibernatedUserCache.off('changed', this.onHibernatedUserCacheChanged);
 
 		this.internalEventService.off('follow', this.onFollowEvent);
 		this.internalEventService.off('unfollow', this.onFollowEvent);
