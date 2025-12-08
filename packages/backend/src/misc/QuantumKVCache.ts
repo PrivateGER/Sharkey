@@ -16,6 +16,7 @@ import { QuantumCacheError } from '@/misc/errors/QuantumCacheError.js';
 import { DisposedError, DisposingError } from '@/misc/errors/DisposeError.js';
 import { withCleanup, withSignal } from '@/misc/promiseUtils.js';
 import { promiseTry } from '@/misc/promise-try.js';
+import { SkEventSource, type EventListener, type ListenerProps, type SkEventEmitter } from '@/misc/SkEventEmitter.js';
 
 export interface QuantumKVOpts<TIn, T extends Value<TIn> = Value<TIn>> {
 	/**
@@ -37,16 +38,6 @@ export interface QuantumKVOpts<TIn, T extends Value<TIn> = Value<TIn>> {
 	 * Callback to fetch multiple optional values by key.
 	 */
 	bulkFetcher?: BulkFetcher<T>;
-
-	/**
-	 * Callback to handle changes to the cross-cluster state (create, update, or delete values).
-	 */
-	onChanged?: OnChanged<T>;
-
-	/**
-	 * Callback to handle a whole-state reset (all values deleted).
-	 */
-	onReset?: OnReset<T>;
 
 	/**
 	 * Optional limit on the number of calls to fetcher to allow at once.
@@ -83,6 +74,27 @@ export interface QuantumKVOpts<TIn, T extends Value<TIn> = Value<TIn>> {
 	 */
 	maxConcurrency?: number;
 }
+
+export type QuantumKVCacheEvents<T> = {
+	/**
+	 * Called when one or more values are changed (created, updated, or deleted) in the cache, either locally or elsewhere in the cluster.
+	 * This is called *after* the cache state is updated.
+	 * May be synchronous or async.
+	 */
+	onChanged: CallbackMeta<T> & {
+		/**
+		 * Key(s) that have changed.
+		 */
+		keys: string[];
+	}
+
+	/**
+	 * when all values are removed from the cache, either locally or elsewhere in the cluster.
+	 * This is called *after* the cache state is updated.
+	 * May be synchronous or async.
+	 */
+	onReset: CallbackMeta<T>;
+};
 
 export interface CallbackMeta<T> {
 	/**
@@ -123,20 +135,6 @@ export type OptionalFetcher<T> = (key: string, meta: CallbackMeta<T>) => MaybePr
  */
 export type BulkFetcher<T> = (keys: string[], meta: CallbackMeta<T>) => MaybePromise<Iterable<[key: string, value: Value<T> | null | undefined]>>;
 
-/**
- * Optional callback when one or more values are changed (created, updated, or deleted) in the cache, either locally or elsewhere in the cluster.
- * This is called *after* the cache state is updated.
- * May be synchronous or async.
- */
-export type OnChanged<T> = (keys: string[], meta: CallbackMeta<T>) => MaybePromise<void>;
-
-/**
- * Optional callback when all values are removed from the cache, either locally or elsewhere in the cluster.
- * This is called *after* the cache state is updated.
- * May be synchronous or async.
- */
-export type OnReset<T> = (meta: CallbackMeta<T>) => MaybePromise<void>;
-
 type ActiveFetcher<T> = Promise<T>;
 type ActiveOptionalFetcher<T> = Promise<T | undefined>;
 type ActiveBulkFetcher<T> = Promise<KeyValue<T>[]>;
@@ -162,10 +160,11 @@ export interface QuantumCacheServices extends MemoryCacheServices {
  * All nodes in the cluster are guaranteed to have a *subset* view of the current accurate state, though individual processes may have different items in their local cache.
  * This ensures that a call to get() will never return stale data.
  */
-export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements Iterable<readonly [key: string, value: T]> {
+export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements Iterable<readonly [key: string, value: T]>, SkEventEmitter<QuantumKVCacheEvents<T>> {
 	private readonly internalEventService: InternalEventService;
 
 	private readonly memoryCache: MemoryKVCache<T>;
+	private readonly eventSource = new SkEventSource<QuantumKVCacheEvents<T>>();
 
 	private readonly activeFetchers = new Map<string, ActiveFetcher<T>>();
 	private readonly activeOptionalFetchers = new Map<string, ActiveOptionalFetcher<T>>();
@@ -179,8 +178,6 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	public readonly fetcher: Fetcher<T>;
 	public readonly optionalFetcher: OptionalFetcher<T> | undefined;
 	public readonly bulkFetcher: BulkFetcher<T> | undefined;
-	public readonly onChanged: OnChanged<T> | undefined;
-	public readonly onReset: OnReset<T> | undefined;
 
 	private readonly disposeController = new AbortController();
 	private isDisposing = false;
@@ -224,8 +221,6 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.fetcher = opts.fetcher;
 		this.optionalFetcher = opts.optionalFetcher;
 		this.bulkFetcher = opts.bulkFetcher;
-		this.onChanged = opts.onChanged;
-		this.onReset = opts.onReset;
 
 		this.internalEventService = services.internalEventService;
 		this.internalEventService.on('quantumCacheUpdated', this.onQuantumCacheUpdated, {
@@ -314,10 +309,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.memoryCache.set(key, value);
 
 		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: [key] });
-
-		if (this.onChanged) {
-			await this.onChanged([key], this.callbackMeta);
-		}
+		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: [key] });
 	}
 
 	/**
@@ -340,10 +332,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 		if (changedKeys.length > 0) {
 			await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: changedKeys });
-
-			if (this.onChanged) {
-				await this.onChanged(changedKeys, this.callbackMeta);
-			}
+			await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: changedKeys });
 		}
 	}
 
@@ -505,10 +494,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.memoryCache.delete(key);
 
 		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: [key] });
-
-		if (this.onChanged) {
-			await this.onChanged([key], this.callbackMeta);
-		}
+		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: [key] });
 	}
 	/**
 	 * Deletes multiple values from the cache, and erases any stale caches across the cluster.
@@ -519,22 +505,19 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	public async deleteMany(keys: Iterable<string>): Promise<void> {
 		this.throwIfDisposed();
 
-		const deleted: string[] = [];
+		const deletedKeys: string[] = [];
 
 		for (const key of keys) {
 			this.memoryCache.delete(key);
-			deleted.push(key);
+			deletedKeys.push(key);
 		}
 
-		if (deleted.length === 0) {
+		if (deletedKeys.length === 0) {
 			return;
 		}
 
-		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: deleted });
-
-		if (this.onChanged) {
-			await this.onChanged(deleted, this.callbackMeta);
-		}
+		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: deletedKeys });
+		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: deletedKeys });
 	}
 
 	/**
@@ -606,10 +589,24 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.clear();
 
 		await this.internalEventService.emit('quantumCacheReset', { name: this.name });
+		await this.eventSource.emit('onReset', this.callbackMeta);
+	}
 
-		if (this.onReset) {
-			await this.onReset(this.callbackMeta);
-		}
+	/**
+	 * Registers a listener for a cache event.
+	 */
+	@bindThis
+	public on<K extends keyof QuantumKVCacheEvents<T>>(type: K, listener: EventListener<QuantumKVCacheEvents<T>, K>, props?: Partial<ListenerProps> | undefined): void {
+		this.eventSource.on(type, listener, props);
+	}
+
+	/**
+	 * Removes an already-registered event listener.
+	 * No-op if the listener is not already registered.
+	 */
+	@bindThis
+	public off<K extends keyof QuantumKVCacheEvents<T>>(type: K, listener: EventListener<QuantumKVCacheEvents<T>, K>): void {
+		this.eventSource.off(type, listener);
 	}
 
 	/**
@@ -668,9 +665,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 				this.memoryCache.delete(key);
 			}
 
-			if (this.onChanged) {
-				await this.onChanged(data.keys, this.callbackMeta);
-			}
+			await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: data.keys });
 		}
 	}
 
@@ -681,9 +676,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		if (data.name === this.name) {
 			this.clear();
 
-			if (this.onReset) {
-				await this.onReset(this.callbackMeta);
-			}
+			await this.eventSource.emit('onReset', this.callbackMeta);
 		}
 	}
 
