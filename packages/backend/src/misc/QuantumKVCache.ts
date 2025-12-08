@@ -81,7 +81,7 @@ export type QuantumKVCacheEvents<T> = {
 	 * This is called *after* the cache state is updated.
 	 * May be synchronous or async.
 	 */
-	onChanged: CallbackMeta<T> & {
+	changed: CallbackMeta<T> & {
 		/**
 		 * Key(s) that have changed.
 		 */
@@ -93,7 +93,7 @@ export type QuantumKVCacheEvents<T> = {
 	 * This is called *after* the cache state is updated.
 	 * May be synchronous or async.
 	 */
-	onReset: CallbackMeta<T>;
+	reset: CallbackMeta<T>;
 };
 
 export interface CallbackMeta<T> {
@@ -295,7 +295,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Creates or updates a value in the cache, and erases any stale caches across the cluster.
-	 * Fires an onChanged event after the cache has been updated in all processes.
+	 * Emits a changed event after the cache has been updated in all processes.
 	 * Skips if the value is unchanged.
 	 */
 	@bindThis
@@ -309,12 +309,12 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.memoryCache.set(key, value);
 
 		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: [key] });
-		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: [key] });
+		await this.eventSource.emit('changed', { ...this.callbackMeta, keys: [key] });
 	}
 
 	/**
 	 * Creates or updates multiple value in the cache, and erases any stale caches across the cluster.
-	 * Fires an onChanged for each changed item event after the cache has been updated in all processes.
+	 * Emits a changed for each changed item event after the cache has been updated in all processes.
 	 * Skips if all values are unchanged.
 	 */
 	@bindThis
@@ -332,13 +332,13 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 		if (changedKeys.length > 0) {
 			await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: changedKeys });
-			await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: changedKeys });
+			await this.eventSource.emit('changed', { ...this.callbackMeta, keys: changedKeys });
 		}
 	}
 
 	/**
 	 * Adds a value to the local memory cache without notifying other process.
-	 * Neither a Redis event nor onChanged callback will be fired, as the value has not actually changed.
+	 * Neither a Redis event nor changed callback will be fired, as the value has not actually changed.
 	 * This should only be used when the value is known to be current, like after fetching from the database.
 	 */
 	@bindThis
@@ -350,7 +350,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Adds multiple values to the local memory cache without notifying other process.
-	 * Neither a Redis event nor onChanged callback will be fired, as the value has not actually changed.
+	 * Neither a Redis event nor changed callback will be fired, as the value has not actually changed.
 	 * This should only be used when the value is known to be current, like after fetching from the database.
 	 */
 	@bindThis
@@ -485,7 +485,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Deletes a value from the cache, and erases any stale caches across the cluster.
-	 * Fires an onChanged event after the cache has been updated in all processes.
+	 * Emits a changed event after the cache has been updated in all processes.
 	 */
 	@bindThis
 	public async delete(key: string): Promise<void> {
@@ -494,11 +494,11 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.memoryCache.delete(key);
 
 		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: [key] });
-		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: [key] });
+		await this.eventSource.emit('changed', { ...this.callbackMeta, keys: [key] });
 	}
 	/**
 	 * Deletes multiple values from the cache, and erases any stale caches across the cluster.
-	 * Fires an onChanged event for each key after the cache has been updated in all processes.
+	 * Emits a changed event for each key after the cache has been updated in all processes.
 	 * Skips if the input is empty.
 	 */
 	@bindThis
@@ -517,12 +517,12 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		}
 
 		await this.internalEventService.emit('quantumCacheUpdated', { name: this.name, keys: deletedKeys });
-		await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: deletedKeys });
+		await this.eventSource.emit('changed', { ...this.callbackMeta, keys: deletedKeys });
 	}
 
 	/**
 	 * Refreshes the value of a key from the fetcher, and erases any stale caches across the cluster.
-	 * Fires an onChanged event after the cache has been updated in all processes.
+	 * Emits a changed event after the cache has been updated in all processes.
 	 */
 	@bindThis
 	public async refresh(key: string): Promise<T> {
@@ -536,7 +536,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	/**
 	 * Refreshes the value of a key from the fetcher, returning undefined if not found.
 	 * Whether a result is found or not, it then erases any stale caches across the cluster.
-	 * Fires an onChanged event after the cache has been updated in all processes.
+	 * Emits a changed event after the cache has been updated in all processes.
 	 */
 	@bindThis
 	public async refreshMaybe(key: string): Promise<T | undefined> {
@@ -555,7 +555,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Refreshes multiple values from the cache, and erases any stale caches across the cluster.
-	 * Fires an onChanged event after the cache has been updated in all processes.
+	 * Emits a changed event after the cache has been updated in all processes.
 	 * Missing / unmapped values are excluded from the response.
 	 */
 	@bindThis
@@ -581,7 +581,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Erases all entries from the cache.
-	 * Fires an onReset event and updates other processes.
+	 * Emits a reset event and updates other processes.
 	 */
 	public async reset(): Promise<void> {
 		this.throwIfDisposed();
@@ -589,7 +589,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		this.clear();
 
 		await this.internalEventService.emit('quantumCacheReset', { name: this.name });
-		await this.eventSource.emit('onReset', this.callbackMeta);
+		await this.eventSource.emit('reset', this.callbackMeta);
 	}
 
 	/**
@@ -665,7 +665,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 				this.memoryCache.delete(key);
 			}
 
-			await this.eventSource.emit('onChanged', { ...this.callbackMeta, keys: data.keys });
+			await this.eventSource.emit('changed', { ...this.callbackMeta, keys: data.keys });
 		}
 	}
 
@@ -676,7 +676,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		if (data.name === this.name) {
 			this.clear();
 
-			await this.eventSource.emit('onReset', this.callbackMeta);
+			await this.eventSource.emit('reset', this.callbackMeta);
 		}
 	}
 

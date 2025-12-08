@@ -142,28 +142,28 @@ export default class Connection {
 
 	@bindThis
 	private connectCacheService(): void {
-		this.cacheService.userByIdCache.on('onChanged', this.onUserByIdCacheChanged);
-		this.cacheService.userProfileCache.on('onChanged', this.onUserProfileCacheChanged);
-		this.cacheService.userFollowingsCache.on('onChanged', this.onUserFollowingCacheChanged);
-		this.cacheService.userFollowingChannelsCache.on('onChanged', this.onUserFollowingChannelsCacheChanged);
-		this.cacheService.userMutingsCache.on('onChanged', this.onUserMutingsCacheChanged);
-		this.cacheService.userBlockedCache.on('onChanged', this.onUserBlockedCacheChanged);
-		this.cacheService.renoteMutingsCache.on('onChanged', this.onRenoteMutingsCacheChanged);
-		this.cacheService.threadMutingsCache.on('onChanged', this.onThreadMutingsCacheChanged);
-		this.cacheService.noteMutingsCache.on('onChanged', this.onNoteMutingsCacheChanged);
+		this.cacheService.userByIdCache.on('changed', this.onUserByIdCacheChanged);
+		this.cacheService.userProfileCache.on('changed', this.onUserProfileCacheChanged);
+		this.cacheService.userFollowingsCache.on('changed', this.onUserFollowingCacheChanged);
+		this.cacheService.userFollowingChannelsCache.on('changed', this.onUserFollowingChannelsCacheChanged);
+		this.cacheService.userMutingsCache.on('changed', this.onUserMutingsCacheChanged);
+		this.cacheService.userBlockedCache.on('changed', this.onUserBlockedCacheChanged);
+		this.cacheService.renoteMutingsCache.on('changed', this.onRenoteMutingsCacheChanged);
+		this.cacheService.threadMutingsCache.on('changed', this.onThreadMutingsCacheChanged);
+		this.cacheService.noteMutingsCache.on('changed', this.onNoteMutingsCacheChanged);
 	}
 
 	@bindThis
 	private disconnectCacheService(): void {
-		this.cacheService.userByIdCache.off('onChanged', this.onUserByIdCacheChanged);
-		this.cacheService.userProfileCache.off('onChanged', this.onUserProfileCacheChanged);
-		this.cacheService.userFollowingsCache.off('onChanged', this.onUserFollowingCacheChanged);
-		this.cacheService.userFollowingChannelsCache.off('onChanged', this.onUserFollowingChannelsCacheChanged);
-		this.cacheService.userMutingsCache.off('onChanged', this.onUserMutingsCacheChanged);
-		this.cacheService.userBlockedCache.off('onChanged', this.onUserBlockedCacheChanged);
-		this.cacheService.renoteMutingsCache.off('onChanged', this.onRenoteMutingsCacheChanged);
-		this.cacheService.threadMutingsCache.off('onChanged', this.onThreadMutingsCacheChanged);
-		this.cacheService.noteMutingsCache.off('onChanged', this.onNoteMutingsCacheChanged);
+		this.cacheService.userByIdCache.off('changed', this.onUserByIdCacheChanged);
+		this.cacheService.userProfileCache.off('changed', this.onUserProfileCacheChanged);
+		this.cacheService.userFollowingsCache.off('changed', this.onUserFollowingCacheChanged);
+		this.cacheService.userFollowingChannelsCache.off('changed', this.onUserFollowingChannelsCacheChanged);
+		this.cacheService.userMutingsCache.off('changed', this.onUserMutingsCacheChanged);
+		this.cacheService.userBlockedCache.off('changed', this.onUserBlockedCacheChanged);
+		this.cacheService.renoteMutingsCache.off('changed', this.onRenoteMutingsCacheChanged);
+		this.cacheService.threadMutingsCache.off('changed', this.onThreadMutingsCacheChanged);
+		this.cacheService.noteMutingsCache.off('changed', this.onNoteMutingsCacheChanged);
 	}
 
 	@bindThis
