@@ -149,27 +149,27 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 						sets.add(`
 							"suspensionState" =
 								CASE
-									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
-									ELSE 'goneSuspended'
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+									ELSE 'goneSuspended'::instance_suspensionstate_enum
 								END
 						`);
 					} else if (job.shouldUnsuspend) {
 						sets.add(`
 							"suspensionState" =
 								CASE
-									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
-									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
-									ELSE 'none'
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
+									ELSE 'none'::instance_suspensionstate_enum
 								END
 						`);
 					} else if (job.shouldSuspendNotResponding) {
 						sets.add(`
 							"suspensionState" =
 								CASE
-										WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
-										WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
-										WHEN "notRespondingSince" IS NULL THEN 'none'
-										ELSE 'autoSuspendedForNotResponding'
+										WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+										WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
+										WHEN "notRespondingSince" IS NULL THEN 'none'::instance_suspensionstate_enum
+										ELSE 'autoSuspendedForNotResponding'::instance_suspensionstate_enum
 								END
 						`);
 					}
