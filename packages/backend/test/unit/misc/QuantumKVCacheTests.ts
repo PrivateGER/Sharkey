@@ -40,7 +40,7 @@ describe(QuantumKVCache, () => {
 
 	beforeAll(() => {
 		mockTimeService = new GodOfTimeService();
-		mockInternalEventService = new MockInternalEventService();
+		mockInternalEventService = MockInternalEventService.create()
 	});
 
 	afterEach(async () => {
@@ -184,7 +184,7 @@ describe(QuantumKVCache, () => {
 			await cache.set('foo', 'foo');
 			await cache.set('bar', 'bar');
 
-			await mockInternalEventService.mockEmit('quantumCacheUpdated', { name: 'fake', keys: ['foo'] });
+			await mockInternalEventService.mockEmitFromRedis('quantumCacheUpdated', { name: 'fake', keys: ['foo'] });
 
 			expect(cache.size).toBe(1);
 			expect(cache.has('foo')).toBe(false);
@@ -202,7 +202,7 @@ describe(QuantumKVCache, () => {
 			await cache.set('foo', 'foo');
 			await cache.set('bar', 'bar');
 
-			await mockInternalEventService.mockEmit('quantumCacheReset', { name: 'fake' });
+			await mockInternalEventService.mockEmitFromRedis('quantumCacheReset', { name: 'fake' });
 
 			expect(cache.size).toBe(0);
 			expect(fakeOnReset).toHaveBeenCalledWith(expect.objectContaining({ cache }));

@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Injectable } from '@nestjs/common';
-import { MockRedis } from './MockRedis.js';
 import type { Listener, ListenerProps, InternalEventTypes, EventValue, AnyListener } from '@/global/InternalEventService.js';
+import { Inject, Injectable } from '@nestjs/common';
+import type { Redis } from 'ioredis';
 import type { Config } from '@/config.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { bindThis } from '@/decorators.js';
+import { DI } from '@/di-symbols.js';
+import { MockRedis } from './MockRedis.js';
+import { TimeService } from '@/global/TimeService.js';
+import { GodOfTimeService } from './GodOfTimeService.js';
 
 type FakeCall<K extends keyof InternalEventService> = [K, Parameters<InternalEventService[K]>];
 type FakeListener = [keyof InternalEventTypes, AnyListener, ListenerProps];
@@ -48,10 +52,16 @@ export class MockInternalEventService extends InternalEventService {
 	}
 
 	constructor(
-		config?: Pick<Config, 'host'>,
+		@Inject(DI.config)
+		config: Config,
+
+		@Inject(DI.redisForPub)
+		redisForPub: Redis,
+
+		@Inject(DI.redisForSub)
+		redisForSub: Redis,
 	) {
-		const redis = new MockRedis();
-		super(redis, redis, config ?? { host: 'example.com' });
+		super(redisForPub, redisForSub, config);
 	}
 
 	@bindThis
@@ -89,6 +99,20 @@ export class MockInternalEventService extends InternalEventService {
 	@bindThis
 	public onApplicationShutdown(): void {
 		this._calls.push(['onApplicationShutdown', []]);
+	}
+
+	static create(opts?: {
+		timeService?: TimeService,
+		redisForPub?: Redis,
+		redisForSub?: Redis,
+		config?: Config,
+	}): MockInternalEventService {
+		const timeService = opts?.timeService ?? new GodOfTimeService();
+		const redisForPub = opts?.redisForPub ?? opts?.redisForSub ?? new MockRedis(timeService);
+		const redisForSub = opts?.redisForSub ?? redisForPub;
+		const config = opts?.config ?? { host: 'example.com' } as Config;
+
+		return new MockInternalEventService(config, redisForPub, redisForSub);
 	}
 }
 
