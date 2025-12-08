@@ -3,114 +3,119 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
-import { DI } from '@/di-symbols.js';
-import { bindThis } from '@/decorators.js';
-import type { InternalEventTypes, EventUnionFromDictionary } from '@/core/GlobalEventService.js';
+import { Inject, Injectable, type OnApplicationShutdown, type OnModuleInit } from '@nestjs/common';
+import type { InternalEventTypes as MkInternalEventTypes, EventUnionFromDictionary } from '@/core/GlobalEventService.js';
 import type { JsonSerialized } from '@/misc/json-value.js';
 import type { Config } from '@/config.js';
+import { SkEventSource, type ListenerProps, type EventListener } from '@/misc/SkEventEmitter.js';
+import { withCleanup } from '@/misc/promiseUtils.js';
+import { bindThis } from '@/decorators.js';
+import { DI } from '@/di-symbols.js';
 import type Redis from 'ioredis';
 
-export type { InternalEventTypes } from '@/core/GlobalEventService.js';
-
-export type EventValue<K extends keyof InternalEventTypes> = InternalEventTypes[K] | JsonSerialized<InternalEventTypes[K]>;
-
-type InternalEventMessage = {
-	node: string,
-	channel: 'internal',
-	message: EventUnionFromDictionary<InternalEventTypes>,
+/**
+ * Internal Event types definition.
+ * Key = event name (string)
+ * Value = payload type (object)
+ */
+export type InternalEventTypes = {
+	[K in keyof MkInternalEventTypes]: MkInternalEventTypes[K] | JsonSerialized<MkInternalEventTypes[K]>;
 };
 
-// This makes TypeScript shut up about casting Listener<T> to Listener<keyof InternalEventTypes>
-export type AnyListener = (value: EventValue<keyof InternalEventTypes>, key: keyof InternalEventTypes, isLocal: boolean) => void | Promise<void>;
-export type Listener<K extends keyof InternalEventTypes> = (value: EventValue<K>, key: K, isLocal: boolean) => void | Promise<void>;
+/**
+ * Structured message sent between processes over Redis IPC.
+ */
+export type InternalEventMessage = {
+	node: string;
+	channel: 'internal';
+	message: EventUnionFromDictionary<InternalEventTypes>;
+};
 
-export interface ListenerProps {
-	ignoreLocal?: boolean,
-	ignoreRemote?: boolean,
+/**
+ * Optional properties to customize event listener behavior.
+ */
+export interface InternalEventProps extends ListenerProps {
+	ignoreLocal?: boolean;
+	ignoreRemote?: boolean;
 }
 
-// Random 32-bit integer encoded as base-32
+/**
+ * Additional context passed between emit() calls; used to implement InternalEventProps filtering.
+ */
+export interface InternalEventContext {
+	isLocal: boolean;
+}
+
+/**
+ * Unique identifier used to detect and ignore our own messages sent through Redis IPC.
+ * Implemented as a random 32-bit integer encoded as base-32, which provides a good balance of uniqueness vs memory space.
+ */
 const thisNodeId = Math.round(Math.random() * Math.pow(2, 32)).toString(32);
 
 @Injectable()
-export class InternalEventService implements OnModuleInit, OnApplicationShutdown {
-	private readonly listeners = new Map<keyof InternalEventTypes, Map<AnyListener, ListenerProps>>();
+export class InternalEventService extends SkEventSource<InternalEventTypes, InternalEventProps, InternalEventContext> implements OnModuleInit, OnApplicationShutdown {
+	// private readonly listeners = new Map<keyof InternalEventTypes, Map<AnyListener, InternalEventProps>>();
 
 	constructor(
-		@Inject(DI.redisForSub)
-		private readonly redisForSub: Redis.Redis,
-
 		@Inject(DI.redis)
 		private readonly redisForPub: Redis.Redis,
 
+		@Inject(DI.redisForSub)
+		private readonly redisForSub: Redis.Redis,
+
 		@Inject(DI.config)
 		private readonly config: Pick<Config, 'host'>,
-	) {}
-
-	@bindThis
-	public on<K extends keyof InternalEventTypes>(type: K, listener: Listener<K>, props?: ListenerProps): void {
-		let set = this.listeners.get(type);
-		if (!set) {
-			set = new Map();
-			this.listeners.set(type, set);
-		}
-
-		// Functionally, this is just a set with metadata on the values.
-		set.set(listener as AnyListener, props ?? {});
+	) {
+		super();
 	}
 
 	@bindThis
-	public off<K extends keyof InternalEventTypes>(type: K, listener: Listener<K>): void {
-		this.listeners.get(type)?.delete(listener as AnyListener);
+	public override async emit<K extends keyof InternalEventTypes>(type: K, value: InternalEventTypes[K], context?: InternalEventContext): Promise<void> {
+		await withCleanup(
+			// Call local listeners first
+			async () => await this.emitLocally(type, value, context),
+
+			// Sync remote processes last, even if a local listener threw an exception
+			async () => await this.emitExternally(type, value),
+		);
 	}
 
-	@bindThis
-	public async emit<K extends keyof InternalEventTypes>(type: K, value: EventValue<K>): Promise<void> {
-		await this.emitInternal(type, value, true);
-		await this.redisForPub.publish(this.config.host, JSON.stringify({
+	protected async emitLocally<K extends keyof InternalEventTypes>(type: K, value: InternalEventTypes[K], context?: InternalEventContext): Promise<void> {
+		await super.emit(type, value, context);
+	}
+
+	protected async emitExternally<K extends keyof InternalEventTypes>(type: K, value: InternalEventTypes[K]): Promise<void> {
+		const message: InternalEventMessage = {
 			node: thisNodeId,
 			channel: 'internal',
-			message: { type: type, body: value },
-		}));
+			message: { type: type, body: value } as EventUnionFromDictionary<InternalEventTypes>,
+		};
+		await this.redisForPub.publish(this.config.host, JSON.stringify(message));
 	}
 
-	@bindThis
-	private async emitInternal<K extends keyof InternalEventTypes>(type: K, value: EventValue<K>, isLocal: boolean): Promise<void> {
-		const listeners = this.listeners.get(type);
-		if (!listeners) {
-			return;
+	protected filterListener<K extends keyof InternalEventTypes>(type: K, value: InternalEventTypes[K], registration: [EventListener<InternalEventTypes, K>, Partial<InternalEventProps>], context: Partial<InternalEventContext>): boolean {
+		// isLocal is always populated for remote events.
+		const isLocal = context.isLocal ?? true;
+
+		// Filter for local/remote events
+		if (isLocal) {
+			if (registration[1].ignoreLocal) return false;
+		} else {
+			if (registration[1].ignoreRemote) return false;
 		}
 
-		const promises: Promise<void>[] = [];
-		for (const [listener, props] of listeners) {
-			if ((isLocal && !props.ignoreLocal) || (!isLocal && !props.ignoreRemote)) {
-				const promise = Promise.resolve(listener(value, type, isLocal));
-				promises.push(promise);
-			}
-		}
-		await Promise.all(promises);
+		return true;
 	}
 
 	@bindThis
 	private async onMessage(_: string, data: string): Promise<void> {
 		const obj = JSON.parse(data);
 
-		if (obj.channel === 'internal' && obj.node !== thisNodeId) {
-			const { type, body } = (obj as InternalEventMessage).message;
-			await this.emitInternal(type, body, false);
+		if (isInternalEventMessage(obj) && obj.node !== thisNodeId) {
+			const { type, body } = obj.message;
+			const context = { isLocal: false };
+			await this.emitLocally(type, body, context);
 		}
-	}
-
-	@bindThis
-	public dispose(): void {
-		this.redisForSub.off('message', this.onMessage);
-		this.listeners.clear();
-	}
-
-	@bindThis
-	public onApplicationShutdown(): void {
-		this.dispose();
 	}
 
 	@bindThis
@@ -119,7 +124,32 @@ export class InternalEventService implements OnModuleInit, OnApplicationShutdown
 	}
 
 	@bindThis
+	public disconnect(): void {
+		this.redisForSub.off('message', this.onMessage);
+	}
+
+	@bindThis
+	public dispose(): void {
+		this.disconnect();
+		this.clearListeners();
+	}
+
+	@bindThis
+	public onApplicationShutdown(): void {
+		this.dispose();
+	}
+
+	@bindThis
 	public onModuleInit(): void {
 		this.connect();
 	}
+}
+
+function isInternalEventMessage(obj: unknown): obj is InternalEventMessage {
+	if (typeof(obj) === 'object' && obj != null) {
+		if ('channel' in obj && typeof(obj.channel) === 'string') {
+			return obj.channel === 'internal';
+		}
+	}
+	return false;
 }
