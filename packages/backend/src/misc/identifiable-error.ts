@@ -42,7 +42,7 @@ export function isIdentifiableError(error: unknown, id?: string): error is Ident
  */
 export const errorCodes = {
 	/** User has been deleted (hard or soft deleted) */
-	userIsDeleted: '4cac9436-baa3-4955-a368-7628aea676cf',
+	userDeleted: '4cac9436-baa3-4955-a368-7628aea676cf',
 
 	/** User is suspended (directly or by instance) */
 	userSuspended: '1e56d624-737f-48e4-beb6-0bdddb9fa809',
