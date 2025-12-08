@@ -413,7 +413,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 	/**
 	 * Gets or fetches a value from the cache.
-	 * Fires an onChanged event, but does not emit an update event to other processes.
+	 * Does not emit any events.
 	 */
 	@bindThis
 	public async fetch(key: string): Promise<T> {
@@ -424,17 +424,13 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 			value = await this.doFetch(key);
 
 			this.memoryCache.set(key, value);
-
-			if (this.onChanged) {
-				await this.onChanged([key], this.callbackMeta);
-			}
 		}
 		return value;
 	}
 
 	/**
 	 * Gets or fetches a value from the cache, returning undefined if not found.
-	 * Fires an onChanged event on success, but does not emit an update event to other processes.
+	 * Does not emit any events.
 	 */
 	@bindThis
 	public async fetchMaybe(key: string): Promise<T | undefined> {
@@ -452,17 +448,13 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 		this.memoryCache.set(key, value);
 
-		if (this.onChanged) {
-			await this.onChanged([key], this.callbackMeta);
-		}
-
 		return value;
 	}
 
 	/**
 	 * Gets or fetches multiple values from the cache.
 	 * Missing / unmapped values are excluded from the response.
-	 * Fires onChanged event, but does not emit any update events to other processes.
+	 * Does not emit any events.
 	 */
 	@bindThis
 	public async fetchMany(keys: Iterable<string>): Promise<KVPArray<T>> {
@@ -488,11 +480,6 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 			// Add to cache and return set
 			this.addMany(fetched);
 			results.push(...fetched);
-
-			// Emit event
-			if (this.onChanged) {
-				await this.onChanged(toFetch, this.callbackMeta);
-			}
 		}
 
 		return makeKVPArray(results);
