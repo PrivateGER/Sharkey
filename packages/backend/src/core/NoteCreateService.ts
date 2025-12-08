@@ -583,13 +583,12 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
 			if (isRemoteUser(user)) {
-				const i = await this.federatedInstanceService.fetchOrRegister(user.host);
 				{
 					if (!this.isRenote(note) || this.isQuote(note)) {
-						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(user.host, { notesCountDelta: 1 });
 					}
 					if (this.meta.enableChartsForFederatedInstances) {
-						this.instanceChart.updateNote(i.host, note, true);
+						this.instanceChart.updateNote(user.host, note, true);
 					}
 				}
 			}

@@ -297,19 +297,17 @@ export class UserFollowingService implements OnModuleInit {
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
 					{
-						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(follower.host, { followingCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
-							this.instanceChart.updateFollowing(i.host, true);
+							this.instanceChart.updateFollowing(follower.host, true);
 						}
 					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
 					{
-						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(followee.host, { followersCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
-							this.instanceChart.updateFollowers(i.host, true);
+							this.instanceChart.updateFollowers(followee.host, true);
 						}
 					}
 				}
@@ -409,19 +407,17 @@ export class UserFollowingService implements OnModuleInit {
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
 					{
-						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: -1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(follower.host, { followingCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
-							this.instanceChart.updateFollowing(i.host, false);
+							this.instanceChart.updateFollowing(follower.host, false);
 						}
 					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
 					{
-						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: -1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(followee.host, { followersCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
-							this.instanceChart.updateFollowers(i.host, false);
+							this.instanceChart.updateFollowers(followee.host, false);
 						}
 					}
 				}
