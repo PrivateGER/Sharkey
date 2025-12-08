@@ -116,10 +116,7 @@ export interface NoteEventTypes {
 	deleted: {
 		deletedAt: Date;
 	};
-	updated: {
-		cw: string | null;
-		text: string;
-	};
+	updated: Record<string, never>;
 	reacted: {
 		reaction: string;
 		emoji?: {
@@ -218,7 +215,7 @@ export interface ReversiGameEventTypes {
 // https://stackoverflow.com/questions/49311989/can-i-infer-the-type-of-a-value-using-extends-keyof-type
 // VS Codeの展開を防止するためにEvents型を定義
 type Events<T extends object> = { [K in keyof T]: { type: K; body: T[K]; } };
-type EventUnionFromDictionary<
+export type EventUnionFromDictionary<
 	T extends object,
 	U = Events<T>,
 > = U[keyof U];
@@ -277,8 +274,6 @@ export interface InternalEventTypes {
 	userListMemberBulkRemoved: { userListIds: MiUserList['id'][]; memberId: MiUser['id']; };
 	quantumCacheUpdated: { name: string, keys: string[] };
 	quantumCacheReset: { name: string };
-	collapsedQueueDefer: { name: string, key: string, deferred: boolean };
-	collapsedQueueEnqueue: { name: string, key: string, value: unknown };
 }
 
 type EventTypesToEventPayload<T> = EventUnionFromDictionary<UndefinedAsNullAll<SerializedAll<T>>>;
@@ -286,6 +281,7 @@ type EventTypesToEventPayload<T> = EventUnionFromDictionary<UndefinedAsNullAll<S
 // name/messages(spec) pairs dictionary
 export type GlobalEvents = {
 	internal: {
+		node: string;
 		name: 'internal';
 		payload: EventTypesToEventPayload<InternalEventTypes>;
 	};

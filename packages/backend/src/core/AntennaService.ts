@@ -82,14 +82,15 @@ export class AntennaService implements OnApplicationShutdown {
 	@bindThis
 	public async updateAntenna(id: string, data: Partial<MiAntenna>) {
 		await this.antennasRepository.update({ id }, data);
+		await this.refreshAntenna(id);
+	}
 
-		const antenna = this.antennas.get(id) ?? await this.antennasRepository.findOneBy({ id });
+	@bindThis
+	public async refreshAntenna(id: string): Promise<void> {
+		const antenna = await this.antennasRepository.findOneBy({ id });
 		if (antenna) {
-			// This will be handled above to save result
-			await this.internalEventService.emit('antennaUpdated', {
-				...antenna,
-				...data,
-			});
+			// This will be handled above to cache result
+			await this.internalEventService.emit('antennaUpdated', antenna);
 		}
 	}
 

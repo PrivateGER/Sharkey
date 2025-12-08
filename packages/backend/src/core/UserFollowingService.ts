@@ -29,6 +29,7 @@ import { AccountMoveService } from '@/core/AccountMoveService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import type { ThinUser } from '@/queue/types.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { EnvService } from '@/global/EnvService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
@@ -91,6 +92,7 @@ export class UserFollowingService implements OnModuleInit {
 		private instanceChart: InstanceChart,
 		private readonly internalEventService: InternalEventService,
 		private readonly collapsedQueueService: CollapsedQueueService,
+		private readonly envService: EnvService,
 
 		loggerService: LoggerService,
 	) {
@@ -140,7 +142,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee) && blocked) {
 			// リモートフォローを受けてブロックしていた場合は、エラーにするのではなくRejectを送り返しておしまい。
 			const content = this.apRendererService.addContext(this.apRendererService.renderReject(this.apRendererService.renderFollow(follower, followee, requestId), followee));
-			this.queueService.deliver(followee, content, follower.inbox, false);
+			await this.queueService.deliver(followee, content, follower.inbox, false);
 			return;
 		} else if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee) && blocking) {
 			// リモートフォローを受けてブロックされているはずの場合だったら、ブロック解除しておく。
@@ -173,7 +175,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (
 			followee.isLocked ||
 			(followeeProfile.carefulBot && follower.isBot) ||
-			(this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee) && process.env.FORCE_FOLLOW_REMOTE_USER_FOR_TESTING !== 'true') ||
+			(this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee) && this.envService.env.FORCE_FOLLOW_REMOTE_USER_FOR_TESTING !== 'true') ||
 			(this.userEntityService.isLocalUser(followee) && this.userEntityService.isRemoteUser(follower) && this.utilityService.isSilencedHost(this.meta.silencedHosts, follower.host))
 		) {
 			let autoAccept = false;
@@ -288,26 +290,28 @@ export class UserFollowingService implements OnModuleInit {
 		// Neither followee nor follower has moved.
 		if (!followeeUser.movedToUri && !followerUser.movedToUri) {
 			//#region Increment counts
-			await this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: 1 });
-			await this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: 1 });
 			//#endregion
 
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(follower.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: 1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowing(i.host, true);
 						}
-					});
+					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(followee.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: 1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: 1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowers(i.host, true);
 						}
-					});
+					}
 				}
 			}
 			//#endregion
@@ -373,20 +377,20 @@ export class UserFollowingService implements OnModuleInit {
 			this.userEntityService.pack(followeeUser, follower, {
 				schema: 'UserDetailedNotMe',
 			}).then(async packed => {
-				this.globalEventService.publishMainStream(follower.id, 'unfollow', packed);
-				this.webhookService.enqueueUserWebhook(follower.id, 'unfollow', { user: packed });
+				await this.globalEventService.publishMainStream(follower.id, 'unfollow', packed);
+				await this.webhookService.enqueueUserWebhook(follower.id, 'unfollow', { user: packed });
 			});
 		}
 
 		if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
 			const content = this.apRendererService.addContext(this.apRendererService.renderUndo(this.apRendererService.renderFollow(follower as MiPartialLocalUser, followee as MiPartialRemoteUser), follower));
-			this.queueService.deliver(follower, content, followee.inbox, false);
+			await this.queueService.deliver(follower, content, followee.inbox, false);
 		}
 
 		if (this.userEntityService.isLocalUser(followee) && this.userEntityService.isRemoteUser(follower)) {
 			// local user has null host
 			const content = this.apRendererService.addContext(this.apRendererService.renderReject(this.apRendererService.renderFollow(follower as MiPartialRemoteUser, followee as MiPartialLocalUser), followee));
-			this.queueService.deliver(followee, content, follower.inbox, false);
+			await this.queueService.deliver(followee, content, follower.inbox, false);
 		}
 	}
 
@@ -398,26 +402,28 @@ export class UserFollowingService implements OnModuleInit {
 		// Neither followee nor follower has moved.
 		if (!follower.movedToUri && !followee.movedToUri) {
 			//#region Decrement following / followers counts
-			await this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: -1 });
-			await this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: -1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(follower.id, { followingCountDelta: -1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(followee.id, { followersCountDelta: -1 });
 			//#endregion
 
 			//#region Update instance stats
 			if (this.meta.enableStatsForFederatedInstances) {
 				if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(follower.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: -1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(follower.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followingCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowing(i.host, false);
 						}
-					});
+					}
 				} else if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
-					this.federatedInstanceService.fetchOrRegister(followee.host).then(async i => {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: -1 });
+					const i = await this.federatedInstanceService.fetchOrRegister(followee.host);
+					{
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { followersCountDelta: -1 });
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateFollowers(i.host, false);
 						}
-					});
+					}
 				}
 			}
 			//#endregion
@@ -519,7 +525,7 @@ export class UserFollowingService implements OnModuleInit {
 
 		if (this.userEntityService.isLocalUser(follower) && this.userEntityService.isRemoteUser(followee)) {
 			const content = this.apRendererService.addContext(this.apRendererService.renderFollow(follower as MiPartialLocalUser, followee as MiPartialRemoteUser, requestId ?? `${this.config.url}/follows/${followRequest.id}`));
-			this.queueService.deliver(follower, content, followee.inbox, false);
+			await this.queueService.deliver(follower, content, followee.inbox, false);
 		}
 	}
 
@@ -536,7 +542,7 @@ export class UserFollowingService implements OnModuleInit {
 			const content = this.apRendererService.addContext(this.apRendererService.renderUndo(this.apRendererService.renderFollow(follower as MiPartialLocalUser | MiPartialRemoteUser, followee as MiPartialRemoteUser), follower));
 
 			if (this.userEntityService.isLocalUser(follower)) { // 本来このチェックは不要だけどTSに怒られるので
-				this.queueService.deliver(follower, content, followee.inbox, false);
+				await this.queueService.deliver(follower, content, followee.inbox, false);
 			}
 		}
 

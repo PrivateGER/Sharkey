@@ -97,8 +97,8 @@ export class ApiStatusMastodon {
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const { data } = await client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query));
-			const ancestors = await promiseMap(data.ancestors, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limit: 4 });
-			const descendants = await promiseMap(data.descendants, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limit: 4 });
+			const ancestors = await promiseMap(data.ancestors, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
+			const descendants = await promiseMap(data.descendants, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
 			const response = { ancestors, descendants };
 
 			return reply.send(response);
@@ -118,7 +118,7 @@ export class ApiStatusMastodon {
 
 			const client = this.clientService.getClient(_request);
 			const data = await client.getStatusRebloggedBy(_request.params.id);
-			const response = await promiseMap(data.data, async (account: Entity.Account) => await this.mastoConverters.convertAccount(account), { limit: 4 });
+			const response = await promiseMap(data.data, async (account: Entity.Account) => await this.mastoConverters.convertAccount(account), { limiter: 4 });
 
 			return reply.send(response);
 		});
@@ -128,7 +128,7 @@ export class ApiStatusMastodon {
 
 			const client = this.clientService.getClient(_request);
 			const data = await client.getStatusFavouritedBy(_request.params.id);
-			const response = await promiseMap(data.data, async (account: Entity.Account) => await this.mastoConverters.convertAccount(account), { limit: 4 });
+			const response = await promiseMap(data.data, async (account: Entity.Account) => await this.mastoConverters.convertAccount(account), { limiter: 4 });
 
 			return reply.send(response);
 		});

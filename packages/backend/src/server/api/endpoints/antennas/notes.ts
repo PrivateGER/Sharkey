@@ -98,7 +98,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// falseだった場合はアンテナの配信先が増えたことを通知したい
 			const needPublishEvent = !antenna.isActive;
 
-			await this.collapsedQueueService.updateAntennaQueue.enqueue(antenna.id, {
+			this.collapsedQueueService.updateAntennaQueue.enqueue(antenna.id, {
 				isActive: true,
 				lastUsedAt: this.timeService.date,
 			});

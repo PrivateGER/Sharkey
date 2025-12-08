@@ -24,8 +24,8 @@ export class ImmediateApPersonService extends ApPersonService {
 	async updateFeaturedLazy(userOrId: string | MiRemoteUser): Promise<void> {
 		await this.updateFeatured(userOrId, this.resolver).catch(err => {
 			if (err instanceof IdentifiableError) {
-				if (err.id === errorCodes.userIsSuspended) return;
-				if (err.id === errorCodes.userIsDeleted) return;
+				if (err.id === errorCodes.userSuspended) return;
+				if (err.id === errorCodes.userDeleted) return;
 				if (err.id === errorCodes.noFeaturedCollection) return;
 			}
 			throw err;

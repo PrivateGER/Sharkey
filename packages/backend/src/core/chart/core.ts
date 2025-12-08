@@ -532,7 +532,7 @@ export default abstract class Chart<T extends Schema> {
 			const logDay = await this.claimCurrentLog(group, 'day');
 			await update(logHour, logDay);
 		}, {
-			limit: 2,
+			limiter: 2,
 		});
 	}
 

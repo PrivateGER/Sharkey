@@ -4,19 +4,16 @@
  */
 
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
-import { LoggerService } from '@/core/LoggerService.js';
-import type Logger from '@/logger.js';
-import { CollapsedQueue } from '@/misc/collapsed-queue.js';
-import { renderInlineError } from '@/misc/render-inline-error.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
-import { EnvService } from '@/global/EnvService.js';
 import { bindThis } from '@/decorators.js';
+import { callAllAsync } from '@/misc/call-all.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import type { UsersRepository, NotesRepository, AccessTokensRepository, MiAntenna, FollowingsRepository } from '@/models/_.js';
+import type { MiAntenna, FollowingsRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
+import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/CacheManagementService.js';
 import { AntennaService } from '@/core/AntennaService.js';
 import { CacheService } from '@/core/CacheService.js';
-import { TimeService } from '@/global/TimeService.js';
+import type { DataSource } from 'typeorm';
 
 export type UpdateInstanceJob = {
 	latestRequestReceivedAt?: Date,
@@ -45,339 +42,581 @@ export type UpdateNoteJob = {
 };
 
 export type UpdateAccessTokenJob = {
-	lastUsedAt: Date;
+	lastUsedAt?: Date;
 };
 
 export type UpdateAntennaJob = {
-	isActive: boolean,
+	isActive?: boolean,
 	lastUsedAt?: Date,
 };
+
+export type UpdateChannelJob = {
+	lastNotedAt?: Date,
+	notesCountDelta?: number,
+	usersCountDelta?: number,
+};
+
+const oneMinute = 60 * 1000;
+const thirtySeconds = 1000 * 30;
 
 @Injectable()
 export class CollapsedQueueService implements OnApplicationShutdown {
 	// Moved from InboxProcessorService
-	public readonly updateInstanceQueue: CollapsedQueue<UpdateInstanceJob>;
+	public readonly updateInstanceQueue: ManagedCollapsedQueue<UpdateInstanceJob>;
 
 	// Moved from NoteCreateService, NoteEditService, and NoteDeleteService
-	public readonly updateUserQueue: CollapsedQueue<UpdateUserJob>;
+	public readonly updateUserQueue: ManagedCollapsedQueue<UpdateUserJob>;
 
-	public readonly updateNoteQueue: CollapsedQueue<UpdateNoteJob>;
-	public readonly updateAccessTokenQueue: CollapsedQueue<UpdateAccessTokenJob>;
-	public readonly updateAntennaQueue: CollapsedQueue<UpdateAntennaJob>;
-
-	private readonly logger: Logger;
+	public readonly updateNoteQueue: ManagedCollapsedQueue<UpdateNoteJob>;
+	public readonly updateAccessTokenQueue: ManagedCollapsedQueue<UpdateAccessTokenJob>;
+	public readonly updateAntennaQueue: ManagedCollapsedQueue<UpdateAntennaJob>;
+	public readonly updateChannelQueue: ManagedCollapsedQueue<UpdateChannelJob>;
 
 	constructor(
-		@Inject(DI.usersRepository)
-		private readonly usersRepository: UsersRepository,
-
-		@Inject(DI.notesRepository)
-		private readonly notesRepository: NotesRepository,
-
-		@Inject(DI.accessTokensRepository)
-		private readonly accessTokensRepository: AccessTokensRepository,
-
 		@Inject(DI.followingsRepository)
 		private readonly followingsRepository: FollowingsRepository,
 
+		@Inject(DI.db)
+		private readonly db: DataSource,
+
 		private readonly federatedInstanceService: FederatedInstanceService,
-		private readonly envService: EnvService,
 		private readonly internalEventService: InternalEventService,
 		private readonly antennaService: AntennaService,
 		private readonly cacheService: CacheService,
-		private readonly timeService: TimeService,
-
-		loggerService: LoggerService,
+		private readonly cacheManagementService: CacheManagementService,
 	) {
-		this.logger = loggerService.getLogger('collapsed-queue');
-
-		const fiveMinuteInterval = this.envService.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0;
-		const oneMinuteInterval = this.envService.env.NODE_ENV !== 'test' ? 60 * 1000 : 0;
-
-		this.updateInstanceQueue = new CollapsedQueue(
-			this.internalEventService,
-			this.timeService,
+		this.updateInstanceQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateInstance',
-			fiveMinuteInterval,
-			(oldJob, newJob) => ({
-				latestRequestReceivedAt: maxDate(oldJob.latestRequestReceivedAt, newJob.latestRequestReceivedAt),
-				notRespondingSince: maxDate(oldJob.notRespondingSince, newJob.notRespondingSince),
-				shouldUnsuspend: oldJob.shouldUnsuspend || newJob.shouldUnsuspend,
-				shouldSuspendGone: oldJob.shouldSuspendGone || newJob.shouldSuspendGone,
-				shouldSuspendNotResponding: oldJob.shouldSuspendNotResponding || newJob.shouldSuspendNotResponding,
-				notesCountDelta: (oldJob.notesCountDelta ?? 0) + (newJob.notesCountDelta ?? 0),
-				usersCountDelta: (oldJob.usersCountDelta ?? 0) + (newJob.usersCountDelta ?? 0),
-				followingCountDelta: (oldJob.followingCountDelta ?? 0) + (newJob.followingCountDelta ?? 0),
-				followersCountDelta: (oldJob.followersCountDelta ?? 0) + (newJob.followersCountDelta ?? 0),
-			}),
-			async (id, job) => {
-				// Have to check this because all properties are optional
-				if (
-					job.latestRequestReceivedAt ||
-					job.notRespondingSince !== undefined ||
-					job.shouldSuspendNotResponding ||
-					job.shouldSuspendGone ||
-					job.shouldUnsuspend ||
-					job.notesCountDelta ||
-					job.usersCountDelta ||
-					job.followingCountDelta ||
-					job.followersCountDelta
-				) {
-					await this.federatedInstanceService.update(id, {
-						// Direct update if defined
-						latestRequestReceivedAt: job.latestRequestReceivedAt,
-
-						// null (responding) > Date (not responding)
-						notRespondingSince: job.latestRequestReceivedAt
-							? null
-							: job.notRespondingSince,
-
-						// false (responding) > true (not responding)
-						isNotResponding: job.latestRequestReceivedAt
-							? false
-							: job.notRespondingSince
-								? true
-								: undefined,
-
-						// gone > none > auto
-						suspensionState: job.shouldSuspendGone
-							? 'goneSuspended'
-							: job.shouldUnsuspend
-								? 'none'
-								: job.shouldSuspendNotResponding
-									? 'autoSuspendedForNotResponding'
-									: undefined,
-
-						// Increment if defined
-						notesCount: job.notesCountDelta ? () => `"notesCount" + ${job.notesCountDelta}` : undefined,
-						usersCount: job.usersCountDelta ? () => `"usersCount" + ${job.usersCountDelta}` : undefined,
-						followingCount: job.followingCountDelta ? () => `"followingCount" + ${job.followingCountDelta}` : undefined,
-						followersCount: job.followersCountDelta ? () => `"followersCount" + ${job.followersCountDelta}` : undefined,
-					});
-				}
-			},
 			{
-				onError: this.onQueueError,
-				concurrency: 2, // Low concurrency, this table is slow for some reason
-				redisParser: data => ({
-					...data,
-					latestRequestReceivedAt: data.latestRequestReceivedAt != null
-						? new Date(data.latestRequestReceivedAt)
-						: data.latestRequestReceivedAt,
-					notRespondingSince: data.notRespondingSince != null
-						? new Date(data.notRespondingSince)
-						: data.notRespondingSince,
+				timeout: oneMinute,
+				limiter: 2, // Low concurrency, this table is slow for some reason
+				collapse: (oldJob, newJob) => ({
+					latestRequestReceivedAt: maxDate(oldJob.latestRequestReceivedAt, newJob.latestRequestReceivedAt),
+					notRespondingSince: minDate(oldJob.notRespondingSince, newJob.notRespondingSince),
+					shouldUnsuspend: or(oldJob.shouldUnsuspend, newJob.shouldUnsuspend),
+					shouldSuspendGone: or(oldJob.shouldSuspendGone, newJob.shouldSuspendGone),
+					shouldSuspendNotResponding: or(oldJob.shouldSuspendNotResponding, newJob.shouldSuspendNotResponding),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
+					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
+					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
-			},
-		);
+				check: (_, job) =>
+					job.notRespondingSince !== undefined || // This one allows null
+					!!job.latestRequestReceivedAt ||
+					!!job.shouldSuspendNotResponding ||
+					!!job.shouldSuspendGone ||
+					!!job.shouldUnsuspend ||
+					!!job.notesCountDelta ||
+					!!job.usersCountDelta ||
+					!!job.followingCountDelta ||
+					!!job.followersCountDelta,
+				perform: async (host, job) => {
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "instance"');
+					sb.add('SET');
 
-		this.updateUserQueue = new CollapsedQueue(
-			this.internalEventService,
-			this.timeService,
-			'updateUser',
-			oneMinuteInterval,
-			(oldJob, newJob) => ({
-				updatedAt: maxDate(oldJob.updatedAt, newJob.updatedAt),
-				lastActiveDate: maxDate(oldJob.lastActiveDate, newJob.lastActiveDate),
-				notesCountDelta: (oldJob.notesCountDelta ?? 0) + (newJob.notesCountDelta ?? 0),
-				followingCountDelta: (oldJob.followingCountDelta ?? 0) + (newJob.followingCountDelta ?? 0),
-				followersCountDelta: (oldJob.followersCountDelta ?? 0) + (newJob.followersCountDelta ?? 0),
-			}),
-			async (id, job) => {
-				// Have to check this because all properties are optional
-				if (job.updatedAt || job.lastActiveDate || job.notesCountDelta || job.followingCountDelta || job.followersCountDelta) {
-					// Updating the user should implicitly mark them as active
-					const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
-					const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(id)).isHibernated;
+					const sets = sb.list();
 
-					// Update user before the hibernation cache, because the latter may refresh from DB
-					await this.usersRepository.update({ id }, {
-						updatedAt: job.updatedAt,
-						lastActiveDate,
-						isHibernated: isWakingUp ? false : undefined,
-						notesCount: job.notesCountDelta ? () => `"notesCount" + ${job.notesCountDelta}` : undefined,
-						followingCount: job.followingCountDelta ? () => `"followingCount" + ${job.followingCountDelta}` : undefined,
-						followersCount: job.followersCountDelta ? () => `"followersCount" + ${job.followersCountDelta}` : undefined,
-					});
-					await this.internalEventService.emit('userUpdated', { id });
-
-					// Wake up hibernated users
-					if (isWakingUp) {
-						await this.followingsRepository.update({ followerId: id }, { isFollowerHibernated: false });
-						await this.cacheService.hibernatedUserCache.set(id, false);
+					if (job.latestRequestReceivedAt) {
+						sets.add('"latestRequestReceivedAt" = GREATEST("latestRequestReceivedAt", $?)', job.latestRequestReceivedAt);
 					}
-				}
-			},
-			{
-				onError: this.onQueueError,
-				concurrency: 4, // High concurrency - this queue gets a lot of activity
-				redisParser: data => ({
-					...data,
-					updatedAt: data.updatedAt != null
-						? new Date(data.updatedAt)
-						: data.updatedAt,
-					lastActiveDate: data.lastActiveDate != null
-						? new Date(data.lastActiveDate)
-						: data.lastActiveDate,
-				}),
+
+					// null (responding) > Date (not responding)
+					if (job.notRespondingSince != null) {
+						sets.add(`
+							"notRespondingSince" =
+								CASE
+									WHEN "notRespondingSince" IS NULL THEN NULL
+									ELSE LEAST("notRespondingSince", $?)
+								END
+						`, job.notRespondingSince);
+					} else if (job.notRespondingSince === null) {
+						sets.add('"notRespondingSince" = NULL');
+					}
+
+					// isNotResponding derives from latestRequestReceivedAt and notRespondingSince
+					if (job.latestRequestReceivedAt || job.notRespondingSince !== undefined) {
+						if (job.latestRequestReceivedAt || job.notRespondingSince === null) {
+							sets.add('"isNotResponding" = false');
+						} else {
+							sets.add('"isNotResponding" = true');
+						}
+					}
+
+					// manual > gone > none > auto
+					if (job.shouldSuspendGone) {
+						sets.add(`
+							"suspensionState" =
+								CASE
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									ELSE 'goneSuspended'
+								END
+						`);
+					} else if (job.shouldUnsuspend) {
+						sets.add(`
+							"suspensionState" =
+								CASE
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+									ELSE 'none'
+								END
+						`);
+					} else if (job.shouldSuspendNotResponding) {
+						sets.add(`
+							"suspensionState" =
+								CASE
+										WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'
+										WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'
+										WHEN "notRespondingSince" IS NULL THEN 'none'
+										ELSE 'autoSuspendedForNotResponding'
+								END
+						`);
+					}
+
+					if (job.notesCountDelta) {
+						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+					}
+
+					if (job.usersCountDelta) {
+						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
+					}
+
+					if (job.followersCountDelta) {
+						sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
+					}
+
+					if (job.followingCountDelta) {
+						sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
+					}
+
+					sb.add('WHERE "host" = $?', host);
+					const query = sb.build();
+
+					// Manually update and sync caches
+					await this.db.query(query.sql, query.parameters);
+					await this.federatedInstanceService.refresh('host');
+				},
 			},
 		);
 
-		this.updateNoteQueue = new CollapsedQueue(
-			this.internalEventService,
-			this.timeService,
+		this.updateUserQueue = this.cacheManagementService.createCollapsedQueue(
+			'updateUser',
+			{
+				timeout: thirtySeconds,
+				limiter: 4, // High concurrency - this queue gets a lot of activity
+				collapse: (oldJob, newJob) => ({
+					updatedAt: maxDate(oldJob.updatedAt, newJob.updatedAt),
+					lastActiveDate: maxDate(oldJob.lastActiveDate, newJob.lastActiveDate),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					followingCountDelta: sum(oldJob.followingCountDelta, newJob.followingCountDelta),
+					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
+				}),
+				check: (_, job) =>
+					!!job.updatedAt ||
+					!!job.lastActiveDate ||
+					!!job.notesCountDelta ||
+					!!job.followingCountDelta ||
+					!!job.followersCountDelta,
+				perform:
+					async (userId, job) => {
+						const sb = new SqlBuilder();
+						sb.add('UPDATE "user"');
+						sb.add('SET');
+
+						const sets = sb.list();
+
+						if (job.updatedAt) {
+							sets.add('"updatedAt" = GREATEST("updatedAt", $?)', job.updatedAt);
+						}
+
+						const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
+						if (lastActiveDate) {
+							sets.add('"lastActiveDate" = GREATEST("lastActiveDate", $?)', lastActiveDate);
+						}
+
+						const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(userId)).isHibernated;
+						if (isWakingUp) {
+							sets.add('"isHibernated" = false');
+						}
+
+						if (job.notesCountDelta) {
+							sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+						}
+
+						if (job.followersCountDelta) {
+							sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
+						}
+
+						if (job.followingCountDelta) {
+							sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
+						}
+
+						sb.add('WHERE "id" = $?', userId);
+						const query = sb.build();
+
+						// Manually update and sync caches
+						await this.db.query(query.sql, query.parameters);
+						await this.internalEventService.emit('userUpdated', { id: userId });
+
+						if (isWakingUp) {
+							// Cache event is covered by user sync above
+							await this.followingsRepository.update({ followerId: userId }, { isFollowerHibernated: false });
+						}
+					},
+			},
+		);
+
+		this.updateNoteQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateNote',
-			oneMinuteInterval,
-			(oldJob, newJob) => ({
-				repliesCountDelta: (oldJob.repliesCountDelta ?? 0) + (newJob.repliesCountDelta ?? 0),
-				renoteCountDelta: (oldJob.renoteCountDelta ?? 0) + (newJob.renoteCountDelta ?? 0),
-				clippedCountDelta: (oldJob.clippedCountDelta ?? 0) + (newJob.clippedCountDelta ?? 0),
-			}),
-			async (id, job) => {
-				// Have to check this because all properties are optional
-				if (job.repliesCountDelta || job.renoteCountDelta || job.clippedCountDelta) {
-					await this.notesRepository.update({ id }, {
-						repliesCount: job.repliesCountDelta ? () => `"repliesCount" + ${job.repliesCountDelta}` : undefined,
-						renoteCount: job.renoteCountDelta ? () => `"renoteCount" + ${job.renoteCountDelta}` : undefined,
-						clippedCount: job.clippedCountDelta ? () => `"clippedCount" + ${job.clippedCountDelta}` : undefined,
-					});
-				}
-			},
 			{
-				onError: this.onQueueError,
-				concurrency: 4, // High concurrency - this queue gets a lot of activity
+				timeout: thirtySeconds,
+				limiter: 4, // High concurrency - this queue gets a lot of activity
+				collapse: (oldJob, newJob) => ({
+					repliesCountDelta: sum(oldJob.repliesCountDelta, newJob.repliesCountDelta),
+					renoteCountDelta: sum(oldJob.renoteCountDelta, newJob.renoteCountDelta),
+					clippedCountDelta: sum(oldJob.clippedCountDelta, newJob.clippedCountDelta),
+				}),
+				check: (_, job) =>
+					!!job.repliesCountDelta ||
+					!!job.renoteCountDelta ||
+					!!job.clippedCountDelta,
+				perform: async (noteId, job) => {
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "note"');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.repliesCountDelta) {
+						sets.add('"repliesCount" = "repliesCount" + $?', job.repliesCountDelta);
+					}
+
+					if (job.renoteCountDelta) {
+						sets.add('"renoteCount" = "renoteCount" + $?', job.renoteCountDelta);
+					}
+
+					if (job.clippedCountDelta) {
+						sets.add('"clippedCount" = "clippedCount" + $?', job.clippedCountDelta);
+					}
+
+					sb.add('WHERE "id" = $?', noteId);
+					const query = sb.build();
+
+					await this.db.query(query.sql, query.parameters);
+				},
 			},
 		);
 
-		this.updateAccessTokenQueue = new CollapsedQueue(
-			this.internalEventService,
-			this.timeService,
+		this.updateAccessTokenQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateAccessToken',
-			fiveMinuteInterval,
-			(oldJob, newJob) => ({
-				lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
-			}),
-			async (id, job) => await this.accessTokensRepository.update({ id }, {
-				lastUsedAt: job.lastUsedAt,
-			}),
 			{
-				onError: this.onQueueError,
-				concurrency: 2,
-				redisParser: data => ({
-					...data,
-					lastUsedAt: new Date(data.lastUsedAt),
+				timeout: oneMinute,
+				limiter: 2,
+				collapse: (oldJob, newJob) => ({
+					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
+				check: (_, job) =>
+					!!job.lastUsedAt,
+				perform: async (id, job) => {
+					await this.db.sql`
+						UPDATE "access_token"
+						SET "lastUsedAt" = GREATEST("lastUsedAt", ${job.lastUsedAt})
+						WHERE "id" = ${id}
+					`;
+				},
 			},
 		);
 
-		this.updateAntennaQueue = new CollapsedQueue(
-			this.internalEventService,
-			this.timeService,
+		this.updateAntennaQueue = this.cacheManagementService.createCollapsedQueue(
 			'updateAntenna',
-			fiveMinuteInterval,
-			(oldJob, newJob) => ({
-				isActive: oldJob.isActive || newJob.isActive,
-				lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
-			}),
-			async (id, job) => await this.antennaService.updateAntenna(id, {
-				isActive: job.isActive,
-				lastUsedAt: job.lastUsedAt,
-			}),
 			{
-				onError: this.onQueueError,
-				concurrency: 4,
-				redisParser: data => ({
-					...data,
-					lastUsedAt: data.lastUsedAt != null
-						? new Date(data.lastUsedAt)
-						: data.lastUsedAt,
+				timeout: oneMinute,
+				limiter: 4,
+				collapse: (oldJob, newJob) => ({
+					isActive: or(oldJob.isActive, newJob.isActive),
+					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
+				check: (_, job) =>
+					!!job.isActive ||
+					!!job.lastUsedAt,
+				perform: async (antennaId, job) => {
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "antenna"');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.isActive) {
+						sets.add('"isActive" = "isActive" OR $?', job.isActive);
+					}
+
+					if (job.lastUsedAt) {
+						sets.add('"lastUsedAt" = GREATEST("lastUsedAt", $?)', job.lastUsedAt);
+					}
+
+					sb.add('WHERE "id" = $?', antennaId);
+					const query = sb.build();
+
+					// Manually update and sync caches
+					await this.db.query(query.sql, query.parameters);
+					await this.antennaService.refreshAntenna(antennaId);
+				},
+			},
+		);
+
+		this.updateChannelQueue = this.cacheManagementService.createCollapsedQueue(
+			'updateChannel',
+			{
+				timeout: oneMinute,
+				limiter: 4,
+				collapse: (oldJob, newJob) => ({
+					lastNotedAt: maxDate(oldJob.lastNotedAt, newJob.lastNotedAt),
+					notesCountDelta: sum(oldJob.notesCountDelta, newJob.notesCountDelta),
+					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
+				}),
+				check: (_, job) =>
+					!!job.lastNotedAt ||
+					!!job.notesCountDelta ||
+					!!job.usersCountDelta,
+				perform: async (channelId, job) => {
+					const sb = new SqlBuilder();
+					sb.add('UPDATE "channel"');
+					sb.add('SET');
+
+					const sets = sb.list();
+
+					if (job.lastNotedAt) {
+						sets.add('"lastNotedAt" = GREATEST("lastNotedAt", $?)', job.lastNotedAt);
+					}
+
+					if (job.notesCountDelta) {
+						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+					}
+
+					if (job.usersCountDelta) {
+						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
+					}
+
+					sb.add('WHERE "id" = $?', channelId);
+					const query = sb.build();
+
+					// Manually update and sync caches
+					await this.db.query(query.sql, query.parameters);
+				},
 			},
 		);
 
 		this.internalEventService.on('userChangeDeletedState', this.onUserDeleted);
 		this.internalEventService.on('antennaDeleted', this.onAntennaDeleted);
-		this.internalEventService.on('antennaUpdated', this.onAntennaDeleted);
 	}
 
 	@bindThis
-	private async performQueue<V>(queue: CollapsedQueue<V>): Promise<void> {
-		try {
-			const results = await queue.performAllNow();
-
-			const [succeeded, failed] = results.reduce((counts, result) => {
-				counts[result ? 0 : 1]++;
-				return counts;
-			}, [0, 0]);
-
-			this.logger.debug(`Persistence completed for ${queue.name}: ${succeeded} succeeded and ${failed} failed`);
-		} catch (err) {
-			this.logger.error(`Persistence failed for ${queue.name}: ${renderInlineError(err)}`);
-		}
-	}
-
-	@bindThis
-	private onQueueError<V>(queue: CollapsedQueue<V>, error: unknown): void {
-		this.logger.error(`Error persisting ${queue.name}: ${renderInlineError(error)}`);
-	}
-
-	@bindThis
-	private async onUserDeleted(data: { id: string, isDeleted: boolean }) {
+	private onUserDeleted(data: { id: string, isDeleted: boolean }) {
 		if (data.isDeleted) {
-			await this.updateUserQueue.delete(data.id);
+			this.updateUserQueue.delete(data.id);
 		}
 	}
 
 	@bindThis
-	private async onAntennaDeleted(data: MiAntenna) {
-		await this.updateAntennaQueue.delete(data.id);
+	private onAntennaDeleted(data: MiAntenna) {
+		this.updateAntennaQueue.delete(data.id);
 	}
 
 	@bindThis
-	async dispose() {
+	public dispose(): void {
 		this.internalEventService.off('userChangeDeletedState', this.onUserDeleted);
 		this.internalEventService.off('antennaDeleted', this.onAntennaDeleted);
-		this.internalEventService.off('antennaUpdated', this.onAntennaDeleted);
-
-		this.logger.info('Persisting all collapsed queues...');
-
-		await this.performQueue(this.updateInstanceQueue);
-		await this.performQueue(this.updateUserQueue);
-		await this.performQueue(this.updateNoteQueue);
-		await this.performQueue(this.updateAccessTokenQueue);
-		await this.performQueue(this.updateAntennaQueue);
-
-		this.logger.info('Persistence complete.');
 	}
 
-	async onApplicationShutdown() {
-		await this.dispose();
+	@bindThis
+	public async performAllNow(): Promise<void> {
+		await callAllAsync([
+			async () => await this.updateInstanceQueue.performAllNow(),
+			async () => await this.updateUserQueue.performAllNow(),
+			async () => await this.updateNoteQueue.performAllNow(),
+			async () => await this.updateAccessTokenQueue.performAllNow(),
+			async () => await this.updateAntennaQueue.performAllNow(),
+			async () => await this.updateChannelQueue.performAllNow(),
+		]);
+	}
+
+	@bindThis
+	public onApplicationShutdown(): void {
+		this.dispose();
 	}
 }
 
-function maxDate(first: Date | undefined, second: Date): Date;
-function maxDate(first: Date, second: Date | undefined): Date;
+// TODO promote these to utilities
+
+function maxDate(first: Date, second: Date): Date;
+function maxDate(first: Date | null, second: Date | null): Date | null;
 function maxDate(first: Date | undefined, second: Date | undefined): Date | undefined;
 function maxDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined;
 
 function maxDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined {
-	if (first !== undefined && second !== undefined) {
-		if (first != null && second != null) {
-			if (first.getTime() > second.getTime()) {
-				return first;
-			} else {
-				return second;
-			}
-		} else {
-			// Null is considered infinitely in the future, and is therefore newer than any date.
-			return null;
-		}
-	} else if (first !== undefined) {
-		return first;
-	} else if (second !== undefined) {
+	// If we only have one entry, then the other is the max by default.
+	if (first === undefined) {
 		return second;
-	} else {
-		// Undefined in considered infinitely in the past, and is therefore older than any date.
-		return undefined;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely in the future, and is therefore newer than any date.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both dates have values, then compare by raw time
+	return first.getTime() > second.getTime()
+		? first
+		: second;
+}
+
+function minDate(first: Date, second: Date): Date;
+function minDate(first: Date | null, second: Date | null): Date | null;
+function minDate(first: Date | undefined, second: Date | undefined): Date | undefined;
+function minDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined;
+
+function minDate(first: Date | null | undefined, second: Date | null | undefined): Date | null | undefined {
+	// If we only have one entry, then the other is the min by default.
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely in the future, and is therefore newer than any date.
+	if (first === null) {
+		return second;
+	}
+	if (second === null) {
+		return first;
+	}
+
+	// If both dates have values, then compare by raw time
+	return first.getTime() < second.getTime()
+		? first
+		: second;
+}
+
+function sum(first: number, second: number): number;
+function sum(first: number | null, second: number | null): number | null;
+function sum(first: number | undefined, second: number | undefined): number | undefined;
+function sum(first: number | null | undefined, second: number | null | undefined): number | null | undefined;
+
+function sum(first: number | null | undefined, second: number | null | undefined): number | null | undefined {
+	// If we only have one entry, then the other is the result byDefault
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely high, and is therefore higher than any other number.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both numbers are defined, then add directly.
+	return first + second;
+}
+
+function or(first: boolean, second: boolean): boolean;
+function or(first: boolean | null, second: boolean | null): boolean | null;
+function or(first: boolean | undefined, second: boolean | undefined): boolean | undefined;
+function or(first: boolean | null | undefined, second: boolean | null | undefined): boolean | null | undefined;
+
+function or(first: boolean | null | undefined, second: boolean | null | undefined): boolean | null | undefined {
+	// If we only have one entry, then the other is the result byDefault
+	if (first === undefined) {
+		return second;
+	}
+	if (second === undefined) {
+		return first;
+	}
+
+	// Null is considered infinitely true, and is therefore truer than any other boolean.
+	if (first === null || second === null) {
+		return null;
+	}
+
+	// If both booleans are defined, then compare directly.
+	return first || second;
+}
+
+class SqlBuilder {
+	private readonly lines: string[] = [];
+	private readonly parameters: unknown[] = [];
+	private nextVarId = 1;
+
+	constructor() {}
+
+	private getNextReplacement(): string {
+		const replacement = '$' + this.nextVarId;
+		this.nextVarId++;
+		return replacement;
+	}
+
+	// https://typeorm.io/docs/data-source/data-source-api/
+	public add(sql: string, ...params: unknown[]): void {
+		// Populate the variable number for all parameters
+		const namedParams = new Map<string, string>();
+		sql = sql.replaceAll(/\$\?(\d+\b)?/g, match => {
+			// Named variable - store & reuse the mapping
+			if (match[1]) {
+				let name = namedParams.get(match[1]);
+				if (name == null) {
+					name = this.getNextReplacement();
+					namedParams.set(match[1], name);
+				}
+				return name;
+			}
+
+			// Unnamed variable
+			return this.getNextReplacement();
+		});
+
+		this.lines.push(sql);
+
+		this.parameters.push(...params);
+	}
+
+	public list(): SqlListBuilder {
+		return new SqlListBuilder(this, '    ');
+	}
+
+	public build() {
+		return {
+			sql: this.lines.join('\n'),
+			parameters: this.parameters,
+		};
+	}
+}
+
+class SqlListBuilder {
+	private isFirst = true;
+
+	constructor(
+		private readonly sqlBuilder: SqlBuilder,
+		private readonly indent: string,
+	) {}
+
+	add(sql: string, ...params: unknown[]): void {
+		if (this.isFirst) {
+			this.isFirst = false;
+		} else {
+			sql = ', ' + sql;
+		}
+
+		sql = this.indent + sql;
+		this.sqlBuilder.add(sql, ...params);
+	}
+
+	public list(): SqlListBuilder {
+		return new SqlListBuilder(this.sqlBuilder, this.indent + '    ');
 	}
 }

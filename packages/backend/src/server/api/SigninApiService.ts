@@ -25,12 +25,14 @@ import { WebAuthnService } from '@/core/WebAuthnService.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
 import { CaptchaService } from '@/core/CaptchaService.js';
 import { FastifyReplyError } from '@/misc/fastify-reply-error.js';
+import { EnvService } from '@/global/EnvService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 // Up to 10 attempts, then 1 per minute
 const signinRateLimit: Keyed<RateLimit> = {
@@ -67,6 +69,8 @@ export class SigninApiService {
 		private userAuthService: UserAuthService,
 		private webAuthnService: WebAuthnService,
 		private captchaService: CaptchaService,
+		private readonly internalEventService: InternalEventService,
+		private readonly envService: EnvService,
 	) {
 	}
 
@@ -202,7 +206,7 @@ export class SigninApiService {
 		};
 
 		if (!profile.twoFactorEnabled) {
-			if (process.env.NODE_ENV !== 'test') {
+			if (this.envService.env.NODE_ENV !== 'test') {
 				if (this.meta.enableHcaptcha && this.meta.hcaptchaSecretKey) {
 					await this.captchaService.verifyHcaptcha(this.meta.hcaptchaSecretKey, body['hcaptcha-response']).catch(err => {
 						throw new FastifyReplyError(400, String(err), err);
@@ -246,8 +250,12 @@ export class SigninApiService {
 					await this.userProfilesRepository.update(user.id, {
 						password: newHash,
 					});
+					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 				}
-				if (!this.meta.approvalRequiredForSignup && !user.approved) this.usersRepository.update(user.id, { approved: true });
+				if (!this.meta.approvalRequiredForSignup && !user.approved) {
+					await this.usersRepository.update(user.id, { approved: true });
+					await this.internalEventService.emit('userUpdated', { id: user.id });
+				}
 
 				return this.signinService.signin(request, reply, user);
 			} else {
@@ -270,6 +278,7 @@ export class SigninApiService {
 					await this.userProfilesRepository.update(user.id, {
 						password: newHash,
 					});
+					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 				}
 				await this.userAuthService.twoFactorAuthenticate(profile, token);
 			} catch (e) {
@@ -278,7 +287,10 @@ export class SigninApiService {
 				});
 			}
 
-			if (!this.meta.approvalRequiredForSignup && !user.approved) this.usersRepository.update(user.id, { approved: true });
+			if (!this.meta.approvalRequiredForSignup && !user.approved) {
+				await this.usersRepository.update(user.id, { approved: true });
+				await this.internalEventService.emit('userUpdated', { id: user.id });
+			}
 
 			return this.signinService.signin(request, reply, user);
 		} else if (body.credential) {

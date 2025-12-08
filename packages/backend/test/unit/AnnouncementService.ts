@@ -10,6 +10,7 @@ import { ModuleMocker } from 'jest-mock';
 import { Test } from '@nestjs/testing';
 import { FakeCacheManagementService } from '../misc/FakeCacheManagementService.js';
 import { MockInternalEventService } from '../misc/MockInternalEventService.js';
+import type { MockMetadata } from 'jest-mock';
 import { CacheManagementService } from '@/global/CacheManagementService.js';
 import { GlobalModule } from '@/GlobalModule.js';
 import { AnnouncementService } from '@/core/AnnouncementService.js';
@@ -31,7 +32,6 @@ import { RoleService } from '@/core/RoleService.js';
 import { CoreModule } from '@/core/CoreModule.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import type { TestingModule } from '@nestjs/testing';
-import type { MockMetadata } from 'jest-mock';
 
 const moduleMocker = new ModuleMocker(global);
 

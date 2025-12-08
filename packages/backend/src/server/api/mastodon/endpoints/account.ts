@@ -189,7 +189,7 @@ export class ApiAccountMastodon {
 			const { client, me } = await this.clientService.getAuthClient(request);
 			const args = parseTimelineArgs(request.query);
 			const data = await client.getAccountStatuses(request.params.id, args);
-			const response = await promiseMap(data.data, async status => await this.mastoConverters.convertStatus(status, me), { limit: 2 });
+			const response = await promiseMap(data.data, async status => await this.mastoConverters.convertStatus(status, me), { limiter: 2 });
 
 			attachMinMaxPagination(request, reply, response);
 			return reply.send(response);
@@ -213,7 +213,7 @@ export class ApiAccountMastodon {
 				request.params.id,
 				parseTimelineArgs(request.query),
 			);
-			const response = await promiseMap(data.data, async account => await this.mastoConverters.convertAccount(account), { limit: 2 });
+			const response = await promiseMap(data.data, async account => await this.mastoConverters.convertAccount(account), { limiter: 2 });
 
 			attachMinMaxPagination(request, reply, response);
 			return reply.send(response);
@@ -227,7 +227,7 @@ export class ApiAccountMastodon {
 				request.params.id,
 				parseTimelineArgs(request.query),
 			);
-			const response = await promiseMap(data.data, async account => await this.mastoConverters.convertAccount(account), { limit: 2 });
+			const response = await promiseMap(data.data, async account => await this.mastoConverters.convertAccount(account), { limiter: 2 });
 
 			attachMinMaxPagination(request, reply, response);
 			return reply.send(response);

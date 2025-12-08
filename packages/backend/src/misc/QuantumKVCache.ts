@@ -6,7 +6,7 @@
 import { EntityNotFoundError } from 'typeorm';
 import promiseLimit from 'promise-limit';
 import { bindThis } from '@/decorators.js';
-import type { InternalEventService, EventTypes } from '@/global/InternalEventService.js';
+import type { InternalEventService, InternalEventTypes } from '@/global/InternalEventService.js';
 import { MemoryKVCache, type MemoryCacheServices } from '@/misc/cache.js';
 import { makeKVPArray, type KVPArray } from '@/misc/kvp-array.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
@@ -14,7 +14,6 @@ import { FetchFailedError } from '@/misc/errors/FetchFailedError.js';
 import { KeyNotFoundError } from '@/misc/errors/KeyNotFoundError.js';
 import { QuantumCacheError } from '@/misc/errors/QuantumCacheError.js';
 import { DisposedError, DisposingError } from '@/misc/errors/DisposeError.js';
-import { trackPromise } from '@/misc/promise-tracker.js';
 import { withCleanup, withSignal } from '@/misc/promiseUtils.js';
 import { promiseTry } from '@/misc/promise-try.js';
 
@@ -204,17 +203,17 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		// Set up rate limiters
 		const fetcherConcurrency = opts.fetcherConcurrency
 			? Math.max(opts.fetcherConcurrency, 1)
-			: 4;
+			: 12;
 		this.fetcherLimiter = promiseLimit(fetcherConcurrency);
 
 		const optionalFetcherConcurrency = opts.optionalFetcherConcurrency
 			? Math.max(opts.optionalFetcherConcurrency, 1)
-			: 4;
+			: 12;
 		this.optionalFetcherLimiter = promiseLimit(optionalFetcherConcurrency);
 
 		const bulkFetcherConcurrency = opts.bulkFetcherConcurrency
 			? Math.max(opts.bulkFetcherConcurrency, 1)
-			: 2;
+			: 6;
 		this.bulkFetcherLimiter = promiseLimit(bulkFetcherConcurrency);
 
 		const globalConcurrency = opts.maxConcurrency
@@ -657,9 +656,9 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 			// Wait for cleanup
 			await Promise.allSettled([
-				...this.activeFetchers.values().map(p => trackPromise(p)),
-				...this.activeOptionalFetchers.values().map(p => trackPromise(p)),
-				...this.activeBulkFetchers.values().map(p => trackPromise(p)),
+				...this.activeFetchers.values(),
+				...this.activeOptionalFetchers.values(),
+				...this.activeBulkFetchers.values(),
 			]);
 
 			// Purge memory for faster GC
@@ -674,7 +673,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	}
 
 	@bindThis
-	private async onQuantumCacheUpdated(data: EventTypes['quantumCacheUpdated']): Promise<void> {
+	private async onQuantumCacheUpdated(data: InternalEventTypes['quantumCacheUpdated']): Promise<void> {
 		this.throwIfDisposed();
 
 		if (data.name === this.name) {
@@ -689,7 +688,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 	}
 
 	@bindThis
-	private async onQuantumCacheReset(data: EventTypes['quantumCacheReset']): Promise<void> {
+	private async onQuantumCacheReset(data: InternalEventTypes['quantumCacheReset']): Promise<void> {
 		this.throwIfDisposed();
 
 		if (data.name === this.name) {

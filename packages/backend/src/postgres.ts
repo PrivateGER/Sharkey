@@ -12,6 +12,7 @@ import { Config } from '@/config.js';
 import type MisskeyLogger from '@/logger.js';
 import type { Data } from '@/logger.js';
 import type { LoggerService } from '@/core/LoggerService.js';
+import type { EnvService } from '@/global/EnvService.js';
 import { bindThis } from '@/decorators.js';
 
 import { MiAbuseUserReport } from '@/models/AbuseUserReport.js';
@@ -298,9 +299,10 @@ export const entities = [
 	...charts,
 ];
 
-const log = process.env.NODE_ENV !== 'production';
+export function createPostgresDataSource(config: Config, loggerService: LoggerService, envService: EnvService) {
+	const log = envService.env.NODE_ENV !== 'production' && !envService.options.quiet;
+	const verbose = envService.options.verbose;
 
-export function createPostgresDataSource(config: Config, loggerService: LoggerService) {
 	const dbLogger = loggerService.getLogger('db');
 	return new DataSource({
 		type: 'postgres',
@@ -332,9 +334,9 @@ export function createPostgresDataSource(config: Config, loggerService: LoggerSe
 				})) ?? [],
 			},
 		} : {}),
-		synchronize: process.env.NODE_ENV === 'test',
-		dropSchema: process.env.NODE_ENV === 'test',
-		cache: config.db.disableCache === false && process.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)
+		synchronize: envService.env.NODE_ENV === 'test',
+		dropSchema: envService.env.NODE_ENV === 'test',
+		cache: config.db.disableCache === false && envService.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)
 			type: 'ioredis',
 			options: {
 				...config.redis,
@@ -343,9 +345,9 @@ export function createPostgresDataSource(config: Config, loggerService: LoggerSe
 		} : false,
 		logging: log,
 		logger: new TypeORMLogger({
-			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation,
+			disableQueryTruncation: config.logging?.sql?.disableQueryTruncation ?? verbose,
 			enableQueryLogging: log,
-			enableQueryParamLogging: config.logging?.sql?.enableQueryParamLogging,
+			enableQueryParamLogging: config.logging?.sql?.enableQueryParamLogging ?? verbose,
 			printReplicationMode: !!config.dbReplications,
 		}, dbLogger),
 		maxQueryExecutionTime: config.db.slowQueryThreshold,

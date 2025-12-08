@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import * as Bull from 'bullmq';
-import { BackgroundTaskJobData, CheckHibernationBackgroundTask, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask } from '@/queue/types.js';
+import { BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask } from '@/queue/types.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
 import Logger from '@/logger.js';
@@ -24,7 +24,6 @@ import { NoteEditService } from '@/core/NoteEditService.js';
 import { HashtagService } from '@/core/HashtagService.js';
 import { DriveService } from '@/core/DriveService.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { UserSuspendService } from '@/core/UserSuspendService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
@@ -137,8 +136,8 @@ export class BackgroundTaskProcessorService {
 			await this.apPersonService.updateFeatured(user);
 		} catch (err) {
 			if (err instanceof IdentifiableError) {
-				if (err.id === errorCodes.userIsSuspended) return err.message;
-				if (err.id === errorCodes.userIsDeleted) return err.message;
+				if (err.id === errorCodes.userSuspended) return err.message;
+				if (err.id === errorCodes.userDeleted) return err.message;
 				if (err.id === errorCodes.noFeaturedCollection) return err.message;
 			}
 			throw err;
@@ -199,7 +198,7 @@ export class BackgroundTaskProcessorService {
 
 		// This is messy, but we need to minimize updates to space in Postgres blocks.
 		if (updateNotResponding || updateGoneSuspended || updateAutoSuspended) {
-			await this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, {
+			this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, {
 				notRespondingSince: updateNotResponding ? (success ? null : this.timeService.date) : undefined,
 				shouldSuspendGone: updateGoneSuspended || undefined,
 				shouldSuspendNotResponding: updateAutoSuspended || undefined,
@@ -240,7 +239,7 @@ export class BackgroundTaskProcessorService {
 		await this.fetchInstanceMetadataService.fetchInstanceMetadataLazy(instance);
 
 		// Unsuspend instance (deferred)
-		await this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, {
+		this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, {
 			latestRequestReceivedAt: this.timeService.date,
 			shouldUnsuspend: instance.suspensionState === 'autoSuspendedForNotResponding',
 		});
@@ -262,9 +261,9 @@ export class BackgroundTaskProcessorService {
 		const poll = await this.pollsRepository.findOneBy({ noteId: note.id });
 
 		if (task.edit) {
-			await this.noteEditService.postNoteEdited(note, user, { ...note, poll }, task.silent, Array.from(mentionedUsers.values()));
+			await this.noteEditService.postNoteEdited(note, user, { ...note, poll }, task.silent, mentionedUsers.values().toArray());
 		} else {
-			await this.noteCreateService.postNoteCreated(note, user, { ...note, poll }, task.silent, Array.from(mentionedUsers.values()));
+			await this.noteCreateService.postNoteCreated(note, user, { ...note, poll }, task.silent, mentionedUsers.values().toArray());
 		}
 
 		return 'ok';
@@ -314,9 +313,7 @@ export class BackgroundTaskProcessorService {
 		const user = await this.cacheService.findOptionalUserById(task.userId);
 		if (!user || user.isDeleted) return `Skipping post-suspend task: user ${task.userId} has been deleted`;
 
-		await trackTask(async () => {
-			await this.userSuspendService.postSuspend(user);
-		});
+		await this.userSuspendService.postSuspend(user);
 
 		return 'ok';
 	}
@@ -325,9 +322,7 @@ export class BackgroundTaskProcessorService {
 		const user = await this.cacheService.findOptionalUserById(task.userId);
 		if (!user || user.isDeleted) return `Skipping post-unsuspend task: user ${task.userId} has been deleted`;
 
-		await trackTask(async () => {
-			await this.userSuspendService.postUnsuspend(user);
-		});
+		await this.userSuspendService.postUnsuspend(user);
 
 		return 'ok';
 	}

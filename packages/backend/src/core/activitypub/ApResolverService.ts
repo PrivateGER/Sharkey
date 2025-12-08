@@ -165,7 +165,7 @@ export class Resolver {
 				}
 			}
 		}, {
-			limit: concurrency,
+			limiter: concurrency,
 		});
 
 		// Items will be null if a request fails and ignoreErrors is true

@@ -291,7 +291,7 @@ export class MastodonConverters {
 			} catch {
 				return null;
 			}
-		}, { limit: 4 })
+		}, { limiter: 4 })
 			.then((p: Entity.Mention[]) => p.filter(m => m));
 
 		const tags = note.tags.map(tag => {
@@ -368,7 +368,7 @@ export class MastodonConverters {
 	public async convertConversation(conversation: Entity.Conversation, me: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
 		return {
 			id: conversation.id,
-			accounts: await promiseMap(conversation.accounts, async (a: Entity.Account) => await this.convertAccount(a), { limit: 4 }),
+			accounts: await promiseMap(conversation.accounts, async (a: Entity.Account) => await this.convertAccount(a), { limiter: 4 }),
 			last_status: conversation.last_status ? await this.convertStatus(conversation.last_status, me) : null,
 			unread: conversation.unread,
 		};

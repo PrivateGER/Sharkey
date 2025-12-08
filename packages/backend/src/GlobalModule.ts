@@ -33,11 +33,11 @@ const $config: Provider = {
 
 const $db: Provider = {
 	provide: DI.db,
-	useFactory: async (config: Config, loggerService: LoggerService) => {
-		const db = createPostgresDataSource(config, loggerService);
+	useFactory: async (config: Config, loggerService: LoggerService, envService: EnvService) => {
+		const db = createPostgresDataSource(config, loggerService, envService);
 		return await db.initialize();
 	},
-	inject: [DI.config, LoggerService],
+	inject: [DI.config, LoggerService, EnvService],
 };
 
 const $meilisearch: Provider = {

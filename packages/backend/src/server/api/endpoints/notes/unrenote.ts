@@ -10,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteDeleteService } from '@/core/NoteDeleteService.js';
 import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { trackTask } from '@/misc/promise-tracker.js';
 import { isQuote, Renote } from '@/misc/is-renote.js';
 import { ApiError } from '../../error.js';
 
@@ -39,7 +40,6 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		noteId: { type: 'string', format: 'misskey:id' },
-		quote: { type: 'boolean', default: false },
 	},
 	required: ['noteId'],
 } as const;
@@ -67,14 +67,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				renoteId: note.id,
 			}) as Renote[];
 
-			// TODO inline this into the above query
-			for (const note of renotes) {
-				if (ps.quote) {
-					if (isQuote(note)) await this.noteDeleteService.delete(me, note);
-				} else {
-					if (!isQuote(note)) await this.noteDeleteService.delete(me, note);
+			trackTask(async () => {
+				for (const note of renotes) {
+					// TODO inline this into the above query
+					if (!isQuote(note)) {
+						await this.noteDeleteService.delete(me, note);
+					}
 				}
-			}
+			});
 		});
 	}
 }

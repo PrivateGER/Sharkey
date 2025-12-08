@@ -221,7 +221,7 @@ export class ApPersonService implements OnModuleInit {
 		if (typeof(x.id) !== 'string') {
 			throw new UnrecoverableError(`invalid Actor ${uri}: wrong id type ${typeof(x.id)}`);
 		}
-		const parsedId = this.utilityService.assertUrl(x.id);
+		const parsedId = this.utilityService.assertUrl(x.id, { allowFragment: false });
 		const idHost = this.utilityService.punyHostPSLDomain(parsedId);
 		if (idHost !== expectHost) {
 			throw new UnrecoverableError(`invalid Actor ${uri}: wrong host in id ${x.id} (got ${parsedId}, expected ${expectHost})`);
@@ -286,8 +286,8 @@ export class ApPersonService implements OnModuleInit {
 			x.summary = truncate(x.summary, this.config.maxRemoteBioLength);
 		}
 
-		// Sanitize publicKey
-		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost);
+		// Sanitize publicKey (fragment / hash is allowed)
+		this.apUtilityService.sanitizeInlineObject(x, 'publicKey', parsedUri, expectHost, undefined);
 
 		return x;
 	}
@@ -468,7 +468,7 @@ export class ApPersonService implements OnModuleInit {
 			: null;
 
 		// Register the instance first, to avoid FK errors
-		await this.federatedInstanceService.fetchOrRegister(host);
+		const instance = await this.federatedInstanceService.fetchOrRegister(host);
 
 		try {
 			// Start transaction
@@ -577,13 +577,13 @@ export class ApPersonService implements OnModuleInit {
 
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
-			this.federatedInstanceService.fetchOrRegister(host).then(async i => {
-				await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { usersCountDelta: 1 });
+			{
+				this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, { usersCountDelta: 1 });
 				if (this.meta.enableChartsForFederatedInstances) {
-					this.instanceChart.newUser(i.host);
+					this.instanceChart.newUser(instance.host);
 				}
-				await this.fetchInstanceMetadataService.fetchInstanceMetadataLazy(i);
-			});
+				await this.fetchInstanceMetadataService.fetchInstanceMetadataLazy(instance);
+			}
 		}
 
 		this.usersChart.update(user, true);
@@ -818,7 +818,7 @@ export class ApPersonService implements OnModuleInit {
 			location: person['vcard:Address'] ?? null,
 			listenbrainz: person.listenbrainz ?? null,
 		});
-		await this.cacheService.userProfileCache.delete(updated.id);
+		await this.internalEventService.emit('updateUserProfile', { userId: updated.id });
 
 		// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
 		if (updated.inbox !== person.inbox || updated.sharedInbox !== (person.sharedInbox ?? person.endpoints?.sharedInbox)) {
@@ -941,8 +941,8 @@ export class ApPersonService implements OnModuleInit {
 		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
 		const user = typeof(userOrId) === 'object' ? userOrId : await this.cacheService.findRemoteUserById(userId);
 
-		if (user.isDeleted) throw new IdentifiableError(errorCodes.userIsDeleted, `Can't update featured for ${userId}: user is deleted`);
-		if (user.isSuspended) throw new IdentifiableError(errorCodes.userIsSuspended, `Can't update featured for ${userId}: user is suspended`);
+		if (user.isDeleted) throw new IdentifiableError(errorCodes.userDeleted, `Can't update featured for ${userId}: user is deleted`);
+		if (user.isSuspended) throw new IdentifiableError(errorCodes.userSuspended, `Can't update featured for ${userId}: user is suspended`);
 		if (!user.featured) throw new IdentifiableError(errorCodes.noFeaturedCollection, `Can't update featured for ${userId}: no featured collection`);
 
 		this.logger.info(`Updating featured notes for: ${user.uri}`);
@@ -977,7 +977,7 @@ export class ApPersonService implements OnModuleInit {
 			}
 			return null;
 		}, {
-			limit: 2,
+			limiter: 2,
 		});
 
 		await this.db.transaction(async transactionalEntityManager => {

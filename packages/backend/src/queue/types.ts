@@ -228,11 +228,6 @@ export type PostNoteBackgroundTask = {
 	edit: boolean;
 };
 
-export type CheckHibernationBackgroundTask = {
-	type: 'check-hibernation';
-	userId: string;
-};
-
 export type DeleteFileBackgroundTask = {
 	type: 'delete-file';
 	fileId: string;

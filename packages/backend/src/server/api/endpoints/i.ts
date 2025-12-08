@@ -8,6 +8,9 @@ import type { UserProfilesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
+import { CacheService } from '@/core/CacheService.js';
+import { trackTask } from '@/misc/promise-tracker.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../error.js';
 
@@ -56,6 +59,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private userEntityService: UserEntityService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, user, token) => {
 			const isSecure = token == null;
@@ -64,19 +69,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const today = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
 
 			// 渡ってきている user はキャッシュされていて古い可能性があるので改めて取得
-			const userProfile = await this.userProfilesRepository.findOne({
-				where: {
-					userId: user.id,
-				},
-			});
-
+			const userProfile = await this.cacheService.userProfileCache.fetchMaybe(user.id);
 			if (userProfile == null) {
 				throw new ApiError(meta.errors.userIsDeleted);
 			}
 
 			if (!userProfile.loggedInDates.includes(today)) {
-				this.userProfilesRepository.update({ userId: user.id }, {
-					loggedInDates: [...userProfile.loggedInDates, today],
+				trackTask(async () => {
+					await this.userProfilesRepository.update({ userId: user.id }, {
+						loggedInDates: [...userProfile.loggedInDates, today],
+					});
+					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 				});
 				userProfile.loggedInDates = [...userProfile.loggedInDates, today];
 			}

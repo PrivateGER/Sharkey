@@ -4,7 +4,7 @@
  */
 
 import * as mfm from 'mfm-js';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull, Not } from 'typeorm';
 import * as Redis from 'ioredis';
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
@@ -12,7 +12,7 @@ import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mf
 import { extractHashtags } from '@/misc/extract-hashtags.js';
 import type { IMentionedRemoteUsers } from '@/models/Note.js';
 import { MiNote } from '@/models/Note.js';
-import type { NoteEditsRepository, ChannelFollowingsRepository, ChannelsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, NotesRepository, NoteThreadMutingsRepository, UserListMembershipsRepository, UserProfilesRepository, UsersRepository, PollsRepository } from '@/models/_.js';
+import type { NoteEditsRepository, ChannelFollowingsRepository, ChannelsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, NotesRepository, NoteThreadMutingsRepository, UserListMembershipsRepository, UserProfilesRepository, UsersRepository, PollsRepository, NoteReactionsRepository } from '@/models/_.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import type { MiApp } from '@/models/App.js';
 import { concat } from '@/misc/prelude/array.js';
@@ -44,7 +44,6 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isReply } from '@/misc/is-reply.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
@@ -197,6 +196,9 @@ export class NoteEditService implements OnApplicationShutdown {
 
 		@Inject(DI.pollsRepository)
 		private pollsRepository: PollsRepository,
+
+		@Inject(DI.noteReactionsRepository)
+		private readonly noteReactionsRepository: NoteReactionsRepository,
 
 		private noteEntityService: NoteEntityService,
 		private idService: IdService,
@@ -612,7 +614,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			if (isRemoteUser(user)) {
 				this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
 					if (note.renote && note.text || !note.renote) {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
 					}
 					if (this.meta.enableChartsForFederatedInstances) {
 						this.instanceChart.updateNote(i.host, note, true);
@@ -621,7 +623,7 @@ export class NoteEditService implements OnApplicationShutdown {
 			}
 		}
 
-		await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
+		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
 
 		// ハッシュタグ更新
 		await this.pushToTl(note, user);
@@ -643,10 +645,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			// Pack the note
 			const noteObj = await this.noteEntityService.pack(note, null, { skipHide: true, withReactionAndUserPairCache: true });
-			this.globalEventService.publishNoteStream(note.id, 'updated', {
-				cw: note.cw,
-				text: note.text ?? '',
-			});
+			this.globalEventService.publishNoteStream(note.id, 'updated', {});
 
 			await this.roleService.addNoteToRoleTimeline(noteObj);
 
@@ -682,7 +681,7 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			//#region AP deliver
 			if (!data.localOnly && isLocalUser(user)) {
-				await trackTask(async () => {
+				{
 					const noteActivity = await this.apRendererService.renderNoteOrRenoteActivity(note, user, { renote: data.renote });
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
 
@@ -708,18 +707,34 @@ export class NoteEditService implements OnApplicationShutdown {
 						dm.addFollowersRecipe();
 					}
 
+					// TODO restore this in the note-edits branch
 					if (['public', 'home'].includes(note.visibility)) {
-						// Send edit event to all users who replied to,
-						// renoted a post or reacted to a note.
-						const noteId = note.id;
-						const users = await this.usersRepository.createQueryBuilder()
-							.where(
-								'id IN (SELECT "userId" FROM note WHERE "replyId" = :noteId OR "renoteId" = :noteId UNION SELECT "userId" FROM note_reaction WHERE "noteId" = :noteId)',
-								{ noteId },
-							)
-							.andWhere('host IS NOT NULL')
-							.getMany();
-						for (const u of users) {
+						// Send edit event to all users who replied to, renoted, or reacted to a note.
+						const rawUsers = await Promise.all([
+							this.notesRepository.createQueryBuilder('note')
+								.select('note.userId', 'userId')
+								.where({ replyId: note.id, userId: Not(note.userId), userHost: Not(IsNull()) })
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+							this.notesRepository.createQueryBuilder('note')
+								.select('note.userId', 'userId')
+								.where({ renoteId: note.id, userId: Not(note.userId), userHost: Not(IsNull()) })
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+							this.noteReactionsRepository.createQueryBuilder('reaction')
+								.select('reaction.userId', 'userId')
+								.where({ noteId: note.id, userId: Not(note.userId) })
+								.innerJoin('reaction.user', 'user')
+								.andWhere('user.host IS NOT NULL')
+								.distinct()
+								.getRawMany<{ userId: string }>(),
+						]);
+
+						const allUserIds = rawUsers.flatMap(users => users.map(u => u.userId));
+						const uniqueUserIds = new Set(allUserIds);
+						const allUsers = await this.cacheService.findUsersById(uniqueUserIds);
+
+						for (const u of allUsers.values()) {
 							// User was verified to be remote by checking
 							// whether host IS NOT NULL in SQL query.
 							dm.addDirectRecipe(u as MiRemoteUser);
@@ -731,7 +746,7 @@ export class NoteEditService implements OnApplicationShutdown {
 					if (['public'].includes(note.visibility)) {
 						await this.relayService.deliverToRelays(user, noteActivity);
 					}
-				});
+				}
 			}
 			//#endregion
 		}

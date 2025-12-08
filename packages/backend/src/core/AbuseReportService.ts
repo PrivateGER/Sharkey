@@ -143,7 +143,7 @@ export class AbuseReportService {
 
 		const flag = this.apRendererService.renderFlag(actor, targetUser.uri!, report.comment);
 		const contextAssignedFlag = this.apRendererService.addContext(flag);
-		this.queueService.deliver(actor, contextAssignedFlag, targetUser.inbox, false);
+		trackPromise(this.queueService.deliver(actor, contextAssignedFlag, targetUser.inbox, false));
 
 		this.moderationLogService
 			.log(moderator, 'forwardAbuseReport', {

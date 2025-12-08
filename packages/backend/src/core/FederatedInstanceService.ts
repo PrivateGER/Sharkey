@@ -76,7 +76,7 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 
 	@bindThis
 	public async fetchOrRegister(host: string): Promise<MiInstance> {
-		return this.federatedInstanceCache.fetch(host);
+		return await this.federatedInstanceCache.fetch(host);
 		/*
 		host = this.utilityService.toPuny(host);
 
@@ -109,8 +109,13 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 	}
 
 	@bindThis
+	public async refresh(host: string): Promise<MiInstance> {
+		return await this.federatedInstanceCache.refresh(host);
+	}
+
+	@bindThis
 	public async fetch(host: string): Promise<MiInstance> {
-		return this.federatedInstanceCache.fetch(host);
+		return await this.federatedInstanceCache.fetch(host);
 		/*
 		host = this.utilityService.toPuny(host);
 

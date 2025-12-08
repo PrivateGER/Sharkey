@@ -46,6 +46,7 @@ import { bindThis } from '@/decorators.js';
 import { FlashEntityService } from '@/core/entities/FlashEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { EnvService } from '@/global/EnvService.js';
 import { ReversiGameEntityService } from '@/core/entities/ReversiGameEntityService.js';
 import { AnnouncementEntityService } from '@/core/entities/AnnouncementEntityService.js';
 import { FeedService } from './FeedService.js';
@@ -120,6 +121,7 @@ export class ClientServerService {
 		private roleService: RoleService,
 		private clientLoggerService: ClientLoggerService,
 		private readonly timeService: TimeService,
+		private readonly envService: EnvService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -239,14 +241,14 @@ export class ClientServerService {
 				done();
 			});
 		} else {
-			const port = (process.env.VITE_PORT ?? '5173');
+			const port = (this.envService.env.VITE_PORT ?? '5173');
 			fastify.register(fastifyProxy, {
 				upstream: `http://localhost:${port}`,
 				prefix: '/vite',
 				rewritePrefix: '/vite',
 			});
 
-			const embedPort = (process.env.EMBED_VITE_PORT ?? '5174');
+			const embedPort = (this.envService.env.EMBED_VITE_PORT ?? '5174');
 			fastify.register(fastifyProxy, {
 				upstream: `http://localhost:${embedPort}`,
 				prefix: '/embed_vite',

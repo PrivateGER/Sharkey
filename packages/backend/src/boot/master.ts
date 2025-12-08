@@ -67,7 +67,7 @@ export async function masterMain(loggerService: LoggerService, envService: EnvSe
 	// initialize app
 	try {
 		greet(coreLogger, bootLogger, envOption);
-		showEnvironment(bootLogger);
+		showEnvironment(bootLogger, envService);
 		await showMachineInfo(bootLogger);
 		showNodejsVersion(bootLogger);
 		config = loadConfig(loggerService);
@@ -151,8 +151,8 @@ export async function masterMain(loggerService: LoggerService, envService: EnvSe
 	}
 }
 
-function showEnvironment(bootLogger: Logger): void {
-	const env = process.env.NODE_ENV;
+function showEnvironment(bootLogger: Logger, envService: EnvService): void {
+	const env = envService.env.NODE_ENV;
 	const logger = bootLogger.createSubLogger('env');
 	logger.info(typeof env === 'undefined' ? 'NODE_ENV is not set' : `NODE_ENV: ${env}`);
 

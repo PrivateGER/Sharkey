@@ -51,7 +51,6 @@ import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { isReply } from '@/misc/is-reply.js';
-import { trackTask } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
@@ -584,14 +583,15 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
 			if (isRemoteUser(user)) {
-				this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
+				const i = await this.federatedInstanceService.fetchOrRegister(user.host);
+				{
 					if (!this.isRenote(note) || this.isQuote(note)) {
-						await this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
+						this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: 1 });
 					}
 					if (this.meta.enableChartsForFederatedInstances) {
 						this.instanceChart.updateNote(i.host, note, true);
 					}
-				});
+				}
 			}
 		}
 
@@ -604,10 +604,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		if (!this.isRenote(note) || this.isQuote(note)) {
 			// Increment notes count (user)
-			await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { notesCountDelta: 1 });
+			this.collapsedQueueService.updateUserQueue.enqueue(user.id, { notesCountDelta: 1 });
 		}
 
-		await this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
+		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
 
 		await this.pushToTl(note, user);
 
@@ -617,7 +617,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}, user);
 
 		if (data.reply) {
-			await this.collapsedQueueService.updateNoteQueue.enqueue(data.reply.id, { repliesCountDelta: 1 });
+			this.collapsedQueueService.updateNoteQueue.enqueue(data.reply.id, { repliesCountDelta: 1 });
 		}
 
 		if (data.reply == null) {
@@ -646,7 +646,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (this.isPureRenote(data)) {
-			await this.collapsedQueueService.updateNoteQueue.enqueue(data.renote.id, { renoteCountDelta: 1 });
+			this.collapsedQueueService.updateNoteQueue.enqueue(data.renote.id, { renoteCountDelta: 1 });
 			await this.incRenoteCount(data.renote, user);
 		}
 
@@ -746,7 +746,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			//#region AP deliver
 			if (!data.localOnly && isLocalUser(user)) {
-				await trackTask(async () => {
+				{
 					const noteActivity = await this.apRendererService.renderNoteOrRenoteActivity(note, user, { renote: data.renote });
 					const dm = this.apDeliverManagerService.createDeliverManager(user, noteActivity);
 
@@ -777,26 +777,23 @@ export class NoteCreateService implements OnApplicationShutdown {
 					if (['public'].includes(note.visibility)) {
 						await this.relayService.deliverToRelays(user, noteActivity);
 					}
-				});
+				}
 			}
 			//#endregion
 		}
 
 		if (data.channel) {
-			await this.channelsRepository.increment({ id: data.channel.id }, 'notesCount', 1);
-			await this.channelsRepository.update(data.channel.id, {
-				lastNotedAt: this.timeService.date,
-			});
-
-			await this.notesRepository.countBy({
+			// この処理が行われるのはノート作成後なので、ノートが一つしかなかったら最初の投稿だと判断できる
+			// TODO: とはいえノートを削除して何回も投稿すればその分だけインクリメントされる雑さもあるのでどうにかしたい
+			const userNotesInChannel = await this.notesRepository.countBy({
 				userId: user.id,
 				channelId: data.channel.id,
-			}).then(count => {
-				// この処理が行われるのはノート作成後なので、ノートが一つしかなかったら最初の投稿だと判断できる
-				// TODO: とはいえノートを削除して何回も投稿すればその分だけインクリメントされる雑さもあるのでどうにかしたい
-				if (count === 1) {
-					this.channelsRepository.increment({ id: data.channel!.id }, 'usersCount', 1);
-				}
+			});
+
+			this.collapsedQueueService.updateChannelQueue.enqueue(data.channel.id, {
+				notesCountDelta: 1,
+				usersCountDelta: userNotesInChannel === 1 ? 1 : undefined,
+				lastNotedAt: this.timeService.date,
 			});
 		}
 
@@ -894,7 +891,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		const allMentions = extractMentions(tokens);
 		const mentions = new Map(allMentions.map(m => [`${m.username.toLowerCase()}@${m.host?.toLowerCase()}`, m]));
 
-		const allMentionedUsers = await promiseMap(mentions.values(), async m => await this.remoteUserResolveService.resolveUser(m.username, m.host ?? user.host).catch(() => null), { limit: 2 });
+		const allMentionedUsers = await promiseMap(mentions.values(), async m => await this.remoteUserResolveService.resolveUser(m.username, m.host ?? user.host).catch(() => null), { limiter: 2 });
 		const mentionedUsers = new Map(allMentionedUsers.filter(u => u != null).map(u => [u.id, u]));
 
 		return Array.from(mentionedUsers.values());

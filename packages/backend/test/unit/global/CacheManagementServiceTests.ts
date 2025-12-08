@@ -5,37 +5,56 @@
 
 import { jest } from '@jest/globals';
 import { MockRedis } from '../../misc/MockRedis.js';
+import { MockConsole } from '../../misc/MockConsole.js';
 import { GodOfTimeService } from '../../misc/GodOfTimeService.js';
 import { MockInternalEventService } from '../../misc/MockInternalEventService.js';
-import { CacheManagementService, type Manager, GC_INTERVAL } from '@/global/CacheManagementService.js';
+import { MockEnvService } from '../../misc/MockEnvService.js';
+import {
+	CacheManagementService,
+	GC_INTERVAL,
+	type CacheManager,
+	type QueueManager,
+} from '@/global/CacheManagementService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { MemoryKVCache } from '@/misc/cache.js';
 
 describe(CacheManagementService, () => {
-	let timeService: GodOfTimeService;
-	let redisClient: MockRedis;
-	let internalEventService: MockInternalEventService;
+	let mockTimeService: GodOfTimeService;
+	let mockRedisClient: MockRedis;
+	let mockInternalEventService: MockInternalEventService;
+	let mockConsole: MockConsole;
+	let mockEnvService: MockEnvService;
+	let fakeLoggerService: LoggerService;
 
 	let serviceUnderTest: CacheManagementService;
-	let internalsUnderTest: { managedCaches: Set<Manager> };
+	let internalsUnderTest: { managedCaches: Map<string, CacheManager>, managedQueues: Map<string, QueueManager> };
 
 	beforeAll(() => {
-		timeService = new GodOfTimeService();
-		redisClient = new MockRedis(timeService);
-		internalEventService = new MockInternalEventService( { host: 'example.com' });
+		mockTimeService = new GodOfTimeService();
+		mockRedisClient = new MockRedis(mockTimeService);
+		mockInternalEventService = new MockInternalEventService( { host: 'example.com' });
+		mockConsole = new MockConsole();
+		mockEnvService = new MockEnvService();
+		fakeLoggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
 	});
 
 	afterAll(() => {
-		internalEventService.dispose();
-		redisClient.disconnect();
+		mockInternalEventService.dispose();
+		mockRedisClient.disconnect();
 	});
 
 	beforeEach(() => {
-		timeService.resetToNow();
-		redisClient.mockReset();
-		internalEventService.mockReset();
+		mockTimeService.resetToNow();
+		mockRedisClient.mockReset();
+		mockInternalEventService.mockReset();
+		mockEnvService.mockReset();
+		mockConsole.mockReset();
 
-		serviceUnderTest = new CacheManagementService(redisClient, timeService, internalEventService);
-		internalsUnderTest = { managedCaches: Reflect.get(serviceUnderTest, 'managedCaches') };
+		serviceUnderTest = new CacheManagementService(mockRedisClient, mockTimeService, mockInternalEventService, fakeLoggerService);
+		internalsUnderTest = {
+			get managedCaches() { return Reflect.get(serviceUnderTest, 'managedCaches'); },
+			get managedQueues() { return Reflect.get(serviceUnderTest, 'managedQueues'); },
+		};
 	});
 
 	afterEach(() => {
@@ -52,6 +71,7 @@ describe(CacheManagementService, () => {
 	describe('createRedisKVCache', () => testCreate('createRedisKVCache', 'redisKV', { lifetime: Infinity, memoryCacheLifetime: Infinity }));
 	describe('createRedisSingleCache', () => testCreate('createRedisSingleCache', 'redisSingle', { lifetime: Infinity, memoryCacheLifetime: Infinity }));
 	describe('createQuantumKVCache', () => testCreate('createQuantumKVCache', 'quantumKV', { lifetime: Infinity, fetcher: () => { throw new Error('not implement'); } }));
+	describe('createCollapsedQueue', () => testCreate('createCollapsedQueue', 'collapsedQueue', { timeout: Infinity, collapse: a => a, perform: () => { throw new Error('not implement'); } }));
 
 	describe('clear', () => {
 		testClear('clear', false);
@@ -67,7 +87,7 @@ describe(CacheManagementService, () => {
 	});
 	describe('gc', () => testGC('gc', true, true, false));
 
-	function testCreate<Func extends 'createMemoryKVCache' | 'createMemorySingleCache' | 'createRedisKVCache' | 'createRedisSingleCache' | 'createQuantumKVCache', Value>(func: Func, ...args: Parameters<CacheManagementService[Func]>) {
+	function testCreate<Func extends 'createMemoryKVCache' | 'createMemorySingleCache' | 'createRedisKVCache' | 'createRedisSingleCache' | 'createQuantumKVCache' | 'createCollapsedQueue', Value>(func: Func, ...args: Parameters<CacheManagementService[Func]>) {
 		// @ts-expect-error TypeScript bug: https://github.com/microsoft/TypeScript/issues/57322
 		const act = () => serviceUnderTest[func]<Value>(...args);
 
@@ -80,14 +100,19 @@ describe(CacheManagementService, () => {
 		it('should track reference', () => {
 			const cache = act();
 
-			expect(internalsUnderTest.managedCaches.values()).toContain(cache);
+			const allTracked = [...internalsUnderTest.managedCaches.values(), ...internalsUnderTest.managedQueues.values()];
+			expect(allTracked).toContain(cache);
 		});
 
 		it('should start GC timer', () => {
 			const cache = act();
+
+			// Queues don't have a GC method, so there's nothing to test
+			if (!Reflect.has(cache, 'gc')) return;
+
 			const gc = jest.spyOn(cache as unknown as { gc(): void }, 'gc');
 
-			timeService.tick({ milliseconds: GC_INTERVAL * 3 });
+			mockTimeService.tick({ milliseconds: GC_INTERVAL * 3 });
 
 			expect(gc).toHaveBeenCalledTimes(3);
 		});
@@ -188,10 +213,10 @@ describe(CacheManagementService, () => {
 
 		const arrange = () => jest.spyOn(createCache(), 'gc');
 		const act = () => {
-			timeService.tick({ milliseconds: GC_INTERVAL - 1 });
+			mockTimeService.tick({ milliseconds: GC_INTERVAL - 1 });
 			serviceUnderTest[func]();
-			timeService.tick({ milliseconds: 1 });
-			timeService.tick({ milliseconds: GC_INTERVAL });
+			mockTimeService.tick({ milliseconds: 1 });
+			mockTimeService.tick({ milliseconds: GC_INTERVAL });
 		};
 		const assert = (spy: ReturnType<typeof arrange>) => {
 			expect(spy).toHaveBeenCalledTimes(expectedCalls);
