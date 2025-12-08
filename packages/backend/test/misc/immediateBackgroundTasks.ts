@@ -25,7 +25,7 @@ export class ImmediateApPersonService extends ApPersonService {
 		await this.updateFeatured(userOrId, this.resolver).catch(err => {
 			if (err instanceof IdentifiableError) {
 				if (err.id === errorCodes.userSuspended) return;
-				if (err.id === errorCodes.userNotFound) return;
+				if (err.id === errorCodes.userDeleted) return;
 				if (err.id === errorCodes.noFeaturedCollection) return;
 			}
 			throw err;

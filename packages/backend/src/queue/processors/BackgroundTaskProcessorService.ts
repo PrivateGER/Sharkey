@@ -137,7 +137,7 @@ export class BackgroundTaskProcessorService {
 		} catch (err) {
 			if (err instanceof IdentifiableError) {
 				if (err.id === errorCodes.userSuspended) return err.message;
-				if (err.id === errorCodes.userNotFound) return err.message;
+				if (err.id === errorCodes.userDeleted) return err.message;
 				if (err.id === errorCodes.noFeaturedCollection) return err.message;
 			}
 			throw err;

@@ -726,7 +726,7 @@ export class CacheService implements OnApplicationShutdown {
 		const user = await this.findOptionalUserById(userId);
 
 		if (user == null) {
-			throw new IdentifiableError(errorCodes.userNotFound, `User ${userId} not found`);
+			throw new IdentifiableError(errorCodes.userDeleted, `User ${userId} not found`);
 		}
 
 		return user;
