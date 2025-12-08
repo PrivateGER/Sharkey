@@ -80,15 +80,7 @@ export default class Connection {
 	@bindThis
 	public async fetch() {
 		if (this.user == null) return;
-		const [userProfile, following, followingChannels, userIdsWhoMeMuting, userIdsWhoBlockingMe, userIdsWhoMeMutingRenotes, threadMutings, noteMutings, myRecentReactions, myRecentFavorites, myRecentRenotes] = await Promise.all([
-			this.cacheService.userProfileCache.fetch(this.user.id),
-			this.cacheService.userFollowingsCache.fetch(this.user.id),
-			this.cacheService.userFollowingChannelsCache.fetch(this.user.id),
-			this.cacheService.userMutingsCache.fetch(this.user.id),
-			this.cacheService.userBlockedCache.fetch(this.user.id),
-			this.cacheService.renoteMutingsCache.fetch(this.user.id),
-			this.cacheService.threadMutingsCache.fetch(this.user.id),
-			this.cacheService.noteMutingsCache.fetch(this.user.id),
+		const [myRecentReactions, myRecentFavorites, myRecentRenotes] = await Promise.all([
 			this.noteReactionsRepository.find({
 				where: { userId: this.user.id },
 				select: { noteId: true, reaction: true },
@@ -109,15 +101,6 @@ export default class Connection {
 				.select('note.renoteId', 'renoteId')
 				.getRawMany<{ renoteId: string }>(),
 		]);
-		this.userProfile = userProfile;
-		this.following = following;
-		this.followingChannels = followingChannels;
-		this.userIdsWhoMeMuting = userIdsWhoMeMuting;
-		this.userIdsWhoBlockingMe = userIdsWhoBlockingMe;
-		this.userIdsWhoMeMutingRenotes = userIdsWhoMeMutingRenotes;
-		this.userMutedInstances = new Set(userProfile.mutedInstances);
-		this.userMutedThreads = threadMutings;
-		this.userMutedNotes = noteMutings;
 		this.myRecentReactions = new Map(myRecentReactions.map(r => [r.noteId, r.reaction]));
 		this.myRecentFavorites = new Set(myRecentFavorites.map(f => f.noteId ));
 		this.myRecentRenotes = new Set(myRecentRenotes.map(r => r.renoteId ));
@@ -126,12 +109,141 @@ export default class Connection {
 	@bindThis
 	public async init() {
 		if (this.user != null) {
+			// This sets up an automatic sync, so don't call it from the fetch timer!
+			await this.setupCacheService();
 			await this.fetch();
 
 			if (!this.fetchIntervalId) {
 				this.fetchIntervalId = this.timeService.startTimer(this.fetch, 1000 * 10, { repeated: true });
 			}
 		}
+	}
+
+	@bindThis
+	private async setupCacheService(): Promise<void> {
+		if (this.user == null) return;
+
+		// Fetch initial values
+		await Promise.all([
+			this.onUserByIdCacheChanged({ keys: [this.user.id] }),
+			this.onUserProfileCacheChanged({ keys: [this.user.id] }),
+			this.onUserFollowingCacheChanged({ keys: [this.user.id] }),
+			this.onUserFollowingChannelsCacheChanged({ keys: [this.user.id] }),
+			this.onUserMutingsCacheChanged({ keys: [this.user.id] }),
+			this.onUserBlockedCacheChanged({ keys: [this.user.id] }),
+			this.onRenoteMutingsCacheChanged({ keys: [this.user.id] }),
+			this.onThreadMutingsCacheChanged({ keys: [this.user.id] }),
+			this.onNoteMutingsCacheChanged({ keys: [this.user.id] }),
+		]);
+
+		// Bind events to automatically sync
+		this.connectCacheService();
+	}
+
+	@bindThis
+	private connectCacheService(): void {
+		this.cacheService.userByIdCache.on('onChanged', this.onUserByIdCacheChanged);
+		this.cacheService.userProfileCache.on('onChanged', this.onUserProfileCacheChanged);
+		this.cacheService.userFollowingsCache.on('onChanged', this.onUserFollowingCacheChanged);
+		this.cacheService.userFollowingChannelsCache.on('onChanged', this.onUserFollowingChannelsCacheChanged);
+		this.cacheService.userMutingsCache.on('onChanged', this.onUserMutingsCacheChanged);
+		this.cacheService.userBlockedCache.on('onChanged', this.onUserBlockedCacheChanged);
+		this.cacheService.renoteMutingsCache.on('onChanged', this.onRenoteMutingsCacheChanged);
+		this.cacheService.threadMutingsCache.on('onChanged', this.onThreadMutingsCacheChanged);
+		this.cacheService.noteMutingsCache.on('onChanged', this.onNoteMutingsCacheChanged);
+	}
+
+	@bindThis
+	private disconnectCacheService(): void {
+		this.cacheService.userByIdCache.off('onChanged', this.onUserByIdCacheChanged);
+		this.cacheService.userProfileCache.off('onChanged', this.onUserProfileCacheChanged);
+		this.cacheService.userFollowingsCache.off('onChanged', this.onUserFollowingCacheChanged);
+		this.cacheService.userFollowingChannelsCache.off('onChanged', this.onUserFollowingChannelsCacheChanged);
+		this.cacheService.userMutingsCache.off('onChanged', this.onUserMutingsCacheChanged);
+		this.cacheService.userBlockedCache.off('onChanged', this.onUserBlockedCacheChanged);
+		this.cacheService.renoteMutingsCache.off('onChanged', this.onRenoteMutingsCacheChanged);
+		this.cacheService.threadMutingsCache.off('onChanged', this.onThreadMutingsCacheChanged);
+		this.cacheService.noteMutingsCache.off('onChanged', this.onNoteMutingsCacheChanged);
+	}
+
+	@bindThis
+	private async onUserByIdCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		// Will be undefined if user has been deleted
+		this.user = await this.cacheService.userByIdCache.fetchMaybe(this.user.id);
+
+		// If user is deleted, then clear out the auth token too
+		if (this.user == null) {
+			this.token = undefined;
+		}
+	}
+
+	@bindThis
+	private async onUserProfileCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		// Will be undefined if user has been deleted
+		this.userProfile = await this.cacheService.userProfileCache.fetchMaybe(this.user.id) ?? null;
+		this.userMutedInstances = this.userProfile ? new Set(this.userProfile.mutedInstances) : new Set();
+	}
+
+	@bindThis
+	private async onUserFollowingCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.following = await this.cacheService.userFollowingsCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onUserFollowingChannelsCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.followingChannels = await this.cacheService.userFollowingChannelsCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onUserMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.userIdsWhoMeMuting = await this.cacheService.userMutingsCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onUserBlockedCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.userIdsWhoBlockingMe = await this.cacheService.userBlockedCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onRenoteMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.userIdsWhoMeMutingRenotes = await this.cacheService.renoteMutingsCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onThreadMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.userMutedThreads = await this.cacheService.threadMutingsCache.fetch(this.user.id);
+	}
+
+	@bindThis
+	private async onNoteMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
+		if (!this.user) return;
+		if (!body.keys.includes(this.user.id)) return;
+
+		this.userMutedNotes = await this.cacheService.noteMutingsCache.fetch(this.user.id);
 	}
 
 	@bindThis
@@ -379,6 +491,7 @@ export default class Connection {
 	 */
 	@bindThis
 	public dispose() {
+		this.disconnectCacheService();
 		if (this.fetchIntervalId) this.timeService.stopTimer(this.fetchIntervalId);
 		for (const c of this.channels.values()) {
 			if (c.dispose) c.dispose();
