@@ -35,7 +35,8 @@ import { promiseMap } from '@/misc/promise-map.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { CustomEmojiService, encodeEmojiKey, isValidEmojiName } from '@/core/CustomEmojiService.js';
 import { TimeService } from '@/global/TimeService.js';
-import { getOneApId, getApId, validPost, isEmoji, getApType, isApObject, isDocument, isLink, getNullableApId } from '../type.js';
+import { CacheService } from '@/core/CacheService.js';
+import { getOneApId, getApId, isPost, isEmoji, getApType, isApObject, isDocument, isLink, getNullableApId } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
 import { ApDbResolverService } from '../ApDbResolverService.js';
@@ -94,6 +95,7 @@ export class ApNoteService implements OnModuleInit {
 		private readonly apUtilityService: ApUtilityService,
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
 	) {
 		this.logger = this.apLoggerService.logger;
 	}
