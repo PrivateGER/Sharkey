@@ -147,9 +147,7 @@ export class NoteDeleteService {
 				for (const note of allNotes) {
 					if (note.userHost != null) {
 						if (!isPureRenote(note)) {
-							promises.push(instanceDeduplicator.fetch(note.userHost).then(i => {
-								this.collapsedQueueService.updateInstanceQueue.enqueue(i.id, { notesCountDelta: -1 });
-							}));
+							this.collapsedQueueService.updateInstanceQueue.enqueue(note.userHost, { notesCountDelta: -1 });
 						}
 						if (this.meta.enableChartsForFederatedInstances) {
 							this.instanceChart.updateNote(note.userHost, note, false);
