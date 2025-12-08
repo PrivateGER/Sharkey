@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import Logger from '@/logger.js';
+import Logger, { type Console } from '@/logger.js';
 import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { bindThis } from '@/decorators.js';
