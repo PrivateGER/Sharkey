@@ -10,7 +10,7 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { CacheService } from '@/core/CacheService.js';
-import {  trackTask } from '@/misc/promise-tracker.js';
+import { trackTask } from '@/misc/promise-tracker.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../error.js';
 
