@@ -6,7 +6,6 @@
 import { bindThis } from '@/decorators.js';
 import { isInstanceMuted } from '@/misc/is-instance-muted.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
-import { isRenotePacked, isQuotePacked, isPackedPureRenote } from '@/misc/is-renote.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
@@ -43,31 +42,18 @@ export default abstract class Channel {
 		return this.connection.cacheService;
 	}
 
-	/**
-	 * @deprecated use cacheService.userFollowingsCache to avoid stale data
-	 */
 	protected get following() {
 		return this.connection.following;
 	}
 
-	/**
-	 * TODO use onChange to keep these in sync?
-	 * @deprecated use cacheService.userMutingsCache to avoid stale data
-	 */
 	protected get userIdsWhoMeMuting() {
 		return this.connection.userIdsWhoMeMuting;
 	}
 
-	/**
-	 * @deprecated use cacheService.renoteMutingsCache to avoid stale data
-	 */
 	protected get userIdsWhoMeMutingRenotes() {
 		return this.connection.userIdsWhoMeMutingRenotes;
 	}
 
-	/**
-	 * @deprecated use cacheService.userBlockedCache to avoid stale data
-	 */
 	protected get userIdsWhoBlockingMe() {
 		return this.connection.userIdsWhoBlockingMe;
 	}
@@ -76,16 +62,10 @@ export default abstract class Channel {
 		return this.connection.userMutedInstances;
 	}
 
-	/**
-	 * @deprecated use cacheService.threadMutingsCache to avoid stale data
-	 */
 	protected get userMutedThreads() {
 		return this.connection.userMutedThreads;
 	}
 
-	/**
-	 * @deprecated use cacheService.noteMutingsCache to avoid stale data
-	 */
 	protected get userMutedNotes() {
 		return this.connection.userMutedNotes;
 	}
@@ -113,60 +93,6 @@ export default abstract class Channel {
 	protected async checkNoteVisibility(note: Packed<'Note'>, filters?: NoteVisibilityFilters) {
 		// Don't use any of the local cached data, because this does everything through CacheService which is just as fast with updated data.
 		return await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user, { filters });
-	}
-
-	/**
-	 * Checks if a note is visible to the current user *excluding* blocks and mutes.
-	 * @deprecated use isNoteHidden instead
-	 */
-	protected isNoteVisibleToMe(note: Packed<'Note'>): boolean {
-		if (note.visibility === 'public') return true;
-		if (note.visibility === 'home') return true;
-		if (!this.user) return false;
-		if (this.user.id === note.userId) return true;
-		if (note.visibility === 'followers') {
-			return this.following.has(note.userId);
-		}
-		if (!note.visibleUserIds) return false;
-		return note.visibleUserIds.includes(this.user.id);
-	}
-
-	/**
-	 * ミュートとブロックされてるを処理する
-	 * @deprecated use isNoteHidden instead
-	 */
-	protected isNoteMutedOrBlocked(note: Packed<'Note'>): boolean {
-		// Ignore notes that require sign-in
-		if (note.user.requireSigninToViewContents && !this.user) return true;
-
-		// 流れてきたNoteがインスタンスミュートしたインスタンスが関わる
-		if (isInstanceMuted(note, this.userMutedInstances) && !this.following.has(note.userId)) return true;
-
-		// 流れてきたNoteがミュートしているユーザーが関わる
-		if (isUserRelated(note, this.userIdsWhoMeMuting)) return true;
-		// 流れてきたNoteがブロックされているユーザーが関わる
-		if (isUserRelated(note, this.userIdsWhoBlockingMe)) return true;
-
-		// 流れてきたNoteがリノートをミュートしてるユーザが行ったもの
-		if (isRenotePacked(note) && !isQuotePacked(note) && this.userIdsWhoMeMutingRenotes.has(note.user.id)) return true;
-
-		// Muted thread
-		if (this.userMutedThreads.has(note.threadId)) return true;
-
-		// Muted note
-		if (this.userMutedNotes.has(note.id)) return true;
-
-		// If it's a boost (pure renote) then we need to check the target as well
-		if (isPackedPureRenote(note) && note.renote && this.isNoteMutedOrBlocked(note.renote)) return true;
-
-		// Hide silenced notes
-		if (note.user.isSilenced || note.user.instance?.isSilenced) {
-			if (this.user == null) return true;
-			if (this.user.id === note.userId) return false;
-			if (!this.following.has(note.userId)) return true;
-		}
-
-		return false;
 	}
 
 	constructor(id: string, connection: Connection, noteEntityService: NoteEntityService) {
@@ -212,7 +138,7 @@ export default abstract class Channel {
 		// Hide notes before everything else, since this modifies fields that the other functions will check.
 		const notes = crawl(clonedNote);
 
-		const [myReactions, myRenotes, myFavorites, myThreadMutings, myNoteMutings, myFollowings] = await Promise.all([
+		const [myReactions, myRenotes, myFavorites] = await Promise.all([
 			this.noteEntityService.populateMyReactions(notes, this.user.id, {
 				myReactions: this.myRecentReactions,
 			}),
@@ -222,9 +148,6 @@ export default abstract class Channel {
 			this.noteEntityService.populateMyFavorites(notes, this.user.id, {
 				myFavorites: this.myRecentFavorites,
 			}),
-			this.noteEntityService.populateMyTheadMutings(notes, this.user.id),
-			this.noteEntityService.populateMyNoteMutings(notes, this.user.id),
-			this.cacheService.userFollowingsCache.fetch(this.user.id),
 		]);
 
 		for (const n of notes) {
@@ -234,14 +157,21 @@ export default abstract class Channel {
 			n.myReaction = myReactions.get(n.id) ?? null;
 			n.isRenoted = myRenotes.has(n.id);
 			n.isFavorited = myFavorites.has(n.id);
-			n.isMutingThread = myThreadMutings.has(n.id);
-			n.isMutingNote = myNoteMutings.has(n.id);
-			n.user.bypassSilence = n.userId === this.user.id || myFollowings.has(n.userId);
+			n.isMutingThread = this.userMutedThreads.has(n.id);
+			n.isMutingNote = this.userMutedNotes.has(n.id);
+			n.user.bypassSilence = n.userId === this.user.id || this.following.has(n.userId);
 		}
 
+		// TODO should probably pass list context here
 		// Hide notes *after* we sync visibility
-			userFollowings: myFollowings,
 		await this.noteEntityService.hideNotesAsync(notes, this.user, {
+			userFollowings: this.following,
+			userBlockers: this.userIdsWhoBlockingMe,
+			userMutedUsers: this.userIdsWhoMeMuting,
+			userMutedUserRenotes: this.userIdsWhoMeMutingRenotes,
+			userMutedInstances: this.userMutedInstances,
+			userMutedNotes: this.userMutedNotes,
+			userMutedThreads: this.userMutedThreads,
 		});
 
 		return clonedNote;
