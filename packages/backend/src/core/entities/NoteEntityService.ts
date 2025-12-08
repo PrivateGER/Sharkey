@@ -148,8 +148,10 @@ export class NoteEntityService implements OnModuleInit {
 	*/
 
 	@bindThis
-	public async hideNotes(notes: Packed<'Note'>[], meId: string | null, hint?: Partial<NoteVisibilityData>): Promise<void> {
-		const me = meId ? await this.cacheService.findUserById(meId) : null;
+	public async hideNotesAsync(notes: Packed<'Note'>[], meOrMeId: MiUser | MiUser['id'] | null, hint?: Partial<NoteVisibilityData>): Promise<void> {
+		const me = typeof(meOrMeId) === 'string'
+			? await this.cacheService.findUserById(meOrMeId)
+			: meOrMeId;
 		const data = await this.noteVisibilityService.populateData(me, hint);
 
 		for (const note of notes) {
