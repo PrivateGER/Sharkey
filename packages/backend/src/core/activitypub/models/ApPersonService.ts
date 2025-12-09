@@ -578,7 +578,7 @@ export class ApPersonService implements OnModuleInit {
 		// Register host
 		if (this.meta.enableStatsForFederatedInstances) {
 			{
-				this.collapsedQueueService.updateInstanceQueue.enqueue(instance.id, { usersCountDelta: 1 });
+				this.collapsedQueueService.updateInstanceQueue.enqueue(instance.host, { usersCountDelta: 1 });
 				if (this.meta.enableChartsForFederatedInstances) {
 					this.instanceChart.newUser(instance.host);
 				}

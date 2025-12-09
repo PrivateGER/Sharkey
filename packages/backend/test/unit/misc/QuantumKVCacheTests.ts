@@ -40,7 +40,7 @@ describe(QuantumKVCache, () => {
 
 	beforeAll(() => {
 		mockTimeService = new GodOfTimeService();
-		mockInternalEventService = new MockInternalEventService();
+		mockInternalEventService = MockInternalEventService.create();
 	});
 
 	afterEach(async () => {
@@ -141,15 +141,14 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls).toContainEqual(['emit', ['quantumCacheUpdated', { name: 'fake', keys: ['foo'] }]]);
 		});
 
-		it('should call onChanged when storing', async () => {
+		it('should emit changed when storing', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.set('foo', 'bar');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should not emit event when storing unchanged value', async () => {
@@ -161,11 +160,10 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(1);
 		});
 
-		it('should not call onChanged when storing unchanged value', async () => {
+		it('should not emit changed when storing unchanged value', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.set('foo', 'bar');
 			await cache.set('foo', 'bar');
@@ -176,36 +174,36 @@ describe(QuantumKVCache, () => {
 
 	describe('constructor', () => {
 		it('should connect quantumCacheUpdated event', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
 			const cache = makeCache<string>({
 				name: 'fake',
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 			await cache.set('foo', 'foo');
 			await cache.set('bar', 'bar');
 
-			await mockInternalEventService.mockEmit('quantumCacheUpdated', { name: 'fake', keys: ['foo'] });
+			await mockInternalEventService.mockEmitFromRedis('quantumCacheUpdated', { name: 'fake', keys: ['foo'] });
 
 			expect(cache.size).toBe(1);
 			expect(cache.has('foo')).toBe(false);
 			expect(cache.has('bar')).toBe(true);
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 			expect(mockInternalEventService._calls).toContainEqual(['on', ['quantumCacheUpdated', expect.anything(), { ignoreLocal: true }]]);
 		});
 
 		it('should connect quantumCacheReset event', async () => {
-			const fakeOnReset = jest.fn(() => Promise.resolve());
 			const cache = makeCache<string>({
 				name: 'fake',
-				onReset: fakeOnReset,
 			});
+			const fakeOnReset = jest.fn(() => Promise.resolve());
+			cache.on('reset', fakeOnReset);
 			await cache.set('foo', 'foo');
 			await cache.set('bar', 'bar');
 
-			await mockInternalEventService.mockEmit('quantumCacheReset', { name: 'fake' });
+			await mockInternalEventService.mockEmitFromRedis('quantumCacheReset', { name: 'fake' });
 
 			expect(cache.size).toBe(0);
-			expect(fakeOnReset).toHaveBeenCalledWith(expect.objectContaining({ cache }));
+			expect(fakeOnReset).toHaveBeenCalledWith(expect.objectContaining({ cache }), 'reset');
 			expect(mockInternalEventService._calls).toContainEqual(['on', ['quantumCacheReset', expect.anything(), { ignoreLocal: true }]]);
 		});
 	});
@@ -269,24 +267,23 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(1);
 		});
 
-		it('should call onChanged once with all items', async () => {
+		it('should emit changed once with all items', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.setMany([['foo', 'bar'], ['alpha', 'omega']]);
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo', 'alpha'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo', 'alpha'] }), 'changed');
 			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
 		});
 
 		it('should emit events only for changed items', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
 			const cache = makeCache<string>({
 				name: 'fake',
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.set('foo', 'bar');
 			fakeOnChanged.mockClear();
@@ -296,7 +293,7 @@ describe(QuantumKVCache, () => {
 
 			expect(mockInternalEventService._calls).toContainEqual(['emit', ['quantumCacheUpdated', { name: 'fake', keys: ['alpha'] }]]);
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(1);
-			expect(fakeOnChanged).toHaveBeenCalledWith(['alpha'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['alpha'] }), 'changed');
 			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
 		});
 	});
@@ -351,16 +348,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe(true);
 		});
 
-		it('should call onChanged', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should not emit changed', async () => {
 			const cache = makeCache<string>({
 				fetcher: key => `value#${key}`,
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.fetch('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).not.toHaveBeenCalled();
 		});
 
 		it('should not emit event', async () => {
@@ -469,16 +466,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe('bar');
 		});
 
-		it('should call onChanged when found by fetcher', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should not emit changed', async () => {
 			const cache = makeCache<string>({
 				optionalFetcher: () => 'bar',
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.fetchMaybe('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalled();
+			expect(fakeOnChanged).not.toHaveBeenCalled();
 		});
 
 		it('should return undefined when fetcher returns undefined', async () => {
@@ -491,18 +488,6 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe(undefined);
 		});
 
-		it('should not call onChanged when fetcher returns undefined', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				optionalFetcher: () => undefined,
-				onChanged: fakeOnChanged,
-			});
-
-			await cache.fetchMaybe('foo');
-
-			expect(fakeOnChanged).not.toHaveBeenCalled();
-		});
-
 		it('should return undefined when fetcher returns null', async () => {
 			const cache = makeCache<string>({
 				optionalFetcher: () => null,
@@ -511,18 +496,6 @@ describe(QuantumKVCache, () => {
 			const result = await cache.fetchMaybe('foo');
 
 			expect(result).toBe(undefined);
-		});
-
-		it('should not call onChanged when fetcher returns null', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				optionalFetcher: () => null,
-				onChanged: fakeOnChanged,
-			});
-
-			await cache.fetchMaybe('foo');
-
-			expect(fakeOnChanged).not.toHaveBeenCalled();
 		});
 
 		it('should throw FetchFailedError when fetcher throws error', async () => {
@@ -590,10 +563,9 @@ describe(QuantumKVCache, () => {
 
 	describe('fetchMany', () => {
 		it('should do nothing for empty input', async () => {
+			const cache = makeCache();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.fetchMany([]);
 
@@ -612,10 +584,9 @@ describe(QuantumKVCache, () => {
 		});
 
 		it('should return existing items without events', async () => {
+			const cache = makeCache();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 			cache.add('foo', 'bar');
 			cache.add('alpha', 'omega');
 
@@ -680,31 +651,16 @@ describe(QuantumKVCache, () => {
 			expect(results).toEqual([['foo', 'foo#single'], ['alpha', 'alpha#single']]);
 		});
 
-		it('should call onChanged', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should not emit changed', async () => {
 			const cache = makeCache({
-				onChanged: fakeOnChanged,
 				fetcher: k => k,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.fetchMany(['foo', 'alpha']);
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo', 'alpha'], expect.objectContaining({ cache }));
-			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
-		});
-
-		it('should call onChanged only for changed', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-				fetcher: k => k,
-			});
-			cache.add('foo', 'bar');
-
-			await cache.fetchMany(['foo', 'alpha']);
-
-			expect(fakeOnChanged).toHaveBeenCalledWith(['alpha'], expect.objectContaining({ cache }));
-			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
+			expect(fakeOnChanged).not.toHaveBeenCalled();
 		});
 
 		it('should not emit event', async () => {
@@ -872,16 +828,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe('value#foo');
 		});
 
-		it('should call onChanged', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should emit changed', async () => {
 			const cache = makeCache<string>({
 				fetcher: key => `value#${key}`,
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.refresh('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should emit event', async () => {
@@ -960,16 +916,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe('bar');
 		});
 
-		it('should call onChanged when found by fetcher', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should emit changed when found by fetcher', async () => {
 			const cache = makeCache<string>({
 				optionalFetcher: () => 'bar',
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.refreshMaybe('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should return undefined when fetcher returns undefined', async () => {
@@ -982,16 +938,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe(undefined);
 		});
 
-		it('should call onChanged when fetcher returns undefined', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should emit changed when fetcher returns undefined', async () => {
 			const cache = makeCache<string>({
 				optionalFetcher: () => undefined,
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.refreshMaybe('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should return undefined when fetcher returns null', async () => {
@@ -1004,16 +960,16 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe(undefined);
 		});
 
-		it('should call onChanged when fetcher returns null', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should emit changed when fetcher returns null', async () => {
 			const cache = makeCache<string>({
 				optionalFetcher: () => null,
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 
 			await cache.refreshMaybe('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should throw FetchFailedError when fetcher throws error', async () => {
@@ -1114,10 +1070,9 @@ describe(QuantumKVCache, () => {
 
 	describe('refreshMany', () => {
 		it('should do nothing for empty input', async () => {
+			const cache = makeCache();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			const result = await cache.refreshMany([]);
 
@@ -1153,17 +1108,17 @@ describe(QuantumKVCache, () => {
 			expect(mockBulkFetcher).toHaveBeenCalledTimes(1);
 		});
 
-		it('should call onChanged for all keys', async () => {
-			const fakeOnChanged = jest.fn(() => Promise.resolve());
+		it('should emit changed for all keys', async () => {
 			const cache = makeCache({
 				bulkFetcher: keys => keys.map(k => [k, `${k}#value`]),
-				onChanged: fakeOnChanged,
 			});
+			const fakeOnChanged = jest.fn(() => Promise.resolve());
+			cache.on('changed', fakeOnChanged);
 			cache.add('foo', 'bar');
 
 			await cache.refreshMany(['foo', 'alpha']);
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo', 'alpha'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo', 'alpha'] }), 'changed');
 			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
 		});
 
@@ -1386,16 +1341,15 @@ describe(QuantumKVCache, () => {
 			expect(result).toBe(false);
 		});
 
-		it('should call onChanged when deleting', async () => {
+		it('should emit changed when deleting', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.set('foo', 'bar');
 			await cache.delete('foo');
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo'] }), 'changed');
 		});
 
 		it('should emit event when deleting', async () => {
@@ -1431,23 +1385,21 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(1);
 		});
 
-		it('should call onChanged once with all items', async () => {
+		it('should emit changed once with all items', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.deleteMany(['foo', 'alpha']);
 
-			expect(fakeOnChanged).toHaveBeenCalledWith(['foo', 'alpha'], expect.objectContaining({ cache }));
+			expect(fakeOnChanged).toHaveBeenCalledWith(expect.objectContaining({ cache, keys: ['foo', 'alpha'] }), 'changed');
 			expect(fakeOnChanged).toHaveBeenCalledTimes(1);
 		});
 
 		it('should do nothing if no keys are provided', async () => {
+			const cache = makeCache<string>();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			await cache.deleteMany([]);
 
@@ -1467,11 +1419,10 @@ describe(QuantumKVCache, () => {
 			expect(cache.size).toBe(0);
 		});
 
-		it('should call onReset', async () => {
+		it('should emit reset', async () => {
+			const cache = makeCache<string>();
 			const fakeOnReset = jest.fn(() => Promise.resolve());
-			const cache = makeCache<string>({
-				onReset: fakeOnReset,
-			});
+			cache.on('reset', fakeOnReset);
 			await cache.set('foo', 'bar');
 			await cache.set('alpha', 'omega');
 
@@ -1508,11 +1459,10 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(0);
 		});
 
-		it('should not call onChanged', () => {
+		it('should not emit changed', () => {
+			const cache = makeCache();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			cache.add('foo', 'bar');
 
@@ -1538,11 +1488,10 @@ describe(QuantumKVCache, () => {
 			expect(mockInternalEventService._calls.filter(c => c[0] === 'emit')).toHaveLength(0);
 		});
 
-		it('should not call onChanged', () => {
+		it('should not emit changed', () => {
+			const cache = makeCache();
 			const fakeOnChanged = jest.fn(() => Promise.resolve());
-			const cache = makeCache({
-				onChanged: fakeOnChanged,
-			});
+			cache.on('changed', fakeOnChanged);
 
 			cache.addMany([['foo', 'bar'], ['alpha', 'omega']]);
 

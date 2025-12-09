@@ -545,37 +545,6 @@ export class CacheService implements OnApplicationShutdown {
 				const results = await this.usersRepository.find({ where: { id: In(userIds) }, select: { id: true, isHibernated: true } });
 				return results.map(({ id, isHibernated }) => [id, isHibernated]);
 			},
-			onChanged: async userIds => {
-				// We only update local copies since each process will get this event, but we can have user objects in multiple different caches.
-				// Before doing anything else we must "find" all the objects to update.
-				const userObjects = new Map<string, MiUser[]>();
-				const toUpdate: string[] = [];
-				for (const uid of userIds) {
-					const toAdd: MiUser[] = [];
-
-					const userById = this.userByIdCache.getMaybe(uid);
-					if (userById) toAdd.push(userById);
-
-					if (toAdd.length > 0) {
-						toUpdate.push(uid);
-						userObjects.set(uid, toAdd);
-					}
-				}
-
-				// In many cases, we won't have to do anything.
-				// Skipping the DB fetch ensures that this remains a single-step synchronous process.
-				if (toUpdate.length > 0) {
-					const hibernations = await this.usersRepository.find({ where: { id: In(toUpdate) }, select: { id: true, isHibernated: true } });
-					for (const { id, isHibernated } of hibernations) {
-						const users = userObjects.get(id);
-						if (users) {
-							for (const user of users) {
-								user.isHibernated = isHibernated;
-							}
-						}
-					}
-				}
-			},
 		});
 
 		this.userFollowStatsCache = this.cacheManagementService.createMemoryKVCache<FollowStats>('followStats', 1000 * 60 * 10); // 10 minutes
@@ -599,9 +568,14 @@ export class CacheService implements OnApplicationShutdown {
 			},
 		});
 
+		// Update caches based on changes to other caches.
+		this.hibernatedUserCache.on('changed', this.onHibernatedUserCacheChanged);
+
+		// Update memory caches from local *and remote* events since the cache doesn't sync automatically.
 		this.internalEventService.on('follow', this.onFollowEvent);
 		this.internalEventService.on('unfollow', this.onFollowEvent);
-		// For these, only listen to local events because quantum cache handles the sync.
+
+		// Update quantum caches from local events only, because the cache will automatically produce new sync events.
 		this.internalEventService.on('usersUpdated', this.onUserChangeEvent, { ignoreRemote: true });
 		this.internalEventService.on('userChangeSuspendedState', this.onUserChangeEvent, { ignoreRemote: true });
 		this.internalEventService.on('remoteUserUpdated', this.onUserChangeEvent, { ignoreRemote: true });
@@ -649,6 +623,39 @@ export class CacheService implements OnApplicationShutdown {
 			this.userListMembershipsCache.delete(body.id),
 			this.listUserMembershipsCache.deleteMany(userListMemberships),
 		]);
+	}
+
+	@bindThis
+	private async onHibernatedUserCacheChanged(body: { keys: string[] }): Promise<void> {
+		// We only update local copies since each process will get this event, but we can have user objects in multiple different caches.
+		// Before doing anything else we must "find" all the objects to update.
+		const userObjects = new Map<string, MiUser[]>();
+		const toUpdate: string[] = [];
+		for (const uid of body.keys) {
+			const toAdd: MiUser[] = [];
+
+			const userById = this.userByIdCache.getMaybe(uid);
+			if (userById) toAdd.push(userById);
+
+			if (toAdd.length > 0) {
+				toUpdate.push(uid);
+				userObjects.set(uid, toAdd);
+			}
+		}
+
+		// In many cases, we won't have to do anything.
+		// Skipping the DB fetch ensures that this remains a single-step synchronous process.
+		if (toUpdate.length > 0) {
+			const hibernations = await this.usersRepository.find({ where: { id: In(toUpdate) }, select: { id: true, isHibernated: true } });
+			for (const { id, isHibernated } of hibernations) {
+				const users = userObjects.get(id);
+				if (users) {
+					for (const user of users) {
+						user.isHibernated = isHibernated;
+					}
+				}
+			}
+		}
 	}
 
 	@bindThis
@@ -925,8 +932,11 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	public dispose(): void {
+		this.hibernatedUserCache.off('changed', this.onHibernatedUserCacheChanged);
+
 		this.internalEventService.off('follow', this.onFollowEvent);
 		this.internalEventService.off('unfollow', this.onFollowEvent);
+
 		this.internalEventService.off('usersUpdated', this.onUserChangeEvent);
 		this.internalEventService.off('userChangeSuspendedState', this.onUserChangeEvent);
 		this.internalEventService.off('remoteUserUpdated', this.onUserChangeEvent);

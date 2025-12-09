@@ -40,7 +40,7 @@ describe(SkRateLimiterService, () => {
 
 		mockRedis = new MockRedis(mockTimeService);
 		const fakeConfig = { host: 'example.com' } as unknown as Config;
-		mockInternalEventService = new MockInternalEventService(fakeConfig);
+		mockInternalEventService = MockInternalEventService.create({ config: fakeConfig });
 
 		mockConsole = new MockConsole();
 		loggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
