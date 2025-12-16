@@ -305,6 +305,9 @@ type AdminQueueJobsResponse = operations['admin___queue___jobs']['responses']['2
 type AdminQueuePromoteJobsRequest = operations['admin___queue___promote-jobs']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminQueueQueuesResponse = operations['admin___queue___queues']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminQueueQueueStatsRequest = operations['admin___queue___queue-stats']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1623,6 +1626,7 @@ declare namespace entities {
         AdminQueueJobsResponse,
         AdminQueuePromoteJobsRequest,
         AdminQueueQueueStatsRequest,
+        AdminQueueQueuesResponse,
         AdminQueueRemoveJobRequest,
         AdminQueueRetryJobRequest,
         AdminQueueShowJobRequest,

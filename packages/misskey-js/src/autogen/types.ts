@@ -17033,12 +17033,40 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK (without any results) */
-            204: {
+            /** @description OK (with results) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    'application/json': {
+                        name: string;
+                        counts: {
+                            [key: string]: number;
+                        };
+                        isPaused: boolean;
+                        metrics: {
+                            completed: {
+                                meta: {
+                                    count: number;
+                                    prevTS: number;
+                                    prevCount: number;
+                                };
+                                data: number[];
+                                count: number;
+                            };
+                            failed: {
+                                meta: {
+                                    count: number;
+                                    prevTS: number;
+                                    prevCount: number;
+                                };
+                                data: number[];
+                                count: number;
+                            };
+                        };
+                    }[];
+                };
             };
             /** @description Client error */
             400: {
