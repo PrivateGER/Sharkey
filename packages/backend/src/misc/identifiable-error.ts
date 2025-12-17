@@ -56,6 +56,9 @@ export const errorCodes = {
 	/** User was expected to be local, but was remote instead. */
 	userNotLocal: 'feb908c1-d507-4157-9b44-2fa5540e2ad8',
 
+	/** User is not approved */
+	userNotApproved: '28d1b376-fb56-4122-8d4f-29e01f345c60',
+
 	/** User has no valid featured collection (not defined, invalid, etc) */
 	noFeaturedCollection: '2aa4766e-b7d8-4291-a671-56800498b085',
 
