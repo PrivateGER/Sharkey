@@ -1000,8 +1000,7 @@ export class ActivityPubServerService {
 				return;
 			}
 
-			const acct = Acct.parse(request.params.acct);
-			const user = await this.cacheService.findOptionalUserByAcct(acct);
+			const user = await this.cacheService.findOptionalUserByAcct(request.params.acct);
 
 			const { reject, redact } = await this.checkAuthorizedFetch(request, reply, user?.id, true);
 			if (reject) return;

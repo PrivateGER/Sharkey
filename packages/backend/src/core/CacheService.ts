@@ -26,6 +26,7 @@ import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import type { InternalEventTypes } from '@/core/GlobalEventService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import * as Acct from '@/misc/acct.js';
 import { IdentifiableError, errorCodes } from '@/misc/identifiable-error.js';
 import { TimeService } from '@/global/TimeService.js';
@@ -183,6 +184,7 @@ export class CacheService implements OnApplicationShutdown {
 		private readonly internalEventService: InternalEventService,
 		private readonly cacheManagementService: CacheManagementService,
 		private readonly timeService: TimeService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.userByIdCache = this.cacheManagementService.createQuantumKVCache('userById', {
 			lifetime: 1000 * 60 * 5, // 5m
@@ -232,7 +234,7 @@ export class CacheService implements OnApplicationShutdown {
 					.select('user.id')
 					.where({
 						usernameLower: parsed.username.toLowerCase(),
-						host: parsed.host ?? IsNull(),
+						host: parsed.host ? this.utilityService.toPuny(parsed.host) : IsNull(),
 					})
 					.getOneOrFail();
 				return id;
@@ -244,7 +246,7 @@ export class CacheService implements OnApplicationShutdown {
 					.select('user.id')
 					.where({
 						usernameLower: parsed.username.toLowerCase(),
-						host: parsed.host ?? IsNull(),
+						host: parsed.host ? this.utilityService.toPuny(parsed.host) : IsNull(),
 					})
 					.getOne();
 				return res?.id;
@@ -754,6 +756,8 @@ export class CacheService implements OnApplicationShutdown {
 	@bindThis
 	public async findUserByAcct(acct: string | Acct.Acct): Promise<MiUser> {
 		acct = typeof(acct) === 'string' ? acct : Acct.toString(acct);
+		acct = acct.toLowerCase();
+
 		const id = await this.userByAcctCache.fetch(acct);
 		return await this.findUserById(id);
 	}
@@ -761,6 +765,7 @@ export class CacheService implements OnApplicationShutdown {
 	@bindThis
 	public async findOptionalUserByAcct(acct: string | Acct.Acct): Promise<MiUser | undefined> {
 		acct = typeof(acct) === 'string' ? acct : Acct.toString(acct);
+		acct = acct.toLowerCase();
 
 		const id = await this.userByAcctCache.fetchMaybe(acct);
 		if (id == null) return undefined;

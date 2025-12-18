@@ -126,8 +126,7 @@ fastify.get('/.well-known/change-password', async (request, reply) => {
 			}
 
 			const fetchUserByHandle = async (handle: string): Promise<MiUser | undefined> => {
-				const acct = Acct.parse(handle);
-				return await this.cacheService.findOptionalUserByAcct(acct);
+				return await this.cacheService.findOptionalUserByAcct(handle);
 			};
 
 			const fetchUserById = async (id: string): Promise<MiUser | undefined> => {

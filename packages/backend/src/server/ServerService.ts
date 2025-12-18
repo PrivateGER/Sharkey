@@ -221,8 +221,7 @@ export class ServerService implements OnApplicationShutdown {
 		});
 
 		fastify.get<{ Params: { acct: string } }>('/avatar/@:acct', async (request, reply) => {
-			const acct = Acct.parse(request.params.acct);
-			const user = await this.cacheService.findOptionalUserByAcct(acct);
+			const user = await this.cacheService.findOptionalUserByAcct(request.params.acct);
 
 			reply.header('Cache-Control', 'public, max-age=86400');
 

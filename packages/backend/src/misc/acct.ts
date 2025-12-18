@@ -10,10 +10,14 @@ export type Acct = {
 
 export function parse(acct: string): Acct {
 	if (acct.startsWith('@')) acct = acct.substring(1);
+	acct = acct.toLowerCase();
+
 	const split = acct.split('@', 2);
 	return { username: split[0], host: split[1] ?? null };
 }
 
 export function toString(acct: Acct): string {
-	return acct.host == null ? acct.username : `${acct.username}@${acct.host}`;
+	const username = acct.username.toLowerCase();
+	const host = acct.host?.toLowerCase() ?? null;
+	return host == null ? username : `${username}@${host}`;
 }
