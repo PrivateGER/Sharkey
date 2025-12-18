@@ -182,9 +182,10 @@ export class SigninApiService {
 			reply.code(403);
 			return {
 				error: {
-					message: 'The account has not been approved by an admin yet. Try again later.',
-					code: 'NOT_APPROVED',
-					id: '22d05606-fbcf-421a-a2db-b32241faft1b',
+					message: 'Your account is pending approval.',
+					code: 'YOUR_ACCOUNT_NOT_APPROVED',
+					kind: 'permission',
+					id: 'a61e4b47-f075-4454-b78f-8c2683698321',
 				},
 			};
 		}

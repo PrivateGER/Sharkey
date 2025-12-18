@@ -520,16 +520,35 @@ export class UrlPreviewService {
 		}
 
 		// Authorization
-		if (user.isSuspended || user.isDeleted) {
-			reply.code(403).send({
-				error: {
-					message: 'Your account has been suspended.',
-					code: 'YOUR_ACCOUNT_SUSPENDED',
-					kind: 'permission',
-
-					id: 'a8c724b3-6e9c-4b46-b1a8-bc3ed6258370',
-				},
-			});
+		if (!this.utilityService.isActiveUser(user)) {
+			if (user.isSuspended || user.isDeleted) {
+				reply.code(403).send({
+					error: {
+						message: 'Your account has been suspended.',
+						code: 'YOUR_ACCOUNT_SUSPENDED',
+						kind: 'permission',
+						id: 'a8c724b3-6e9c-4b46-b1a8-bc3ed6258370',
+					},
+				});
+			} else if (!user.approved) {
+				reply.code(403).send({
+					error: {
+						message: 'Your account is pending approval.',
+						code: 'YOUR_ACCOUNT_NOT_APPROVED',
+						kind: 'permission',
+						id: 'a61e4b47-f075-4454-b78f-8c2683698321',
+					},
+				});
+			} else {
+				reply.code(403).send({
+					error: {
+						message: 'Your account has been disabled.',
+						code: 'YOUR_ACCOUNT_DISABLED',
+						kind: 'permission',
+						id: '3b8ce57e-5a55-4509-8199-524eea225bd4',
+					},
+				});
+			}
 			return false;
 		}
 		if (app && !app.permission.includes('read:account')) {

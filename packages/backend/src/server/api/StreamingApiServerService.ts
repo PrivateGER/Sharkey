@@ -20,6 +20,7 @@ import { MiLocalUser } from '@/models/User.js';
 import { UserService } from '@/core/UserService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
@@ -72,6 +73,7 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 		private loggerService: LoggerService,
 		private readonly queryService: QueryService,
 		private readonly timeService: TimeService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.redisForSub.on('message', this.onRedis);
 		this.#logger = loggerService.getLogger('streaming', 'coral');
@@ -147,7 +149,7 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 				}
 			}
 
-			if (user?.isSuspended) {
+			if (user && !this.utilityService.isActiveUser(user)) {
 				dieInstantly = [4001, 'User suspended'];
 			}
 

@@ -48,6 +48,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { CacheService } from '@/core/CacheService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { ReversiGameEntityService } from '@/core/entities/ReversiGameEntityService.js';
 import { AnnouncementEntityService } from '@/core/entities/AnnouncementEntityService.js';
 import { FeedService } from './FeedService.js';
@@ -124,6 +125,7 @@ export class ClientServerService {
 		private readonly timeService: TimeService,
 		private readonly envService: EnvService,
 		private readonly cacheService: CacheService,
+		private readonly utilityService: UtilityService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -452,9 +454,8 @@ export class ClientServerService {
 		fastify.get<{ Querystring: { url: string; lang: string; } }>('/url', (request, reply) => this.urlPreviewService.handle(request, reply));
 
 		const getFeed = async (handle: string) => {
-			const acct = Acct.parse(handle);
-			let user = await this.cacheService.findOptionalUserByAcct(acct);
-			if (user?.isDeleted || user?.isSuspended || user?.requireSigninToViewContents || !user?.enableRss) {
+			let user = await this.cacheService.findOptionalUserByAcct(handle);
+			if (!user || !this.utilityService.isActiveUser(user) || user.requireSigninToViewContents || !user.enableRss) {
 				user = undefined;
 			}
 
@@ -509,9 +510,8 @@ export class ClientServerService {
 		//#region SSR
 		// User
 		fastify.get<{ Params: { user: string; sub?: string; } }>('/@:user/:sub?', async (request, reply) => {
-			const acct = Acct.parse(request.params.user);
-			let user = await this.cacheService.findOptionalUserByAcct(acct);
-			if (user?.isDeleted || user?.isSuspended) {
+			let user = await this.cacheService.findOptionalUserByAcct(request.params.user);
+			if (!user || !this.utilityService.isActiveUser(user)) {
 				user = undefined;
 			}
 
@@ -556,7 +556,7 @@ export class ClientServerService {
 		fastify.get<{ Params: { user: string; } }>('/users/:user', async (request, reply) => {
 			const user = await this.cacheService.findOptionalUserById(request.params.user);
 
-			if (user == null || user.isSuspended || user.requireSigninToViewContents || !user.enableRss) {
+			if (!user || !this.utilityService.isActiveUser(user) || user.requireSigninToViewContents) {
 				reply.code(404);
 				return;
 			}
@@ -587,7 +587,7 @@ export class ClientServerService {
 				this.generateCommonPugData(this.meta),
 			]);
 
-			if (user && profile && !user.isDeleted && !user.isSuspended && !user.requireSigninToViewContents) {
+			if (user && profile && this.utilityService.isActiveUser(user) && !user.requireSigninToViewContents) {
 				const _note = await this.noteEntityService.pack(note);
 				reply.header('Cache-Control', 'public, max-age=15');
 				if (profile.preventAiLearning) {
@@ -612,9 +612,8 @@ export class ClientServerService {
 
 		// Page
 		fastify.get<{ Params: { user: string; page: string; } }>('/@:user/pages/:page', async (request, reply) => {
-			const acct = Acct.parse(request.params.user);
-			const user = await this.cacheService.findOptionalUserByAcct(acct);
-			if (user == null || user.isDeleted || user.isSuspended) {
+			const user = await this.cacheService.findOptionalUserByAcct(request.params.user);
+			if (user == null || !this.utilityService.isActiveUser(user)) {
 				return await renderBase(reply);
 			}
 
@@ -662,7 +661,7 @@ export class ClientServerService {
 					this.cacheService.userProfileCache.fetchMaybe(flash.userId),
 					this.generateCommonPugData(this.meta),
 				]);
-				if (!user || !profile || user.isSuspended || user.isDeleted) {
+				if (!user || !profile || !this.utilityService.isActiveUser(user)) {
 					return await renderBase(reply);
 				}
 
@@ -696,7 +695,7 @@ export class ClientServerService {
 					this.cacheService.userProfileCache.fetchMaybe(clip.userId),
 					this.generateCommonPugData(this.meta),
 				]);
-				if (!user || !profile || user.isSuspended || user.isDeleted) {
+				if (!user || !profile || !this.utilityService.isActiveUser(user)) {
 					return await renderBase(reply);
 				}
 
@@ -730,7 +729,7 @@ export class ClientServerService {
 					this.cacheService.userProfileCache.fetchMaybe(post.userId),
 					this.generateCommonPugData(this.meta),
 				]);
-				if (!user || !profile || user.isSuspended || user.isDeleted) {
+				if (!user || !profile || !this.utilityService.isActiveUser(user)) {
 					return await renderBase(reply);
 				}
 
@@ -826,10 +825,8 @@ export class ClientServerService {
 
 			if (user == null) return;
 			if (user.host != null) return;
-			if (user.isDeleted) return;
-			if (user.isSuspended) return;
+			if (!this.utilityService.isActiveUser(user)) return;
 			if (user.requireSigninToViewContents) return;
-			if (!user.enableRss) return;
 
 			const [_user, commonData] = await Promise.all([
 				this.userEntityService.pack(user),
