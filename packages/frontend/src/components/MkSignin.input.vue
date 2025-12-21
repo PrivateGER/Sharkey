@@ -157,6 +157,11 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 
 	> .root {
 		width: 100%;
+
+		& input:user-invalid {
+			color: #fff;
+			background: hsl(from var(--MI_THEME-error) h s calc(l - 10));
+		}
 	}
 }
 
