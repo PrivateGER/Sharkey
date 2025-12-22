@@ -4,8 +4,6 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import bcrypt from 'bcryptjs';
-import * as argon2 from 'argon2';
 import { IsNull } from 'typeorm';
 import * as Misskey from 'misskey-js';
 import { DI } from '@/di-symbols.js';
@@ -178,20 +176,13 @@ export class SigninApiService {
 			return;
 		}
 
-		if (!user.approved && this.meta.approvalRequiredForSignup) {
-			reply.code(403);
-			return {
-				error: {
-					message: 'Your account is pending approval.',
-					code: 'YOUR_ACCOUNT_NOT_APPROVED',
-					kind: 'permission',
-					id: 'a61e4b47-f075-4454-b78f-8c2683698321',
-				},
-			};
+		if (profile.password == null) {
+			reply.code(500);
+			return;
 		}
 
 		// Compare password
-		const same = await argon2.verify(profile.password!, password) || bcrypt.compareSync(password, profile.password!);
+		const same = await this.userAuthService.checkPassword(profile, password);
 
 		const fail = async (status?: number, failure?: { id: string; }) => {
 			// Append signin history
@@ -246,13 +237,6 @@ export class SigninApiService {
 			}
 
 			if (same) {
-				if (profile.password!.startsWith('$2')) {
-					const newHash = await argon2.hash(password);
-					await this.userProfilesRepository.update(user.id, {
-						password: newHash,
-					});
-					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
-				}
 				if (!this.meta.approvalRequiredForSignup && !user.approved) {
 					await this.usersRepository.update(user.id, { approved: true });
 					await this.internalEventService.emit('userUpdated', { id: user.id });
@@ -274,13 +258,6 @@ export class SigninApiService {
 			}
 
 			try {
-				if (profile.password!.startsWith('$2')) {
-					const newHash = await argon2.hash(password);
-					await this.userProfilesRepository.update(user.id, {
-						password: newHash,
-					});
-					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
-				}
 				await this.userAuthService.twoFactorAuthenticate(profile, token);
 			} catch (e) {
 				return await fail(403, {

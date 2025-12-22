@@ -4,7 +4,6 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import * as argon2 from 'argon2';
 import { IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { RegistrationTicketsRepository, UsedUsernamesRepository, UserPendingsRepository, UserProfilesRepository, UsersRepository, MiRegistrationTicket, MiMeta, UserIpsRepository } from '@/models/_.js';
@@ -21,11 +20,12 @@ import { L_CHARS, secureRndstr } from '@/misc/secure-rndstr.js';
 import { RoleService } from '@/core/RoleService.js';
 import Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
+import { UserAuthService } from '@/core/UserAuthService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { SigninService } from './SigninService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { InternalEventService } from '@/global/InternalEventService.js';
 
 @Injectable()
 export class SignupApiService {
@@ -66,6 +66,7 @@ export class SignupApiService {
 		private readonly timeService: TimeService,
 		private readonly envService: EnvService,
 		private readonly internalEventService: InternalEventService,
+		private readonly userAuthService: UserAuthService,
 	) {
 		this.logger = this.loggerService.getLogger('Signup');
 	}
@@ -218,7 +219,7 @@ export class SignupApiService {
 			const code = secureRndstr(16, { chars: L_CHARS });
 
 			// Generate hash of password
-			const hash = await argon2.hash(password);
+			const hash = await this.userAuthService.hashPassword(password);
 
 			const pendingUser = await this.userPendingsRepository.insertOne({
 				id: this.idService.gen(),

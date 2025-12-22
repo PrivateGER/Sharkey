@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import * as argon2 from 'argon2';
 import { Inject, Injectable } from '@nestjs/common';
 import type { UserProfilesRepository, PasswordResetRequestsRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -11,6 +10,8 @@ import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { UserAuthService } from '@/core/UserAuthService.js';
+import { ApiError } from '@/errors/ApiError.js';
 
 export const meta = {
 	tags: ['reset password'],
@@ -20,7 +21,11 @@ export const meta = {
 	description: 'Complete the password reset that was previously requested.',
 
 	errors: {
-
+		resetTokenExpired: {
+			id: '1d0d3ec1-5ebe-4bdd-9edd-0a82eb0ec398',
+			code: 'RESET_TOKEN_EXPIRED',
+			message: 'Password reset token has expired.',
+		},
 	},
 
 	// 2 calls per 30 minutes
@@ -34,7 +39,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		token: { type: 'string' },
-		password: { type: 'string' },
+		password: { type: 'string', minLength: 1 },
 	},
 	required: ['token', 'password'],
 } as const;
@@ -51,6 +56,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private idService: IdService,
 		private readonly timeService: TimeService,
 		private readonly internalEventService: InternalEventService,
+		private readonly userAuthService: UserAuthService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const req = await this.passwordResetRequestsRepository.findOneByOrFail({
@@ -59,11 +65,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// 発行してから30分以上経過していたら無効
 			if (this.timeService.now - this.idService.parse(req.id).date.getTime() > 1000 * 60 * 30) {
-				throw new Error(); // TODO
+				throw new ApiError(meta.errors.resetTokenExpired);
 			}
 
 			// Generate hash of password
-			const hash = await argon2.hash(ps.password);
+			const hash = await this.userAuthService.hashPassword(ps.password);
 
 			await this.userProfilesRepository.update(req.userId, {
 				password: hash,

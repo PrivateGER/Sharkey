@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import * as argon2 from 'argon2';
 import { Inject, Injectable } from '@nestjs/common';
 import ms from 'ms';
 import type { UsersRepository, UserProfilesRepository } from '@/models/_.js';
@@ -11,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DeleteAccountService } from '@/core/DeleteAccountService.js';
 import { DI } from '@/di-symbols.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
+import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	requireCredential: true,
@@ -22,6 +22,20 @@ export const meta = {
 	},
 
 	secure: true,
+
+	errors: {
+		incorrectPassword: {
+			message: 'Incorrect password.',
+			code: 'INCORRECT_PASSWORD',
+			id: '7add0395-9901-4098-82f9-4f67af65f775',
+		},
+
+		incorrectTotp: {
+			message: 'Incorrect 2FA code.',
+			code: 'INCORRECT_TOTP',
+			id: 'cdf1235b-ac71-46d4-a3a6-84ccce48df6f',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -46,32 +60,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private deleteAccountService: DeleteAccountService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const token = ps.token;
 			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: me.id });
 
-			if (profile.twoFactorEnabled) {
-				if (token == null) {
-					throw new Error('authentication failed');
-				}
-
-				try {
-					await this.userAuthService.twoFactorAuthenticate(profile, token);
-				} catch (e) {
-					throw new Error('authentication failed');
-				}
+			if (!await this.userAuthService.checkPassword(profile, ps.password)) {
+				throw new ApiError(meta.errors.incorrectPassword);
 			}
 
-			const userDetailed = await this.usersRepository.findOneByOrFail({ id: me.id });
-			if (userDetailed.isDeleted) {
-				return;
+			if (!await this.userAuthService.check2FA(profile, ps.token)) {
+				throw new ApiError(meta.errors.incorrectTotp);
 			}
 
-			const passwordMatched = await argon2.verify(profile.password!, ps.password);
-			if (!passwordMatched) {
-				throw new Error('incorrect password');
+			if (!me.isDeleted) {
+				await this.deleteAccountService.deleteAccount(me);
 			}
-
-			await this.deleteAccountService.deleteAccount(me);
 		});
 	}
 }
