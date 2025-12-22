@@ -29,7 +29,7 @@ import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.
 import { CacheService } from '@/core/CacheService.js';
 import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import type { ApiErrorDefinition } from '@/errors/ApiError.js';
+import type { E as ApiErrorDefinition } from '@/server/api/error.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';

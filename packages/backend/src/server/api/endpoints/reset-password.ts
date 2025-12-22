@@ -11,7 +11,7 @@ import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
-import { ApiError } from '@/errors/ApiError.js';
+import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	tags: ['reset password'],

@@ -20,17 +20,16 @@ import { bindThis } from '@/decorators.js';
 import { WebAuthnService } from '@/core/WebAuthnService.js';
 import Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
-import type { IdentifiableError } from '@/misc/identifiable-error.js';
+import { IdentifiableError, isIdentifiableError } from '@/misc/identifiable-error.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { ServerUtilityService } from '@/server/ServerUtilityService.js';
-import { isKnownError } from '@/errors/KnownError.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
-import type { ApiErrorDefinition } from '@/errors/ApiError.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
+import type { E as ApiErrorDefinition } from '@/server/api/error.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { renderInlineError } from '@/misc/render-inline-error.js';
 
 @Injectable()
 export class SigninWithPasskeyApiService {
@@ -135,7 +134,7 @@ export class SigninWithPasskeyApiService {
 		try {
 			authorizedUserId = await this.webAuthnService.verifySignInWithPasskeyAuthentication(context, credential);
 		} catch (err) {
-			if (isKnownError(err)) {
+			if (isIdentifiableError(err)) {
 				this.logger.debug(`Passkey challenge verify error: ${renderInlineError(err)}`);
 				return error(403, {
 					id: err.id,

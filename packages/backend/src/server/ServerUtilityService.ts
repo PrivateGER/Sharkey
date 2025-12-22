@@ -14,7 +14,7 @@ import { isLocalUser } from '@/models/User.js';
 import type { MiUser } from '@/models/User.js';
 import type { Config } from '@/config.js';
 import type { MiMeta } from '@/models/Meta.js';
-import type { ApiErrorDefinition } from '@/errors/ApiError.js';
+import type { E as ApiErrorDefinition } from '@/server/api/error.js';
 import type { FastifyInstance } from 'fastify';
 
 @Injectable()

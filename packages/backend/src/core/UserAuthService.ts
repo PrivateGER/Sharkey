@@ -9,15 +9,16 @@ import * as OTPAuth from 'otpauth';
 import { Injectable, Inject } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { equalsConstantTime } from '@/misc/equals-constant-time.js';
-import { AuthError } from '@/errors/AuthErrors.js';
-import { KnownError } from '@/errors/KnownError.js';
+import { AuthenticationError } from '@/server/api/AuthenticateService.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { CacheService } from '@/core/CacheService.js';
-import { CoreLoggerService } from '@/core/CoreLoggerService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import type Logger from '@/logger.js';
 import type { MiUserProfile } from '@/models/UserProfile.js';
 import type { UserProfilesRepository } from '@/models/_.js';
-import type { Logger } from '@/logger.js';
 
 @Injectable()
 export class UserAuthService {
@@ -30,9 +31,9 @@ export class UserAuthService {
 		private readonly cacheService: CacheService,
 		private readonly internalEventService: InternalEventService,
 
-		coreLoggerService: CoreLoggerService,
+		loggerService: LoggerService,
 	) {
-		this.logger = coreLoggerService.getLogger('auth');
+		this.logger = loggerService.getLogger('auth');
 	}
 
 	/**
@@ -43,7 +44,7 @@ export class UserAuthService {
 		const isCorrect = await this.check2FA(profile, providedToken);
 
 		if (!isCorrect) {
-			throw new AuthError('Authentication failed');
+			throw new AuthenticationError('Authentication failed');
 		}
 	}
 
@@ -70,9 +71,9 @@ export class UserAuthService {
 
 		const isCorrect = await this.checkTOTP(userProfile, userProfile.twoFactorSecret, providedToken);
 		if (isCorrect) {
-			this.logger.info(f => `2FA authentication succeeded for ${f.user(userProfile)}`);
+			this.logger.info(`2FA authentication succeeded for user ${userProfile.userId}`);
 		} else {
-			this.logger.info(f => `2FA authentication failed for ${f.user(userProfile)}`);
+			this.logger.info(`2FA authentication failed for user ${userProfile.userId}`);
 		}
 		return isCorrect;
 	}
@@ -90,7 +91,7 @@ export class UserAuthService {
 			// Validate TOTP if input isn't a valid secret
 			return await this.checkTOTPSecret(userProfile, twoFactorSecret, providedToken);
 		} catch (err) {
-			this.logger.error(f => `Exception thrown during 2FA authentication for ${f.user(userProfile)}: ${f.error(err)}`);
+			this.logger.error(`Exception thrown during 2FA authentication for user ${userProfile.userId}: ${renderInlineError(err)}`);
 			return false;
 		}
 	}
@@ -148,9 +149,9 @@ export class UserAuthService {
 		// Dispatch to correct hash algorithm
 		const isCorrect = await this.checkPasswordHash(userProfile, userProfile.password, providedPassword);
 		if (isCorrect) {
-			this.logger.info(f => `Password authentication succeeded for ${f.user(userProfile)}`);
+			this.logger.info(`Password authentication succeeded for user ${userProfile.userId}`);
 		} else {
-			this.logger.info(f => `Password authentication failed for ${f.user(userProfile)}`);
+			this.logger.info(`Password authentication failed for user ${userProfile.userId}`);
 		}
 		return isCorrect;
 	}
@@ -163,11 +164,11 @@ export class UserAuthService {
 			} else if (providedPassword.startsWith('$2')) {
 				return await this.checkBcrypt(userProfile, expectedHash, providedPassword);
 			} else {
-				this.logger.warn(f => `Found unsupported password hash for ${f.user(userProfile)} - please check!`);
+				this.logger.warn(`Found unsupported password hash for user ${userProfile.userId} - please check!`);
 				return false;
 			}
 		} catch (err) {
-			this.logger.error(f => `Exception thrown during password authentication for ${f.user(userProfile)}: ${f.error(err)}`);
+			this.logger.error(`Exception thrown during password authentication for user ${userProfile.userId}: ${renderInlineError(err)}`);
 			return false;
 		}
 	}
@@ -195,7 +196,7 @@ export class UserAuthService {
 	public async hashPassword(providedPassword: string): Promise<string> {
 		// Validate password
 		if (providedPassword.length < 1) {
-			throw new KnownError('ea163d99-51a1-45a5-85fb-cc5eec3c2ed5', 'Invalid password - must not be empty');
+			throw new IdentifiableError('ea163d99-51a1-45a5-85fb-cc5eec3c2ed5', 'Invalid password - must not be empty');
 		}
 
 		// Do not pass a salt - the library generates a secure one automatically!
