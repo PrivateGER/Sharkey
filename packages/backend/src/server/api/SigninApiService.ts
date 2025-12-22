@@ -281,7 +281,10 @@ export class SigninApiService {
 			const authorized = await this.webAuthnService.verifyAuthentication(user.id, body.credential);
 
 			if (authorized) {
-				if (!this.meta.approvalRequiredForSignup && !user.approved) this.usersRepository.update(user.id, { approved: true });
+				if (!this.meta.approvalRequiredForSignup && !user.approved) {
+					await this.usersRepository.update(user.id, { approved: true });
+					await this.internalEventService.emit('userUpdated', { id: user.id });
+				}
 				return this.signinService.signin(request, reply, user);
 			} else {
 				return await fail(403, {
