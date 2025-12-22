@@ -144,9 +144,12 @@ export class FanoutTimelineEndpointService {
 				filter = (note, populated) => {
 					if (!ps.ignoreAuthorFromUserSuspension) {
 						if (note.user?.isSuspended) return false;
+						if (note.userHost && !this.utilityService.isFederationAllowedHost(note.userHost)) return false;
 					}
 					if (note.userId !== note.renoteUserId && note.renote?.user?.isSuspended) return false;
+					if (note.userId !== note.renoteUserId && note.renoteUserHost && !this.utilityService.isFederationAllowedHost(note.renoteUserHost)) return false;
 					if (note.userId !== note.replyUserId && note.reply?.user?.isSuspended) return false;
+					if (note.userId !== note.replyUserId && note.replyUserHost && !this.utilityService.isFederationAllowedHost(note.replyUserHost)) return false;
 
 					return parentFilter(note, populated);
 				};

@@ -298,11 +298,11 @@ export class ApPersonService implements OnModuleInit {
 	 * Misskeyに対象のPersonが登録されていればそれを返し、登録がなければnullを返します。
 	 */
 	@bindThis
-	public async fetchPerson(uri: string, opts?: { withDeleted?: boolean, withSuspended?: boolean }): Promise<MiLocalUser | MiRemoteUser | null> {
-		const _opts = {
-			withDeleted: opts?.withDeleted ?? false,
-			withSuspended: opts?.withSuspended ?? true,
-		};
+	public async fetchPerson(uri: string, opts?: { withDeleted?: boolean, withSuspended?: boolean, withDefederated?: boolean, withUnapproved?: boolean }): Promise<MiLocalUser | MiRemoteUser | null> {
+		const withDeleted = opts?.withDeleted ?? false;
+		const withSuspended = opts?.withSuspended ?? false;
+		const withDefederated = opts?.withDefederated ?? withSuspended;
+		const withUnapproved = !this.meta.approvalRequiredForSignup || (opts?.withUnapproved ?? withSuspended);
 
 		let userId: string | null | undefined;
 
@@ -321,11 +321,16 @@ export class ApPersonService implements OnModuleInit {
 
 		const user = await this.cacheService.findOptionalUserById(userId) as MiLocalUser | MiRemoteUser | null;
 
-		if (user?.isDeleted && !_opts.withDeleted) {
-			return null;
-		}
-		if (user?.isSuspended && !_opts.withSuspended) {
-			return null;
+		// State validation
+		if (user != null) {
+			if (!withDeleted && user.isDeleted) return null;
+			if (!withSuspended && user.isSuspended) return null;
+
+			if (isRemoteUser(user)) {
+				if (!withDefederated && !this.utilityService.isFederationAllowedHost(user.host)) return null;
+			} else {
+				if (!withUnapproved && !user.approved) return null;
+			}
 		}
 
 		return user;

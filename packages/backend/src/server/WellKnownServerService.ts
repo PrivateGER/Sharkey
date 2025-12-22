@@ -15,6 +15,7 @@ import type { MiUser, MiLocalUser } from '@/models/User.js';
 import { isLocalUser } from '@/models/User.js';
 import * as Acct from '@/misc/acct.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { bindThis } from '@/decorators.js';
 import { NodeinfoServerService } from './NodeinfoServerService.js';
@@ -38,6 +39,7 @@ export class WellKnownServerService {
 		private userEntityService: UserEntityService,
 		private oauth2ProviderService: OAuth2ProviderService,
 		private readonly cacheService: CacheService,
+		private readonly utilityService: UtilityService,
 	) {
 		//this.createServer = this.createServer.bind(this);
 	}
@@ -155,7 +157,7 @@ fastify.get('/.well-known/change-password', async (request, reply) => {
 					user = await fetchUserByHandle(resource);
 				}
 
-				if (user == null || user.isDeleted || user.isSuspended) {
+				if (user == null || !this.utilityService.isActiveUser(user)) {
 					return 404;
 				}
 

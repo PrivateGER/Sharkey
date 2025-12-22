@@ -44,19 +44,20 @@ import type {
 	UsersRepository,
 } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
+import { getCallerId } from '@/misc/attach-caller-id.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
+import { TimeService } from '@/global/TimeService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import type { RolePolicies, RoleService } from '@/core/RoleService.js';
 import type { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import type { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import type { IdService } from '@/core/IdService.js';
-import { TimeService } from '@/global/TimeService.js';
 import type { AnnouncementService } from '@/core/AnnouncementService.js';
 import type { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import type { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import type { ChatService } from '@/core/ChatService.js';
 import type { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import type { CacheService } from '@/core/CacheService.js';
-import { getCallerId } from '@/misc/attach-caller-id.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { NoteEntityService } from './NoteEntityService.js';
 import type { PageEntityService } from './PageEntityService.js';
@@ -150,6 +151,7 @@ export class UserEntityService implements OnModuleInit {
 		private userMemosRepository: UserMemoRepository,
 
 		private readonly timeService: TimeService,
+		private readonly utilityService: UtilityService,
 	) {
 	}
 
@@ -648,7 +650,7 @@ export class UserEntityService implements OnModuleInit {
 				backgroundUrl: user.backgroundId == null ? null : user.backgroundUrl,
 				backgroundBlurhash: user.backgroundId == null ? null : user.backgroundBlurhash,
 				isLocked: user.isLocked,
-				isSuspended: user.isSuspended,
+				isSuspended: !this.utilityService.isActiveUser(user),
 				location: profile!.location,
 				birthday: profile!.birthday,
 				listenbrainz: profile!.listenbrainz,

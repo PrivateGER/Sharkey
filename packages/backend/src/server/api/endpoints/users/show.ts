@@ -124,7 +124,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				for (const id of ps.userIds) {
 					const user = users.get(id);
 					if (user != null) {
-						if (isModerator || !user.isSuspended) {
+						if (isModerator || this.utilityService.isActiveUser(user)) {
 							_users.push(user);
 						}
 					}
@@ -145,7 +145,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.failedToResolveRemoteUser);
 				}
 
-				if (user == null || (!isModerator && user.isSuspended)) {
+				if (user == null || (!isModerator && !this.utilityService.isActiveUser(user))) {
 					throw new ApiError(meta.errors.noSuchUser);
 				}
 

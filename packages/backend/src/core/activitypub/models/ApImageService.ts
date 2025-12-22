@@ -47,9 +47,7 @@ export class ApImageService {
 	@bindThis
 	public async createImage(actor: MiRemoteUser, value: string | IObject): Promise<MiDriveFile | null> {
 		// 投稿者が凍結されていたらスキップ
-		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `failed to create image ${getNullableApId(value)}: actor ${actor.id} has been suspended`);
-		}
+		this.utilityService.assertActiveRemoteUser(actor);
 
 		const image = await this.apResolverService.createResolver().resolve(value);
 

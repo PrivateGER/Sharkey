@@ -25,6 +25,7 @@ import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { ApNoteService } from '@/core/activitypub/models/ApNoteService.js';
 import { AuthenticateService, AuthenticationError } from '@/server/api/AuthenticateService.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
+import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { CacheManagementService, type ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { BucketRateLimit, Keyed, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import type { MiLocalUser } from '@/models/User.js';
@@ -91,6 +92,7 @@ export class UrlPreviewService {
 		private readonly apNoteService: ApNoteService,
 		private readonly authenticateService: AuthenticateService,
 		private readonly rateLimiterService: SkRateLimiterService,
+		private readonly serverUtilityService: ServerUtilityService,
 
 		cacheManagementService: CacheManagementService,
 	) {
@@ -520,35 +522,9 @@ export class UrlPreviewService {
 		}
 
 		// Authorization
-		if (!this.utilityService.isActiveUser(user)) {
-			if (user.isSuspended || user.isDeleted) {
-				reply.code(403).send({
-					error: {
-						message: 'Your account has been suspended.',
-						code: 'YOUR_ACCOUNT_SUSPENDED',
-						kind: 'permission',
-						id: 'a8c724b3-6e9c-4b46-b1a8-bc3ed6258370',
-					},
-				});
-			} else if (!user.approved) {
-				reply.code(403).send({
-					error: {
-						message: 'Your account is pending approval.',
-						code: 'YOUR_ACCOUNT_NOT_APPROVED',
-						kind: 'permission',
-						id: 'a61e4b47-f075-4454-b78f-8c2683698321',
-					},
-				});
-			} else {
-				reply.code(403).send({
-					error: {
-						message: 'Your account has been disabled.',
-						code: 'YOUR_ACCOUNT_DISABLED',
-						kind: 'permission',
-						id: '3b8ce57e-5a55-4509-8199-524eea225bd4',
-					},
-				});
-			}
+		const userError = this.serverUtilityService.assertClientUser(user);
+		if (userError) {
+			reply.code(userError.httpStatusCode).send({ error: userError });
 			return false;
 		}
 		if (app && !app.permission.includes('read:account')) {

@@ -24,13 +24,15 @@ import { UserAuthService } from '@/core/UserAuthService.js';
 import { CaptchaService } from '@/core/CaptchaService.js';
 import { FastifyReplyError } from '@/misc/fastify-reply-error.js';
 import { EnvService } from '@/global/EnvService.js';
-import { isSystemAccount } from '@/misc/is-system-account.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
+import { CacheService } from '@/core/CacheService.js';
+import { ServerUtilityService } from '@/server/ServerUtilityService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
+import type { ApiErrorDefinition } from '@/errors/ApiError.js';
 import { SigninService } from './SigninService.js';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { InternalEventService } from '@/global/InternalEventService.js';
 
 // Up to 10 attempts, then 1 per minute
 const signinRateLimit: Keyed<RateLimit> = {
@@ -69,6 +71,8 @@ export class SigninApiService {
 		private captchaService: CaptchaService,
 		private readonly internalEventService: InternalEventService,
 		private readonly envService: EnvService,
+		private readonly cacheService: CacheService,
+		private readonly serverUtilityService: ServerUtilityService,
 	) {
 	}
 
@@ -98,7 +102,7 @@ export class SigninApiService {
 		const password = body['password'];
 		const token = body['token'];
 
-		function error(status: number, error: { id: string }) {
+		function error(status: number, error: ApiErrorDefinition) {
 			reply.code(status);
 			return { error };
 		}
@@ -130,31 +134,20 @@ export class SigninApiService {
 		}
 
 		// Fetch user
-		const user = await this.usersRepository.findOneBy({
-			usernameLower: username.toLowerCase(),
-			host: IsNull(),
-		}) as MiLocalUser;
+		const user = await this.cacheService.findLocalUserByUsername(username);
 
-		if (user == null) {
-			return error(404, {
-				id: '6cc579cc-885d-43d8-95c2-b8c7fc963280',
-			});
+		// Verify user
+		const userError = this.serverUtilityService.assertClientUser(user, {
+			deletedError: 404,
+		});
+		if (userError) {
+			return error(userError.httpStatusCode, userError);
 		}
 
-		if (user.isSuspended) {
-			return error(403, {
-				id: 'e03a5f46-d309-4865-9b69-56282d94e1eb',
-			});
-		}
-
-		if (isSystemAccount(user)) {
-			return error(403, {
-				id: 'ba4ba3bc-ef1e-4c74-ad88-1d2b7d69a100',
-			});
-		}
-
-		const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
-		const securityKeysAvailable = await this.userSecurityKeysRepository.countBy({ userId: user.id }).then(result => result >= 1);
+		const [profile, securityKeysAvailable] = await Promise.all([
+			this.cacheService.userProfileCache.fetch(user.id),
+			this.userSecurityKeysRepository.existsBy({ userId: user.id }),
+		]);
 
 		if (password == null) {
 			reply.code(200);

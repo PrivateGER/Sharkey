@@ -20,6 +20,7 @@ import * as Acct from '@/misc/acct.js';
 import { genIdenticon } from '@/misc/gen-identicon.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { CacheService } from '@/core/CacheService.js';
@@ -79,6 +80,7 @@ export class ServerService implements OnApplicationShutdown {
 		private readonly envService: EnvService,
 		private readonly internalEventService: InternalEventService,
 		private readonly cacheService: CacheService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -225,7 +227,7 @@ export class ServerService implements OnApplicationShutdown {
 
 			reply.header('Cache-Control', 'public, max-age=86400');
 
-			if (user && !user.isSuspended && !user.isDeleted) {
+			if (user && this.utilityService.isActiveUser(user)) {
 				reply.redirect((user.avatarId == null ? null : user.avatarUrl) ?? this.userEntityService.getIdenticonUrl(user));
 			} else {
 				reply.redirect('/static-assets/user-unknown.png');

@@ -20,6 +20,7 @@ import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.j
 import { IdService } from '@/core/IdService.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { MastodonDataService } from '@/server/api/mastodon/MastodonDataService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { appendContentWarning } from '@/misc/append-content-warning.js';
 import { isRenote } from '@/misc/is-renote.js';
@@ -71,6 +72,7 @@ export class MastodonConverters {
 		private readonly driveFileEntityService: DriveFileEntityService,
 		private readonly mastodonDataService: MastodonDataService,
 		private readonly federatedInstanceService: FederatedInstanceService,
+		private readonly utilityService: UtilityService,
 	) {}
 
 	private encode(u: MiUser, m: IMentionedRemoteUsers): MastodonEntity.Mention {
@@ -201,7 +203,7 @@ export class MastodonConverters {
 			discoverable: user.isExplorable,
 			noindex: user.noindex,
 			group: null,
-			suspended: user.isSuspended,
+			suspended: !this.utilityService.isActiveUser(user),
 			limited: user.isSilenced,
 		});
 	}

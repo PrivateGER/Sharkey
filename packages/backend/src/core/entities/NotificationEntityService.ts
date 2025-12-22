@@ -14,6 +14,7 @@ import type { MiNote } from '@/models/Note.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { bindThis } from '@/decorators.js';
 import { FilterUnionByProperty, groupedNotificationTypes } from '@/types.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { RoleEntityService } from './RoleEntityService.js';
 import type { ChatEntityService } from './ChatEntityService.js';
@@ -53,6 +54,7 @@ export class NotificationEntityService implements OnModuleInit {
 		private readonly accessTokensRepository: AccessTokensRepository,
 
 		private cacheService: CacheService,
+		private readonly utilityService: UtilityService,
 	) {
 	}
 
@@ -312,7 +314,7 @@ export class NotificationEntityService implements OnModuleInit {
 		if (notifier == null) return false;
 		if (notifier.host && userMutedInstances.has(notifier.host)) return false;
 
-		if (notifier.isSuspended) return false;
+		if (!this.utilityService.isActiveUser(notifier)) return false;
 
 		return true;
 	}
