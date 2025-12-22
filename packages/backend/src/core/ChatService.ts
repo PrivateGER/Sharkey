@@ -613,7 +613,7 @@ export class ChatService {
 
 	@bindThis
 	public async findRoomById(roomId: MiChatRoom['id']) {
-		return await this.chatRoomsRepository.findOne({ where: { id: roomId }, relations: ['owner'] });
+		return await this.chatRoomsRepository.findOne({ where: { id: roomId }, relations: { owner: true } });
 	}
 
 	@bindThis

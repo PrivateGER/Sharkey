@@ -12,7 +12,7 @@ import { bindThis } from '@/decorators.js';
 import { DI } from '@/di-symbols.js';
 import { readyRef } from '@/boot/ready.js';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import type { MeiliSearch } from 'meilisearch';
+import type { Meilisearch } from 'meilisearch';
 
 // Up to 5 calls, then 1 per second
 const healthRateLimit: Keyed<RateLimit> = {
@@ -47,7 +47,7 @@ export class HealthServerService {
 		private db: DataSource,
 
 		@Inject(DI.meilisearch)
-		private meilisearch: MeiliSearch | null,
+		private meilisearch: Meilisearch | null,
 
 		private readonly skRateLimiterService: SkRateLimiterService,
 	) {}

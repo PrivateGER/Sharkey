@@ -220,7 +220,7 @@ export function getConfig(): UserConfig {
 			],
 			deps: {
 				optimizer: {
-					web: {
+					client: {
 						include: [
 							// XXX: misskey-dev/browser-image-resizer has no "type": "module"
 							'browser-image-resizer',

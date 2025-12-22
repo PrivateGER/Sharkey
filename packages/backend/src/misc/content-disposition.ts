@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import cd from 'content-disposition';
+export async function contentDisposition(type: 'inline' | 'attachment', filename: string): Promise<string> {
+	// Lazy-import to fix jest error about require(esm) cycles
+	const { create } = await import('content-disposition');
 
-export function contentDisposition(type: 'inline' | 'attachment', filename: string): string {
 	const fallback = filename.replace(/[^\w.-]/g, '_');
-	return cd(filename, { type, fallback });
+	return create(filename, { type, fallback });
 }
