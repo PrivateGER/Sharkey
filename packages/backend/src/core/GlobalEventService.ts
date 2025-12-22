@@ -231,7 +231,7 @@ type UndefinedAsNullAll<T> = {
 export interface InternalEventTypes {
 	userChangeSuspendedState: { id: MiUser['id']; isSuspended: MiUser['isSuspended']; };
 	userChangeDeletedState: { id: MiUser['id']; isDeleted: MiUser['isDeleted']; };
-	userTokenRegenerated: { id: MiUser['id']; oldToken: string; newToken: string; };
+	userTokenRegenerated: { id: MiUser['id']; oldToken: string | null; newToken: string; };
 	/** @deprecated Use userUpdated or usersUpdated instead */
 	remoteUserUpdated: { id: MiUser['id']; };
 	/** @deprecated Use userUpdated or usersUpdated instead */

@@ -665,7 +665,7 @@ export class CacheService implements OnApplicationShutdown {
 	@bindThis
 	private async onTokenEvent<E extends 'userTokenRegenerated'>(body: InternalEventTypes[E]): Promise<void> {
 		await Promise.all([
-			this.nativeTokenCache.delete(body.oldToken),
+			body.oldToken ? this.nativeTokenCache.delete(body.oldToken) : null,
 			this.nativeTokenCache.set(body.newToken, body.id),
 		]);
 	}
