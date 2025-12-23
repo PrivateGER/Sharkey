@@ -379,7 +379,7 @@ async function syncDependencies(dependencies) {
 
 /**
  * @typedef {'dependencies' | 'devDependencies' | 'optionalDependencies' | 'peerDependencies' | 'resolutions'} DepType
- * @typedef {[DepPart, ...DepPart[]][]} DepVersion
+ * @typedef {[DepPart, ...DepPart[]]} DepVersion
  * @typedef {number | '*'} DepPart
  */
 
