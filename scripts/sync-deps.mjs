@@ -6,11 +6,9 @@
 import nodePath from 'node:path';
 import nodeFs from 'node:fs/promises';
 
-/**
- * Root directory of the repository.
- * @type {string}
+/*
+ * Configuration
  */
-const rootDir = nodePath.resolve(import.meta.dirname, '..');
 
 /**
  * Filename patterns to exclude.
@@ -21,6 +19,29 @@ const excludedPaths = [
 	/\/(js_)?built\//i,
 	/\/temp\//i,
 ];
+
+/**
+ * Keys containing dependency lists within a package.json file.
+ * @type {string[]}
+ */
+const dependencyProps = [
+	'overrides',
+	'resolutions',
+	'peerDependencies',
+	'optionalDependencies',
+	'devDependencies',
+	'dependencies',
+];
+
+/*
+ * Main Code
+ */
+
+/**
+ * Root directory of the repository.
+ * @type {string}
+ */
+const rootDir = nodePath.resolve(import.meta.dirname, '..');
 
 /**
  * All packages located in the solution
@@ -87,27 +108,28 @@ async function loadPackages() {
 						packageName = `${packageName}:${i}`;
 					}
 
-					// Parse and flatten all dependency sections
-					const dependencies = mergeDependencies(packageName, {
-						resolutions: parseDependencies(packageName, packageJson, 'resolutions'),
-						peerDependencies: parseDependencies(packageName, packageJson, 'peerDependencies'),
-						optionalDependencies: parseDependencies(packageName, packageJson, 'optionalDependencies'),
-						devDependencies: parseDependencies(packageName, packageJson, 'devDependencies'),
-						dependencies: parseDependencies(packageName, packageJson, 'dependencies'),
-					});
+					// Parse dependencies from all defined sections
+					/** @type {Record<string, Dependency[]>} */
+					const groups = {};
+					for (const type of dependencyProps) {
+						groups[type] = parseDependencies(packageName, packageJson, type);
+					}
 
+					// Flatten sections into final list
+					const dependencies = mergeDependencies(packageName, groups);
+					if (dependencies.length > 0) {
+						console.info(`Loaded ${dependencies.length} dependencies from ${packageName}`);
+					} else {
+						// console.debug(`Loaded no dependencies from ${packageName}`);
+					}
+
+					// Record this package.json file
 					packages.push({
 						name: packageName,
 						json: packageJson,
 						path,
 						dependencies,
 					});
-
-					if (dependencies.length > 0) {
-						console.info(`Loaded ${dependencies.length} dependencies from ${packageName}`);
-					} else {
-						// console.debug(`Loaded no dependencies from ${packageName}`);
-					}
 				} catch (err) {
 					console.warn(`Error reading package from ${path}:`, err);
 				}
