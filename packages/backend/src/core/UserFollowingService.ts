@@ -467,6 +467,19 @@ export class UserFollowingService implements OnModuleInit {
 	): Promise<void> {
 		if (follower.id === followee.id) return;
 
+		// Ignore duplicate remote requests
+		if (requestId) {
+			const hasDuplicate = await this.followRequestsRepository.existsBy({
+				followeeId: followee.id,
+				followerId: follower.id,
+				requestId,
+			});
+
+			if (hasDuplicate) {
+				return;
+			}
+		}
+
 		// check blocking
 		const [blocking, blocked] = await Promise.all([
 			this.userBlockingService.checkBlocked(follower.id, followee.id),
