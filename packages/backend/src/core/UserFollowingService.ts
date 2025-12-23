@@ -255,19 +255,11 @@ export class UserFollowingService implements OnModuleInit {
 		// Handled by CacheService
 		//this.cacheService.userFollowingsCache.refresh(follower.id);
 
-		const requestExist = await this.followRequestsRepository.exists({
-			where: {
-				followeeId: followee.id,
-				followerId: follower.id,
-			},
+		// Delete any duplicate requests
+		await this.followRequestsRepository.delete({
+			followeeId: followee.id,
+			followerId: follower.id,
 		});
-
-		if (requestExist) {
-			await this.followRequestsRepository.delete({
-				followeeId: followee.id,
-				followerId: follower.id,
-			});
-		}
 
 		if (alreadyFollowed) return;
 
