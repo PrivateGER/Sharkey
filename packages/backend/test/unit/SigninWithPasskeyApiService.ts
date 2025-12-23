@@ -7,7 +7,7 @@ import { IncomingHttpHeaders } from 'node:http';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AuthenticationResponseJSON } from '@simplewebauthn/types';
+import { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { HttpHeader } from 'fastify/types/utils.js';
 import { MockMetadata, ModuleMocker } from 'jest-mock';
 import { FakeSkRateLimiterService } from '../misc/FakeSkRateLimiterService.js';

@@ -31,7 +31,7 @@ import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import type { E as ApiErrorDefinition } from '@/server/api/error.js';
 import { SigninService } from './SigninService.js';
-import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 // Up to 10 attempts, then 1 per minute

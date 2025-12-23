@@ -1,7 +1,8 @@
 {
 	"type": "module",
 	"devDependencies": {
-		"@misskey-dev/eslint-plugin": "2.1.0",
+		"@misskey-dev/eslint-plugin": "2.2.0",
+		"@stylistic/eslint-plugin": "5.6.1",
 		"typescript": "5.9.2"
 	}
 }

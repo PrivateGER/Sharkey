@@ -27,7 +27,7 @@ import type {
 	PublicKeyCredentialCreationOptionsJSON,
 	PublicKeyCredentialRequestOptionsJSON,
 	RegistrationResponseJSON,
-} from '@simplewebauthn/types';
+} from '@simplewebauthn/server';
 
 @Injectable()
 export class WebAuthnService {
