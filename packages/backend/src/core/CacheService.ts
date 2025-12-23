@@ -576,10 +576,12 @@ export class CacheService implements OnApplicationShutdown {
 		this.hibernatedUserCache.on('changed', this.onHibernatedUserCacheChanged);
 
 		// Update memory caches from local *and remote* events since the cache doesn't sync automatically.
-		this.internalEventService.on('follow', this.onFollowEvent);
-		this.internalEventService.on('unfollow', this.onFollowEvent);
+		this.internalEventService.on('follow', this.onInternalFollowEvent);
+		this.internalEventService.on('unfollow', this.onInternalFollowEvent);
 
 		// Update quantum caches from local events only, because the cache will automatically produce new sync events.
+		this.internalEventService.on('follow', this.onExternalFollowEvent, { ignoreRemote: true });
+		this.internalEventService.on('unfollow', this.onExternalFollowEvent, { ignoreRemote: true });
 		this.internalEventService.on('usersUpdated', this.onUserChangeEvent, { ignoreRemote: true });
 		this.internalEventService.on('userChangeSuspendedState', this.onUserChangeEvent, { ignoreRemote: true });
 		this.internalEventService.on('remoteUserUpdated', this.onUserChangeEvent, { ignoreRemote: true });
@@ -671,38 +673,25 @@ export class CacheService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async onFollowEvent<E extends 'follow' | 'unfollow'>(body: InternalEventTypes[E], type: E): Promise<void> {
-		{
-			// TODO should we filter for local/remote events?
-			switch (type) {
-				case 'follow': {
-					const follower = this.userByIdCache.getMaybe(body.followerId);
-					if (follower) follower.followingCount++;
-					const followee = this.userByIdCache.getMaybe(body.followeeId);
-					if (followee) followee.followersCount++;
-					await Promise.all([
-						this.userFollowingsCache.delete(body.followerId),
-						this.userFollowersCache.delete(body.followeeId),
-					]);
-					this.userFollowStatsCache.delete(body.followerId);
-					this.userFollowStatsCache.delete(body.followeeId);
-					break;
-				}
-				case 'unfollow': {
-					const follower = this.userByIdCache.getMaybe(body.followerId);
-					if (follower) follower.followingCount--;
-					const followee = this.userByIdCache.getMaybe(body.followeeId);
-					if (followee) followee.followersCount--;
-					await Promise.all([
-						this.userFollowingsCache.delete(body.followerId),
-						this.userFollowersCache.delete(body.followeeId),
-					]);
-					this.userFollowStatsCache.delete(body.followerId);
-					this.userFollowStatsCache.delete(body.followeeId);
-					break;
-				}
-			}
-		}
+	private onExternalFollowEvent<E extends 'follow' | 'unfollow'>(body: InternalEventTypes[E], type: E): void {
+		const adjustment = type === 'follow' ? 1 : -1;
+
+		const follower = this.userByIdCache.getMaybe(body.followerId);
+		if (follower) follower.followingCount += adjustment;
+
+		const followee = this.userByIdCache.getMaybe(body.followeeId);
+		if (followee) followee.followersCount += adjustment;
+
+		this.userFollowStatsCache.delete(body.followerId);
+		this.userFollowStatsCache.delete(body.followeeId);
+	}
+
+	@bindThis
+	private async onInternalFollowEvent<E extends 'follow' | 'unfollow'>(body: InternalEventTypes[E]): Promise<void> {
+		await Promise.all([
+			this.userFollowingsCache.delete(body.followerId),
+			this.userFollowersCache.delete(body.followeeId),
+		]);
 	}
 
 	@bindThis
@@ -951,9 +940,11 @@ export class CacheService implements OnApplicationShutdown {
 	public dispose(): void {
 		this.hibernatedUserCache.off('changed', this.onHibernatedUserCacheChanged);
 
-		this.internalEventService.off('follow', this.onFollowEvent);
-		this.internalEventService.off('unfollow', this.onFollowEvent);
+		this.internalEventService.off('follow', this.onExternalFollowEvent);
+		this.internalEventService.off('unfollow', this.onExternalFollowEvent);
 
+		this.internalEventService.off('follow', this.onInternalFollowEvent);
+		this.internalEventService.off('unfollow', this.onInternalFollowEvent);
 		this.internalEventService.off('usersUpdated', this.onUserChangeEvent);
 		this.internalEventService.off('userChangeSuspendedState', this.onUserChangeEvent);
 		this.internalEventService.off('remoteUserUpdated', this.onUserChangeEvent);
