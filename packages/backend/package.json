@@ -22,6 +22,7 @@
 		"watch": "pnpm run build:pre && node ./scripts/watch.mjs",
 		"restart": "pnpm build && pnpm start",
 		"dev": "pnpm run build:pre && node ./scripts/dev.mjs",
+		"dev:fast": "node ./scripts/dev.mjs",
 		"typecheck-all": "pnpm run --no-bail build:pre && pnpm run --no-bail typecheck:scripts && pnpm run --no-bail typecheck:backend && pnpm run --no-bail typecheck:frontend && pnpm run --no-bail typecheck:test && pnpm run --no-bail typecheck:test-federation && pnpm run --no-bail typecheck:test-server",
 		"typecheck": "pnpm run build:pre && pnpm run typecheck:scripts && pnpm run typecheck:backend && pnpm run typecheck:frontend && pnpm run typecheck:test && pnpm run typecheck:test-federation && pnpm run typecheck:test-server",
 		"typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",

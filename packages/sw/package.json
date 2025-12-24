@@ -3,6 +3,7 @@
 	"private": true,
 	"scripts": {
 		"watch": "nodemon -w ../../package.json -e json --exec \"node build.js watch\"",
+		"watch:fast": "nodemon -w ../../package.json -e json --exec \"node build.js watch --no-clean\"",
 		"build": "node build.js",
 		"typecheck-all": "pnpm run --no-bail typecheck:sw && pnpm run --no-bail typecheck:scripts",
 		"typecheck": "pnpm run typecheck:sw && pnpm run typecheck:scripts",

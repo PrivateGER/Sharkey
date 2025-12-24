@@ -17,6 +17,7 @@
 	"scripts": {
 		"build": "node ./build.js",
 		"watch": "nodemon -w package.json -e json --exec \"node ./build.js --watch\"",
+		"watch:fast": "nodemon -w package.json -e json --exec \"node ./build.js --watch --no-clean\"",
 		"eslint": "eslint --quiet --cache -c eslint.config.js .",
 		"typecheck-all": "pnpm run --no-bail typecheck:game && pnpm run --no-bail typecheck:scripts",
 		"typecheck": "pnpm run typecheck:game && pnpm run typecheck:scripts",

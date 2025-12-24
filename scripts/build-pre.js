@@ -43,7 +43,9 @@ function build() {
 	}
 }
 
-build();
+if (!process.argv.includes('--fast')) {
+	build();
+}
 
 if (process.argv.includes("--watch")) {
 	fs.watch(packageJsonPath, (event, filename) => {

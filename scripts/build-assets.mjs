@@ -114,7 +114,9 @@ async function build() {
   ]);
 }
 
-await build();
+if (!process.argv.includes('--fast')) {
+	await build();
+}
 
 if (process.argv.includes('--watch')) {
 	const watcher = fs.watch('./locales');

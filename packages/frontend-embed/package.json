@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"watch": "node scripts/vue.mjs vite",
+		"watch:fast": "pnpm run watch",
 		"build": "node scripts/vue.mjs vite build",
 		"build:pre": "pnpm run -w build-pre && pnpm run --filter misskey-js build && pnpm run --filter sw build && pnpm run --filter frontend-shared build",
 		"typecheck-all": "pnpm run --no-bail typecheck:vue && pnpm run --no-bail typecheck:scripts",
