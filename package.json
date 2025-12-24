@@ -60,10 +60,10 @@
 		"jws": "4.0.1",
 		"body-parser": "2.2.1",
 		"mdast-util-to-hast": "13.2.1",
-		"node-domexception": "-",
-		"parse5": "-",
-		"parse5-htmlparser2-tree-adapter": "-",
-		"parse5-parser-stream": "-"
+		"node-domexception": "workspace:stub@*",
+		"parse5": "workspace:stub@*",
+		"parse5-htmlparser2-tree-adapter": "workspace:stub@*",
+		"parse5-parser-stream": "workspace:stub@*"
 	},
 	"dependencies": {
 		"js-yaml": "4.1.1"

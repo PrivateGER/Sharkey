@@ -9,6 +9,7 @@ packages:
   - packages/misskey-js/generator
   - packages/misskey-reversi
   - packages/misskey-bubble-game
+  - packages/stub
 
 ignorePatchFailures: false
 
