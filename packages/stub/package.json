@@ -1,6 +1,6 @@
 {
 	"name": "stub",
-	"type": "module",
+	"type": "commonjs",
 	"private": true,
 	"description": "Stub package used for replacing unused dependencies",
 	"main": "./index.js",

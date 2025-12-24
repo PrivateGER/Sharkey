@@ -12,4 +12,4 @@ const proxy = new Proxy({}, {
 	},
 });
 
-export default proxy;
+module.exports = proxy;
