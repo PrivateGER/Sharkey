@@ -6,7 +6,7 @@
 		"type": "git",
 		"url": "https://activitypub.software/TransFem-org/Sharkey.git"
 	},
-	"packageManager": "pnpm@10.16.0",
+	"packageManager": "pnpm@10.26.2",
 	"workspaces": [
 		"packages/frontend-shared",
 		"packages/frontend",
