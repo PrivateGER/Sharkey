@@ -159,9 +159,9 @@ export class UserAuthService {
 	@bindThis
 	private async checkPasswordHash(userProfile: MiUserProfile, expectedHash: string, providedPassword: string): Promise<boolean> {
 		try {
-			if (providedPassword.startsWith('$argon2')) {
+			if (expectedHash.startsWith('$argon2')) {
 				return await this.checkArgon2(userProfile, expectedHash, providedPassword);
-			} else if (providedPassword.startsWith('$2')) {
+			} else if (expectedHash.startsWith('$2')) {
 				return await this.checkBcrypt(userProfile, expectedHash, providedPassword);
 			} else {
 				this.logger.warn(`Found unsupported password hash for user ${userProfile.userId} - please check!`);
