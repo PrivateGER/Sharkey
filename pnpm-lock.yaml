@@ -66,9 +66,6 @@ importers:
       ncp:
         specifier: 2.0.0
         version: 2.0.0
-      pnpm:
-        specifier: 10.17.1
-        version: 10.17.1
       postcss:
         specifier: 8.5.6
         version: 8.5.6
@@ -283,9 +280,6 @@ importers:
       mime-types:
         specifier: 3.0.1
         version: 3.0.1
-      misskey-js:
-        specifier: workspace:*
-        version: link:../misskey-js
       misskey-reversi:
         specifier: workspace:*
         version: link:../misskey-reversi
@@ -563,6 +557,9 @@ importers:
       jest-mock:
         specifier: 30.2.0
         version: 30.2.0
+      misskey-js:
+        specifier: workspace:*
+        version: link:../misskey-js
       nodemon:
         specifier: 3.1.10
         version: 3.1.10
@@ -8694,11 +8691,6 @@ packages:
   pngjs@5.0.0:
     resolution: {integrity: sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==}
     engines: {node: '>=10.13.0'}
-
-  pnpm@10.17.1:
-    resolution: {integrity: sha512-F8Vg/KSGeulHOjiZrYSogzSRTzeb5G1FXL+S5c9LOdNJhdRS0lg7rxmWf6dstcF7yeJFUp0LmHRXIapyAOyveg==}
-    engines: {node: '>=18.12'}
-    hasBin: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -19866,8 +19858,6 @@ snapshots:
   pluralize@8.0.0: {}
 
   pngjs@5.0.0: {}
-
-  pnpm@10.17.1: {}
 
   possible-typed-array-names@1.1.0: {}
 
