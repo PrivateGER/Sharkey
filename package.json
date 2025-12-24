@@ -15,7 +15,10 @@
 		"packages/sw",
 		"packages/misskey-js",
 		"packages/misskey-reversi",
-		"packages/misskey-bubble-game"
+		"packages/misskey-bubble-game",
+		"packages/megalodon",
+		"packages/shared",
+		"packages/stub"
 	],
 	"private": true,
 	"scripts": {
