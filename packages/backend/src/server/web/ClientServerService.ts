@@ -42,6 +42,8 @@ import type {
 } from '@/models/_.js';
 import type Logger from '@/logger.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
+import { isIdentifiableError } from '@/misc/identifiable-error.js';
 import { bindThis } from '@/decorators.js';
 import { FlashEntityService } from '@/core/entities/FlashEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
@@ -943,18 +945,16 @@ export class ClientServerService {
 
 		fastify.setErrorHandler(async (error, request, reply) => {
 			const errId = randomUUID();
-			this.clientLoggerService.logger.error(`Internal error occurred in ${request.routeOptions.url}: ${error.message}`, {
-				path: request.routeOptions.url,
-				params: request.params,
-				query: request.query,
-				code: error.name,
-				stack: error.stack,
-				id: errId,
-			});
+			const errCode = isIdentifiableError(error)
+				? error.id
+				: (typeof(error) === 'object' && error != null && 'code' in error)
+					? String(error.code)
+					: null;
+			this.clientLoggerService.logger.error(`Internal error occurred in ${request.routeOptions.url}: ${renderInlineError(error)}`);
 			reply.code(500);
 			reply.header('Cache-Control', 'max-age=10, must-revalidate');
 			return await reply.view('error', {
-				code: error.code,
+				code: errCode,
 				id: errId,
 			});
 		});
