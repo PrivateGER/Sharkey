@@ -17,7 +17,7 @@
 		"typecheck:vue": "vue-tsc -p tsconfig.vue.json --noEmit",
 		"typecheck:test": "vue-tsc -p test/tsconfig.json --noEmit",
 		"typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
-		"typecheck:storybook": "tsc -p tsconfig.storybook.json --noEmit",
+		"typecheck:storybook": "tsc -p .storybook/tsconfig.storybook.json --noEmit",
 		"eslint": "eslint --quiet --cache -c eslint.config.js .",
 		"lint": "pnpm typecheck && pnpm eslint"
 	},

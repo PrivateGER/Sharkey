@@ -211,7 +211,7 @@ export default [
 		languageOptions: {
 			parserOptions: {
 				parser: tsParser,
-				project: ['tsconfig.storybook.json'],
+				project: ['.storybook/tsconfig.json'],
 				sourceType: 'module',
 				tsconfigRootDir: import.meta.dirname,
 			},
