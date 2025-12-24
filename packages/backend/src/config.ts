@@ -364,16 +364,12 @@ const _dirname = dirname(_filename);
 /**
  * Path of configuration directory
  */
-const dir = process.env.MISSKEY_CONFIG_DIR ?? `${_dirname}/../../../.config`;
+const dir = resolve(process.env.MISSKEY_CONFIG_DIR ?? `${_dirname}/../../../.config`);
 
 /**
  * Path of configuration file
  */
-const path = process.env.MISSKEY_CONFIG_YML
-	? resolve(dir, process.env.MISSKEY_CONFIG_YML)
-	: process.env.NODE_ENV === 'test'
-		? resolve(dir, 'test.yml')
-		: resolve(dir, 'default.yml');
+const path = process.env.MISSKEY_CONFIG_YML ?? (process.env.NODE_ENV === 'test' ? 'test.yml' : 'default.yml');
 
 export function loadConfig(loggerService: LoggerService): Config {
 	const configLogger = loggerService.getLogger('config');
@@ -389,7 +385,7 @@ export function loadConfig(loggerService: LoggerService): Config {
 		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_embed_vite_/manifest.json`, 'utf-8'))
 		: { 'src/boot.ts': { file: 'src/boot.ts' } };
 
-	const configFiles = fastGlob.globSync(path).sort();
+	const configFiles = fastGlob.globSync(path, { cwd: dir, absolute: true }).sort();
 
 	if (configFiles.length === 0
 			&& !process.env['MK_WARNED_ABOUT_CONFIG']) {
