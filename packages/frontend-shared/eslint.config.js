@@ -131,6 +131,7 @@ export default [
 			// See https://github.com/misskey-dev/misskey/pull/15311
 			'js/i18n.ts',
 			'js-built/',
+			'built/',
 			'**/lib/',
 			'**/temp/',
 			'**/built/',

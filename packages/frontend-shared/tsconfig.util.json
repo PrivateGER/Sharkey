@@ -3,8 +3,8 @@
 	"extends": "../shared/tsconfig.lib.jsonc",
 	"compilerOptions": {
 		"noImplicitAny": false,
-		"outDir": "js-built/util",
-		"rootDir": "util"
+		"outDir": "./built/util",
+		"rootDir": "./util"
 	},
 	"include": [
 		"util/**/*.js",
@@ -12,6 +12,9 @@
 	],
 	"exclude": [
 		"node_modules",
-		"js-built"
+		"js-built",
+		"built",
+		"*.js",
+		"*.ts"
 	]
 }

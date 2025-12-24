@@ -10,7 +10,6 @@
 		"node_modules",
 		"built",
 		"built-test",
-		"js-built",
 		"temp",
 		"coverage",
 		"ormconfig.js",

@@ -1,23 +1,12 @@
 {
 	"name": "frontend-shared",
 	"type": "module",
-	"main": "./js-built/index.js",
-	"types": "./js-built/index.d.ts",
-	"exports": {
-		".": {
-			"import": "./js-built/index.js",
-			"types": "./js-built/index.d.ts"
-		},
-		"./*": {
-			"import": "./js-built/*",
-			"types": "./js-built/*"
-		}
-	},
 	"scripts": {
 		"build": "pnpm run build:js && pnpm run build:util",
 		"build:js": "node ./build.js",
 		"build:util": "tsc -p tsconfig.util.json",
-		"watch": "nodemon -w package.json -e json --exec \"node ./build.js --watch\"",
+		"watch": "pnpm run build:util && nodemon -w package.json -e json --exec \"node ./build.js --watch\"",
+		"watch:fast": "nodemon -w package.json -e json --exec \"node ./build.js --watch --no-clean\"",
 		"eslint": "eslint --quiet --cache -c eslint.config.js .",
 		"typecheck-all": "pnpm run --no-bail typecheck:scripts && pnpm run --no-bail typecheck:util && pnpm run --no-bail typecheck:web",
 		"typecheck": "pnpm run typecheck:scripts && pnpm run typecheck:util && pnpm run typecheck:web",
@@ -43,7 +32,8 @@
 		"vue-eslint-parser": "10.2.0"
 	},
 	"files": [
-		"js-built"
+		"built/js",
+		"built/util"
 	],
 	"dependencies": {
 		"buraha": "0.0.1",

@@ -16,7 +16,7 @@ const entryPoints = fastGlob.globSync('./js/**/**.{ts,tsx}');
 const options = {
 	entryPoints,
 	minify: process.env.NODE_ENV === 'production',
-	outdir: './js-built/js',
+	outdir: './built/js',
 	target: 'es2022',
 	platform: 'browser',
 	format: 'esm',
@@ -26,9 +26,9 @@ const options = {
 
 const args = process.argv.slice(2).map(arg => arg.toLowerCase());
 
-// js-built配下をすべて削除する
+// built配下をすべて削除する
 if (!args.includes('--no-clean')) {
-	fs.rmSync('./js-built', { recursive: true, force: true });
+	fs.rmSync('./built/js', { recursive: true, force: true });
 }
 
 if (args.includes('--watch')) {
@@ -55,7 +55,7 @@ async function buildSrc() {
 		await buildDts();
 	}
 
-	fs.copyFileSync('./js/emojilist.json', './js-built/emojilist.json');
+	fs.copyFileSync('./js/emojilist.json', './built/js/emojilist.json');
 
 	console.log(`[${_package.name}] finish building.`);
 }
@@ -65,7 +65,7 @@ function buildDts() {
 		'tsc',
 		[
 			'--project', 'tsconfig.web.json',
-			'--outDir', 'js-built',
+			'--outDir', './built/js',
 			'--declaration', 'true',
 			'--emitDeclarationOnly', 'true',
 		],

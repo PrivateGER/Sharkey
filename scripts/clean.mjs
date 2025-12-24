@@ -81,7 +81,6 @@ const cleanTasks = process.argv
 			const builtDirs = [
 				...appendToRoots('built'),
 				...appendToRoots('built-test'),
-				...appendToRoots('js-built'),
 			];
 			return builtDirs.map(builtDir => nodeFs.rm(builtDir, rmOpts));
 		} else if (mode === 'deps') {
