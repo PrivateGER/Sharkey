@@ -22,6 +22,7 @@
 	],
 	"private": true,
 	"scripts": {
+		"rebuild": "pnpm run clean-all && pnpm i && git submodule update --init && pnpm run build-pre && pnpm run build-assets && pnpm run build-misskey-js-with-types && pnpm -r build",
 		"build-pre": "node ./scripts/build-pre.js",
 		"build-assets": "node ./scripts/build-assets.mjs",
 		"build": "pnpm build-pre && pnpm -r build && pnpm build-assets",
