@@ -17,6 +17,8 @@ import { bindThis } from '@/decorators.js';
 import type { Antenna } from '@/server/api/endpoints/i/import-antennas.js';
 import { ApRequestCreator } from '@/core/activitypub/ApRequestService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 import type { SystemWebhookPayload } from '@/core/SystemWebhookService.js';
 import type { MiNote } from '@/models/Note.js';
 import type { MinimalNote } from '@/misc/is-renote.js';
@@ -62,6 +64,8 @@ export const QUEUE_TYPES = [
 
 @Injectable()
 export class QueueService implements OnModuleInit {
+	private readonly logger: Logger;
+
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
@@ -79,10 +83,43 @@ export class QueueService implements OnModuleInit {
 		@Inject('queue:backgroundTask') public readonly backgroundTaskQueue: BackgroundTaskQueue,
 
 		private readonly timeService: TimeService,
-	) {}
+
+		loggerService: LoggerService,
+	) {
+		this.logger = loggerService.getLogger('queue-service');
+	}
 
 	@bindThis
 	public async onModuleInit() {
+		// Remove any obsolete scheduled jobs
+		const removeScheduleJobs = async (jobs: { key: string, id?: string | null, name?: string | null }[]) => {
+			for (const job of jobs) {
+				// Known schedulers will be updated below.
+				if (job.id === 'tickCharts-scheduler' || job.key === 'tickCharts-scheduler') continue;
+				if (job.id === 'resyncCharts-scheduler' || job.key === 'resyncCharts-scheduler') continue;
+				if (job.id === 'cleanCharts-scheduler' || job.key === 'cleanCharts-scheduler') continue;
+				if (job.id === 'aggregateRetention-scheduler' || job.key === 'aggregateRetention-scheduler') continue;
+				if (job.id === 'clean-scheduler' || job.key === 'clean-scheduler') continue;
+				if (job.id === 'checkExpiredMutings-scheduler' || job.key === 'checkExpiredMutings-scheduler') continue;
+				if (job.id === 'bakeBufferedReactions-scheduler' || job.key === 'bakeBufferedReactions-scheduler') continue;
+				if (job.id === 'checkModeratorsActivity-scheduler' || job.key === 'checkModeratorsActivity-scheduler') continue;
+				if (job.id === 'cleanupApLogs-scheduler' || job.key === 'cleanupApLogs-scheduler') continue;
+				if (job.id === 'hibernateUsers-scheduler' || job.key === 'hibernateUsers-scheduler') continue;
+
+				if (job.id) {
+					this.logger.info(`Removing obsolete job scheduler key=${job.key} id=${job.id} name=${job.name}`);
+					await this.systemQueue.removeJobScheduler(job.id);
+				} else {
+					this.logger.info(`Removing obsolete repeatable job key=${job.key} id=${job.id} name=${job.name}`);
+					await this.systemQueue.removeRepeatableByKey(job.key);
+				}
+			}
+		};
+
+		// These have to be separate, since there's some unpredictable overlap between the results!
+		await removeScheduleJobs(await this.systemQueue.getJobSchedulers());
+		await removeScheduleJobs(await this.systemQueue.getRepeatableJobs());
+
 		await this.systemQueue.upsertJobScheduler(
 			'tickCharts-scheduler',
 			{ pattern: '0 * * * *' }, // every hour at :00
