@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { IsNull } from 'typeorm';
-import * as Misskey from 'misskey-js';
+import type * as Misskey from 'misskey-js';
 import { DI } from '@/di-symbols.js';
 import type {
 	MiMeta,
