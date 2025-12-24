@@ -4,7 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { reversiUpdateKeys } from 'misskey-js';
+import { reversiUpdateKeys } from '@/const.js';
 import type { MiReversiGame } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { ReversiService } from '@/core/ReversiService.js';
