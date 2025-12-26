@@ -460,7 +460,7 @@ export class QueryService {
 	}
 
 	/**
-	 * Adds OR condition that noteProp (note ID) refers to a renote.
+	 * Adds OR condition that noteProp (note ID) refers to a pure renote (boost).
 	 * The prop should be an expression, not a raw value.
 	 */
 	@bindThis
@@ -469,7 +469,7 @@ export class QueryService {
 	}
 
 	/**
-	 * Adds AND condition that noteProp (note ID) refers to a renote.
+	 * Adds AND condition that noteProp (note ID) refers to a pure renote (boost).
 	 * The prop should be an expression, not a raw value.
 	 */
 	@bindThis
