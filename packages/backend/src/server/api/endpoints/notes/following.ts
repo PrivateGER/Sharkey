@@ -170,7 +170,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.activeUsersChart.read(me);
 			});
 
-			return await this.noteEntityService.packMany(notes, me, { skipHide: true });
+			return await this.noteEntityService.packMany(notes, me);
 		});
 	}
 }
