@@ -8,6 +8,8 @@ import type { FollowingsRepository, UsersRepository } from '@/models/_.js';
 import type { MiUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
+import { isLocalUser } from '@/models/User.js';
+import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { SystemWebhookService } from '@/core/SystemWebhookService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
@@ -24,12 +26,29 @@ export class UserService {
 		private userEntityService: UserEntityService,
 		private readonly collapsedQueueService: CollapsedQueueService,
 		private readonly timeService: TimeService,
+		private readonly activeUsersChart: ActiveUsersChart,
 	) {
 	}
 
 	@bindThis
-	public updateLastActiveDate(user: MiUser): void {
-		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { lastActiveDate: this.timeService.date });
+	public markUserActive(user: MiUser, write = false): void {
+		const now = this.timeService.date;
+		this.collapsedQueueService.updateUserQueue.enqueue(user.id, {
+			// All actions tick lastActiveDate
+			lastActiveDate: now,
+
+			// Write (active) actions tick updatedAt
+			updatedAt: write ? now : undefined,
+		});
+
+		// Local actions tick activeUsersChart
+		if (isLocalUser(user)) {
+			if (write) {
+				this.activeUsersChart.write(user);
+			} else {
+				this.activeUsersChart.read(user);
+			}
+		}
 	}
 
 	/**

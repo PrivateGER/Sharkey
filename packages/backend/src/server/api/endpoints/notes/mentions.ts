@@ -8,10 +8,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { NotesRepository, FollowingsRepository } from '@/models/_.js';
 import { MiNote } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
+import { UserService } from '@/core/UserService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
-import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -59,9 +59,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
-		private readonly activeUsersChart: ActiveUsersChart,
+		private readonly userService: UserService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			this.userService.markUserActive(me);
+
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), ps.sinceId, ps.untilId)
 				.innerJoin(qb => {
 					qb
@@ -109,11 +111,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit);
 
 			const mentions = await query.getMany();
-
-			process.nextTick(() => {
-				this.activeUsersChart.read(me);
-			});
-
 			return await this.noteEntityService.packMany(mentions, me);
 		});
 	}

@@ -272,11 +272,11 @@ export class StreamingApiServerService implements OnApplicationShutdown {
 
 			this.#connections.set(connection, this.timeService.now);
 
-			const userUpdateIntervalId = user ? this.timeService.startTimer(async () => {
-				this.usersService.updateLastActiveDate(user);
+			const userUpdateIntervalId = user ? this.timeService.startTimer(() => {
+				this.usersService.markUserActive(user);
 			}, 1000 * 60 * 5, { repeated: true }) : null;
 			if (user) {
-				this.usersService.updateLastActiveDate(user);
+				this.usersService.markUserActive(user);
 			}
 			const pong = () => {
 				this.#connections.set(connection, this.timeService.now);

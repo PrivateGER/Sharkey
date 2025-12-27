@@ -10,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteDeleteService } from '@/core/NoteDeleteService.js';
 import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { UserService } from '@/core/UserService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { trackTask } from '@/misc/promise-tracker.js';
 import { ApiError } from '../../error.js';
@@ -56,12 +57,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private getterService: GetterService,
 		private noteDeleteService: NoteDeleteService,
 		private readonly queryService: QueryService,
+		private readonly userService: UserService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const note = await this.getterService.getNote(ps.noteId).catch(err => {
 				if (err.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 				throw err;
 			});
+
+			this.userService.markUserActive(me, true);
 
 			const query = this.notesRepository.createQueryBuilder('note')
 				.where({

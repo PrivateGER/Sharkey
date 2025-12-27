@@ -19,6 +19,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import { ApRequestService } from '@/core/activitypub/ApRequestService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { UserService } from '@/core/UserService.js';
 import { ApiError } from '../../error.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 
@@ -120,8 +121,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private apNoteService: ApNoteService,
 		private readonly apRequestService: ApRequestService,
 		private readonly systemAccountService: SystemAccountService,
+		private readonly userService: UserService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			this.userService.markUserActive(me);
+
 			const object = await this.fetchAny(ps.uri, me);
 			if (object) {
 				return object;
