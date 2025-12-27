@@ -8,17 +8,17 @@
 	},
 	"packageManager": "pnpm@10.26.2",
 	"workspaces": [
-		"packages/frontend-shared",
+		"packages/backend",
 		"packages/frontend",
 		"packages/frontend-embed",
-		"packages/backend",
-		"packages/sw",
+		"packages/frontend-shared",
+		"packages/megalodon",
+		"packages/misskey-bubble-game",
 		"packages/misskey-js",
 		"packages/misskey-reversi",
-		"packages/misskey-bubble-game",
-		"packages/megalodon",
 		"packages/shared",
-		"packages/stub"
+		"packages/stub",
+		"packages/sw"
 	],
 	"private": true,
 	"scripts": {
@@ -76,14 +76,14 @@
 		"cypress": "15.3.0"
 	},
 	"devDependencies": {
-		"@misskey-dev/eslint-plugin": "2.1.0",
+		"@misskey-dev/eslint-plugin": "2.2.0",
 		"@types/node": "22.18.1",
-		"@typescript-eslint/eslint-plugin": "8.44.1",
-		"@typescript-eslint/parser": "8.44.1",
+		"@typescript-eslint/eslint-plugin": "8.50.1",
+		"@typescript-eslint/parser": "8.50.1",
 		"cross-env": "10.0.0",
 		"cssnano": "7.1.1",
 		"esbuild": "0.25.10",
-		"eslint": "9.36.0",
+		"eslint": "9.39.2",
 		"execa": "9.6.0",
 		"fast-glob": "3.3.3",
 		"globals": "16.4.0",

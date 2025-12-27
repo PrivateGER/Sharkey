@@ -1,15 +1,16 @@
 packages:
   - packages/backend
-  - packages/frontend-shared
   - packages/frontend
   - packages/frontend-embed
-  - packages/sw
+  - packages/frontend-shared
   - packages/megalodon
+  - packages/misskey-bubble-game
   - packages/misskey-js
   - packages/misskey-js/generator
   - packages/misskey-reversi
-  - packages/misskey-bubble-game
+  - packages/shared
   - packages/stub
+  - packages/sw
 
 ignorePatchFailures: false
 
