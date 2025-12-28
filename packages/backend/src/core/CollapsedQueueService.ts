@@ -270,8 +270,8 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 						await this.internalEventService.emit('userUpdated', { id });
 
 						if (isWakingUp) {
-							// Cache event is covered by user sync above
 							await this.followingsRepository.update({ followerId: id }, { isFollowerHibernated: false });
+							await this.internalEventService.emit('userChangeHibernatedState', { id, isHibernated: false });
 						}
 					},
 			},
