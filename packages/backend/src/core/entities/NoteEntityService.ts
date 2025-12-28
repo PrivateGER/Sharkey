@@ -522,7 +522,6 @@ export class NoteEntityService implements OnModuleInit {
 				myReactions: Map<MiNote['id'], string | null>;
 				packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>;
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>;
-				mentionHandles: Record<string, string | undefined>;
 				userFollowings: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>;
 				userBlockers: Set<string>;
 				polls: Map<string, MiPoll>;
@@ -594,6 +593,10 @@ export class NoteEntityService implements OnModuleInit {
 
 		const bypassSilence = opts.bypassSilence || note.userId === meId;
 
+		const mentionHandlesPromise = note.mentions.length > 0
+			? Promise.resolve(options?._hint_?.mentionHandles ?? this.getUserHandles(note.mentions))
+			: null;
+
 		// noinspection ES6MissingAwait
 		const packed: Packed<'Note'> = await awaitAll({
 			id: note.id,
@@ -632,7 +635,7 @@ export class NoteEntityService implements OnModuleInit {
 				userId: channel.userId,
 			} : undefined,
 			mentions: note.mentions.length > 0 ? note.mentions : undefined,
-			mentionHandles: note.mentions.length > 0 ? this.getUserHandles(note.mentions, options?._hint_?.mentionHandles) : undefined,
+			mentionHandles: mentionHandlesPromise?.then(mentionHandles => Object.fromEntries(mentionHandles.entries())),
 			uri: note.uri ?? undefined,
 			url: note.url ?? undefined,
 			poll: note.hasPoll ? this.populatePoll(note, meId, {
@@ -925,36 +928,21 @@ export class NoteEntityService implements OnModuleInit {
 		});
 	}
 
-	private async getUserHandles(userIds: string[], hint?: Record<string, string | undefined>): Promise<Record<string, string | undefined>> {
-		if (userIds.length < 1) return {};
-
-		// Hint is provided by packMany to avoid N+1 queries.
-		// It should already include all existing mentioned users.
-		if (hint) {
-			const handles = {} as Record<string, string | undefined>;
-			for (const id of userIds) {
-				handles[id] = hint[id];
-			}
-			return handles;
+	private async getUserHandles(userIds: string[]): Promise<Map<string, string>> {
+		if (userIds.length < 1) {
+			return new Map();
 		}
 
-		const users = await this.usersRepository.find({
-			select: {
-				id: true,
-				username: true,
-				host: true,
-			},
-			where: {
-				id: In(userIds),
-			},
-		});
-
-		return users.reduce((map, user) => {
-			map[user.id] = user.host
-				? `@${user.username}@${user.host}`
-				: `@${user.username}`;
-			return map;
-		}, {} as Record<string, string | undefined>);
+		const users = await this.cacheService.findUsersById(userIds);
+		const userHandles = users
+			.entries()
+			.map(([id, user]) => {
+				const handle = user.host
+					? `@${user.username}@${user.host}`
+					: `@${user.username}`;
+				return [id, handle] as const;
+			});
+		return new Map(userHandles);
 	}
 
 	private async getChannels(notes: MiNote[]): Promise<Map<string, MiChannel>> {
