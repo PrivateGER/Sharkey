@@ -232,6 +232,7 @@ export interface InternalEventTypes {
 	userChangeSuspendedState: { id: MiUser['id']; isSuspended: MiUser['isSuspended']; };
 	userChangeDeletedState: { id: MiUser['id']; isDeleted: MiUser['isDeleted']; token: string | null, uri: string | null, usernameLower: string, host: string | null };
 	userChangeHibernatedState: { id: MiUser['id'] | MiUser['id'][]; isHibernated: MiUser['isHibernated']; };
+	userMemoChanged: { userId: MiUser['id'], targetUserId: MiUser['id'], memo: string | null };
 	userTokenRegenerated: { id: MiUser['id']; oldToken: string | null; newToken: string; };
 	/** @deprecated Use userUpdated or usersUpdated instead */
 	remoteUserUpdated: { id: MiUser['id']; };
