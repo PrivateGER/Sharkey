@@ -14,6 +14,7 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
 import { isLocalUser } from '@/models/User.js';
 
@@ -35,14 +36,12 @@ export class DeleteAccountService {
 		private globalEventService: GlobalEventService,
 		private moderationLogService: ModerationLogService,
 		private systemAccountService: SystemAccountService,
+		private readonly internalEventService: InternalEventService,
 	) {
 	}
 
 	@bindThis
-	public async deleteAccount(user: {
-		id: string;
-		host: string | null;
-	}, moderator?: MiUser): Promise<void> {
+	public async deleteAccount(user: MiUser, moderator?: MiUser): Promise<void> {
 		if (this.meta.rootUserId === user.id) throw new Error('cannot delete a root account');
 
 		const _user = await this.usersRepository.findOneByOrFail({ id: user.id });
@@ -91,6 +90,6 @@ export class DeleteAccountService {
 			isDeleted: true,
 		});
 
-		this.globalEventService.publishInternalEvent('userChangeDeletedState', { id: user.id, isDeleted: true });
+		await this.internalEventService.emit('userChangeDeletedState', { id: user.id, isDeleted: true, token: user.token, uri: user.uri, usernameLower: user.usernameLower, host: user.host });
 	}
 }

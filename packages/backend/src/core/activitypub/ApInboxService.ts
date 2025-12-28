@@ -572,7 +572,7 @@ export class ApInboxService {
 
 		const job = await this.queueService.createDeleteAccountJob(actor);
 
-		await this.internalEventService.emit('userChangeDeletedState', { id: actor.id, isDeleted: true });
+		await this.internalEventService.emit('userChangeDeletedState', { id: actor.id, isDeleted: true, token: null, uri: actor.uri, usernameLower: actor.usernameLower, host: actor.host });
 
 		return `ok: queued ${job.name} ${job.id}`;
 	}
