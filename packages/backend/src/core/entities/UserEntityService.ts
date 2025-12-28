@@ -576,6 +576,11 @@ export class UserEntityService implements OnModuleInit {
 
 		const bypassSilence = isMe || (myFollowings ? myFollowings.has(user.id) : false);
 
+		// This is pulled out for readability, but needs to remain async until awaitAll() below.
+		const instancePromise = user.host != null
+			? Promise.resolve(opts.instances?.get(user.host) ?? this.federatedInstanceService.fetch(user.host))
+			: null;
+
 		// noinspection ES6MissingAwait
 		const packed = {
 			id: user.id,
@@ -611,7 +616,7 @@ export class UserEntityService implements OnModuleInit {
 			requireSigninToViewContents: user.requireSigninToViewContents === false ? undefined : true,
 			makeNotesFollowersOnlyBefore: user.makeNotesFollowersOnlyBefore ?? undefined,
 			makeNotesHiddenBefore: user.makeNotesHiddenBefore ?? undefined,
-			instance: user.host ? Promise.resolve(opts.instances?.has(user.host) ? opts.instances.get(user.host) : this.federatedInstanceService.fetch(user.host)).then(instance => instance ? {
+			instance: instancePromise?.then(instance => ({
 				name: instance.name,
 				softwareName: instance.softwareName,
 				softwareVersion: instance.softwareVersion,
@@ -620,7 +625,7 @@ export class UserEntityService implements OnModuleInit {
 				themeColor: instance.themeColor,
 				isSilenced: instance.isSilenced,
 				mandatoryCW: instance.mandatoryCW,
-			} : undefined) : undefined,
+			})),
 			followersCount: followersCount ?? 0,
 			followingCount: followingCount ?? 0,
 			notesCount: user.notesCount,
