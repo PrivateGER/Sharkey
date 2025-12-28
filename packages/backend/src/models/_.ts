@@ -318,7 +318,9 @@ export type RolesRepository = Repository<MiRole> & MiRepository<MiRole>;
 export type RoleAssignmentsRepository = Repository<MiRoleAssignment> & MiRepository<MiRoleAssignment>;
 export type FlashsRepository = Repository<MiFlash> & MiRepository<MiFlash>;
 export type FlashLikesRepository = Repository<MiFlashLike> & MiRepository<MiFlashLike>;
-export type UserMemoRepository = Repository<MiUserMemo> & MiRepository<MiUserMemo>;
+export type UserMemosRepository = Repository<MiUserMemo> & MiRepository<MiUserMemo>;
+/** @deprecated This overload has the wrong naming convention - use UserMemosRepository instead. */
+export type UserMemoRepository = UserMemosRepository;
 export type ChatMessagesRepository = Repository<MiChatMessage> & MiRepository<MiChatMessage>;
 export type ChatRoomsRepository = Repository<MiChatRoom> & MiRepository<MiChatRoom>;
 export type ChatRoomMembershipsRepository = Repository<MiChatRoomMembership> & MiRepository<MiChatRoomMembership>;
