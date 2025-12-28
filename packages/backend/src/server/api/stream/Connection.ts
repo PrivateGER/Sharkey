@@ -358,10 +358,11 @@ export default class Connection {
 		// we must not send to the frontend information about notes from
 		// users who blocked the logged-in user, even when they're replies
 		// to notes the logged-in user can see
-		if (data.type === 'replied') {
+		if (this.user != null && 'userId' in data.body.body) {
 			const noteUserId = data.body.body.userId;
-			if (noteUserId !== null) {
-				if (this.userIdsWhoBlockingMe.has(noteUserId)) {
+			if (noteUserId !== this.user.id) {
+				const relation = await this.cacheService.getUserRelation(noteUserId, this.user.id);
+				if (relation.isBlocking) {
 					return;
 				}
 			}
