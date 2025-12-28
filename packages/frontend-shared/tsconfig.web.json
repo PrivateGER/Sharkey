@@ -26,9 +26,13 @@
 		"./js/**/*.ts"
 	],
 	"exclude": [
-		"node_modules",
-		"js-built",
-		"built",
+		"**/node_modules",
+		"**/built",
+		"**/built-test",
+		"**/js-built",
+		"**/temp",
+		"**/coverage",
+		"**/*.min.js",
 		"*.js",
 		"*.ts"
 	]
