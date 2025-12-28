@@ -18,11 +18,8 @@ import { SearchService } from '@/core/SearchService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { ReactionService } from '@/core/ReactionService.js';
 import { QueueService } from '@/core/QueueService.js';
-import { CacheService } from '@/core/CacheService.js';
 import { NoteDeleteService } from '@/core/NoteDeleteService.js';
 import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
-import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
-import * as Acct from '@/misc/acct.js';
 import type * as Bull from 'bullmq';
 import type { DbUserDeleteJobData } from '../types.js';
 
@@ -98,8 +95,6 @@ export class DeleteAccountProcessorService {
 		private searchService: SearchService,
 		private reactionService: ReactionService,
 		private readonly apLogService: ApLogService,
-		private readonly cacheService: CacheService,
-		private readonly apPersonService: ApPersonService,
 		private readonly noteDeleteService: NoteDeleteService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('delete-account');
@@ -147,26 +142,6 @@ export class DeleteAccountProcessorService {
 		}
 
 		{ // Delete user relations
-			await this.cacheService.refreshFollowRelationsFor(user.id);
-			await this.cacheService.userFollowingsCache.delete(user.id);
-			await this.cacheService.userFollowingsCache.delete(user.id);
-			await this.cacheService.userBlockingCache.delete(user.id);
-			await this.cacheService.userBlockedCache.delete(user.id);
-			await this.cacheService.userMutingsCache.delete(user.id);
-			await this.cacheService.userMutingsCache.delete(user.id);
-			await this.cacheService.hibernatedUserCache.delete(user.id);
-			await this.cacheService.renoteMutingsCache.delete(user.id);
-			await this.cacheService.userProfileCache.delete(user.id);
-			await this.cacheService.userByIdCache.delete(user.id);
-			await this.cacheService.userByAcctCache.delete(Acct.toString({ username: user.usernameLower, host: user.host }));
-			await this.cacheService.userFollowStatsCache.delete(user.id);
-			if (user.token) {
-				await this.cacheService.nativeTokenCache.delete(user.token);
-			}
-			if (user.uri) {
-				await this.apPersonService.uriPersonCache.delete(user.uri);
-			}
-
 			await this.followingsRepository.delete({
 				followerId: user.id,
 			});
