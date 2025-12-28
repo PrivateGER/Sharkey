@@ -66,9 +66,6 @@ type Field = Record<'name' | 'value', string>;
 
 @Injectable()
 export class ApPersonService implements OnModuleInit {
-	// Moved from CacheService
-	public readonly uriPersonCache: ManagedQuantumKVCache<string>;
-
 	// Moved from ApDbResolverService
 	private readonly publicKeyByKeyIdCache: ManagedQuantumKVCache<MiUserPublickey>;
 	private readonly publicKeyByUserIdCache: ManagedQuantumKVCache<MiUserPublickey>;
@@ -282,7 +279,7 @@ export class ApPersonService implements OnModuleInit {
 		if (parsed.local) {
 			userId = parsed.type === 'users' ? parsed.id : null;
 		} else {
-			userId = await this.uriPersonCache.fetchMaybe(uri);
+			userId = await this.cacheService.uriPersonCache.fetchMaybe(uri);
 		}
 
 		// No match
@@ -541,7 +538,7 @@ export class ApPersonService implements OnModuleInit {
 		if (user == null) throw new Error(`failed to create user - user is null: ${uri}`);
 
 		// Register to the cache
-		await this.uriPersonCache.set(user.uri, user.id);
+		await this.cacheService.uriPersonCache.set(user.uri, user.id);
 
 		// Register public key to the cache.
 		if (publicKey) {

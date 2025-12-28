@@ -144,7 +144,7 @@ export class RemoteUserResolveService {
 
 		// Update URI
 		await this.usersRepository.update({ id: user.id }, { uri: href }); // Update the user
-		await this.apPersonService.uriPersonCache.delete(user.uri); // Unmap the old URI
+		await this.cacheService.uriPersonCache.delete(user.uri); // Unmap the old URI
 		await this.internalEventService.emit('remoteUserUpdated', { id: user.id }); // Update caches
 
 		this.logger.info(`Corrected URI for ${acct} from ${user.uri} to ${href}`);

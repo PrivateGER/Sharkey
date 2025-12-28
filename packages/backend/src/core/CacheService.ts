@@ -98,6 +98,11 @@ export class CacheService implements OnApplicationShutdown {
 	public readonly userByAcctCache: ManagedQuantumKVCache<string>;
 
 	/**
+	 * Maps actor URIs (key) to user IDs (value).
+	 */
+	public readonly uriPersonCache: ManagedQuantumKVCache<string>;
+
+	/**
 	 * Maps user IDs (key) to MiUserProfile instances (value).
 	 * This is the ONLY source for cached MiUserProfile entities!
 	 */
@@ -255,6 +260,31 @@ export class CacheService implements OnApplicationShutdown {
 				return res?.id;
 			},
 			// no bulkFetcher possible
+		});
+
+		this.uriPersonCache = this.cacheManagementService.createQuantumKVCache('uriPerson', {
+			lifetime: 1000 * 60 * 30, // 30m
+			fetcher: async (uri) => {
+				const { id } = await this.usersRepository.findOneOrFail({
+					where: { uri },
+					select: { id: true },
+				});
+				return id;
+			},
+			optionalFetcher: async (uri) => {
+				const res = await this.usersRepository.findOne({
+					where: { uri },
+					select: { id: true },
+				});
+				return res?.id;
+			},
+			bulkFetcher: async (uris) => {
+				const users = await this.usersRepository.find({
+					where: { uri: In(uris) },
+					select: { id: true, uri: true },
+				}) as { id: string, uri: string }[];
+				return users.map(user => [user.uri, user.id]);
+			},
 		});
 
 		this.userProfileCache = this.cacheManagementService.createQuantumKVCache('userProfile', {
@@ -633,7 +663,7 @@ export class CacheService implements OnApplicationShutdown {
 		await Promise.all([
 			this.userByIdCache.delete(body.id),
 			body.token ? this.nativeTokenCache.delete(body.token) : null,
-			//body.uri ? this.uriPersonCache.delete(body.uri) : null,
+			body.uri ? this.uriPersonCache.delete(body.uri) : null,
 			this.userByAcctCache.delete(Acct.toString({ username: body.usernameLower, host: body.host })),
 			this.userProfileCache.delete(body.id),
 			this.userListMembershipsCache.fetch(body.id)
