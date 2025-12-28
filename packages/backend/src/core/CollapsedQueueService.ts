@@ -248,7 +248,7 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 							qb.setSql('lastActiveDate', 'GREATEST("lastActiveDate", :lastActiveDate)', { lastActiveDate });
 						}
 
-						const isWakingUp = lastActiveDate !== undefined && await this.cacheService.hibernatedUserCache.fetch(id);
+						const isWakingUp = lastActiveDate != null && (await this.cacheService.findOptionalUserById(id))?.isHibernated;
 						if (isWakingUp) {
 							qb.setValue('isHibernated', false);
 						}

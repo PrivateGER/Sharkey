@@ -19,7 +19,12 @@ import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isReply } from '@/misc/is-reply.js';
 import { isInstanceMuted } from '@/misc/is-instance-muted.js';
-import { NotePopulationData, NoteVisibilityService, PopulatedNote } from '@/core/NoteVisibilityService.js';
+import {
+	NoteVisibilityService,
+	type NotePopulationData,
+	type NoteVisibilityData,
+	type PopulatedNote,
+} from '@/core/NoteVisibilityService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 
 type TimelineOptions = {
@@ -85,63 +90,62 @@ export class FanoutTimelineEndpointService {
 		const shouldFallbackToDb = noteIds.length === 0 || ps.sinceId != null && ps.sinceId < oldestNoteId;
 
 		if (!shouldFallbackToDb) {
-			let filter: (note: MiNote, populated: PopulatedNote) => boolean = ps.noteFilter ?? (() => true);
+			const me = ps.me ? await this.cacheService.findUserById(ps.me.id) : null;
+
+			let filter: (note: MiNote, populated: PopulatedNote, visData: NoteVisibilityData) => boolean = ps.noteFilter ?? (() => true);
 
 			if (ps.excludeNoFiles) {
 				const parentFilter = filter;
-				filter = (note, populated) => note.fileIds.length !== 0 && parentFilter(note, populated);
+				filter = (note, populated, data) => note.fileIds.length !== 0 && parentFilter(note, populated, data);
 			}
 
 			if (ps.excludeReplies) {
 				const parentFilter = filter;
-				filter = (note, populated) => {
+				filter = (note, populated, data) => {
 					if (note.userId !== ps.me?.id && isReply(note, ps.me?.id)) return false;
-					return parentFilter(note, populated);
+					return parentFilter(note, populated, data);
 				};
 			}
 
 			if (ps.excludeBots) {
 				const parentFilter = filter;
-				filter = (note, populated) => !note.user?.isBot && parentFilter(note, populated);
+				filter = (note, populated, data) => !note.user?.isBot && parentFilter(note, populated, data);
 			}
 
 			if (ps.excludePureRenotes) {
 				const parentFilter = filter;
-				filter = (note, populated) => (!isRenote(note) || isQuote(note)) && parentFilter(note, populated);
+				filter = (note, populated, data) => (!isRenote(note) || isQuote(note)) && parentFilter(note, populated, data);
 			}
 
 			{
-				const me = ps.me ? await this.cacheService.findUserById(ps.me.id) : null;
-				const data = await this.noteVisibilityService.populateData(me);
-
 				const parentFilter = filter;
-				filter = (note, populated) => {
+				filter = (note, populated, data) => {
 					const { accessible, silence } = this.noteVisibilityService.checkNoteVisibility(populated, me, { data, filters: {
 						includeSilencedAuthor: ps.ignoreAuthorFromUserSilence,
 						includeReplies: true, // Include replies because we check them elsewhere
 					} });
 					if (!accessible || silence) return false;
 
-					return parentFilter(note, populated);
+					return parentFilter(note, populated, data);
 				};
 			}
 
 			{
 				const parentFilter = filter;
-				filter = (note, populated) => {
+				filter = (note, populated, data) => {
 					if (!ps.ignoreAuthorFromInstanceBlock) {
 						if (note.user?.instance?.isBlocked) return false;
 					}
 					if (note.userId !== note.renoteUserId && note.renote?.user?.instance?.isBlocked) return false;
 					if (note.userId !== note.replyUserId && note.reply?.user?.instance?.isBlocked) return false;
 
-					return parentFilter(note, populated);
+					return parentFilter(note, populated, data);
 				};
 			}
 
 			{
 				const parentFilter = filter;
-				filter = (note, populated) => {
+				filter = (note, populated, data) => {
 					if (!ps.ignoreAuthorFromUserSuspension) {
 						if (note.user?.isSuspended) return false;
 						if (note.userHost && !this.utilityService.isFederationAllowedHost(note.userHost)) return false;
@@ -151,7 +155,7 @@ export class FanoutTimelineEndpointService {
 					if (note.userId !== note.replyUserId && note.reply?.user?.isSuspended) return false;
 					if (note.userId !== note.replyUserId && note.replyUserHost && !this.utilityService.isFederationAllowedHost(note.replyUserHost)) return false;
 
-					return parentFilter(note, populated);
+					return parentFilter(note, populated, data);
 				};
 			}
 
@@ -168,7 +172,7 @@ export class FanoutTimelineEndpointService {
 
 				readFromRedis += noteIds.length;
 
-				const gotFromDb = await this.getAndFilterFromDb(noteIds, filter, idCompare);
+				const gotFromDb = await this.getAndFilterFromDb(me, noteIds, filter, idCompare);
 				redisTimeline.push(...gotFromDb);
 				lastSuccessfulRate = gotFromDb.length / noteIds.length;
 
@@ -196,7 +200,7 @@ export class FanoutTimelineEndpointService {
 		return await ps.dbFallback(ps.untilId, ps.sinceId, ps.limit);
 	}
 
-	private async getAndFilterFromDb(noteIds: string[], noteFilter: (note: MiNote, populated: PopulatedNote) => boolean, idCompare: (a: string, b: string) => number): Promise<MiNote[]> {
+	private async getAndFilterFromDb(me: MiUser | null, noteIds: string[], noteFilter: (note: MiNote, populated: PopulatedNote, visData: NoteVisibilityData) => boolean, idCompare: (a: string, b: string) => number): Promise<MiNote[]> {
 		const query = this.notesRepository.createQueryBuilder('note')
 			.where('note.id IN (:...noteIds)', { noteIds: noteIds })
 			.leftJoinAndSelect('note.reply', 'reply')
@@ -210,8 +214,9 @@ export class FanoutTimelineEndpointService {
 		const notes = await query.getMany();
 
 		const populatedNotes = await this.populateNotes(notes);
+		const visData = await this.noteVisibilityService.populateData(me, notes);
 		return populatedNotes
-			.filter(({ note, populated }) => noteFilter(note, populated))
+			.filter(({ note, populated }) => noteFilter(note, populated, visData))
 			.sort((a, b) => idCompare(a.id, b.id))
 			.map(({ note }) => note);
 	}

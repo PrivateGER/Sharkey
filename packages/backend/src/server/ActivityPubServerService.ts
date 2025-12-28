@@ -40,7 +40,6 @@ import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { promiseMap } from '@/misc/promise-map.js';
-import { IdentifiableError, errorCodes } from '@/misc/identifiable-error.js';
 import type { FindOptionsWhere } from 'typeorm';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
 
@@ -376,10 +375,9 @@ export class ActivityPubServerService {
 
 		const page = request.query.page === 'true';
 
-		const [user, profile, orderedFollowings] = await Promise.all([
+		const [user, profile] = await Promise.all([
 			this.cacheService.findOptionalUserById(userId),
 			this.cacheService.userProfileCache.fetchMaybe(userId),
-			this.cacheService.userFollowersCache.fetch(userId),
 		]);
 
 		if (user == null || profile == null || !isLocalUser(user) || !this.utilityService.isActiveUser(user)) {
@@ -401,11 +399,22 @@ export class ActivityPubServerService {
 		const partOf = `${this.config.url}/users/${userId}/followers`;
 
 		if (page) {
-			const followings = orderedFollowings
-				.values()
-				.filter(following => !cursor || following.id < cursor)
-				.take(limit + 1)
-				.toArray();
+			const query = {
+				followeeId: user.id,
+			} as FindOptionsWhere<MiFollowing>;
+
+			// カーソルが指定されている場合
+			if (cursor) {
+				query.id = LessThan(cursor);
+			}
+
+			// Get followers
+			const followings = await this.followingsRepository.find({
+				where: query,
+				take: limit + 1,
+				order: { id: -1 },
+				select: { id: true, followerId: true },
+			});
 
 			// 「次のページ」があるかどうか
 			const inStock = followings.length === limit + 1;
@@ -467,10 +476,9 @@ export class ActivityPubServerService {
 
 		const page = request.query.page === 'true';
 
-		const [user, profile, orderedFollowings] = await Promise.all([
+		const [user, profile] = await Promise.all([
 			this.cacheService.findOptionalUserById(userId),
 			this.cacheService.userProfileCache.fetchMaybe(userId),
-			this.cacheService.userFollowingsCache.fetch(userId),
 		]);
 
 		if (user == null || profile == null || !isLocalUser(user) || !this.utilityService.isActiveUser(user)) {
@@ -492,11 +500,22 @@ export class ActivityPubServerService {
 		const partOf = `${this.config.url}/users/${userId}/following`;
 
 		if (page) {
-			const followings = orderedFollowings
-				.values()
-				.filter(following => !cursor || following.id < cursor)
-				.take(limit + 1)
-				.toArray();
+			const query = {
+				followerId: user.id,
+			} as FindOptionsWhere<MiFollowing>;
+
+			// カーソルが指定されている場合
+			if (cursor) {
+				query.id = LessThan(cursor);
+			}
+
+			// Get followings
+			const followings = await this.followingsRepository.find({
+				where: query,
+				take: limit + 1,
+				order: { id: -1 },
+				select: { id: true, followeeId: true },
+			});
 
 			// 「次のページ」があるかどうか
 			const inStock = followings.length === limit + 1;

@@ -133,8 +133,7 @@ export class AntennaService implements OnApplicationShutdown {
 		}
 
 		if (note.visibility === 'followers') {
-			const followings = await this.cacheService.userFollowingsCache.fetch(antenna.userId);
-			const isFollowing = followings.has(note.userId);
+			const isFollowing = await this.cacheService.isFollowing(antenna.userId, note.userId);
 			if (!isFollowing && antenna.userId !== note.userId) return false;
 		}
 

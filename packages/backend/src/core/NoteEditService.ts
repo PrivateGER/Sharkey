@@ -659,15 +659,13 @@ export class NoteEditService implements OnApplicationShutdown {
 
 					const [
 						isThreadMuted,
-						userIdsWhoMeMuting,
+						relationship,
 					] = await Promise.all([
 						this.cacheService.threadMutingsCache.fetch(data.reply.userId).then(ms => ms.has(threadId)),
-						this.cacheService.userMutingsCache.fetch(data.reply.userId),
+						this.cacheService.getUserRelation(data.reply.userId, note.userId),
 					]);
 
-					const muted = isUserRelated(note, userIdsWhoMeMuting);
-
-					if (!isThreadMuted && !muted) {
+					if (!isThreadMuted && !relationship.isMuting) {
 						nm.push(data.reply.userId, 'edited');
 						this.globalEventService.publishMainStream(data.reply.userId, 'edited', noteObj);
 						await this.webhookService.enqueueUserWebhook(data.reply.userId, 'reply', { note: noteObj });
@@ -705,7 +703,6 @@ export class NoteEditService implements OnApplicationShutdown {
 						dm.addFollowersRecipe();
 					}
 
-					// TODO restore this in the note-edits branch
 					if (['public', 'home'].includes(note.visibility)) {
 						// Send edit event to all users who replied to, renoted, or reacted to a note.
 						const rawUsers = await Promise.all([
@@ -826,7 +823,14 @@ export class NoteEditService implements OnApplicationShutdown {
 			// TODO: キャッシュ？
 			// eslint-disable-next-line prefer-const
 			let [followings, userListMemberships] = await Promise.all([
-				this.cacheService.getNonHibernatedFollowers(user.id),
+				this.followingsRepository.find({
+					where: {
+						followeeId: user.id,
+						followerHost: IsNull(),
+						isFollowerHibernated: false,
+					},
+					select: ['followerId', 'withReplies'],
+				}),
 				this.cacheService.userListMembershipsCache.fetch(user.id).then(ms => ms.values().toArray()),
 			]);
 
@@ -837,7 +841,6 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			// TODO: あまりにも数が多いと redisPipeline.exec に失敗する(理由は不明)ため、3万件程度を目安に分割して実行するようにする
 			for (const following of followings) {
-				if (following.followerHost !== null) continue;
 				// 基本的にvisibleUserIdsには自身のidが含まれている前提であること
 				if (note.visibility === 'specified' && !note.visibleUserIds.some(v => v === following.followerId)) continue;
 

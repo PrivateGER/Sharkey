@@ -92,8 +92,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// Check if already blocking
-			const exist = await this.cacheService.userBlockingCache.fetch(blocker.id).then(bs => bs.has(blockee.id));
-			if (exist) {
+			const relations = await this.cacheService.getUserRelation(blocker, blockee);
+			if (relations.isBlocking) {
 				throw new ApiError(meta.errors.alreadyBlocking);
 			}
 

@@ -27,13 +27,19 @@ class MainChannel extends Channel {
 
 	@bindThis
 	public async init(params: JsonObject) {
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		const userId = this.user!.id;
+
 		// Subscribe main stream channel
-		this.subscriber?.on(`mainStream:${this.user!.id}`, async data => {
+		this.subscriber?.on(`mainStream:${userId}`, async data => {
 			switch (data.type) {
 				case 'notification': {
 					// Ignore notifications from instances the user has muted
 					if (isUserFromMutedInstance(data.body, this.userMutedInstances)) return;
-					if (data.body.userId && this.userIdsWhoMeMuting.has(data.body.userId)) return;
+					if (data.body.userId) {
+						const relation = await this.cacheService.getUserRelation(userId, data.body.userId);
+						if (relation.isMuting) return;
+					}
 
 					if (data.body.note) {
 						const { accessible, silence } = await this.checkNoteVisibility(data.body.note, { includeReplies: true });

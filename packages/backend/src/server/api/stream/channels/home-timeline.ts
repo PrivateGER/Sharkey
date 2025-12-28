@@ -39,7 +39,9 @@ class HomeTimelineChannel extends Channel {
 
 	@bindThis
 	private async onNote(note: Packed<'Note'>) {
-		const isMe = this.user!.id === note.userId;
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		const userId = this.user!.id;
+		const isMe = userId === note.userId;
 
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
@@ -47,7 +49,7 @@ class HomeTimelineChannel extends Channel {
 			if (!this.followingChannels.has(note.channelId)) return;
 		} else {
 			// その投稿のユーザーをフォローしていなかったら弾く
-			if (!isMe && !this.following.has(note.userId)) return;
+			if (!isMe && !(await this.cacheService.getUserRelation(userId, note.userId)).isFollowing) return;
 		}
 
 		const { accessible, silence } = await this.checkNoteVisibility(note);

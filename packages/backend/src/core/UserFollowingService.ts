@@ -272,7 +272,7 @@ export class UserFollowingService implements OnModuleInit {
 			}, followee.id);
 		}
 
-		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id });
+		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id, withReplies });
 
 		const [followeeUser, followerUser] = await Promise.all([
 			this.usersRepository.findOneByOrFail({ id: followee.id }),
@@ -345,19 +345,19 @@ export class UserFollowingService implements OnModuleInit {
 		const [
 			followerUser,
 			followeeUser,
-			following,
+			relations,
 		] = await Promise.all([
 			this.cacheService.findUserById(follower.id),
 			this.cacheService.findUserById(followee.id),
-			this.cacheService.userFollowingsCache.fetch(follower.id).then(fs => fs.get(followee.id)),
+			this.cacheService.getUserRelation(follower, followee),
 		]);
 
-		if (following == null) {
+		if (!relations.isFollowing) {
 			this.logger.warn('フォロー解除がリクエストされましたがフォローしていませんでした');
 			return;
 		}
 
-		await this.followingsRepository.delete(following.id);
+		await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
 		await this.internalEventService.emit('unfollow', { followerId: follower.id, followeeId: followee.id });
 
 		this.decrementFollowing(followerUser, followeeUser);
@@ -511,6 +511,8 @@ export class UserFollowingService implements OnModuleInit {
 			followeeSharedInbox: this.userEntityService.isRemoteUser(followee) ? followee.sharedInbox : undefined,
 		});
 
+		await this.internalEventService.emit('followRequested', { followerId: follower.id, followeeId: followee.id });
+
 		// Publish receiveRequest event
 		if (this.userEntityService.isLocalUser(followee)) {
 			this.userEntityService.pack(follower.id, followee).then(packed => this.globalEventService.publishMainStream(followee.id, 'receiveFollowRequest', packed));
@@ -562,6 +564,7 @@ export class UserFollowingService implements OnModuleInit {
 			followeeId: followee.id,
 			followerId: follower.id,
 		});
+		await this.internalEventService.emit('followRequestCancelled', { followerId: follower.id, followeeId: followee.id });
 
 		this.userEntityService.pack(followee.id, followee, {
 			schema: 'MeDetailed',
@@ -665,6 +668,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (!request) return;
 
 		await this.followRequestsRepository.delete(request.id);
+		await this.internalEventService.emit('followRequestCancelled', { followerId: follower.id, followeeId: followee.id });
 	}
 
 	/**
@@ -675,16 +679,16 @@ export class UserFollowingService implements OnModuleInit {
 		const [
 			followerUser,
 			followeeUser,
-			following,
+			relations,
 		] = await Promise.all([
 			this.cacheService.findUserById(follower.id),
 			this.cacheService.findUserById(followee.id),
-			this.cacheService.userFollowingsCache.fetch(follower.id).then(fs => fs.get(followee.id)),
+			this.cacheService.getUserRelation(follower, followee),
 		]);
 
-		if (!following) return;
+		if (!relations.isFollowing) return;
 
-		await this.followingsRepository.delete(following.id);
+		await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
 		await this.internalEventService.emit('unfollow', { followerId: follower.id, followeeId: followee.id });
 
 		this.decrementFollowing(followerUser, followeeUser);
@@ -718,26 +722,13 @@ export class UserFollowingService implements OnModuleInit {
 	}
 
 	@bindThis
-	public async getFollowees(userId: MiUser['id']) {
-		const followings = await this.cacheService.userFollowingsCache.fetch(userId);
-		return Array.from(followings.values());
-	}
-
-	@bindThis
 	public async isFollowing(followerId: MiUser['id'], followeeId: MiUser['id']) {
 		return await this.cacheService.isFollowing(followerId, followeeId);
 	}
 
 	@bindThis
-	public async isMutual(aUserId: MiUser['id'], bUserId: MiUser['id']) {
-		const [
-			isFollowing,
-			isFollowed,
-		] = await Promise.all([
-			this.isFollowing(aUserId, bUserId),
-			this.isFollowing(bUserId, aUserId),
-		]);
-
-		return isFollowing && isFollowed;
+	public async isMutual(aUserId: MiUser['id'], bUserId: MiUser['id']): Promise<boolean> {
+		const relations = await this.cacheService.getUserRelation(aUserId, bUserId);
+		return !!relations.isFollowing && !!relations.isFollowed;
 	}
 }

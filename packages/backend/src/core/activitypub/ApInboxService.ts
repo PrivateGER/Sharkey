@@ -736,7 +736,7 @@ export class ApInboxService {
 			return 'skip: follower not found';
 		}
 
-		const isFollowing = await this.cacheService.userFollowingsCache.fetch(follower.id).then(f => f.has(actor.id));
+		const isFollowing = await this.cacheService.isFollowing(follower, actor);
 
 		if (isFollowing) {
 			await this.userFollowingService.unfollow(follower, actor);
@@ -795,7 +795,7 @@ export class ApInboxService {
 			},
 		});
 
-		const isFollowing = await this.cacheService.userFollowingsCache.fetch(actor.id).then(f => f.has(followee.id));
+		const isFollowing = await this.cacheService.isFollowing(actor, followee);
 
 		if (requestExist) {
 			await this.userFollowingService.cancelFollowRequest(followee, actor);

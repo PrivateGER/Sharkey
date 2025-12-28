@@ -81,7 +81,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const userIdsWhoBlockingMe = me ? await this.cacheService.userBlockedCache.fetch(me.id) : new Set<string>();
 			const iAmModerator = me ? await this.roleService.isModerator(me) : false; // Moderators can see reactions of all users
 			if (!iAmModerator) {
 				const user = await this.cacheService.findUserById(ps.userId);
@@ -94,8 +93,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.reactionsNotPublic);
 				}
 
-				// early return if me is blocked by requesting user
-				if (userIdsWhoBlockingMe.has(ps.userId)) {
+				// early return if me is blocked by requested user
+				const isBlocked = me != null && (await this.cacheService.getUserRelation(me.id, ps.userId)).isBlocked;
+				if (isBlocked) {
 					return [];
 				}
 			}

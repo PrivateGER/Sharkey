@@ -42,6 +42,7 @@ import type {
 	UserSecurityKeysRepository,
 	UsersRepository,
 } from '@/models/_.js';
+import { IsOne } from '@/misc/is-one.js';
 import { bindThis } from '@/decorators.js';
 import { getCallerId } from '@/misc/attach-caller-id.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
@@ -56,7 +57,7 @@ import type { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import type { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import type { ChatService } from '@/core/ChatService.js';
 import type { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
-import type { CacheService } from '@/core/CacheService.js';
+import type { CacheService, UserRelation } from '@/core/CacheService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { NoteEntityService } from './NoteEntityService.js';
 import type { PageEntityService } from './PageEntityService.js';
@@ -73,21 +74,6 @@ function isLocalUser<TUser extends Pick<MiUser, 'host' | 'uri'> = MiUser>(user: 
 function isRemoteUser<TUser extends Pick<MiUser, 'host' | 'uri'> = MiUser>(user: TUser): user is TUser & { host: string, uri: string } {
 	return !isLocalUser(user);
 }
-
-export type UserRelation = {
-	id: MiUser['id']
-	following: Omit<MiFollowing, 'isFollowerHibernated'> | null,
-	isFollowing: boolean
-	isFollowed: boolean
-	hasPendingFollowRequestFromYou: boolean
-	hasPendingFollowRequestToYou: boolean
-	isBlocking: boolean
-	isBlocked: boolean
-	isMuted: boolean
-	isRenoteMuted: boolean
-	isInstanceMuted?: boolean
-	memo?: string | null
-};
 
 @Injectable()
 export class UserEntityService implements OnModuleInit {
@@ -184,150 +170,6 @@ export class UserEntityService implements OnModuleInit {
 	public isLocalUser = isLocalUser;
 	/** @deprecated use export from MiUser */
 	public isRemoteUser = isRemoteUser;
-
-	@bindThis
-	public async getRelation(me: MiUser['id'], target: MiUser['id'], hint?: { myFollowings?: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> }): Promise<UserRelation> {
-		const [
-			following,
-			isFollowed,
-			hasPendingFollowRequestFromYou,
-			hasPendingFollowRequestToYou,
-			isBlocking,
-			isBlocked,
-			isMuted,
-			isRenoteMuted,
-			host,
-			memo,
-			mutedInstances,
-		] = await Promise.all([
-			hint?.myFollowings
-				? (hint.myFollowings.get(target) ?? null)
-				: this.cacheService.userFollowingsCache.fetch(me).then(f => f.get(target) ?? null),
-			this.cacheService.userFollowingsCache.fetch(target).then(f => f.has(me)),
-			this.followRequestsRepository.exists({
-				where: {
-					followerId: me,
-					followeeId: target,
-				},
-			}),
-			this.followRequestsRepository.exists({
-				where: {
-					followerId: target,
-					followeeId: me,
-				},
-			}),
-			this.cacheService.userBlockingCache.fetch(me)
-				.then(blockees => blockees.has(target)),
-			this.cacheService.userBlockedCache.fetch(me)
-				.then(blockers => blockers.has(target)),
-			this.cacheService.userMutingsCache.fetch(me)
-				.then(mutings => mutings.has(target)),
-			this.cacheService.renoteMutingsCache.fetch(me)
-				.then(mutings => mutings.has(target)),
-			this.cacheService.findUserById(target).then(u => u.host),
-			this.userMemosRepository.createQueryBuilder('m')
-				.select('m.memo')
-				.where({ userId: me, targetUserId: target })
-				.getRawOne<{ m_memo: string | null }>()
-				.then(it => it?.m_memo ?? null),
-			this.cacheService.userProfileCache.fetch(me)
-				.then(profile => profile.mutedInstances),
-		]);
-
-		const isInstanceMuted = !!host && mutedInstances.includes(host);
-
-		return {
-			id: target,
-			following,
-			isFollowing: following != null,
-			isFollowed,
-			hasPendingFollowRequestFromYou,
-			hasPendingFollowRequestToYou,
-			isBlocking,
-			isBlocked,
-			isMuted,
-			isRenoteMuted,
-			isInstanceMuted,
-			memo,
-		};
-	}
-
-	@bindThis
-	public async getRelations(me: MiUser['id'], targets: MiUser['id'][], hint?: { myFollowings?: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> }): Promise<Map<MiUser['id'], UserRelation>> {
-		// noinspection ES6MissingAwait
-		const [
-			myFollowing,
-			myFollowers,
-			followersRequests,
-			followeesRequests,
-			blockers,
-			blockees,
-			muters,
-			renoteMuters,
-			hosts,
-			memos,
-			mutedInstances,
-		] = await Promise.all([
-			hint?.myFollowings ?? this.cacheService.userFollowingsCache.fetch(me),
-			this.cacheService.userFollowersCache.fetch(me),
-			this.followRequestsRepository.createQueryBuilder('f')
-				.select('f.followeeId')
-				.where('f.followerId = :me', { me })
-				.getRawMany<{ f_followeeId: string }>()
-				.then(it => it.map(it => it.f_followeeId)),
-			this.followRequestsRepository.createQueryBuilder('f')
-				.select('f.followerId')
-				.where('f.followeeId = :me', { me })
-				.getRawMany<{ f_followerId: string }>()
-				.then(it => it.map(it => it.f_followerId)),
-			this.cacheService.userBlockedCache.fetch(me),
-			this.cacheService.userBlockingCache.fetch(me),
-			this.cacheService.userMutingsCache.fetch(me),
-			this.cacheService.renoteMutingsCache.fetch(me),
-			this.cacheService.findUsersById(targets)
-				.then(users => {
-					const record: Record<string, string | null> = {};
-					for (const [id, user] of users) {
-						record[id] = user.host;
-					}
-					return record;
-				}),
-			this.userMemosRepository.createQueryBuilder('m')
-				.select(['m.targetUserId', 'm.memo'])
-				.where({ userId: me, targetUserId: In(targets) })
-				.getRawMany<{ m_targetUserId: string, m_memo: string | null }>()
-				.then(it => it.reduce((map, it) => {
-					map[it.m_targetUserId] = it.m_memo;
-					return map;
-				}, {} as Record<string, string | null>)),
-			this.cacheService.userProfileCache.fetch(me)
-				.then(p => p.mutedInstances),
-		]);
-
-		return new Map(
-			targets.map(target => {
-				const following = myFollowing.get(target) ?? null;
-
-				return [
-					target,
-					{
-						id: target,
-						following: following,
-						isFollowing: following != null,
-						isFollowed: myFollowers.has(target),
-						hasPendingFollowRequestFromYou: followersRequests.includes(target),
-						hasPendingFollowRequestToYou: followeesRequests.includes(target),
-						isBlocking: blockees.has(target),
-						isBlocked: blockers.has(target),
-						isMuted: muters.has(target),
-						isRenoteMuted: renoteMuters.has(target),
-						isInstanceMuted: hosts[target] != null && mutedInstances.includes(hosts[target]),
-						memo: memos[target] ?? null,
-					},
-				];
-			}),
-		);
-	}
 
 	@bindThis
 	public async getHasUnreadAntenna(userId: MiUser['id']): Promise<boolean> {
@@ -463,7 +305,6 @@ export class UserEntityService implements OnModuleInit {
 			userIdsByUri?: Map<string, string>,
 			instances?: Map<string, MiInstance | null>,
 			securityKeyCounts?: Map<string, number>,
-			myFollowings?: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>,
 		},
 	): Promise<Packed<S>> {
 		const opts = Object.assign({
@@ -512,16 +353,7 @@ export class UserEntityService implements OnModuleInit {
 			? (opts.userProfile ?? user.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }))
 			: null;
 
-		const myFollowings = opts.myFollowings ?? (meId ? await this.cacheService.userFollowingsCache.fetch(meId) : undefined);
-
-		let relation: UserRelation | null = null;
-		if (meId && !isMe && isDetailed) {
-			if (opts.userRelations) {
-				relation = opts.userRelations.get(user.id) ?? null;
-			} else {
-				relation = await this.getRelation(meId, user.id, { myFollowings });
-			}
-		}
+		const relation = opts.userRelations?.get(user.id) ?? (meId ? await this.cacheService.getUserRelation(meId, user) : undefined);
 
 		let memo: string | null = null;
 		if (isDetailed && meId) {
@@ -550,12 +382,12 @@ export class UserEntityService implements OnModuleInit {
 
 		const followingCount = profile == null ? null :
 			(profile.followingVisibility === 'public') || isMe || iAmModerator ? user.followingCount :
-			(profile.followingVisibility === 'followers') && (relation && relation.isFollowing) ? user.followingCount :
+			(profile.followingVisibility === 'followers') && relation?.isFollowing ? user.followingCount :
 			null;
 
 		const followersCount = profile == null ? null :
 			(profile.followersVisibility === 'public') || isMe || iAmModerator ? user.followersCount :
-			(profile.followersVisibility === 'followers') && (relation && relation.isFollowing) ? user.followersCount :
+			(profile.followersVisibility === 'followers') && relation?.isFollowing ? user.followersCount :
 			null;
 
 		const unreadAnnouncements = isMe && isDetailed ?
@@ -574,7 +406,7 @@ export class UserEntityService implements OnModuleInit {
 		const alsoKnownAs = await this.resolveAlsoKnownAs(user);
 		const alsoKnownAsIds = alsoKnownAs?.map(aka => aka.id).filter(id => id != null) ?? null;
 
-		const bypassSilence = isMe || (myFollowings ? myFollowings.has(user.id) : false);
+		const bypassSilence = isMe || !!relation?.isFollowing;
 
 		// This is pulled out for readability, but needs to remain async until awaitAll() below.
 		const instancePromise = user.host != null
@@ -762,17 +594,17 @@ export class UserEntityService implements OnModuleInit {
 					: [],
 			} : {}),
 
-			...(relation ? {
-				isFollowing: relation.isFollowing,
-				isFollowed: relation.isFollowed,
-				hasPendingFollowRequestFromYou: relation.hasPendingFollowRequestFromYou,
-				hasPendingFollowRequestToYou: relation.hasPendingFollowRequestToYou,
+			...(relation && isDetailed ? {
+				isFollowing: !!relation.isFollowing,
+				isFollowed: !!relation.isFollowed,
+				hasPendingFollowRequestFromYou: relation.isFollowing === 0,
+				hasPendingFollowRequestToYou: relation.isFollowed === 0,
 				isBlocking: relation.isBlocking,
 				isBlocked: relation.isBlocked,
-				isMuted: relation.isMuted,
-				isRenoteMuted: relation.isRenoteMuted,
-				notify: relation.following?.notify ?? 'none',
-				withReplies: relation.following?.withReplies ?? false,
+				isMuted: relation.isMuting,
+				isRenoteMuted: relation.isMutingRenotes,
+				notify: relation.isFollowingWithNotifications ? 'normal' : 'none',
+				withReplies: relation.isFollowedWithReplies,
 				followedMessage: relation.isFollowing ? profile!.followedMessage : undefined,
 			} : {}),
 		} as Promiseable<Packed<S>>;
@@ -816,7 +648,6 @@ export class UserEntityService implements OnModuleInit {
 		const userIds = users.map(u => u.id);
 
 		// Sync with ApiCallService
-		const iAmAdmin = me ? await this.roleService.isAdministrator(me) : false;
 		const iAmModerator = me ? await this.roleService.isModerator(me) : false;
 
 		const meId = me ? me.id : null;
@@ -843,22 +674,23 @@ export class UserEntityService implements OnModuleInit {
 
 		// -- 実行者の有無や指定スキーマの種別によって要否が異なる値群を取得
 
-		const myFollowingsPromise: Promise<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> | undefined> = meId
-			? this.cacheService.userFollowingsCache.fetch(meId)
-			: Promise.resolve(undefined);
-
-		const [profilesMap, userMemos, userRelations, pinNotes, userIdsByUri, instances, securityKeyCounts, myFollowings] = await Promise.all([
+		const [profilesMap, userMemos, userRelations, pinNotes, userIdsByUri, instances, securityKeyCounts, iAmAdmin] = await Promise.all([
 			// profilesMap
 			this.cacheService.userProfileCache.fetchMany(_profilesToFetch)
 				.then(fetchedProfiles => new Map(fetchedProfiles.concat(_profilesFromUsers))),
 
 			// userMemos
-			isDetailed && meId ? this.userMemosRepository.findBy({ userId: meId })
-				.then(memos => new Map(memos.map(memo => [memo.targetUserId, memo.memo]))) : new Map(),
-			// userRelations
-			meId && isDetailed
-				? myFollowingsPromise.then(myFollowings => this.getRelations(meId, _userIds, { myFollowings }))
+			isDetailed && meId
+				? this.userMemosRepository.find({
+					where: { userId: meId, targetUserId: IsOne(userIds) },
+					select: { targetUserId: true, memo: true },
+				})
+					.then(memos => new Map(memos.map(memo => [memo.targetUserId, memo.memo])))
 				: new Map(),
+
+			// userRelations
+			meId ? this.cacheService.getUserRelations(meId, userIds) : new Map<string, UserRelation>,
+
 			// pinNotes
 			isDetailed ? this.userNotePiningsRepository.createQueryBuilder('pin')
 				.where('pin.userId IN (:...userIds)', { userIds: userIds })
@@ -877,33 +709,32 @@ export class UserEntityService implements OnModuleInit {
 					}
 					return map;
 				}) : new Map(),
+
 			// userIdsByUrl
-			isDetailed ? this.usersRepository.createQueryBuilder('user')
-				.select([
-					'user.id',
-					'user.uri',
-				])
-				.where({
-					uri: In(Array.from(userUris)),
+			isDetailed
+				? this.usersRepository.find({
+					where: { uri: IsOne(Array.from(userUris)) },
+					select: { id: true, uri: true },
 				})
-				.getRawMany<{ user_uri: string, user_id: string }>()
-				.then(users => new Map(users.map(u => [u.user_uri, u.user_id]))) : new Map(),
+					.then(users => new Map(users.map(u => [u.uri as string, u.id])))
+				: new Map(),
+
 			// instances
-			Promise.all(Array.from(userHosts).map(async host => [host, await this.federatedInstanceService.fetch(host)] as const))
-				.then(hosts => new Map(hosts)),
+			this.federatedInstanceService.federatedInstanceCache.fetchMany(userHosts)
+				.then(instances => new Map(instances)),
+
 			// securityKeyCounts
 			isDetailedAndMod ? this.userSecurityKeysRepository.createQueryBuilder('key')
 				.select('key.userId', 'userId')
 				.addSelect('count(key.id)', 'userCount')
-				.where({
-					userId: In(_userIds),
-				})
+				.where({ userId: IsOne(userIds) })
 				.groupBy('key.userId')
 				.getRawMany<{ userId: string, userCount: number }>()
 				.then(counts => new Map(counts.map(c => [c.userId, c.userCount])))
 			: undefined, // .pack will fetch the keys for the requesting user if it's in the _userIds
-			// myFollowings
-			myFollowingsPromise,
+
+			// iAmAdmin
+			me ? this.roleService.isAdministrator(me) : false,
 		]);
 
 		return await Promise.all(
@@ -921,7 +752,6 @@ export class UserEntityService implements OnModuleInit {
 					userIdsByUri,
 					instances,
 					securityKeyCounts,
-					myFollowings,
 				},
 			)),
 		);

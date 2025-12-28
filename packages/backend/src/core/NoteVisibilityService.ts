@@ -6,17 +6,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { MiNote } from '@/models/Note.js';
 import type { MiUser } from '@/models/User.js';
-import type { MiFollowing } from '@/models/Following.js';
 import type { MiInstance } from '@/models/Instance.js';
 import type { MiUserListMembership } from '@/models/UserListMembership.js';
 import type { NotesRepository } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
-import { CacheService } from '@/core/CacheService.js';
+import { CacheService, UserRelation } from '@/core/CacheService.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { bindThis } from '@/decorators.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
+import { toArray } from '@/misc/prelude/array.js';
 import { DI } from '@/di-symbols.js';
 
 /**
@@ -81,7 +81,7 @@ export class NoteVisibilityService {
 		}
 
 		const populatedNote = await this.populateNote(note, opts?.hint);
-		const populatedData = await this.populateData(user, opts?.hint ?? {});
+		const populatedData = await this.populateData(user, note, opts?.hint ?? {});
 
 		return this.checkNoteVisibility(populatedNote, user, { filters: opts?.filters, data: populatedData });
 	}
@@ -162,36 +162,29 @@ export class NoteVisibilityService {
 	}
 
 	@bindThis
-	public async populateData(user: PopulatedMe, hint?: Partial<NoteVisibilityData>, filters?: NoteVisibilityFilters): Promise<NoteVisibilityData> {
+	public async populateData(user: PopulatedMe, scope: MiNote | Packed<'Note'> | (MiNote | Packed<'Note'>)[], hint?: Partial<NoteVisibilityData>, filters?: NoteVisibilityFilters): Promise<NoteVisibilityData> {
+		const scopeUsers = new Set(toArray(scope).map(s => s.userId));
+
 		// noinspection ES6MissingAwait
 		const [
-			userBlockers,
-			userFollowings,
 			userMutedThreads,
 			userMutedNotes,
-			userMutedUsers,
-			userMutedUserRenotes,
 			userMutedInstances,
+			userRelations,
 			userListMemberships,
 		] = await Promise.all([
-			user ? (hint?.userBlockers ?? this.cacheService.userBlockedCache.fetch(user.id)) : null,
-			user ? (hint?.userFollowings ?? this.cacheService.userFollowingsCache.fetch(user.id)) : null,
 			user ? (hint?.userMutedThreads ?? this.cacheService.threadMutingsCache.fetch(user.id)) : null,
 			user ? (hint?.userMutedNotes ?? this.cacheService.noteMutingsCache.fetch(user.id)) : null,
-			user ? (hint?.userMutedUsers ?? this.cacheService.userMutingsCache.fetch(user.id)) : null,
-			user ? (hint?.userMutedUserRenotes ?? this.cacheService.renoteMutingsCache.fetch(user.id)) : null,
 			user ? (hint?.userMutedInstances ?? this.cacheService.userProfileCache.fetch(user.id).then(p => new Set(p.mutedInstances))) : null,
+			user ? (hint?.userRelations ?? this.cacheService.userRelationsCache.fetchMany(scopeUsers.values().map(uid => `${user.id}:${uid}`)).then(rs => new Map(rs))) : null,
 			filters?.listContext ? (hint?.userListMemberships ?? this.cacheService.listUserMembershipsCache.fetch(filters.listContext)) : null,
 		]);
 
 		return {
-			userBlockers,
-			userFollowings,
 			userMutedThreads,
 			userMutedNotes,
-			userMutedUsers,
-			userMutedUserRenotes,
 			userMutedInstances,
+			userRelations,
 			userListMemberships,
 		};
 	}
@@ -241,7 +234,7 @@ export class NoteVisibilityService {
 		if (user?.id === note.userId) return true;
 
 		// We can *never* view blocked notes
-		if (data.userBlockers?.has(note.userId)) return false;
+		if (data.userRelations?.get(note.userId)?.isBlocked) return false;
 
 		if (note.visibility === 'specified') {
 			return this.isAccessibleDM(note, user);
@@ -277,7 +270,7 @@ export class NoteVisibilityService {
 		if (note.visibleUserIds.includes(user.id)) return true;
 
 		// Can be followed by me
-		if (data.userFollowings?.has(note.userId)) return true;
+		if (data.userRelations?.get(note.userId)?.isFollowing) return true;
 
 		// Can be two remote users, since we can't verify remote->remote following.
 		if (note.userHost != null && user.host != null) return true;
@@ -359,10 +352,10 @@ export class NoteVisibilityService {
 		if (data.userMutedNotes?.has(note.id)) return true;
 
 		// Silence if we've muted the user
-		if (data.userMutedUsers?.has(note.userId)) return true;
+		if (data.userRelations?.get(note.userId)?.isMuting) return true;
 
 		// Silence if we've muted renotes from the user
-		if (isPopulatedBoost(note) && data.userMutedUserRenotes?.has(note.userId)) return true;
+		if (isPopulatedBoost(note) && data.userRelations?.get(note.userId)?.isMutingRenotes) return true;
 
 		// Silence if we've muted the instance
 		if (note.userHost && data.userMutedInstances?.has(note.userHost)) return true;
@@ -376,7 +369,7 @@ export class NoteVisibilityService {
 		if (note.userId === user?.id) return false;
 
 		// Don't silence if we're following or ignoring the author
-		if (!data.userFollowings?.has(note.userId) && !ignoreSilencedAuthor) {
+		if (!data.userRelations?.get(note.userId)?.isFollowing && !ignoreSilencedAuthor) {
 			// Silence if user is silenced
 			if (note.user.isSilenced) return true;
 
@@ -408,7 +401,7 @@ export class NoteVisibilityService {
 		if (note.userId === user?.id) return false;
 
 		// Don't silence if we follow w/ replies
-		if (user && data.userFollowings?.get(user.id)?.withReplies) return false;
+		if (user && data.userRelations?.get(user.id)?.isFollowingWithReplies) return false;
 
 		// Don't silence if we're viewing in a list with replies
 		if (data.userListMemberships?.get(note.userId)?.withReplies) return false;
@@ -419,13 +412,10 @@ export class NoteVisibilityService {
 }
 
 export interface NoteVisibilityData extends NotePopulationData {
-	userBlockers: Set<string> | null;
-	userFollowings: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> | null;
 	userMutedThreads: Set<string> | null;
 	userMutedNotes: Set<string> | null;
-	userMutedUsers: Set<string> | null;
-	userMutedUserRenotes: Set<string> | null;
 	userMutedInstances: Set<string> | null;
+	userRelations: Map<string, UserRelation> | null;
 
 	// userId => membership (already scoped to listContext)
 	userListMemberships: Map<string, MiUserListMembership> | null;

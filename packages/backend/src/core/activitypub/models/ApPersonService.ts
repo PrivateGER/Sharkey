@@ -131,35 +131,6 @@ export class ApPersonService implements OnModuleInit {
 	) {
 		this.logger = apLoggerService.logger;
 
-		this.uriPersonCache = this.cacheManagementService.createQuantumKVCache('uriPerson', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async (uri) => {
-				const { id } = await this.usersRepository
-					.createQueryBuilder('user')
-					.select('user.id')
-					.where({ uri })
-					.getOneOrFail() as { id: string };
-				return id;
-			},
-			optionalFetcher: async (uri) => {
-				const res = await this.usersRepository
-					.createQueryBuilder('user')
-					.select('user.id')
-					.where({ uri })
-					.getOne() as { id: string } | null;
-				return res?.id;
-			},
-			bulkFetcher: async (uris) => {
-				const users = await this.usersRepository
-					.createQueryBuilder('user')
-					.select('user.id')
-					.addSelect('user.uri')
-					.where({ uri: In(uris) })
-					.getMany() as { id: string, uri: string }[];
-				return users.map(user => [user.uri, user.id]);
-			},
-		});
-
 		this.publicKeyByKeyIdCache = this.cacheManagementService.createQuantumKVCache<MiUserPublickey>('publicKeyByKeyId', {
 			lifetime: 1000 * 60 * 60 * 12, // 12h
 			fetcher: async (keyId) => await this.userPublickeysRepository.findOneByOrFail({ keyId }),
@@ -834,8 +805,6 @@ export class ApPersonService implements OnModuleInit {
 					followerSharedInbox: person.sharedInbox ?? person.endpoints?.sharedInbox ?? null,
 				},
 			);
-
-			await this.cacheService.refreshFollowRelationsFor(updated.id);
 		}
 
 		// ハッシュタグ更新

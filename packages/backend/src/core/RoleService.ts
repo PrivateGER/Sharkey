@@ -713,11 +713,8 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 		excludeExpire?: boolean,
 	}): Promise<MiUser[]> {
 		const ids = await this.getModeratorIds(opts);
-		return ids.length > 0
-			? await this.usersRepository.findBy({
-				id: In(ids),
-			})
-			: [];
+		const users = await this.cacheService.findUsersById(ids);
+		return users.values().toArray();
 	}
 
 	@bindThis
@@ -734,10 +731,8 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 	@bindThis
 	public async getAdministrators(): Promise<MiUser[]> {
 		const ids = await this.getAdministratorIds();
-		const users = ids.length > 0 ? await this.usersRepository.findBy({
-			id: In(ids),
-		}) : [];
-		return users;
+		const users = await this.cacheService.findUsersById(ids);
+		return users.values().toArray();
 	}
 
 	@bindThis

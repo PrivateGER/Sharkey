@@ -150,10 +150,12 @@ export class AccountMoveService {
 		await this.globalEventService.publishMainStream(src.id, 'meUpdated', iObj);
 
 		// Unfollow after 24 hours
-		const followings = await this.cacheService.userFollowingsCache.fetch(src.id);
-		await this.queueService.createDelayedUnfollowJob(Array.from(followings.keys()).map(followeeId => ({
+		const followings = await this.followingsRepository.findBy({
+			followerId: src.id,
+		});
+		await this.queueService.createDelayedUnfollowJob(followings.map(following => ({
 			from: { id: src.id },
-			to: { id: followeeId },
+			to: { id: following.followeeId },
 		})), this.envService.env.NODE_ENV === 'test' ? 10000 : 1000 * 60 * 60 * 24);
 
 		await this.queueService.createMoveJob(src, dst);
@@ -179,9 +181,11 @@ export class AccountMoveService {
 
 		// follow the new account
 		const proxy = await this.systemAccountService.fetch('proxy');
-		const followings = await this.cacheService.userFollowersCache.fetch(src.id)
-			.then(fs => Array.from(fs.values())
-				.filter(f => f.followerHost == null && f.followerId !== proxy.id));
+		const followings = await this.followingsRepository.findBy({
+			followeeId: src.id,
+			followerHost: IsNull(), // follower is local
+			followerId: Not(proxy.id),
+		});
 		const followJobs = followings.map(following => ({
 			from: { id: following.followerId },
 			to: { id: dst.id },
@@ -204,9 +208,9 @@ export class AccountMoveService {
 		// Followers shouldn't overlap with blockers, but the destination account, different from the blockee (i.e., old account), may have followed the local user before moving.
 		// So block the destination account here.
 		const [srcBlockers, dstBlockers, dstFollowers] = await Promise.all([
-			this.cacheService.userBlockedCache.fetch(src.id),
-			this.cacheService.userBlockedCache.fetch(dst.id),
-			this.cacheService.userFollowersCache.fetch(dst.id),
+			this.blockingsRepository.find({ where: { blockeeId: src.id }, select: { blockerId: true } }).then(bs => new Set(bs.map(f => f.blockerId))),
+			this.blockingsRepository.find({ where: { blockeeId: dst.id }, select: { blockerId: true } }).then(bs => new Set(bs.map(f => f.blockerId))),
+			this.followingsRepository.find({ where: { followeeId: dst.id }, select: { followerId: true } }).then(fs => new Set(fs.map(f => f.followerId))),
 		]);
 		// reblock the destination account
 		const blockJobs: RelationshipJobData[] = [];
@@ -233,7 +237,8 @@ export class AccountMoveService {
 			this.mutingsRepository.findBy(
 				{ muteeId: dst.id, expiresAt: IsNull() },
 			).then(mutings => mutings.map(muting => muting.muterId)),
-			this.cacheService.userFollowersCache.fetch(dst.id),
+			this.followingsRepository.find({ where: { followeeId: dst.id }, select: { followerId: true } })
+				.then(fs => new Set(fs.map(f => f.followerId))),
 		]);
 
 		const newMutings: Map<string, { muterId: string; muteeId: string; expiresAt: Date | null; }> = new Map();
