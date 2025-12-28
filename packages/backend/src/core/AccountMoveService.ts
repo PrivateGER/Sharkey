@@ -31,6 +31,7 @@ import { CacheService } from '@/core/CacheService.js';
 import { UserListService } from '@/core/UserListService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { EnvService } from '@/global/EnvService.js';
 import type Logger from '@/logger.js';
@@ -91,6 +92,7 @@ export class AccountMoveService {
 		private readonly internalEventService: InternalEventService,
 		private readonly loggerService: LoggerService,
 		private readonly envService: EnvService,
+		private readonly collapsedQueueService: CollapsedQueueService,
 	) {
 		this.logger = this.loggerService.getLogger('account-move');
 	}
@@ -347,34 +349,31 @@ export class AccountMoveService {
 		if (localFollowerIds.length === 0) return;
 
 		// Set the old account's following and followers counts to 0.
-		// TODO use CollapsedQueueService when merged
+		await this.collapsedQueueService.updateUserQueue.performNow(oldAccount.id);
 		await this.usersRepository.update({ id: oldAccount.id }, { followersCount: 0, followingCount: 0 });
-		await this.internalEventService.emit(oldAccount.host == null ? 'localUserUpdated' : 'remoteUserUpdated', { id: oldAccount.id });
+		await this.internalEventService.emit('userUpdated', { id: oldAccount.id });
 
 		// Decrease following counts of local followers by 1.
-		// TODO use CollapsedQueueService when merged
-		await this.usersRepository.decrement({ id: In(localFollowerIds) }, 'followingCount', 1);
-		await this.internalEventService.emit('usersUpdated', { ids: localFollowerIds });
+		for (const followerId of localFollowerIds) {
+			this.collapsedQueueService.updateUserQueue.enqueue(followerId, { followingCountDelta: -1 });
+		}
 
 		// Decrease follower counts of local followees by 1.
-		const oldFollowings = await this.cacheService.userFollowingsCache.fetch(oldAccount.id);
-		const oldFolloweeIds = Array.from(oldFollowings.keys());
-		if (oldFolloweeIds.length > 0) {
-			// TODO use CollapsedQueueService when merged
-			await this.usersRepository.decrement({ id: In(oldFolloweeIds) }, 'followersCount', 1);
-			await this.internalEventService.emit('usersUpdated', { ids: oldFolloweeIds });
+		const oldFollowings = await this.followingsRepository.find({ where: { followerId: oldAccount.id }, select: { followeeId: true } });
+		const oldFolloweeIds = oldFollowings.map(f => f.followeeId);
+		for (const followeeId of oldFolloweeIds) {
+			this.collapsedQueueService.updateUserQueue.enqueue(followeeId, { followersCountDelta: -1 });
 		}
 
 		// Update instance stats by decreasing remote followers count by the number of local followers who were following the old account.
 		if (this.meta.enableStatsForFederatedInstances) {
 			if (this.userEntityService.isRemoteUser(oldAccount)) {
-				// TODO use CollapsedQueueService when merged
-				await this.federatedInstanceService.fetchOrRegister(oldAccount.host).then(async i => {
-					await this.instancesRepository.decrement({ id: i.id }, 'followersCount', localFollowerIds.length);
+				{
+					this.collapsedQueueService.updateInstanceQueue.enqueue(oldAccount.host, { followersCountDelta: 0 - localFollowerIds.length });
 					if (this.meta.enableChartsForFederatedInstances) {
-						this.instanceChart.updateFollowers(i.host, false);
+						this.instanceChart.updateFollowers(oldAccount.host, false);
 					}
-				});
+				}
 			}
 		}
 
