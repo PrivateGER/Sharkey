@@ -776,31 +776,39 @@ export class UserEntityService implements OnModuleInit {
 	}
 
 	public async packMany<S extends 'MeDetailed' | 'UserDetailedNotMe' | 'UserDetailed' | 'UserLite' = 'UserLite'>(
-		users: (MiUser['id'] | MiUser)[],
+		usersOrIds: (MiUser['id'] | MiUser)[],
 		me?: { id: MiUser['id'] } | null | undefined,
 		options?: {
 			schema?: S,
 			includeSecrets?: boolean,
 		},
 	): Promise<Packed<S>[]> {
-		if (users.length === 0) return [];
+		if (usersOrIds.length === 0) return [];
 
 		// -- IDのみの要素を補完して完全なエンティティ一覧を作る
 
-		const _users = users.filter((user): user is MiUser => typeof user !== 'string');
-		if (_users.length !== users.length) {
-			_users.push(
-				...await this.usersRepository.find({
-					where: {
-						id: In(users.filter((user): user is string => typeof user === 'string')),
-					},
-					relations: {
-						userProfile: true,
-					},
-				}),
-			);
+		const fetchedUsers = new Map<string, MiUser>();
+		const toFetch: string[] = [];
+		for (const userOrId of usersOrIds) {
+			if (typeof(userOrId) === 'object') {
+				fetchedUsers.set(userOrId.id, userOrId);
+			} else {
+				toFetch.push(userOrId);
+			}
 		}
-		const _userIds = _users.map(u => u.id);
+
+		if (toFetch.length > 0) {
+			const fetched = await this.cacheService.findUsersById(toFetch);
+			for (const [id, user] of fetched) {
+				fetchedUsers.set(id, user);
+			}
+		}
+
+		// Restore the original user order
+		const users = usersOrIds
+			.map(u => fetchedUsers.get(typeof (u) === 'object' ? u.id : u))
+			.filter(u => u != null);
+		const userIds = users.map(u => u.id);
 
 		// Sync with ApiCallService
 		const iAmAdmin = me ? await this.roleService.isAdministrator(me) : false;
@@ -810,17 +818,17 @@ export class UserEntityService implements OnModuleInit {
 		const isDetailed = options && options.schema !== 'UserLite';
 		const isDetailedAndMod = isDetailed && iAmModerator;
 
-		const userUris = new Set(_users
+		const userUris = new Set(users
 			.flatMap(user => [user.uri, user.movedToUri])
 			.filter((uri): uri is string => uri != null));
 
-		const userHosts = new Set(_users
+		const userHosts = new Set(users
 			.map(user => user.host)
 			.filter((host): host is string => host != null));
 
 		const _profilesFromUsers: [string, MiUserProfile][] = [];
 		const _profilesToFetch: string[] = [];
-		for (const user of _users) {
+		for (const user of users) {
 			if (user.userProfile) {
 				_profilesFromUsers.push([user.id, user.userProfile]);
 			} else {
@@ -836,7 +844,9 @@ export class UserEntityService implements OnModuleInit {
 
 		const [profilesMap, userMemos, userRelations, pinNotes, userIdsByUri, instances, securityKeyCounts, myFollowings] = await Promise.all([
 			// profilesMap
-			this.cacheService.userProfileCache.fetchMany(_profilesToFetch).then(profiles => new Map(profiles.concat(_profilesFromUsers))),
+			this.cacheService.userProfileCache.fetchMany(_profilesToFetch)
+				.then(fetchedProfiles => new Map(fetchedProfiles.concat(_profilesFromUsers))),
+
 			// userMemos
 			isDetailed && meId ? this.userMemosRepository.findBy({ userId: meId })
 				.then(memos => new Map(memos.map(memo => [memo.targetUserId, memo.memo]))) : new Map(),
@@ -846,7 +856,7 @@ export class UserEntityService implements OnModuleInit {
 				: new Map(),
 			// pinNotes
 			isDetailed ? this.userNotePiningsRepository.createQueryBuilder('pin')
-				.where('pin.userId IN (:...userIds)', { userIds: _userIds })
+				.where('pin.userId IN (:...userIds)', { userIds: userIds })
 				.innerJoinAndSelect('pin.note', 'note')
 				.getMany()
 				.then(pinsNotes => {
@@ -892,7 +902,7 @@ export class UserEntityService implements OnModuleInit {
 		]);
 
 		return await Promise.all(
-			_users.map(u => this.pack(
+			users.map(u => this.pack(
 				u,
 				me,
 				{
