@@ -1,9 +1,10 @@
 import * as fs from 'node:fs';
+import ts from 'typescript';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import * as yaml from 'js-yaml';
-import ts from 'typescript';
-import { merge } from './util.js';
+import { loadOptionalYaml, merge } from './util.js';
+
+/** @typedef {import('./index.d.ts').ILocale} ILocale */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -59,8 +60,10 @@ function createMembers(record) {
 }
 
 export default function generateDTS() {
-	const sharkeyLocale = yaml.load(fs.readFileSync(`${__dirname}/../sharkey-locales/en-US.yml`, 'utf-8'));
-	const misskeyLocale = yaml.load(fs.readFileSync(`${__dirname}/ja-JP.yml`, 'utf-8'));
+	/** @type {ILocale} */
+	const sharkeyLocale = loadOptionalYaml('../sharkey-locales/en-US.yml');
+	/** @type {ILocale} */
+	const misskeyLocale = loadOptionalYaml('ja-JP.yml');
 	const locale = merge(misskeyLocale, sharkeyLocale);
 
 	const members = createMembers(locale);

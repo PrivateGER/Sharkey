@@ -12313,9 +12313,9 @@ export interface Locale extends ILocale {
      */
     "searchEngineOther": string;
     /**
-     * The custom URI must be input in the format like "https://www.google.com/search?q=\{query}" or "https://www.google.com/search?q=%s".
+     * The custom URI must be input in the format like "https://www.google.com/search?q={query}" or "https://www.google.com/search?q=%s".
      */
-    "searchEngineCustomURIDescription": string;
+    "searchEngineCustomURIDescription": ParameterizedString<"query">;
     /**
      * Custom URI
      */

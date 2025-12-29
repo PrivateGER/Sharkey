@@ -2,9 +2,9 @@
  * Languages Loader
  */
 
-import * as fs from 'node:fs';
-import * as yaml from 'js-yaml';
-import { merge } from './util.js';
+import { merge, loadOptionalYaml } from './util.js';
+
+/** @typedef {import('./index.d.ts').ILocale} ILocale */
 
 const languages = [
 	'ar-SA',
@@ -42,24 +42,21 @@ const primaries = {
 	'zh': 'CN',
 };
 
-// 何故か文字列にバックスペース文字が混入することがあり、YAMLが壊れるので取り除く
-//
-// also, we remove the backslashes in front of open braces (the
-// backslashes are only needed to tell `generateDTS.js` that the
-// braces do not represent parameters)
-const clean = (text) => text.replace(new RegExp(String.fromCodePoint(0x08), 'g'), '').replaceAll(new RegExp(/\\+\{/,'g'), '{');
-
 export function build() {
-	// vitestの挙動を調整するため、一度ローカル変数化する必要がある
-	// https://github.com/vitest-dev/vitest/issues/3988#issuecomment-1686599577
-	// https://github.com/misskey-dev/misskey/pull/14057#issuecomment-2192833785
-	const metaUrl = import.meta.url;
-	const sharkeyLocales = languages.reduce((a, c) => (a[c] = yaml.load(clean(fs.readFileSync(new URL(`../sharkey-locales/${c}.yml`, metaUrl), 'utf-8'))) || {}, a), {});
-	const misskeyLocales = languages.reduce((a, c) => (a[c] = yaml.load(clean(fs.readFileSync(new URL(`${c}.yml`, metaUrl), 'utf-8'))) || {}, a), {});
+	/** @type {Record<string, ILocale>} */
+	const sharkeyLocales = languages.reduce((a, c) => (a[c] = loadOptionalYaml(`../sharkey-locales/${c}.yml`), a), {});
+		/** @type {Record<string, ILocale>} */
+	const misskeyLocales = languages.reduce((a, c) => (a[c] = loadOptionalYaml(`${c}.yml`), a), {});
+
 	// merge sharkey and misskey's locales. the second argument (sharkey) overwrites the first argument (misskey).
   const locales = merge(misskeyLocales, sharkeyLocales);
 
-	// 空文字列が入ることがあり、フォールバックが動作しなくなるのでプロパティごと消す
+	/**
+	 * 空文字列が入ることがあり、フォールバックが動作しなくなるのでプロパティごと消す
+	 * @template {Record<string, ILocale> | ILocale} T
+	 * @param {T} obj
+	 * @returns {T}
+	 */
 	const removeEmpty = (obj) => {
 		for (const [k, v] of Object.entries(obj)) {
 			if (v === '') {
