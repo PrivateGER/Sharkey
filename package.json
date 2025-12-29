@@ -53,7 +53,7 @@
 		"clean": "node ./scripts/clean.mjs built temp",
 		"clean-all": "node ./scripts/clean.mjs built deps gen temp reports",
 		"cleanall": "pnpm clean-all",
-		"sync-dependency-versions": "node scripts/sync-deps.mjs"
+		"sync-dependency-versions": "node scripts/sync-deps.js"
 	},
 	"resolutions": {
 		"chokidar": "5.0.0",

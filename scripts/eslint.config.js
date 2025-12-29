@@ -6,7 +6,7 @@ import sharedConfig from '../packages/shared/eslint.config.js';
 export default [
 	...sharedConfig,
 	{
-		files: ['*.mjs', '*.mts'],
+		files: ['*.js', '*.mjs', '*.ts', '*.mts'],
 		languageOptions: {
 			parserOptions: {
 				parser: tsParser,
@@ -20,7 +20,7 @@ export default [
 		},
 	},
 	{
-		files: ['*.js', '*.cjs', '*.ts', '*.cts'],
+		files: ['*.cjs', '*.cts'],
 		languageOptions: {
 			parserOptions: {
 				parser: tsParser,

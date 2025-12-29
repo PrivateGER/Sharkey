@@ -6,12 +6,16 @@
 // trims dependencies for production
 // only run after a full build
 
-import fs from 'node:fs'
+import fs from 'node:fs';
 
-const checks = ['dependencies', 'optionalDependencies', 'devDependencies']
+const checks = ['dependencies', 'optionalDependencies', 'devDependencies'];
 
+/**
+ * @param {string} path
+ * @param {(string | RegExp)[]} patterns
+ */
 function removeDeps(path, patterns) {
-	let pkg = JSON.parse(fs.readFileSync(path));
+	let pkg = JSON.parse(fs.readFileSync(path, 'utf-8'));
 	for (const pattern of patterns) {
 		if (typeof pattern === 'string') {
 			for (const check of checks) {
@@ -34,7 +38,7 @@ function removeDeps(path, patterns) {
 	fs.writeFileSync(path, JSON.stringify(pkg, undefined, 2));
 }
 
-removeDeps('package.json', ['execa', 'cssnano', 'postcss', 'terser', 'typescript'])
-removeDeps('packages/backend/package.json', ['bufferutil', 'utf-8-validate', /^@swc\//, 'typescript'])
-removeDeps('packages/megalodon/package.json', [/^@types\//, 'typescript'])
-removeDeps('packages/misskey-js/package.json', [/^@swc\//, 'typescript'])
+removeDeps('package.json', ['execa', 'cssnano', 'postcss', 'terser', 'typescript']);
+removeDeps('packages/backend/package.json', ['bufferutil', 'utf-8-validate', /^@swc\//, 'typescript']);
+removeDeps('packages/megalodon/package.json', [/^@types\//, 'typescript']);
+removeDeps('packages/misskey-js/package.json', [/^@swc\//, 'typescript']);

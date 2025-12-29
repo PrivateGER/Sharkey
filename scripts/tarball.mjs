@@ -26,6 +26,7 @@ export default async function build() {
 	const patterns = await walk({ path: cwd, ignoreFiles: ['.gitignore'] });
 
 	for await (const entry of glob.stream(patterns, { cwd, ignore, dot: true })) {
+		// @ts-expect-error Will always be a string
 		pack.add(entry);
 	}
 

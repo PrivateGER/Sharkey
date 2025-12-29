@@ -22,7 +22,7 @@ const excludedPaths = [
 
 /**
  * Keys containing dependency lists within a package.json file.
- * @type {string[]}
+ * @type {DepType[]}
  */
 const dependencyProps = [
 	'overrides',
@@ -52,14 +52,14 @@ const packages = await loadPackages();
  * All packages defined in the solution
  */
 const dependencies = mapDependencies(packages);
-const allDependencies = Object.values(dependencies);
+const allDependencies = dependencies.values().toArray();
 const allDependenciesWithDifference = allDependencies.filter(d => d.hasDifference);
 
 console.log(`Found ${allDependenciesWithDifference.length} mismatched dependencies (out of ${allDependencies.length} total) from ${packages.length} packages.`);
 
 if (allDependenciesWithDifference.length > 0) {
 	await syncDependencies(allDependenciesWithDifference);
-	console.log(`package.json files have changed. Please run "pnpm i" to update the pnpm-lock.yaml, then verify that everything still works.`);
+	console.log('package.json files have changed. Please run "pnpm i" to update the pnpm-lock.yaml, then verify that everything still works.');
 }
 
 async function loadPackages() {
@@ -102,7 +102,7 @@ async function loadPackages() {
 					let packageName = packageJson.name || nodePath.basename(dir);
 					if (packages.some(p => p.name === packageName)) {
 						let i = 1;
-						while (packages.some(p => p.name === `${packageName}:${i}`) ){
+						while (packages.some(p => p.name === `${packageName}:${i}`)) {
 							i++;
 						}
 						packageName = `${packageName}:${i}`;
@@ -136,7 +136,6 @@ async function loadPackages() {
 			}
 		}
 	};
-
 
 	await loadPackagesFrom(rootDir);
 	return packages;
@@ -178,7 +177,7 @@ function parseDependencies(packageName, packageJson, type) {
 	const dependencies = [];
 
 	// Make sure we actually have this type
-	if (typeof(packageJson[type]) === 'object') {
+	if (typeof(packageJson[type]) === 'object' && packageJson[type] != null) {
 		for (const [name, npmVersion] of Object.entries(packageJson[type])) {
 			const version = parseVersionString(packageName, type, name, npmVersion);
 			if (version != null) {
@@ -199,14 +198,17 @@ function parseDependencies(packageName, packageJson, type) {
  * @param {string} packageName
  * @param {DepType} depType
  * @param {string} depName
- * @param {unknown} versionString
+ * @param {unknown} rawVersion
  * @returns {DepVersion | null}
  */
-function parseVersionString(packageName, depType, depName, versionString) {
-	if (typeof(versionString) !== 'string') {
-		console.warn(`[${packageName}/${depType}/${depName}] Skipping version string "${versionString}" - incorrect type ${typeof(versionString)}`);
+function parseVersionString(packageName, depType, depName, rawVersion) {
+	if (typeof(rawVersion) !== 'string') {
+		console.warn(`[${packageName}/${depType}/${depName}] Skipping version string "${rawVersion}" - incorrect type ${typeof(rawVersion)}`);
 		return null;
 	}
+
+	/** @type {string} */
+	let versionString = rawVersion;
 
 	if (versionString.startsWith('npm:') || versionString.startsWith('workspace:')) {
 		//console.warn(`[${packageName}/${depType}/${depName}] Skipping version string "${versionString}" - package redirects are not supported`);
@@ -239,6 +241,7 @@ function parseVersionString(packageName, depType, depName, versionString) {
 
 	// Parse the primary version (x.y.z)
 	/** @type {DepVersion} */
+	/* @ts-expect-error validated by the Regex prior, but TS doesn't know that */
 	const parsedVersion = primaryVersion
 		.split('.')
 		.map(p => p === '*' ? '*' : parseInt(p));
@@ -272,18 +275,17 @@ function parseVersionString(packageName, depType, depName, versionString) {
 
 /**
  * @param {Package[]} packages
- * @returns {Partial<Record<string, MappedDependency>>}
+ * @returns {Map<string, MappedDependency>}
  */
 function mapDependencies(packages) {
-	/** @type {Partial<Record<string, MappedDependency>>} */
-	const mappedDependencies = {};
+	/** @type {Map<string, MappedDependency>} */
+	const mappedDependencies = new Map();
 
 	for (const pkg of packages) {
 		for (const dependency of pkg.dependencies) {
 			const packageDependency = { package: pkg, packageDependency: dependency };
 
-			/** @type {MappedDependency} */
-			let mapping = mappedDependencies[dependency.name];
+			let mapping = mappedDependencies.get(dependency.name);
 			if (!mapping) {
 				mapping = {
 					name: dependency.name,
@@ -292,7 +294,7 @@ function mapDependencies(packages) {
 					hasDifference: false,
 					packages: [packageDependency],
 				};
-				mappedDependencies[dependency.name] = mapping;
+				mappedDependencies.set(dependency.name, mapping);
 			} else {
 				if (dependency.npmVersion !== mapping.newestNpmVersion) {
 					mapping.hasDifference = true;
@@ -364,20 +366,20 @@ function compareVersions(a, b) {
  * @returns {Promise<void>}
  */
 async function syncDependencies(dependencies) {
-	/** @type {Partial<Record<string, Package>>} */
-	const modifiedPackages = {};
+	/** @type {Map<string, Package>} */
+	const modifiedPackages = new Map();
 
 	for (const dependency of dependencies) {
 		for (const pkg of dependency.packages) {
 			if (dependency.newestNpmVersion !== pkg.packageDependency.npmVersion) {
 				console.log(`Updating ${dependency.name} from version ${pkg.packageDependency.npmVersion} to ${dependency.newestNpmVersion} in package ${pkg.package.name}`);
 				pkg.package.json[pkg.packageDependency.type][dependency.name] = dependency.newestNpmVersion;
-				modifiedPackages[pkg.package.name] = pkg.package;
+				modifiedPackages.set(pkg.package.name, pkg.package);
 			}
 		}
 	}
 
-	for (const pkg of Object.values(modifiedPackages)) {
+	for (const pkg of modifiedPackages.values()) {
 		const packageText = JSON.stringify(pkg.json, null, '\t');
 		await nodeFs.writeFile(pkg.path, packageText, 'utf-8');
 	}
@@ -400,7 +402,7 @@ async function syncDependencies(dependencies) {
  */
 
 /**
- * @typedef {'dependencies' | 'devDependencies' | 'optionalDependencies' | 'peerDependencies' | 'resolutions'} DepType
+ * @typedef {'dependencies' | 'devDependencies' | 'optionalDependencies' | 'peerDependencies' | 'resolutions' | 'overrides'} DepType
  * @typedef {[DepPart, ...DepPart[]]} DepVersion
  * @typedef {number | '*'} DepPart
  */
