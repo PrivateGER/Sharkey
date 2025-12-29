@@ -130,7 +130,7 @@ describe('SigninWithPasskeyApiService', () => {
 	afterEach(async () => {
 		await userProfilesRepository.deleteAll();
 		await usersRepository.deleteAll();
-		cacheManagementService.clear();
+		await cacheManagementService.clear();
 	});
 
 	describe('Get Passkey Options', () => {

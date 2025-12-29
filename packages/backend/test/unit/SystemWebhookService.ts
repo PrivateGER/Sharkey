@@ -100,7 +100,7 @@ describe('SystemWebhookService', () => {
 		await usersRepository.deleteAll();
 		await systemWebhooksRepository.deleteAll();
 		queueService.systemWebhookDeliver.mockReset();
-		cacheManagementService.clear();
+		await cacheManagementService.clear();
 	});
 
 	// --------------------------------------------------------------------------------------

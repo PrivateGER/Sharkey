@@ -932,8 +932,8 @@ export class CacheService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public clear(): void {
-		this.cacheManagementService.clear();
+	public async clear(): Promise<void> {
+		await this.cacheManagementService.clear();
 	}
 
 	@bindThis

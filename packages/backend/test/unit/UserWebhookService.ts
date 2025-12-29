@@ -96,7 +96,7 @@ describe('UserWebhookService', () => {
 		await usersRepository.deleteAll();
 		await userWebhooksRepository.deleteAll();
 		queueService.userWebhookDeliver.mockReset();
-		cacheManagementService.clear();
+		await cacheManagementService.clear();
 	});
 
 	// --------------------------------------------------------------------------------------
