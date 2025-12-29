@@ -358,7 +358,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `deleteDriveFiles_${user.id}`,
 			},
 		});
 	}
@@ -377,7 +377,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportCustomEmojis_${user.id}`,
 			},
 		});
 	}
@@ -390,7 +390,7 @@ export class QueueService implements OnModuleInit {
 			removeOnComplete: true,
 			removeOnFail: true,
 			deduplication: {
-				id: user.id,
+				id: `exportAccountData_${user.id}`,
 			},
 		});
 	}
@@ -409,7 +409,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportNotes_${user.id}`,
 			},
 		});
 	}
@@ -428,7 +428,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportClips_${user.id}`,
 			},
 		});
 	}
@@ -447,7 +447,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportFavorites_${user.id}`,
 			},
 		});
 	}
@@ -468,7 +468,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportFollowing_${user.id}_${excludeMuting ? '' : 'M'}${excludeInactive ? '' : 'I'}`,
 			},
 		});
 	}
@@ -487,7 +487,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportMuting_${user.id}`,
 			},
 		});
 	}
@@ -506,7 +506,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportBlocking_${user.id}`,
 			},
 		});
 	}
@@ -525,7 +525,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportUserLists_${user.id}`,
 			},
 		});
 	}
@@ -544,7 +544,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportAntennas_${user.id}`,
 			},
 		});
 	}
@@ -565,7 +565,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}_${withReplies ?? false}`,
+				id: `importFollowing_${user.id}_${fileId}_${withReplies ? 'R' : ''}`,
 			},
 		});
 	}
@@ -580,7 +580,7 @@ export class QueueService implements OnModuleInit {
 			removeOnComplete: true,
 			removeOnFail: true,
 			deduplication: {
-				id: `${user.id}_${fileId}_${type ?? null}`,
+				id: `importNotes_${user.id}_${fileId}_${type ?? ''}`,
 			},
 		});
 	}
@@ -642,7 +642,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importMuting_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -662,7 +662,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importBlocking_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -710,7 +710,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importUserLists_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -730,7 +730,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importCustomEmojis_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -751,7 +751,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importAntennas_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -771,7 +771,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `deleteAccount_${user.id}`,
 			},
 		});
 	}
@@ -838,7 +838,7 @@ export class QueueService implements OnModuleInit {
 				},
 				...opts,
 				deduplication: {
-					id: `${data.from.id}_${data.to.id}_${data.requestId ?? ''}_${data.silent ?? false}_${data.withReplies ?? false}`,
+					id: `${name}_${data.from.id}_${data.to.id}_${data.requestId ?? ''}_${data.silent ? 'S' : ''}_${data.withReplies ? 'R' : ''}`,
 				},
 			},
 		};
@@ -858,7 +858,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: key,
+				id: `deleteFile_${key}`,
 			},
 		});
 	}
@@ -878,7 +878,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${olderThanSeconds}_${keepFilesInUse}`,
+				id: `cleanRemoteFiles_${olderThanSeconds}_${keepFilesInUse}`,
 			},
 		});
 	}
