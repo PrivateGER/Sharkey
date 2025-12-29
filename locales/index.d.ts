@@ -13674,8 +13674,9 @@ export interface Locale extends ILocale {
      */
     "backgroundQueue": string;
 }
-declare const locales: {
+export type Locales = {
     [lang: string]: Locale;
 };
-export function build(): Locale;
+declare const locales: Locales;
+export function build(): Locales;
 export default locales;

@@ -26,7 +26,9 @@ function createMemberType(item) {
 				[
 					ts.factory.createUnionTypeNode(
 						parameters.map((parameter) =>
-							ts.factory.createStringLiteral(parameter),
+							ts.factory.createLiteralTypeNode(
+								ts.factory.createStringLiteral(parameter),
+							),
 						),
 					),
 				],
@@ -151,6 +153,32 @@ export default function generateDTS() {
 			],
 			members,
 		),
+		ts.factory.createTypeAliasDeclaration(
+			[ts.factory.createToken(ts.SyntaxKind.ExportKeyword)],
+			ts.factory.createIdentifier('Locales'),
+			undefined,
+			ts.factory.createTypeLiteralNode([
+				ts.factory.createIndexSignature(
+					undefined,
+					[
+						ts.factory.createParameterDeclaration(
+							undefined,
+							undefined,
+							ts.factory.createIdentifier('lang'),
+							undefined,
+							ts.factory.createKeywordTypeNode(
+								ts.SyntaxKind.StringKeyword,
+							),
+							undefined,
+						),
+					],
+					ts.factory.createTypeReferenceNode(
+						ts.factory.createIdentifier('Locale'),
+						undefined,
+					),
+				),
+			]),
+		),
 		ts.factory.createVariableStatement(
 			[ts.factory.createToken(ts.SyntaxKind.DeclareKeyword)],
 			ts.factory.createVariableDeclarationList(
@@ -158,27 +186,9 @@ export default function generateDTS() {
 					ts.factory.createVariableDeclaration(
 						ts.factory.createIdentifier('locales'),
 						undefined,
-						ts.factory.createTypeLiteralNode([
-							ts.factory.createIndexSignature(
-								undefined,
-								[
-									ts.factory.createParameterDeclaration(
-										undefined,
-										undefined,
-										ts.factory.createIdentifier('lang'),
-										undefined,
-										ts.factory.createKeywordTypeNode(
-											ts.SyntaxKind.StringKeyword,
-										),
-										undefined,
-									),
-								],
-								ts.factory.createTypeReferenceNode(
-									ts.factory.createIdentifier('Locale'),
-									undefined,
-								),
-							),
-						]),
+						ts.factory.createTypeReferenceNode(
+							ts.factory.createIdentifier('Locales'),
+						),
 						undefined,
 					),
 				],
@@ -192,7 +202,7 @@ export default function generateDTS() {
 			undefined,
 			[],
 			ts.factory.createTypeReferenceNode(
-				ts.factory.createIdentifier('Locale'),
+				ts.factory.createIdentifier('Locales'),
 				undefined,
 			),
 			undefined,
