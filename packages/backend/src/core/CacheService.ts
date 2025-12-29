@@ -929,6 +929,71 @@ export class CacheService implements OnApplicationShutdown {
 		return user;
 	}
 
+	@bindThis
+	public async findUserByUri(uri: string): Promise<MiUser> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user == null) {
+			throw new IdentifiableError(errorCodes.userDeleted, `User ${uri} not found`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalUserByUri(uri: string): Promise<MiUser | undefined> {
+		const userId = await this.uriPersonCache.fetchMaybe(uri);
+		if (userId == null) {
+			return undefined;
+		}
+
+		return await this.findOptionalUserById(userId);
+	}
+
+	@bindThis
+	public async findLocalUserByUri(uri: string): Promise<MiLocalUser> {
+		const user = await this.findUserByUri(uri);
+
+		if (!isLocalUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${uri} is not local`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalLocalUserByUri(uri: string): Promise<MiLocalUser | undefined> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user && !isLocalUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${uri} is not local`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findRemoteUserByUri(uri: string): Promise<MiRemoteUser> {
+		const user = await this.findUserByUri(uri);
+
+		if (!isRemoteUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${uri} is not remote`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalRemoteUserByUri(uri: string): Promise<MiRemoteUser | undefined> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user && !isRemoteUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${uri} is not remote`);
+		}
+
+		return user;
+	}
+
 	/**
 	 * Get a 1:1 user relation
 	 * @param userOrId Source user
