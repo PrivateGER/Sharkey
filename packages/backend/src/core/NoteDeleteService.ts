@@ -6,13 +6,14 @@
 import { Brackets, In, IsNull, Not } from 'typeorm';
 import { Injectable, Inject } from '@nestjs/common';
 import type { MiUser, MiLocalUser, MiRemoteUser } from '@/models/User.js';
-import { MiNote, IMentionedRemoteUsers } from '@/models/Note.js';
+import type { MiNote } from '@/models/Note.js';
 import type {
 	InstancesRepository,
 	MiMeta,
 	NotesRepository,
 	UsersRepository,
 } from '@/models/_.js';
+import type { IActivity } from '@/core/activitypub/type.js';
 import { RelayService } from '@/core/RelayService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { DI } from '@/di-symbols.js';
@@ -23,15 +24,17 @@ import InstanceChart from '@/core/chart/charts/instance.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
+import { isPureRenote } from '@/misc/is-renote.js';
+import { isRemoteUser } from '@/models/User.js';
 import { bindThis } from '@/decorators.js';
 import { SearchService } from '@/core/SearchService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
-import { isPureRenote } from '@/misc/is-renote.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { ApLogService } from '@/core/ApLogService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import { Deduplicator } from '@/misc/deduplicator.js';
+import { CacheService } from '@/core/CacheService.js';
 
 @Injectable()
 export class NoteDeleteService {
@@ -65,6 +68,7 @@ export class NoteDeleteService {
 		private readonly apLogService: ApLogService,
 		private readonly timeService: TimeService,
 		private readonly collapsedQueueService: CollapsedQueueService,
+		private readonly cacheService: CacheService,
 	) {}
 
 	/**
@@ -285,52 +289,17 @@ export class NoteDeleteService {
 	}
 
 	@bindThis
-	private async getMentionedRemoteUsers(note: MiNote) {
-		const where = [] as any[];
-
-		// mention / reply / dm
-		const uris = (JSON.parse(note.mentionedRemoteUsers) as IMentionedRemoteUsers).map(x => x.uri);
-		if (uris.length > 0) {
-			where.push(
-				{ uri: In(uris) },
-			);
-		}
-
-		// renote / quote
-		if (note.renoteUserId) {
-			where.push({
-				id: note.renoteUserId,
-			});
-		}
-
-		if (where.length === 0) return [];
-
-		return await this.usersRepository.find({
-			where,
-		}) as MiRemoteUser[];
+	private async getMentionedRemoteUsers(note: MiNote): Promise<MiRemoteUser[]> {
+		const userIds = [...note.mentions, note.replyUserId, note.renoteUserId].filter(n => n != null);
+		const users = await this.cacheService.findUsersById(userIds);
+		const remoteUsers = users.values().filter(user => isRemoteUser(user));
+		return remoteUsers.toArray();
 	}
 
 	@bindThis
-	private async getRenotedOrRepliedRemoteUsers(note: MiNote) {
-		const query = this.notesRepository.createQueryBuilder('note')
-			.leftJoinAndSelect('note.user', 'user')
-			.where(new Brackets(qb => {
-				qb.orWhere('note.renoteId = :renoteId', { renoteId: note.id });
-				qb.orWhere('note.replyId = :replyId', { replyId: note.id });
-			}))
-			.andWhere({ userHost: Not(IsNull()) });
-		const notes = await query.getMany() as (MiNote & { user: MiRemoteUser })[];
-		const remoteUsers = notes.map(({ user }) => user);
-		return remoteUsers;
-	}
-
-	@bindThis
-	private async deliverToConcerned(user: { id: MiLocalUser['id']; host: null; }, note: MiNote, content: any) {
+	private async deliverToConcerned(user: { id: MiLocalUser['id']; host: null; }, note: MiNote, content: IActivity): Promise<void> {
 		await this.apDeliverManagerService.deliverToFollowers(user, content);
-		await this.apDeliverManagerService.deliverToUsers(user, content, [
-			...await this.getMentionedRemoteUsers(note),
-			...await this.getRenotedOrRepliedRemoteUsers(note),
-		]);
+		await this.apDeliverManagerService.deliverToUsers(user, content, await this.getMentionedRemoteUsers(note));
 		await this.relayService.deliverToRelays(user, content);
 	}
 }
