@@ -1,6 +1,7 @@
 {
 	"name": "sharkey",
 	"version": "2025.5.2-dev",
+	"type": "module",
 	"codename": "shonk",
 	"repository": {
 		"type": "git",
