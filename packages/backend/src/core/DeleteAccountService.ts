@@ -44,7 +44,7 @@ export class DeleteAccountService {
 	public async deleteAccount(user: MiUser, moderator?: MiUser): Promise<void> {
 		if (this.meta.rootUserId === user.id) throw new Error('cannot delete a root account');
 
-		const _user = await this.usersRepository.findOneByOrFail({ id: user.id });
+		const _user = user;
 
 		if (isSystemAccount(_user)) {
 			throw new Error('cannot delete a system account');

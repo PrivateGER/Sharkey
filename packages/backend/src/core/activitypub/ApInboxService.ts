@@ -439,7 +439,7 @@ export class ApInboxService {
 			return 'skip: ブロックしようとしているユーザーはローカルユーザーではありません';
 		}
 
-		await this.userBlockingService.block(await this.usersRepository.findOneByOrFail({ id: actor.id }), await this.usersRepository.findOneByOrFail({ id: blockee.id }));
+		await this.userBlockingService.block(actor, blockee);
 		return 'ok';
 	}
 
@@ -617,14 +617,12 @@ export class ApInboxService {
 			.filter(uri => uri.startsWith(this.config.url + '/users/'))
 			.map(uri => uri.split('/').at(-1))
 			.filter(x => x != null);
-		const users = await this.usersRepository.findBy({
-			id: In(userIds),
-		});
-		if (users.length < 1) return 'skip';
+		const user = (await this.cacheService.findUsersById(userIds)).values().take(1).toArray().at(0);
+		if (!user) return 'skip';
 
 		await this.abuseReportService.report([{
-			targetUserId: users[0].id,
-			targetUserHost: users[0].host,
+			targetUserId: user.id,
+			targetUserHost: user.host,
 			reporterId: actor.id,
 			reporterHost: actor.host,
 			comment: `${activity.content}\n${JSON.stringify(uris, null, 2)}`,
@@ -773,7 +771,7 @@ export class ApInboxService {
 			return 'skip: ブロック解除しようとしているユーザーはローカルユーザーではありません';
 		}
 
-		await this.userBlockingService.unblock(await this.usersRepository.findOneByOrFail({ id: actor.id }), blockee);
+		await this.userBlockingService.unblock(actor, blockee);
 		return 'ok';
 	}
 

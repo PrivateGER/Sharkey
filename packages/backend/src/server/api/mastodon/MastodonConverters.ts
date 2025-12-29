@@ -22,6 +22,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import { MastodonDataService } from '@/server/api/mastodon/MastodonDataService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { appendContentWarning } from '@/misc/append-content-warning.js';
 import { isRenote } from '@/misc/is-renote.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
@@ -73,6 +74,7 @@ export class MastodonConverters {
 		private readonly mastodonDataService: MastodonDataService,
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly utilityService: UtilityService,
+		private readonly cacheService: CacheService,
 	) {}
 
 	private encode(u: MiUser, m: IMentionedRemoteUsers): MastodonEntity.Mention {
@@ -138,12 +140,6 @@ export class MastodonConverters {
 		};
 	}
 
-	public async getUser(id: string): Promise<MiUser> {
-		return this.getterService.getUser(id).then(p => {
-			return p;
-		});
-	}
-
 	private encodeField(f: Entity.Field): MastodonEntity.Field {
 		return {
 			name: f.name,
@@ -153,8 +149,10 @@ export class MastodonConverters {
 	}
 
 	public async convertAccount(account: Entity.Account | MiUser): Promise<MastodonEntity.Account> {
-		const user = await this.getUser(account.id);
-		const profile = await this.userProfilesRepository.findOneBy({ userId: user.id });
+		const [user, profile] = await Promise.all([
+			this.getterService.getUser(account.id),
+			this.cacheService.userProfileCache.fetchMaybe(account.id),
+		]);
 		const emojis = await this.customEmojiService.populateEmojis(user.emojis, user.host ? user.host : this.config.host);
 		const emoji: Entity.Emoji[] = [];
 		Object.entries(emojis).forEach(entry => {
@@ -214,7 +212,7 @@ export class MastodonConverters {
 			return [];
 		}
 
-		const noteUser = await this.getUser(note.userId);
+		const noteUser = await this.getterService.getUser(note.userId);
 		const noteInstance = noteUser.instance ?? (noteUser.host ? await this.federatedInstanceService.fetch(noteUser.host) : null);
 		const account = await this.convertAccount(noteUser);
 		const edits = await this.noteEditsRepository.find({ where: { noteId: note.id }, order: { id: 'ASC' } });
@@ -270,7 +268,7 @@ export class MastodonConverters {
 	public async convertStatus(status: Entity.Status, me: MiLocalUser | null, hints?: { note?: MiNote, user?: MiUser }): Promise<MastodonEntity.Status> {
 		const convertedAccount = this.convertAccount(status.account);
 		const note = hints?.note ?? await this.mastodonDataService.requireNote(status.id, me);
-		const noteUser = hints?.user ?? note.user ?? await this.getUser(status.account.id);
+		const noteUser = hints?.user ?? note.user ?? await this.getterService.getUser(status.account.id);
 		const mentionedRemoteUsers = JSON.parse(note.mentionedRemoteUsers);
 
 		const emojis = await this.customEmojiService.populateEmojis(note.emojis, noteUser.host ? noteUser.host : this.config.host);
@@ -286,15 +284,8 @@ export class MastodonConverters {
 			});
 		});
 
-		const mentions = promiseMap(note.mentions, async p => {
-			try {
-				const u = await this.getUser(p);
-				return this.encode(u, mentionedRemoteUsers);
-			} catch {
-				return null;
-			}
-		}, { limiter: 4 })
-			.then((p: Entity.Mention[]) => p.filter(m => m));
+		const mentionedUsers = await this.cacheService.findUsersById(note.mentions);
+		const mentions = mentionedUsers.values().map(u => this.encode(u, mentionedRemoteUsers)).toArray();
 
 		const tags = note.tags.map(tag => {
 			return {
@@ -370,7 +361,7 @@ export class MastodonConverters {
 	public async convertConversation(conversation: Entity.Conversation, me: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
 		return {
 			id: conversation.id,
-			accounts: await promiseMap(conversation.accounts, async (a: Entity.Account) => await this.convertAccount(a), { limiter: 4 }),
+			accounts: await promiseMap(conversation.accounts, async (a: Entity.Account) => await this.convertAccount(a), { limiter: 2 }),
 			last_status: conversation.last_status ? await this.convertStatus(conversation.last_status, me) : null,
 			unread: conversation.unread,
 		};

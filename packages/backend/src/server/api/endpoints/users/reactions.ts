@@ -88,7 +88,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.isRemoteUser);
 				}
 
-				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: ps.userId });
+				const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
 				if ((me == null || me.id !== ps.userId) && !profile.publicReactions) {
 					throw new ApiError(meta.errors.reactionsNotPublic);
 				}

@@ -434,7 +434,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		tags = tags.filter(tag => Array.from(tag).length <= 128).splice(0, 32);
 
 		if (data.reply && (user.id !== data.reply.userId) && !mentionedUsers.some(u => u.id === data.reply!.userId)) {
-			mentionedUsers.push(await this.usersRepository.findOneByOrFail({ id: data.reply!.userId }));
+			mentionedUsers.push(await this.cacheService.findUserById(data.reply.userId));
 		}
 
 		if (data.visibility === 'specified') {
@@ -447,7 +447,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 
 			if (data.reply && !data.visibleUsers.some(x => x.id === data.reply!.userId)) {
-				data.visibleUsers.push(await this.usersRepository.findOneByOrFail({ id: data.reply!.userId }));
+				data.visibleUsers.push(await this.cacheService.findUserById(data.reply.userId));
 			}
 		}
 
@@ -520,9 +520,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Append mentions data
 		if (mentionedUsers.length > 0) {
 			insert.mentions = mentionedUsers.map(u => u.id);
-			const profiles = await this.userProfilesRepository.findBy({ userId: In(insert.mentions) });
+			const profiles = new Map(await this.cacheService.userProfileCache.fetchMany(insert.mentions));
 			insert.mentionedRemoteUsers = JSON.stringify(mentionedUsers.filter(u => isRemoteUser(u)).map(u => {
-				const profile = profiles.find(p => p.userId === u.id);
+				const profile = profiles.get(u.id);
 				const url = profile != null ? profile.url : null;
 				return {
 					uri: u.uri,
@@ -796,13 +796,13 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 					// 投稿がリプライかつ投稿者がローカルユーザーかつリプライ先の投稿の投稿者がリモートユーザーなら配送
 					if (data.reply && data.reply.userHost !== null) {
-						const u = await this.usersRepository.findOneBy({ id: data.reply.userId });
+						const u = await this.cacheService.findOptionalUserById(data.reply.userId);
 						if (u && isRemoteUser(u)) dm.addDirectRecipe(u);
 					}
 
 					// 投稿がRenoteかつ投稿者がローカルユーザーかつRenote元の投稿の投稿者がリモートユーザーなら配送
 					if (data.renote && data.renote.userHost !== null) {
-						const u = await this.usersRepository.findOneBy({ id: data.renote.userId });
+						const u = await this.cacheService.findOptionalUserById(data.renote.userId);
 						if (u && isRemoteUser(u)) dm.addDirectRecipe(u);
 					}
 

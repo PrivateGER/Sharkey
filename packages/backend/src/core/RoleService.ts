@@ -770,7 +770,7 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 
 		this.globalEventService.publishInternalEvent('userRoleAssigned', created);
 
-		const user = await this.usersRepository.findOneByOrFail({ id: userId });
+		const user = await this.cacheService.findUserById(userId);
 
 		if (role.isPublic && user.host === null) {
 			this.notificationService.createNotification(userId, 'roleAssigned', {
@@ -815,7 +815,7 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 
 		if (moderator) {
 			const [user, role] = await Promise.all([
-				this.usersRepository.findOneByOrFail({ id: userId }),
+				this.cacheService.findUserById(userId),
 				this.rolesRepository.findOneByOrFail({ id: roleId }),
 			]);
 			this.moderationLogService.log(moderator, 'unassignRole', {

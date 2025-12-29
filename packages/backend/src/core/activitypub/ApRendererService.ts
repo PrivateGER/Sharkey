@@ -461,12 +461,9 @@ export class ApRendererService {
 			to = mentions;
 		}
 
-		const mentionedUsers = note.mentions && note.mentions.length > 0 ? await this.usersRepository.findBy({
-			id: In(note.mentions),
-		}) : [];
-
+		const mentionedUsers = await this.cacheService.findUsersById(note.mentions);
 		const hashtagTags = note.tags.map(tag => this.renderHashtag(tag));
-		const mentionTags = mentionedUsers.map(u => this.renderMention(u as MiLocalUser | MiRemoteUser));
+		const mentionTags = mentionedUsers.values().map(u => this.renderMention(u as MiLocalUser | MiRemoteUser)).toArray();
 
 		const files = await getPromisedFiles(note.fileIds);
 
@@ -590,7 +587,7 @@ export class ApRendererService {
 			user.avatarId ? this.driveFilesRepository.findOneBy({ id: user.avatarId }) : undefined,
 			user.bannerId ? this.driveFilesRepository.findOneBy({ id: user.bannerId }) : undefined,
 			user.backgroundId ? this.driveFilesRepository.findOneBy({ id: user.backgroundId }) : undefined,
-			this.userProfilesRepository.findOneByOrFail({ userId: user.id }),
+			this.cacheService.userProfileCache.fetch(user.id),
 		]);
 
 		const attachment = profile.fields.map(field => ({

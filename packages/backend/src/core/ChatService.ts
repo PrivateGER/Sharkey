@@ -29,6 +29,7 @@ import { emojiRegex } from '@/misc/emoji-regex.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { isLocalUser } from '@/models/User.js';
 
 const MAX_ROOM_MEMBERS = 30;
@@ -94,6 +95,7 @@ export class ChatService {
 		private customEmojiService: CustomEmojiService,
 		private moderationLogService: ModerationLogService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
 	) {
 	}
 
@@ -364,8 +366,8 @@ export class ChatService {
 
 		if (message.toUserId) {
 			const [fromUser, toUser] = await Promise.all([
-				this.usersRepository.findOneByOrFail({ id: message.fromUserId }),
-				this.usersRepository.findOneByOrFail({ id: message.toUserId }),
+				this.cacheService.findUserById(message.fromUserId),
+				this.cacheService.findUserById(message.toUserId),
 			]);
 
 			if (isLocalUser(fromUser)) this.globalEventService.publishChatUserStream(message.fromUserId, message.toUserId, 'deleted', message.id);

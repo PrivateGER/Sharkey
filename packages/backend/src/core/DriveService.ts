@@ -45,6 +45,7 @@ import { correctFilename } from '@/misc/correct-filename.js';
 import { isMimeImage } from '@/misc/is-mime-image.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { UtilityService } from '@/core/UtilityService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { BunnyService } from '@/core/BunnyService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { LoggerService } from './LoggerService.js';
@@ -136,6 +137,7 @@ export class DriveService {
 		private perUserDriveChart: PerUserDriveChart,
 		private instanceChart: InstanceChart,
 		private utilityService: UtilityService,
+		private readonly cacheService: CacheService,
 
 		loggerService: LoggerService,
 	) {
@@ -556,7 +558,7 @@ export class DriveService {
 				if (isLocal) {
 					throw new IdentifiableError('c6244ed2-a39a-4e1c-bf93-f0fbd7764fa6', 'No free space.', true);
 				}
-				await this.expireOldFile(await this.usersRepository.findOneByOrFail({ id: user.id }) as MiRemoteUser, driveCapacity - info.size);
+				await this.expireOldFile(await this.cacheService.findRemoteUserById(user.id), driveCapacity - info.size);
 			}
 		}
 		//#endregion
@@ -590,7 +592,7 @@ export class DriveService {
 			properties['orientation'] = info.orientation;
 		}
 
-		const profile = user ? await this.userProfilesRepository.findOneBy({ userId: user.id }) : null;
+		const profile = user ? await this.cacheService.userProfileCache.fetchMaybe(user.id) : null;
 
 		const folder = await fetchFolder();
 
@@ -684,7 +686,7 @@ export class DriveService {
 
 	@bindThis
 	public async updateFile(file: MiDriveFile, values: Partial<MiDriveFile>, updater: MiUser) {
-		const profile = file.userId ? await this.userProfilesRepository.findOneBy({ userId: file.userId }) : null;
+		const profile = file.userId ? await this.cacheService.userProfileCache.fetchMaybe(file.userId) : null;
 		const alwaysMarkNsfw = file.userId ? (await this.roleService.getUserPolicies(file.userId)).alwaysMarkNsfw || (profile !== null && profile!.alwaysMarkNsfw) : false;
 
 		if (values.name != null && !this.driveFileEntityService.validateFileName(values.name)) {
@@ -717,7 +719,7 @@ export class DriveService {
 
 		if (await this.roleService.isModerator(updater) && (file.userId !== updater.id)) {
 			if (values.isSensitive !== undefined && values.isSensitive !== file.isSensitive) {
-				const user = file.userId ? await this.usersRepository.findOneByOrFail({ id: file.userId }) : null;
+				const user = file.userId ? await this.cacheService.findUserById(file.userId) : null;
 				if (values.isSensitive) {
 					await this.moderationLogService.log(updater, 'markSensitiveDriveFile', {
 						fileId: file.id,
@@ -809,7 +811,7 @@ export class DriveService {
 		}
 
 		if (deleter && await this.roleService.isModerator(deleter) && (file.userId !== deleter.id)) {
-			const user = file.userId ? await this.usersRepository.findOneByOrFail({ id: file.userId }) : null;
+			const user = file.userId ? await this.cacheService.findUserById(file.userId) : null;
 			await this.moderationLogService.log(deleter, 'deleteDriveFile', {
 				fileId: file.id,
 				fileUserId: file.userId,

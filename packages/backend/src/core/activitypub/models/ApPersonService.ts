@@ -524,7 +524,7 @@ export class ApPersonService implements OnModuleInit {
 			// duplicate key error
 			if (isDuplicateKeyValueError(e)) {
 				// /users/@a => /users/:id のように入力がaliasなときにエラーになることがあるのを対応
-				const u = await this.usersRepository.findOneBy({ uri: person.id });
+				const u = await this.cacheService.findOptionalUserByUri(person.id);
 				if (u == null) throw new UnrecoverableError(`already registered a user with conflicting data: ${uri}`);
 
 				user = u as MiRemoteUser;
@@ -984,7 +984,7 @@ export class ApPersonService implements OnModuleInit {
 		if (dst && isLocalUser(dst)) {
 			// TODO this branch should not be possible
 			// targetがローカルユーザーだった場合データベースから引っ張ってくる
-			dst = await this.usersRepository.findOneByOrFail({ uri: src.movedToUri }) as MiLocalUser;
+			dst = await this.cacheService.findLocalUserByUri(src.movedToUri);
 		} else if (dst) {
 			if (movePreventUris.includes(src.movedToUri)) return 'skip: circular move';
 

@@ -15,6 +15,7 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { ApiError } from '../../../error.js';
@@ -104,6 +105,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private globalEventService: GlobalEventService,
 		private userBlockingService: UserBlockingService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const createdAt = this.timeService.date;
@@ -171,7 +173,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// リモート投票の場合リプライ送信
 			if (note.userHost != null) {
-				const pollOwner = await this.usersRepository.findOneByOrFail({ id: note.userId }) as MiRemoteUser;
+				const pollOwner = await this.cacheService.findRemoteUserById(note.userId);
 
 				this.queueService.deliver(me, this.apRendererService.addContext(this.apRendererService.renderVote(me, vote, note, poll, pollOwner)), pollOwner.inbox, false);
 			}

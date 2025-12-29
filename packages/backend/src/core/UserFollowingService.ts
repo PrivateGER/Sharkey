@@ -124,8 +124,8 @@ export class UserFollowingService implements OnModuleInit {
 		 * 必ず最新のユーザー情報を取得する
 		 */
 		const [follower, followee] = await Promise.all([
-			this.usersRepository.findOneByOrFail({ id: _follower.id }),
-			this.usersRepository.findOneByOrFail({ id: _followee.id }),
+			this.cacheService.findUserById(_follower.id),
+			this.cacheService.findUserById(_followee.id),
 		]) as [MiLocalUser | MiRemoteUser, MiLocalUser | MiRemoteUser];
 
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isRemoteUser(followee)) {
@@ -166,7 +166,7 @@ export class UserFollowingService implements OnModuleInit {
 			}
 		}
 
-		const followeeProfile = await this.userProfilesRepository.findOneByOrFail({ userId: followee.id });
+		const followeeProfile = await this.cacheService.userProfileCache.fetch(followee.id);
 		// フォロー対象が鍵アカウントである or
 		// フォロワーがBotであり、フォロー対象がBotからのフォローに慎重である or
 		// フォロワーがローカルユーザーであり、フォロー対象がリモートユーザーである or
@@ -275,8 +275,8 @@ export class UserFollowingService implements OnModuleInit {
 		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id, withReplies });
 
 		const [followeeUser, followerUser] = await Promise.all([
-			this.usersRepository.findOneByOrFail({ id: followee.id }),
-			this.usersRepository.findOneByOrFail({ id: follower.id }),
+			this.cacheService.findUserById(followee.id),
+			this.cacheService.findUserById(follower.id),
 		]);
 
 		// Neither followee nor follower has moved.
