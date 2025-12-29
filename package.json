@@ -9,6 +9,7 @@
 	},
 	"packageManager": "pnpm@10.26.2",
 	"workspaces": [
+		"locales",
 		"packages/backend",
 		"packages/frontend",
 		"packages/frontend-embed",
@@ -40,8 +41,8 @@
 		"dev": "node scripts/dev.mjs",
 		"lint": "pnpm -r lint",
 		"lint-all": "pnpm -r --no-bail lint",
-		"eslint": "pnpm -r eslint",
-		"eslint-all": "pnpm -r --no-bail eslint-all && pnpm -r --no-bail eslint",
+		"eslint": "pnpm -r packages/shared/eslint",
+		"eslint-all": "pnpm -r --no-bail eslint-all && pnpm -r --no-bail packages/shared/eslint",
 		"cy:open": "pnpm cypress open --browser --e2e --config-file=cypress.config.ts",
 		"cy:run": "pnpm cypress run",
 		"e2e": "pnpm start-server-and-test start:test http://localhost:61812 cy:run",
