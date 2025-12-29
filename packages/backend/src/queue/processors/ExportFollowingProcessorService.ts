@@ -15,6 +15,7 @@ import { createTemp } from '@/misc/create-temp.js';
 import type { MiFollowing } from '@/models/Following.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { bindThis } from '@/decorators.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
@@ -40,6 +41,7 @@ export class ExportFollowingProcessorService {
 		private queueLoggerService: QueueLoggerService,
 		private notificationService: NotificationService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('export-following');
 	}
@@ -87,12 +89,10 @@ export class ExportFollowingProcessorService {
 
 				cursor = followings.at(-1)?.id ?? null;
 
-				for (const following of followings) {
-					const u = await this.usersRepository.findOneBy({ id: following.followeeId });
-					if (u == null) {
-						continue;
-					}
+				const followeeIds = followings.map(f => f.followeeId);
+				const followees = await this.cacheService.findUsersById(followeeIds);
 
+				for (const u of followees.values()) {
 					if (job.data.excludeInactive && u.updatedAt && (this.timeService.now - u.updatedAt.getTime() > 1000 * 60 * 60 * 24 * 90)) {
 						continue;
 					}
