@@ -19,7 +19,7 @@ function collectMembers(node) {
 	if (node.type !== 'MemberExpression') return [];
 	// this is something like `foo[bar]`
 	if (node.computed) return [];
-	return [ node.property.name, ...collectMembers(node.parent) ];
+	return [node.property.name, ...collectMembers(node.parent)];
 }
 
 /* given an object and an array of names, recursively descends the
@@ -98,7 +98,7 @@ function setDifference(a,b) {
 
 /* the actual rule body
  */
-function theRuleBody(context,node) {
+function theRuleBody(context, node) {
 	// we get the locale/translations via the options; it's the data
 	// that goes into a specific language's JSON file, see
 	// `scripts/build-assets.mjs`
@@ -235,7 +235,7 @@ function theRule(context) {
 	);
 }
 
-module.exports = {
+export default {
 	meta: {
 		type: 'problem',
 		docs: {

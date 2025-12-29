@@ -3,22 +3,23 @@
  * SPDX-License-Identifier: AGPL-3.0-only
 */
 
-const {RuleTester} = require("eslint");
-const localeRule = require("./locale");
+import { RuleTester } from 'eslint';
+import vueParser from 'vue-eslint-parser';
+import localeRule from './locale-eslint-rule.js';
 
 const locale = { foo: { bar: 'ok', baz: 'good {x}' }, top: '123' };
 
 const ruleTester = new RuleTester({
   languageOptions: {
-    parser: require('vue-eslint-parser'),
-    ecmaVersion: 2015,
+    parser: vueParser,
+    ecmaVersion: 2023,
   },
 });
 
-function testCase(code,errors) {
+function testCase(code, errors) {
   return { code, errors, options: [ locale ], filename: 'test.ts' };
 }
-function testCaseVue(code,errors) {
+function testCaseVue(code, errors) {
   return { code, errors, options: [ locale ], filename: 'test.vue' };
 }
 
