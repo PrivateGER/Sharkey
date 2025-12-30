@@ -990,9 +990,13 @@ export class NoteEntityService implements OnModuleInit {
 		const channelsToFetch = new Set<string>();
 
 		for (const note of notes) {
+			if (!note.channelId) continue;
+			if (channels.has(note.channelId)) continue;
+
 			if (note.channel) {
 				channels.set(note.channel.id, note.channel);
-			} else if (note.channelId) {
+				channelsToFetch.delete(note.channel.id);
+			} else {
 				channelsToFetch.add(note.channelId);
 			}
 		}
