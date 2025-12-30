@@ -205,9 +205,9 @@ importers:
       cli-highlight:
         specifier: npm:@transfem-org/cli-highlight@2.1.13
         version: '@transfem-org/cli-highlight@2.1.13'
-      color-name:
-        specifier: 2.1.0
-        version: 2.1.0
+      color-convert:
+        specifier: 3.1.2
+        version: 3.1.2
       content-disposition:
         specifier: 0.5.4
         version: 0.5.4
@@ -368,8 +368,8 @@ importers:
         specifier: 2.17.0
         version: 2.17.0
       secure-json-parse:
-        specifier: 4.1.0
-        version: 4.1.0
+        specifier: 4.0.0
+        version: 4.0.0
       semver:
         specifier: 7.7.2
         version: 7.7.2
@@ -443,9 +443,9 @@ importers:
       '@types/archiver':
         specifier: 6.0.3
         version: 6.0.3
-      '@types/color-name':
-        specifier: 2.0.0
-        version: 2.0.0
+      '@types/color-convert':
+        specifier: 2.0.4
+        version: 2.0.4
       '@types/content-disposition':
         specifier: 0.5.9
         version: 0.5.9
@@ -4572,8 +4572,11 @@ packages:
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
 
-  '@types/color-name@2.0.0':
-    resolution: {integrity: sha512-63mTjolMJv75upGaUbT6J3lRDWl6pETPQsaWni9w3dMArhNBpgtHkX8ISb9zLV3YYLPA/SMk8ZGALa3k9WY/aQ==}
+  '@types/color-convert@2.0.4':
+    resolution: {integrity: sha512-Ub1MmDdyZ7mX//g25uBAoH/mWGd9swVbt8BseymnaE18SU4po/PjmCrHxqIIRjBo3hV/vh1KGr0eMxUhp+t+dQ==}
+
+  '@types/color-name@1.1.5':
+    resolution: {integrity: sha512-j2K5UJqGTxeesj6oQuGpMgifpT5k9HprgQd8D1Y0lOFqKHl3PJu5GMeS4Y5EgjS55AE6OQxf8mPED9uaGbf4Cg==}
 
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
@@ -5834,6 +5837,10 @@ packages:
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
+
+  color-convert@3.1.2:
+    resolution: {integrity: sha512-UNqkvCDXstVck3kdowtOTWROIJQwafjOfXSmddoDrXo4cewMKmusCeF22Q24zvjR8nwWib/3S/dfyzPItPEiJg==}
+    engines: {node: '>=14.6'}
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
@@ -9343,8 +9350,8 @@ packages:
   secure-json-parse@2.7.0:
     resolution: {integrity: sha512-6aU+Rwsezw7VR8/nyvKTx8QpWH9FrcYiXXlqC4z5d5XQBDRqtbfsRjnwGyqbi3gddNtWHuEk9OANUotL26qKUw==}
 
-  secure-json-parse@4.1.0:
-    resolution: {integrity: sha512-l4KnYfEyqYJxDwlNVyRfO2E4NTHfMKAWdUuA8J0yve2Dz/E/PdBepY03RvyJpssIpRFwJoCD55wA+mEDs6ByWA==}
+  secure-json-parse@4.0.0:
+    resolution: {integrity: sha512-dxtLJO6sc35jWidmLxo7ij+Eg48PM/kleBsxpC8QJE0qJICe+KawkDQmvCMZUr9u7WKVHgMW6vy3fQ7zMiFZMA==}
 
   seedrandom@3.0.5:
     resolution: {integrity: sha512-8OwmbklUNzwezjGInmZ+2clQmExQPvomqjL7LFqOYqtmuxRgQYqOD3mHaU+MvZn5FLUeVxVfQjwLZW/n/JFuqg==}
@@ -12381,7 +12388,7 @@ snapshots:
       '@fastify/deepmerge': 3.1.0
       '@fastify/error': 4.2.0
       fastify-plugin: 5.0.1
-      secure-json-parse: 4.1.0
+      secure-json-parse: 4.0.0
 
   '@fastify/proxy-addr@5.0.0':
     dependencies:
@@ -14879,7 +14886,11 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
 
-  '@types/color-name@2.0.0': {}
+  '@types/color-convert@2.0.4':
+    dependencies:
+      '@types/color-name': 1.1.5
+
+  '@types/color-name@1.1.5': {}
 
   '@types/connect@3.4.38':
     dependencies:
@@ -16363,6 +16374,10 @@ snapshots:
     dependencies:
       color-name: 1.1.4
 
+  color-convert@3.1.2:
+    dependencies:
+      color-name: 2.1.0
+
   color-name@1.1.4: {}
 
   color-name@2.1.0: {}
@@ -17529,7 +17544,7 @@ snapshots:
       pino: 10.1.0
       process-warning: 5.0.0
       rfdc: 1.4.1
-      secure-json-parse: 4.1.0
+      secure-json-parse: 4.0.0
       semver: 7.7.2
       toad-cache: 3.7.0
 
@@ -20539,7 +20554,7 @@ snapshots:
 
   secure-json-parse@2.7.0: {}
 
-  secure-json-parse@4.1.0: {}
+  secure-json-parse@4.0.0: {}
 
   seedrandom@3.0.5: {}
 
