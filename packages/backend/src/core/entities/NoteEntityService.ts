@@ -20,7 +20,7 @@ import { QueryService } from '@/core/QueryService.js';
 import { TimeService } from '@/global/TimeService.js';
 import type { Config } from '@/config.js';
 import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
-import type { NoteVisibilityData } from '@/core/NoteVisibilityService.js';
+import type { NoteVisibilityData, PopulatedMe, PopulatedNote } from '@/core/NoteVisibilityService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { CacheService, UserRelation } from '../CacheService.js';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
@@ -152,16 +152,28 @@ export class NoteEntityService implements OnModuleInit {
 		const me = typeof(meOrMeId) === 'string'
 			? await this.cacheService.findUserById(meOrMeId)
 			: meOrMeId;
-		const data = await this.noteVisibilityService.populateData(me, notes, hint);
+		const data = await this.noteVisibilityService.populate(notes, me, hint);
 
-		for (const note of notes) {
-			await this.hideNoteAsync(note, me, data);
+		for (const packedNote of notes) {
+			const populatedNote = data.populatedNotes.find(n => n.id === packedNote.id);
+			if (populatedNote) {
+				this.hideNote(packedNote, populatedNote, me, data.populatedData);
+			}
 		}
 	}
 
 	@bindThis
 	public async hideNoteAsync(packedNote: Packed<'Note'>, me: string | Pick<MiUser, 'id' | 'host'> | null, hint?: Partial<NoteVisibilityData>): Promise<void> {
 		const { redact } = await this.noteVisibilityService.checkNoteVisibilityAsync(packedNote, me, { hint });
+
+		if (redact) {
+			this.redactNoteContents(packedNote);
+		}
+	}
+
+	@bindThis
+	public hideNote(packedNote: Packed<'Note'>, populatedNote: PopulatedNote, me: PopulatedMe, data: NoteVisibilityData): void {
+		const { redact } = this.noteVisibilityService.checkNoteVisibility(populatedNote, me, { data });
 
 		if (redact) {
 			this.redactNoteContents(packedNote);
