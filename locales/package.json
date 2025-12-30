@@ -4,6 +4,9 @@
 	"private": true,
 	"main": "index.js",
 	"types": "index.d.ts",
+	"scripts": {
+		"build": "node build.js"
+	},
 	"devDependencies": {
 		"@types/js-yaml": "4.0.9",
 		"js-yaml": "4.1.1",
