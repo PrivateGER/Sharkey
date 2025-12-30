@@ -71,6 +71,7 @@ export class NoteEntityService implements OnModuleInit {
 	private reactionsBufferingService: ReactionsBufferingService;
 	private idService: IdService;
 	private noteLoader = new DebounceLoader(this.findNoteOrFail);
+	private channelLoader = new DebounceLoader(this.findChannelOrFail);
 
 	constructor(
 		private moduleRef: ModuleRef,
@@ -531,6 +532,8 @@ export class NoteEntityService implements OnModuleInit {
 			skipHide?: boolean;
 			withReactionAndUserPairCache?: boolean;
 			bypassSilence?: boolean;
+			noteFetcher?: Deduplicator<MiNote>;
+			channelFetcher?: Deduplicator<MiChannel>;
 			_hint_?: {
 				bufferedReactions: Map<MiNote['id'], { deltas: Record<string, number>; pairs: ([MiUser['id'], string])[] }> | null;
 				myReactions: Map<MiNote['id'], string | null>;
@@ -557,8 +560,11 @@ export class NoteEntityService implements OnModuleInit {
 		opts.recurseRenote ??= opts.detail;
 		opts.recurseReply ??= opts.detail;
 
+		const channelFetcher = opts.channelFetcher?.fetch ?? this.channelLoader.load;
+		const noteFetcher = opts.noteFetcher?.fetch ?? this.noteLoader.load;
+
 		const meId = me ? me.id : null;
-		const note = typeof src === 'object' ? src : await this.noteLoader.load(src);
+		const note = typeof src === 'object' ? src : await noteFetcher(src);
 		const host = note.userHost;
 
 		const bufferedReactions = opts._hint_?.bufferedReactions != null
@@ -577,7 +583,7 @@ export class NoteEntityService implements OnModuleInit {
 		}
 
 		const channel = note.channelId
-			? (opts._hint_?.channels.get(note.channelId) ?? note.channel ?? await this.channelsRepository.findOneBy({ id: note.channelId }))
+			? (opts._hint_?.channels.get(note.channelId) ?? note.channel ?? await channelFetcher(note.channelId))
 			: null;
 
 		const reactionEmojiNames = Object.keys(reactions)
@@ -679,6 +685,8 @@ export class NoteEntityService implements OnModuleInit {
 				detail: false,
 				skipHide: opts.skipHide,
 				withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
+				noteFetcher: opts.noteFetcher,
+				channelFetcher: opts.channelFetcher,
 				_hint_: options?._hint_,
 
 				// Don't silence target of self-reply, since the outer note will already be silenced.
@@ -692,6 +700,8 @@ export class NoteEntityService implements OnModuleInit {
 				recurseReply: true,
 				skipHide: opts.skipHide,
 				withReactionAndUserPairCache: opts.withReactionAndUserPairCache,
+				noteFetcher: opts.noteFetcher,
+				channelFetcher: opts.channelFetcher,
 				_hint_: options?._hint_,
 
 				// Don't silence target of self-renote, since the outer note will already be silenced.
@@ -723,6 +733,10 @@ export class NoteEntityService implements OnModuleInit {
 		},
 	) {
 		if (notes.length === 0) return [];
+
+		// Create session deduplicators
+		const noteFetcher = new Deduplicator(noteId => this.noteLoader.load(noteId));
+		const channelFetcher = new Deduplicator(channelId => this.channelLoader.load(channelId));
 
 		const targetNotes = await this.fetchRequiredNotes(notes, options?.detail ?? false);
 		const noteIds = Array.from(new Set(targetNotes.keys()));
@@ -813,6 +827,8 @@ export class NoteEntityService implements OnModuleInit {
 
 		return await Promise.all(notes.map(n => this.pack(n, me, {
 			...options,
+			noteFetcher,
+			channelFetcher,
 			_hint_: {
 				bufferedReactions,
 				myReactions: myReactionsMap,
@@ -944,10 +960,12 @@ export class NoteEntityService implements OnModuleInit {
 
 	@bindThis
 	private findNoteOrFail(id: string): Promise<MiNote> {
-		return this.notesRepository.findOneOrFail({
-			where: { id },
-			relations: ['user'],
-		});
+		return this.notesRepository.findOneByOrFail({ id });
+	}
+
+	@bindThis
+	private findChannelOrFail(id: string): Promise<MiChannel> {
+		return this.channelsRepository.findOneByOrFail({ id });
 	}
 
 	private async getUserHandles(userIds: string[]): Promise<Map<string, string>> {
@@ -967,7 +985,7 @@ export class NoteEntityService implements OnModuleInit {
 		return new Map(userHandles);
 	}
 
-	private async getChannels(notes: MiNote[]): Promise<Map<string, MiChannel>> {
+	private async getChannels(notes: Iterable<MiNote>): Promise<Map<string, MiChannel>> {
 		const channels = new Map<string, MiChannel>();
 		const channelsToFetch = new Set<string>();
 
