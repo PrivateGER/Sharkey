@@ -14,6 +14,7 @@ import type { MiNote } from '@/models/Note.js';
 import type { UsersRepository, NotesRepository, FollowingsRepository, PollsRepository, PollVotesRepository, NoteReactionsRepository, ChannelsRepository, MiMeta, MiPollVote, MiPoll, MiChannel, NoteFavoritesRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { IsOne } from '@/misc/is-one.js';
+import { Deduplicator } from '@/misc/deduplicator.js';
 import { DebounceLoader } from '@/misc/loader.js';
 import type { IdService } from '@/core/IdService.js';
 import type { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
@@ -727,7 +728,7 @@ export class NoteEntityService implements OnModuleInit {
 		const noteIds = Array.from(new Set(targetNotes.keys()));
 
 		const usersMap = new Map<string, MiUser | string>();
-		const allUsers = notes.flatMap(note => [
+		const allUsers = targetNotes.values().flatMap(note => [
 			note.user ?? note.userId,
 			note.reply?.user ?? note.replyUserId,
 			note.renote?.user ?? note.renoteUserId,
