@@ -285,7 +285,7 @@ export class NoteEntityService implements OnModuleInit {
 				.andIsRenote(this.notesRepository.createQueryBuilder('note'), 'note')
 				.andWhere({
 					userId: meId,
-					renoteId: In(Array.from(toFetch)),
+					renoteId: IsOne(Array.from(toFetch)),
 				})
 				.select('note.renoteId', 'renoteId')
 				.getRawMany<{ renoteId: string }>();
@@ -319,7 +319,7 @@ export class NoteEntityService implements OnModuleInit {
 			const fetched = await this.noteFavoritesRepository.find({
 				where: {
 					userId: meId,
-					noteId: In(Array.from(toFetch)),
+					noteId: IsOne(Array.from(toFetch)),
 				},
 				select: {
 					noteId: true,
@@ -362,7 +362,7 @@ export class NoteEntityService implements OnModuleInit {
 			const fetched = await this.noteReactionsRepository.find({
 				where: {
 					userId: meId,
-					noteId: In(Array.from(toFetch)),
+					noteId: IsOne(Array.from(toFetch)),
 				},
 				select: {
 					noteId: true,
@@ -763,10 +763,10 @@ export class NoteEntityService implements OnModuleInit {
 			// mentionHandles
 			this.getUserHandles(Array.from(mentionedUsers)),
 			// polls
-			this.pollsRepository.findBy({ noteId: In(noteIds) })
+			this.pollsRepository.findBy({ noteId: IsOne(noteIds) })
 				.then(polls => new Map(polls.map(p => [p.noteId, p]))),
 			// pollVotes
-			this.pollVotesRepository.findBy({ noteId: In(noteIds), userId: In(userIds) })
+			this.pollVotesRepository.findBy({ noteId: IsOne(noteIds), userId: IsOne(userIds) })
 				.then(votes => votes.reduce((noteMap, vote) => {
 					let userMap = noteMap.get(vote.noteId);
 					if (!userMap) {
@@ -791,13 +791,13 @@ export class NoteEntityService implements OnModuleInit {
 			me ? this.noteFavoritesRepository
 				.createQueryBuilder('favorite')
 				.select('favorite.noteId', 'noteId')
-				.where({ userId: me.id, noteId: In(noteIds) })
+				.where({ userId: me.id, noteId: IsOne(noteIds) })
 				.getRawMany<{ noteId: string }>()
 				.then(fs => new Set(fs.map(f => f.noteId))) : new Set<string>(),
 			// renotedNotes
 			me ? this.queryService
 				.andIsRenote(this.notesRepository.createQueryBuilder('note'), 'note')
-				.andWhere({ userId: me.id, renoteId: In(noteIds) })
+				.andWhere({ userId: me.id, renoteId: IsOne(noteIds) })
 				.select('note.renoteId', 'renoteId')
 				.getRawMany<{ renoteId: string }>()
 				.then(ns => new Set(ns.map(n => n.renoteId))) : new Set<string>(),
@@ -981,7 +981,7 @@ export class NoteEntityService implements OnModuleInit {
 
 		if (channelsToFetch.size > 0) {
 			const newChannels = await this.channelsRepository.findBy({
-				id: In(Array.from(channelsToFetch)),
+				id: IsOne(Array.from(channelsToFetch)),
 			});
 			for (const channel of newChannels) {
 				channels.set(channel.id, channel);
@@ -1018,7 +1018,7 @@ export class NoteEntityService implements OnModuleInit {
 
 			const myReactions = idsNeedFetchMyReaction.size > 0 ? await this.noteReactionsRepository.findBy({
 				userId: meId,
-				noteId: In(Array.from(idsNeedFetchMyReaction)),
+				noteId: IsOne(Array.from(idsNeedFetchMyReaction)),
 			}) : [];
 
 			for (const id of idsNeedFetchMyReaction) {
