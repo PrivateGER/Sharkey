@@ -998,110 +998,162 @@ export class CacheService implements OnApplicationShutdown {
 	 * Get a 1:1 user relation
 	 * @param userOrId Source user
 	 * @param targetUserOrId Target user
+	 * @param hint Optional hints to speed up the fetch
 	 */
 	@bindThis
-	public async getUserRelation(userOrId: Pick<MiUser, 'id'> | MiUser['id'], targetUserOrId: Pick<MiUser, 'id'> | MiUser['id']): Promise<UserRelation> {
+	public async getUserRelation(
+		userOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		targetUserOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		hint?: {
+			userRelation?: UserRelation,
+			userRelations?: Map<string, UserRelation>,
+		},
+	): Promise<UserRelation> {
 		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
 		const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
-		const key = `${userId}:${targetUserId}`;
-		return await this.userRelationsCache.fetch(key);
+
+		let userRelation = hint?.userRelation ?? hint?.userRelations?.get(targetUserId);
+		if (!userRelation) {
+			const key = `${userId}:${targetUserId}`;
+			userRelation = await this.userRelationsCache.fetch(key);
+		}
+		return userRelation;
 	}
 
 	/**
 	 * Get a 1:N user relation
 	 * @param userOrId Source user
 	 * @param targetUsersOrIds Target users
+	 * @param hint Optional hints to speed up the fetch
 	 */
 	@bindThis
 	public async getUserRelations(
 		userOrId: Pick<MiUser, 'id'> | MiUser['id'],
 		targetUsersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		hint?: {
+			userRelations?: Map<string, UserRelation>,
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
 	): Promise<Map<string, UserRelation>> {
+		const userRelations = new Map<string, UserRelation>(hint?.userRelations);
+
 		// Project IDs into a flat list of cache keys
-		const keys: string[] = [];
+		const keysToFetch = new Set<string>();
 		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+		const groupFromUsersRelations = hint?.usersRelations?.get(userId);
 		for (const targetUserOrId of toArray(targetUsersOrIds)) {
 			const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+			if (targetUserId === userId) continue;
+			if (userRelations.has(targetUserId)) continue;
 
-			if (targetUserId !== userId) {
-				keys.push(`${userId}:${targetUserId}`);
+			const fromUsersRelations = groupFromUsersRelations?.get(targetUserId);
+			if (fromUsersRelations) {
+				userRelations.set(targetUserId, fromUsersRelations);
+			} else {
+				keysToFetch.add(`${userId}:${targetUserId}`);
 			}
 		}
 
-		// Resolve keys into flat list of relation objects
-		const userRelations = await this.userRelationsCache.fetchMany(keys);
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const relation of fetchedRelations.values) {
+				userRelations.set(relation.targetUserId, relation);
+			}
+		}
 
-		// Aggregate relations into final map structure
-		return new Map(userRelations.values.map(ur => [ur.targetUserId, ur]));
+		return userRelations;
 	}
 
 	/**
 	 * Get an N:1 user relation
 	 * @param usersOrIds Source users
 	 * @param targetUserOrId Target user
+	 * @param hint Optional hints to speed up the fetch
 	 */
 	@bindThis
 	public async getUsersRelation(
 		usersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
 		targetUserOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		hint?: {
+			usersRelation?: Map<string, UserRelation>,
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
 	): Promise<Map<string, UserRelation>> {
+		const usersRelation = new Map<string, UserRelation>(hint?.usersRelation);
+
 		// Project IDs into a flat list of cache keys
-		const keys: string[] = [];
+		const keysToFetch = new Set<string>();
 		const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
 		for (const userOrId of toArray(usersOrIds)) {
 			const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+			if (targetUserId === userId) continue;
+			if (usersRelation.has(userId)) continue;
 
-			if (targetUserId !== userId) {
-				keys.push(`${userId}:${targetUserId}`);
+			const fromUsersRelations = hint?.usersRelations?.get(userId)?.get(targetUserId);
+			if (fromUsersRelations) {
+				usersRelation.set(userId, fromUsersRelations);
+			} else {
+				keysToFetch.add(`${userId}:${targetUserId}`);
 			}
 		}
 
-		// Resolve keys into flat list of relation objects
-		const userRelations = await this.userRelationsCache.fetchMany(keys);
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const relation of fetchedRelations.values) {
+				usersRelation.set(relation.userId, relation);
+			}
+		}
 
-		// Aggregate relations into final map structure
-		return new Map(userRelations.values.map(ur => [ur.userId, ur]));
+		return usersRelation;
 	}
 
 	/**
 	 * Get an N:N user relation
 	 * @param usersOrIds Source user
 	 * @param targetUsersOrIds Target users
+	 * @param hint Optional hints to speed up the fetch
 	 */
 	@bindThis
 	public async getUsersRelations(
 		usersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
 		targetUsersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		hint?: {
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
 	): Promise<Map<string, Map<string, UserRelation>>> {
+		const usersRelations = new Map<string, Map<string, UserRelation>>(hint?.usersRelations);
+
 		// Cross-multiply IDs into a flat list of cache keys
-		const keys: string[] = [];
+		const keysToFetch = new Set<string>();
 		for (const userOrId of toArray(usersOrIds)) {
 			const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+			const userRelations = usersRelations.get(userId);
 
 			for (const targetUserOrId of toArray(targetUsersOrIds)) {
 				const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+				if (targetUserId === userId) continue;
+				if (userRelations?.has(targetUserId)) continue;
 
-				if (targetUserId !== userId) {
-					keys.push(`${userId}:${targetUserId}`);
+				keysToFetch.add(`${userId}:${targetUserId}`);
+			}
+		}
+
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const userRelation of fetchedRelations.values) {
+				let group = usersRelations.get(userRelation.userId);
+				if (group == null) {
+					group = new Map();
+					usersRelations.set(userRelation.userId, group);
 				}
+				group.set(userRelation.targetUserId, userRelation);
 			}
 		}
 
-		// Resolve keys into flat list of relation objects
-		const userRelations = await this.userRelationsCache.fetchMany(keys);
-
-		// Aggregate relations into final nested map structure
-		const userRelationsMap = new Map<string, Map<string, UserRelation>>();
-		for (const userRelation of userRelations.values) {
-			let group = userRelationsMap.get(userRelation.userId);
-			if (group == null) {
-				group = new Map();
-				userRelationsMap.set(userRelation.userId, group);
-			}
-			group.set(userRelation.targetUserId, userRelation);
-		}
-
-		return userRelationsMap;
+		return usersRelations;
 	}
 
 	@bindThis
