@@ -5,9 +5,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import cssnano from 'cssnano';
-import * as yaml from 'js-yaml';
 import postcss from 'postcss';
 import * as terser from 'terser';
 import { localesVersion } from '../locales/version.js';
@@ -16,17 +14,19 @@ import generateDTS from '../locales/generateDTS.js';
 import meta from '../package.json' with { type: 'json' };
 import buildTarball from './tarball.mjs';
 
-const configDir = fileURLToPath(new URL('../.config', import.meta.url));
-const configPath = process.env.MISSKEY_CONFIG_YML
-	? path.resolve(configDir, process.env.MISSKEY_CONFIG_YML)
-	: process.env.NODE_ENV === 'test'
-		? path.resolve(configDir, 'test.yml')
-		: path.resolve(configDir, 'default.yml');
-
 let locales = buildLocales();
 
+/**
+ * @returns {Promise<null | import('../packages/backend/src/config.ts').Config>}
+ */
 async function loadConfig() {
-	return fs.readFile(configPath, 'utf-8').then(data => yaml.load(data)).catch(() => null);
+	try {
+		const { loadConfig } = await import('../packages/backend/built/config.js');
+		return loadConfig();
+	} catch (err) {
+		console.warn('Failed to load config for build-assets. This is expected for the first build, but is an error otherwise.', err);
+		return null;
+	}
 }
 
 async function copyFrontendFonts() {
@@ -109,7 +109,11 @@ async function build() {
 		copyBackendViews(),
 		buildBackendScript(),
 		buildBackendStyle(),
-		loadConfig().then(config => config?.publishTarballInsteadOfProvideRepositoryUrl && buildTarball()),
+		loadConfig().then(async config => {
+			if (config?.publishTarballInsteadOfProvideRepositoryUrl) {
+				await buildTarball();
+			}
+		}),
 	]);
 }
 
