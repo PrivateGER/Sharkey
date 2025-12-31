@@ -1,10 +1,21 @@
 import tsParser from '@typescript-eslint/parser';
 import globals from 'globals';
-import sharedConfig from '../packages/shared/eslint.config.js';
+import sharedConfig from './packages/shared/eslint.config.js';
 
 // eslint-disable-next-line import/no-default-export
 export default [
 	...sharedConfig,
+	{
+		ignores: [
+			'**/node_modules/',
+			'**/built/',
+			'**/built-test/',
+			'**/js-built/',
+			'**/temp/',
+			'**/coverage/',
+			'**/*.min.js',
+		],
+	},
 	{
 		files: ['*.js', '*.mjs', '*.ts', '*.mts'],
 		languageOptions: {
@@ -34,6 +45,20 @@ export default [
 		},
 		rules: {
 			'@typescript-eslint/no-require-imports': 'off',
+		},
+	},
+	{
+		files: ['scripts/**/*'],
+		languageOptions: {
+			parserOptions: {
+				parser: tsParser,
+				project: ['scripts/tsconfig.json'],
+				sourceType: 'module',
+				tsconfigRootDir: import.meta.dirname,
+			},
+			globals: {
+				...globals.node,
+			},
 		},
 	},
 	{
