@@ -6,14 +6,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Entity, MastodonEntity, MisskeyEntity } from 'megalodon';
 import * as mfm from 'mfm-js';
-import { MastodonNotificationType } from 'megalodon/built/lib/mastodon/notification.js';
-import { NotificationType } from 'megalodon/built/lib/notification.js';
 import { DI } from '@/di-symbols.js';
 import { MfmService } from '@/core/MfmService.js';
 import type { Config } from '@/config.js';
 import { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
-import type { NoteEditsRepository, UserProfilesRepository } from '@/models/_.js';
+import type { NoteEditsRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
@@ -59,9 +57,6 @@ export class MastodonConverters {
 	constructor(
 		@Inject(DI.config)
 		private readonly config: Config,
-
-		@Inject(DI.userProfilesRepository)
-		private readonly userProfilesRepository: UserProfilesRepository,
 
 		@Inject(DI.noteEditsRepository)
 		private readonly noteEditsRepository: NoteEditsRepository,
@@ -382,7 +377,7 @@ export class MastodonConverters {
 			created_at: notification.created_at,
 			id: notification.id,
 			status,
-			type: convertNotificationType(notification.type as NotificationType),
+			type: convertNotificationType(notification.type as Entity.NotificationType),
 		};
 	}
 
@@ -401,7 +396,7 @@ function simpleConvert<T>(data: T): T {
 	return Object.assign({}, data);
 }
 
-function convertNotificationType(type: NotificationType): MastodonNotificationType {
+function convertNotificationType(type: Entity.NotificationType): MastodonEntity.NotificationType {
 	switch (type) {
 		case 'emoji_reaction': return 'reaction';
 		case 'poll_vote':
@@ -409,7 +404,7 @@ function convertNotificationType(type: NotificationType): MastodonNotificationTy
 			return 'poll';
 		// Not supported by mastodon
 		case 'move':
-			return type as MastodonNotificationType;
+			return type as MastodonEntity.NotificationType;
 		default: return type;
 	}
 }

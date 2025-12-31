@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import type { PartialEntityUpdate } from '@/types.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { bindThis } from '@/decorators.js';
 import { callAllAsync } from '@/misc/call-all.js';
@@ -23,7 +24,6 @@ import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/Cac
 import { AntennaService } from '@/core/AntennaService.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { Brackets, ObjectLiteral, Repository, UpdateQueryBuilder } from 'typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 
 export type UpdateInstanceJob = {
 	latestRequestReceivedAt?: Date,
@@ -636,10 +636,10 @@ class UpdateBuilder<T extends ObjectLiteral> {
 	@bindThis
 	public async execute(): Promise<number> {
 		// Consolidate queued updates
-		const updates: QueryDeepPartialEntity<T> = {};
+		const updates: PartialEntityUpdate<T> = {};
 		const parameters: ObjectLiteral = {};
 		for (const e of Object.entries(this.updates)) {
-			const key = e[0] as keyof QueryDeepPartialEntity<T>;
+			const key = e[0] as keyof T;
 			const update = e[1] as Update<T, keyof T> | undefined;
 
 			if (update) {

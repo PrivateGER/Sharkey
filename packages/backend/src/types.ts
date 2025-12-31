@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import type { OutgoingHttpHeaders } from 'node:http';
 import type { ObjectLiteral } from 'typeorm';
 
 /**
@@ -577,4 +578,12 @@ export type FilterUnionByProperty<
  */
 export type PartialEntityUpdate<T extends ObjectLiteral> = {
 	[K in keyof T]?: T[K] | (() => string);
+};
+
+/**
+ * HTTP Header type compatible with Fastify's HttpHeader type, which is not exported.
+ */
+export type FastifyHttpHeader = keyof OmitIndexSignature<OutgoingHttpHeaders> | (string & Record<never, never>);
+type OmitIndexSignature<T> = {
+	[K in keyof T as string extends K ? never : number extends K ? never : K]: T[K];
 };

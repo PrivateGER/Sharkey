@@ -6,11 +6,11 @@
 import { IncomingHttpHeaders } from 'node:http';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthenticationResponseJSON } from '@simplewebauthn/server';
-import { HttpHeader } from 'fastify/types/utils.js';
 import { MockMetadata, ModuleMocker } from 'jest-mock';
 import { FakeSkRateLimiterService } from '../misc/FakeSkRateLimiterService.js';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyHttpHeader } from '@/types.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserProfile, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
@@ -38,7 +38,7 @@ class DummyFastifyReply {
 	code(num: number): void {
 		this.statusCode = num;
 	}
-	header(_key: HttpHeader, _value: any): void {
+	header(_key: FastifyHttpHeader, _value: any): void {
 	}
 }
 
