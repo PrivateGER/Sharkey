@@ -36,4 +36,19 @@ export default [
 			'@typescript-eslint/no-require-imports': 'off',
 		},
 	},
+	{
+		files: ['cypress/**/*'],
+		languageOptions: {
+			parserOptions: {
+				parser: tsParser,
+				project: ['cypress/tsconfig.json'],
+				sourceType: 'module',
+				tsconfigRootDir: import.meta.dirname,
+			},
+			globals: {
+				...globals.browser,
+				...globals.jest,
+			},
+		},
+	},
 ];
