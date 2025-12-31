@@ -9,8 +9,9 @@ import { dirname, resolve } from 'node:path';
 import * as yaml from 'js-yaml';
 import fastGlob from 'fast-glob';
 import ipaddr from 'ipaddr.js';
+import { coreLoggerService } from '@/boot/coreLogger.js';
 import type { LoggerService } from '@/core/LoggerService.js';
-import Logger from './logger.js';
+import type Logger from './logger.js';
 import type * as Sentry from '@sentry/node';
 import type * as SentryVue from '@sentry/vue';
 import type { RedisOptions } from 'ioredis';
@@ -371,7 +372,9 @@ const dir = resolve(process.env.MISSKEY_CONFIG_DIR ?? `${_dirname}/../../../.con
  */
 const path = process.env.MISSKEY_CONFIG_YML ?? (process.env.NODE_ENV === 'test' ? 'test.yml' : 'default.yml');
 
-export function loadConfig(loggerService: LoggerService): Config {
+export function loadConfig(loggerService?: LoggerService): Config {
+	loggerService ??= coreLoggerService;
+
 	const configLogger = loggerService.getLogger('config');
 
 	const meta = JSON.parse(fs.readFileSync(`${_dirname}/../../../built/meta.json`, 'utf-8'));
