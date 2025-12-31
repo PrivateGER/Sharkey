@@ -30,6 +30,9 @@ importers:
       '@misskey-dev/eslint-plugin':
         specifier: 2.2.0
         version: 2.2.0(@eslint/compat@1.1.1)(@eslint/js@9.39.2)(@stylistic/eslint-plugin@5.6.1(eslint@9.39.2))(@typescript-eslint/eslint-plugin@8.50.1(@typescript-eslint/parser@8.50.1(eslint@9.39.2)(typescript@5.9.2))(eslint@9.39.2)(typescript@5.9.2))(@typescript-eslint/parser@8.50.1(eslint@9.39.2)(typescript@5.9.2))(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.50.1(eslint@9.39.2)(typescript@5.9.2))(eslint@9.39.2))(eslint@9.39.2)(globals@16.4.0)
+      '@types/ignore-walk':
+        specifier: 4.0.3
+        version: 4.0.3
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
@@ -4628,6 +4631,9 @@ packages:
 
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
+
+  '@types/ignore-walk@4.0.3':
+    resolution: {integrity: sha512-6V7wDsk0nz8LtRC7qeC0GfXadFLT4FdCtVbXhxoIGRdkn2kLr20iMLupRGiBhlZ79WWWqaObIdR3nkXfUrBPdQ==}
 
   '@types/istanbul-lib-coverage@2.0.6':
     resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
@@ -14937,6 +14943,10 @@ snapshots:
   '@types/http-cache-semantics@4.0.4': {}
 
   '@types/http-errors@2.0.5': {}
+
+  '@types/ignore-walk@4.0.3':
+    dependencies:
+      '@types/node': 22.18.1
 
   '@types/istanbul-lib-coverage@2.0.6': {}
 
