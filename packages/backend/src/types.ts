@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import type { ObjectLiteral } from 'typeorm';
+
 /**
  * note - 通知オンにしているユーザーが投稿した
  * follow - フォローされた
@@ -569,3 +571,10 @@ export type FilterUnionByProperty<
 	Property extends string | number | symbol,
 	Condition,
 > = Union extends Record<Property, Condition> ? Union : never;
+
+/**
+ * Partial generic entity update type compatible with TypeORM's QueryDeepPartialEntity type, which is not exported.
+ */
+export type PartialEntityUpdate<T extends ObjectLiteral> = {
+	[K in keyof T]?: T[K] | (() => string);
+};
