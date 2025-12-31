@@ -11,6 +11,7 @@ import type { NotesRepository } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { CacheService, UserRelation } from '@/core/CacheService.js';
 import { UtilityService } from '@/core/UtilityService.js';
+import { RoleService } from '@/core/RoleService.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { bindThis } from '@/decorators.js';
@@ -72,6 +73,7 @@ export class NoteVisibilityService {
 		private readonly idService: IdService,
 		private readonly timeService: TimeService,
 		private readonly utilityService: UtilityService,
+		private readonly roleService: RoleService,
 	) {}
 
 	@bindThis
@@ -231,12 +233,14 @@ export class NoteVisibilityService {
 			userMutedNotes,
 			userMutedInstances,
 			userRelations,
+			iAmModerator,
 			userListMemberships,
 		] = await Promise.all([
 			me ? (hint?.userMutedThreads ?? this.cacheService.threadMutingsCache.fetch(me.id)) : new Set<string>(),
 			me ? (hint?.userMutedNotes ?? this.cacheService.noteMutingsCache.fetch(me.id)) : new Set<string>(),
 			me ? (hint?.userMutedInstances ?? this.cacheService.userProfileCache.fetch(me.id).then(p => new Set(p.mutedInstances))) : new Set<string>(),
 			me ? (this.populateUserRelations(me, users, hint)) : new Map<string, UserRelation>(),
+			me ? (hint?.iAmModerator ?? this.roleService.isModerator(me)) : false,
 			filters?.listContext ? (hint?.userListMemberships ?? this.cacheService.listUserMembershipsCache.fetch(filters.listContext)) : new Map(),
 		]);
 
@@ -246,6 +250,7 @@ export class NoteVisibilityService {
 			userMutedInstances,
 			userRelations,
 			userListMemberships,
+			iAmModerator,
 		};
 	}
 
@@ -295,7 +300,7 @@ export class NoteVisibilityService {
 	}
 
 	private checkNoteVisibilityFor(note: PopulatedNote, me: PopulatedMe, opts: { filters?: NoteVisibilityFilters, data: NoteVisibilityData }): NoteVisibilityResult {
-		const accessible = this.isAccessible(note, me, opts.data);
+		const accessible = this.isAccessible(note, me, opts.data, opts.filters);
 		const redact = !accessible || this.shouldRedact(note, me);
 		const silence = this.shouldSilence(note, me, opts.data, opts.filters);
 
@@ -313,12 +318,31 @@ export class NoteVisibilityService {
 	}
 
 	// Based on NoteEntityService.isVisibleForMe
-	private isAccessible(note: PopulatedNote, me: PopulatedMe, data: NoteVisibilityData): boolean {
+	private isAccessible(note: PopulatedNote, me: PopulatedMe, data: NoteVisibilityData, filters: NoteVisibilityFilters | undefined): boolean {
 		// We can always view our own notes
 		if (me?.id === note.userId) return true;
 
 		// We can *never* view blocked notes
 		if (data.userRelations.get(note.userId)?.isBlocked) return false;
+
+		// Only moderators can view notes by suspended users / instances.
+		// Mirror of QueryService.generateSuspendedUserQueryForNotes and QueryService.generateBlockedHostQueryForNotes..
+		if (!data.iAmModerator) {
+			if (!filters?.includeSilencedAuthor) {
+				if (note.user.isSuspended) return false;
+				if (note.user.host && this.utilityService.isBlockedHost(note.user.host)) return false;
+			}
+
+			if (note.reply) {
+				if (note.reply.user.isSuspended) return false;
+				if (note.reply.user.host && this.utilityService.isBlockedHost(note.reply.user.host)) return false;
+			}
+
+			if (note.renote) {
+				if (note.renote.user.isSuspended) return false;
+				if (note.renote.user.host && this.utilityService.isBlockedHost(note.renote.user.host)) return false;
+			}
+		}
 
 		if (note.visibility === 'specified') {
 			return this.isAccessibleDM(note, me);
@@ -508,6 +532,9 @@ export interface NoteVisibilityData {
 
 	// userId => membership (already scoped to listContext)
 	userListMemberships: Map<string, MiUserListMembership>;
+
+	// True if "me" is a moderator or admin, false otherwise.
+	iAmModerator: boolean;
 }
 
 export type NoteVisibilityHint = Partial<NoteVisibilityData> & NotePopulationHint & {
@@ -547,6 +574,7 @@ interface PopulatedUser {
 	id: string;
 	host: string | null;
 	isSilenced: boolean;
+	isSuspended: boolean;
 	requireSigninToViewContents: boolean;
 	makeNotesHiddenBefore: number | null;
 	makeNotesFollowersOnlyBefore: number | null;
