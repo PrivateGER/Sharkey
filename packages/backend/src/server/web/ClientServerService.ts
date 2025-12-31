@@ -536,7 +536,7 @@ export class ClientServerService {
 
 				const _user = await this.userEntityService.pack(user, null, {
 					schema: 'UserDetailed',
-					userProfile: profile,
+					hint: { userProfile: profile },
 				});
 
 				return await reply.view('user', {

@@ -296,15 +296,18 @@ export class UserEntityService implements OnModuleInit {
 		options?: {
 			schema?: S,
 			includeSecrets?: boolean,
-			userProfile?: MiUserProfile,
-			userRelations?: Map<MiUser['id'], UserRelation>,
-			userMemos?: Map<MiUser['id'], string | null>,
-			pinNotes?: Map<MiUser['id'], MiUserNotePining[]>,
-			iAmModerator?: boolean,
-			iAmAdmin?: boolean,
-			userIdsByUri?: Map<string, string>,
-			instances?: Map<string, MiInstance | null>,
-			securityKeyCounts?: Map<string, number>,
+			hint?: {
+				userProfile?: MiUserProfile,
+				userMemos?: Map<MiUser['id'], string | null>,
+				pinNotes?: Map<MiUser['id'], MiUserNotePining[]>,
+				userIdsByUri?: Map<string, string>,
+				instances?: Map<string, MiInstance | null>,
+				securityKeyCounts?: Map<string, number>,
+				userRelation?: UserRelation,
+				userRelations?: Map<MiUser['id'], UserRelation>,
+				iAmModerator?: boolean,
+				iAmAdmin?: boolean,
+			}
 		},
 	): Promise<Packed<S>> {
 		const opts = Object.assign({
@@ -343,19 +346,19 @@ export class UserEntityService implements OnModuleInit {
 		const isDetailed = opts.schema !== 'UserLite';
 		const meId = me ? me.id : null;
 		const isMe = meId === user.id;
-		const iAmModerator = opts.iAmModerator ?? (me ? await this.roleService.isModerator(me) : false);
-		const iAmAdmin = opts.iAmAdmin ?? (me ? await this.roleService.isAdministrator(me) : false);
+		const iAmAdmin = me ? (opts.hint?.iAmAdmin ?? await this.roleService.isAdministrator(me)) : false;
+		const iAmModerator = me ? (opts.hint?.iAmModerator ?? (iAmAdmin || await this.roleService.isModerator(me))) : false;
 
 		const profile = isDetailed
-			? (opts.userProfile ?? user.userProfile ?? await this.cacheService.userProfileCache.fetch(user.id))
+			? (opts.hint?.userProfile ?? user.userProfile ?? await this.cacheService.userProfileCache.fetch(user.id))
 			: null;
 
-		const relation = opts.userRelations?.get(user.id) ?? (meId ? await this.cacheService.getUserRelation(meId, user) : undefined);
+		const relation = opts.hint?.userRelation ?? opts.hint?.userRelations?.get(user.id) ?? (meId ? await this.cacheService.getUserRelation(meId, user) : undefined);
 
 		let memo: string | null = null;
 		if (isDetailed && meId) {
-			if (opts.userMemos) {
-				memo = opts.userMemos.get(user.id) ?? null;
+			if (opts.hint?.userMemos) {
+				memo = opts.hint.userMemos.get(user.id) ?? null;
 			} else {
 				memo = await this.userMemosRepository.findOneBy({ userId: meId, targetUserId: user.id })
 					.then(row => row?.memo ?? null);
@@ -364,8 +367,8 @@ export class UserEntityService implements OnModuleInit {
 
 		let pins: MiUserNotePining[] = [];
 		if (isDetailed) {
-			if (opts.pinNotes) {
-				pins = opts.pinNotes.get(user.id) ?? [];
+			if (opts.hint?.pinNotes) {
+				pins = opts.hint.pinNotes.get(user.id) ?? [];
 			} else {
 				pins = await this.userNotePiningsRepository.createQueryBuilder('pin')
 					.where('pin.userId = :userId', { userId: user.id })
@@ -375,7 +378,7 @@ export class UserEntityService implements OnModuleInit {
 			}
 		}
 
-		const mastoapi = !isDetailed ? (opts.userProfile ?? user.userProfile ?? await this.cacheService.userProfileCache.fetch(user.id)) : null;
+		const mastoapi = !isDetailed ? (opts.hint?.userProfile ?? user.userProfile ?? await this.cacheService.userProfileCache.fetch(user.id)) : null;
 
 		const followingCount = profile == null ? null :
 			(profile.followingVisibility === 'public') || isMe || iAmModerator ? user.followingCount :
@@ -407,7 +410,7 @@ export class UserEntityService implements OnModuleInit {
 
 		// This is pulled out for readability, but needs to remain async until awaitAll() below.
 		const instancePromise = user.host != null
-			? Promise.resolve(opts.instances?.get(user.host) ?? this.federatedInstanceService.fetch(user.host))
+			? Promise.resolve(opts.hint?.instances?.get(user.host) ?? this.federatedInstanceService.fetch(user.host))
 			: null;
 
 		// noinspection ES6MissingAwait
@@ -475,7 +478,7 @@ export class UserEntityService implements OnModuleInit {
 				url: profile!.url,
 				uri: user.uri,
 				// TODO hints for all of this
-				movedTo: user.movedToUri ? Promise.resolve(opts.userIdsByUri?.get(user.movedToUri) ?? this.apPersonService.resolvePerson(user.movedToUri).then(user => user.id).catch(() => null)) : null,
+				movedTo: user.movedToUri ? Promise.resolve(opts.hint?.userIdsByUri?.get(user.movedToUri) ?? this.apPersonService.resolvePerson(user.movedToUri).then(user => user.id).catch(() => null)) : null,
 				movedToUri: user.movedToUri,
 				// alsoKnownAs moved from packedUserDetailedNotMeOnly for privacy
 				bannerUrl: user.bannerId == null ? null : user.bannerUrl,
@@ -493,6 +496,7 @@ export class UserEntityService implements OnModuleInit {
 				pinnedNoteIds: pins.map(pin => pin.noteId),
 				pinnedNotes: this.noteEntityService.packMany(pins.map(pin => pin.note!), me, {
 					detail: true,
+					hint: { iAmAdmin, iAmModerator, userRelations: opts.hint?.userRelations },
 				}),
 				pinnedPageId: profile!.pinnedPageId,
 				pinnedPage: profile!.pinnedPageId ? this.pageEntityService.pack(profile!.pinnedPageId, me) : null,
@@ -519,7 +523,7 @@ export class UserEntityService implements OnModuleInit {
 				twoFactorEnabled: profile!.twoFactorEnabled,
 				usePasswordLessLogin: profile!.usePasswordLessLogin,
 				securityKeys: profile!.twoFactorEnabled
-					? Promise.resolve(opts.securityKeyCounts?.get(user.id) ?? this.userSecurityKeysRepository.countBy({ userId: user.id })).then(result => result >= 1)
+					? Promise.resolve(opts.hint?.securityKeyCounts?.get(user.id) ?? this.userSecurityKeysRepository.countBy({ userId: user.id })).then(result => result >= 1)
 					: false,
 			} : {}),
 
@@ -615,6 +619,11 @@ export class UserEntityService implements OnModuleInit {
 		options?: {
 			schema?: S,
 			includeSecrets?: boolean,
+			hint?: {
+				userRelations?: Map<string, UserRelation>,
+				iAmModerator?: boolean,
+				iAmAdmin?: boolean,
+			},
 		},
 	): Promise<Packed<S>[]> {
 		if (usersOrIds.length === 0) return [];
@@ -645,7 +654,8 @@ export class UserEntityService implements OnModuleInit {
 		const userIds = users.map(u => u.id);
 
 		// Sync with ApiCallService
-		const iAmModerator = me ? await this.roleService.isModerator(me) : false;
+		const iAmAdmin = me ? (options?.hint?.iAmAdmin ?? await this.roleService.isModerator(me)) : false;
+		const iAmModerator = me ? (options?.hint?.iAmModerator ?? (iAmAdmin || await this.roleService.isModerator(me))) : false;
 
 		const meId = me ? me.id : null;
 		const isDetailed = options && options.schema !== 'UserLite';
@@ -671,7 +681,7 @@ export class UserEntityService implements OnModuleInit {
 
 		// -- 実行者の有無や指定スキーマの種別によって要否が異なる値群を取得
 
-		const [profilesMap, userMemos, userRelations, pinNotes, userIdsByUri, instances, securityKeyCounts, iAmAdmin] = await Promise.all([
+		const [profilesMap, userMemos, userRelations, pinNotes, userIdsByUri, instances, securityKeyCounts] = await Promise.all([
 			// profilesMap
 			this.cacheService.userProfileCache.fetchMany(_profilesToFetch)
 				.then(fetchedProfiles => new Map(fetchedProfiles.concat(_profilesFromUsers))),
@@ -686,7 +696,9 @@ export class UserEntityService implements OnModuleInit {
 				: new Map(),
 
 			// userRelations
-			meId ? this.cacheService.getUserRelations(meId, userIds) : new Map<string, UserRelation>,
+			meId
+				? this.cacheService.getUserRelations(meId, userIds, { userRelations: options?.hint?.userRelations })
+				: new Map<string, UserRelation>,
 
 			// pinNotes
 			isDetailed ? this.userNotePiningsRepository.createQueryBuilder('pin')
@@ -726,9 +738,6 @@ export class UserEntityService implements OnModuleInit {
 				.getRawMany<{ userId: string, userCount: number }>()
 				.then(counts => new Map(counts.map(c => [c.userId, c.userCount])))
 			: undefined, // .pack will fetch the keys for the requesting user if it's in the _userIds
-
-			// iAmAdmin
-			me ? this.roleService.isAdministrator(me) : false,
 		]);
 
 		return await Promise.all(
@@ -737,15 +746,17 @@ export class UserEntityService implements OnModuleInit {
 				me,
 				{
 					...options,
-					userProfile: profilesMap.get(u.id),
-					userRelations: userRelations,
-					userMemos: userMemos,
-					pinNotes: pinNotes,
-					iAmModerator,
-					iAmAdmin,
-					userIdsByUri,
-					instances,
-					securityKeyCounts,
+					hint: {
+						userProfile: profilesMap.get(u.id),
+						userMemos,
+						pinNotes,
+						userIdsByUri,
+						instances,
+						securityKeyCounts,
+						userRelations,
+						iAmModerator,
+						iAmAdmin,
+					},
 				},
 			)),
 		);
