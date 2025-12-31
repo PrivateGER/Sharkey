@@ -6,12 +6,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { MiNote } from '@/models/Note.js';
 import type { MiUser } from '@/models/User.js';
-import type { MiInstance } from '@/models/Instance.js';
 import type { MiUserListMembership } from '@/models/UserListMembership.js';
 import type { NotesRepository } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
-import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { CacheService, UserRelation } from '@/core/CacheService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { bindThis } from '@/decorators.js';
@@ -71,8 +70,8 @@ export class NoteVisibilityService {
 
 		private readonly cacheService: CacheService,
 		private readonly idService: IdService,
-		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly timeService: TimeService,
+		private readonly utilityService: UtilityService,
 	) {}
 
 	@bindThis
@@ -132,7 +131,7 @@ export class NoteVisibilityService {
 			// No need to recurse, since notes() is already fully-expanded.
 			return note.user ?? hint?.users?.get(note.userId) ?? note.userId;
 		});
-		const users = new Map<string, MiUser | Packed<'User'>>();
+		const users = new Map<string, MiUser>();
 		const usersToFetch = new Set<string>();
 		for (const user of userInput) {
 			const userId = typeof(user) === 'object' ? user.id : user;
@@ -140,7 +139,8 @@ export class NoteVisibilityService {
 				continue;
 			}
 
-			if (typeof(user) === 'object') {
+			// Property check filters out PackedUserLite
+			if (typeof(user) === 'object' && ('isSuspended' in user)) {
 				users.set(userId, user);
 				usersToFetch.delete(userId);
 			} else {
@@ -155,39 +155,8 @@ export class NoteVisibilityService {
 		}
 		const usersList = users.values().toArray();
 
-		// Fetch all instances up-front
-		const instanceInput = usersList.map(user => {
-			// No need to recurse, since users() is already fully-expanded.
-			return user.host ? (hint?.instances?.get(user.host) ?? user.host) : undefined;
-		});
-		const instances = new Map<string, MiInstance>();
-		const instancesToFetch = new Set<string>();
-		for (const instance of instanceInput) {
-			if (!instance) {
-				continue;
-			}
-
-			const instanceHost = typeof(instance) === 'object' ? instance.host : instance;
-			if (instances.has(instanceHost)) {
-				continue;
-			}
-
-			if (typeof(instance) === 'object') {
-				instances.set(instanceHost, instance);
-				instancesToFetch.delete(instanceHost);
-			} else {
-				instancesToFetch.add(instanceHost);
-			}
-		}
-		if (instancesToFetch.size > 0) {
-			const fetchedInstances = await this.federatedInstanceService.federatedInstanceCache.fetchMany(instancesToFetch);
-			for (const [host, instance] of fetchedInstances) {
-				instances.set(host, instance);
-			}
-		}
-
 		// Populate all notes
-		const noteHint = { notes, users, instances };
+		const noteHint = { notes, users };
 		const populatedNotes = await Promise.all(toArray(noteOrNotes).map(note => this.populateNote(note, noteHint)));
 
 		// Populate other data
@@ -226,27 +195,9 @@ export class NoteVisibilityService {
 	}
 
 	private async getNoteUser(note: MiNote | Packed<'Note'>, hint?: NotePopulationHint): Promise<PopulatedUser> {
-		const user = note.user
-			?? hint?.users?.get(note.userId)
-			?? await this.cacheService.findUserById(note.userId);
-
-		const instance = user.host
-			? (
-				user.instance
-				?? hint?.instances?.get(user.host)
-				?? await this.federatedInstanceService.fetchOrRegister(user.host)
-			) : null;
-
-		return {
-			...user,
-			makeNotesHiddenBefore: user.makeNotesHiddenBefore ?? null,
-			makeNotesFollowersOnlyBefore: user.makeNotesFollowersOnlyBefore ?? null,
-			requireSigninToViewContents: user.requireSigninToViewContents ?? false,
-			instance: instance ? {
-				...instance,
-				host: user.host as string,
-			} : null,
-		};
+		// Property check filters out PackedUserLite
+		const noteMiUser = (note.user && 'isSuspended' in note.user) ? note.user : null;
+		return noteMiUser ?? hint?.users?.get(note.userId) ?? await this.cacheService.findUserById(note.userId);
 	}
 
 	private async getNoteRenote(note: MiNote | Packed<'Note'>, hint?: NotePopulationHint): Promise<PopulatedNote | null> {
@@ -509,7 +460,7 @@ export class NoteVisibilityService {
 			if (note.user.isSilenced) return true;
 
 			// Silence if user instance is silenced
-			if (note.user.instance?.isSilenced) return true;
+			if (note.user.host && this.utilityService.isSilencedHost(note.user.host)) return true;
 		}
 
 		// Silence if renote is silenced
@@ -563,8 +514,7 @@ export interface NoteVisibilityData {
 
 export interface NotePopulationHint {
 	notes?: Map<string, MiNote | Packed<'Note'>>;
-	users?: Map<string, MiUser | Packed<'User'>>;
-	instances?: Map<string, MiInstance>;
+	users?: Map<string, MiUser>;
 }
 
 // This represents the *requesting* user!
@@ -593,16 +543,10 @@ export interface PopulatedNote {
 interface PopulatedUser {
 	id: string;
 	host: string | null;
-	instance: PopulatedInstance | null;
 	isSilenced: boolean;
 	requireSigninToViewContents: boolean;
 	makeNotesHiddenBefore: number | null;
 	makeNotesFollowersOnlyBefore: number | null;
-}
-
-interface PopulatedInstance {
-	host: string;
-	isSilenced: boolean;
 }
 
 function isPopulatedBoost(note: PopulatedNote): note is PopulatedNote & { renote: PopulatedNote } {
