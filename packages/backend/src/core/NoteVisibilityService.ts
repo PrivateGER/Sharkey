@@ -487,7 +487,7 @@ export class NoteVisibilityService {
 		if (note.userId === me?.id) return false;
 
 		// Don't silence if we follow w/ replies
-		if (me && data.userRelations.get(me.id)?.isFollowingWithReplies) return false;
+		if (me && data.userRelations.get(note.userId)?.isFollowingWithReplies) return false;
 
 		// Don't silence if we're viewing in a list with replies
 		if (data.userListMemberships.get(note.userId)?.withReplies) return false;
