@@ -205,9 +205,9 @@ importers:
       cli-highlight:
         specifier: npm:@transfem-org/cli-highlight@2.1.13
         version: '@transfem-org/cli-highlight@2.1.13'
-      color-convert:
-        specifier: 3.1.2
-        version: 3.1.2
+      color-name:
+        specifier: 2.1.0
+        version: 2.1.0
       content-disposition:
         specifier: 0.5.4
         version: 0.5.4
@@ -443,9 +443,9 @@ importers:
       '@types/archiver':
         specifier: 6.0.3
         version: 6.0.3
-      '@types/color-convert':
-        specifier: 2.0.4
-        version: 2.0.4
+      '@types/color-name':
+        specifier: 2.0.0
+        version: 2.0.0
       '@types/content-disposition':
         specifier: 0.5.9
         version: 0.5.9
@@ -4572,11 +4572,8 @@ packages:
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
 
-  '@types/color-convert@2.0.4':
-    resolution: {integrity: sha512-Ub1MmDdyZ7mX//g25uBAoH/mWGd9swVbt8BseymnaE18SU4po/PjmCrHxqIIRjBo3hV/vh1KGr0eMxUhp+t+dQ==}
-
-  '@types/color-name@1.1.5':
-    resolution: {integrity: sha512-j2K5UJqGTxeesj6oQuGpMgifpT5k9HprgQd8D1Y0lOFqKHl3PJu5GMeS4Y5EgjS55AE6OQxf8mPED9uaGbf4Cg==}
+  '@types/color-name@2.0.0':
+    resolution: {integrity: sha512-63mTjolMJv75upGaUbT6J3lRDWl6pETPQsaWni9w3dMArhNBpgtHkX8ISb9zLV3YYLPA/SMk8ZGALa3k9WY/aQ==}
 
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
@@ -5837,10 +5834,6 @@ packages:
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
-
-  color-convert@3.1.2:
-    resolution: {integrity: sha512-UNqkvCDXstVck3kdowtOTWROIJQwafjOfXSmddoDrXo4cewMKmusCeF22Q24zvjR8nwWib/3S/dfyzPItPEiJg==}
-    engines: {node: '>=14.6'}
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
@@ -14886,11 +14879,7 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
 
-  '@types/color-convert@2.0.4':
-    dependencies:
-      '@types/color-name': 1.1.5
-
-  '@types/color-name@1.1.5': {}
+  '@types/color-name@2.0.0': {}
 
   '@types/connect@3.4.38':
     dependencies:
@@ -16373,10 +16362,6 @@ snapshots:
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
-
-  color-convert@3.1.2:
-    dependencies:
-      color-name: 2.1.0
 
   color-name@1.1.4: {}
 
