@@ -75,7 +75,7 @@ export class NoteVisibilityService {
 	) {}
 
 	@bindThis
-	public async checkNoteVisibilityAsync(note: MiNote | Packed<'Note'>, user: string | PopulatedMe, opts?: { filters?: NoteVisibilityFilters, hint?: Partial<NoteVisibilityData & NotePopulationHint> }): Promise<NoteVisibilityResult> {
+	public async checkNoteVisibilityAsync(note: MiNote | Packed<'Note'>, user: string | PopulatedMe, opts?: { filters?: NoteVisibilityFilters, hint?: NoteVisibilityHint }): Promise<NoteVisibilityResult> {
 		if (typeof(user) === 'string') {
 			user = await this.cacheService.findUserById(user);
 		}
@@ -87,7 +87,7 @@ export class NoteVisibilityService {
 	}
 
 	@bindThis
-	public async populate(noteOrNotes: MiNote | Packed<'Note'> | (MiNote | Packed<'Note'>)[], accessingUser: PopulatedMe, hint?: Partial<NoteVisibilityData & NotePopulationHint>): Promise<PopulationData> {
+	public async populate(noteOrNotes: MiNote | Packed<'Note'> | (MiNote | Packed<'Note'>)[], accessingUser: PopulatedMe, hint?: NoteVisibilityHint): Promise<PopulationData> {
 		// Fetch all notes up-front
 		const noteInput = toArray(noteOrNotes).flatMap(note => [
 			note,
@@ -224,7 +224,7 @@ export class NoteVisibilityService {
 	}
 
 	@bindThis
-	private async populateData(me: PopulatedMe, users: { id: string }[], hint?: Partial<NoteVisibilityData>, filters?: NoteVisibilityFilters): Promise<NoteVisibilityData> {
+	private async populateData(me: PopulatedMe, users: { id: string }[], hint?: NoteVisibilityHint, filters?: NoteVisibilityFilters): Promise<NoteVisibilityData> {
 		// noinspection ES6MissingAwait
 		const [
 			userMutedThreads,
@@ -249,18 +249,16 @@ export class NoteVisibilityService {
 		};
 	}
 
-	private async populateUserRelations(me: NonNullable<PopulatedMe>, users: { id: string }[], hint?: Partial<NoteVisibilityData>): Promise<Map<string, UserRelation>> {
-		const relations = new Map<string, UserRelation>();
+	private async populateUserRelations(me: NonNullable<PopulatedMe>, users: { id: string }[], hint?: NoteVisibilityHint): Promise<Map<string, UserRelation>> {
+		const relations = new Map<string, UserRelation>(hint?.userRelations);
 		const relationsToFetch = new Set<string>();
 
-		for (const { id } of users) {
-			if (relations.has(id)) continue;
+		if (hint?.userRelation) {
+			relations.set(me.id, hint.userRelation);
+		}
 
-			const hinted = hint?.userRelations?.get(id);
-			if (hinted) {
-				relations.set(id, hinted);
-				relationsToFetch.delete(id);
-			} else {
+		for (const { id } of users) {
+			if (!relations.has(id)) {
 				relationsToFetch.add(id);
 			}
 		}
@@ -511,6 +509,11 @@ export interface NoteVisibilityData {
 	// userId => membership (already scoped to listContext)
 	userListMemberships: Map<string, MiUserListMembership>;
 }
+
+export type NoteVisibilityHint = Partial<NoteVisibilityData> & NotePopulationHint & {
+	// Relation from me to note.user
+	userRelation?: UserRelation;
+};
 
 export interface NotePopulationHint {
 	notes?: Map<string, MiNote | Packed<'Note'>>;
