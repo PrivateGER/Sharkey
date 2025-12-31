@@ -96,7 +96,11 @@ import { SkApContext } from '@/models/SkApContext.js';
 import { SkApFetchLog } from '@/models/SkApFetchLog.js';
 import { SkApInboxLog } from '@/models/SkApInboxLog.js';
 
-pg.types.setTypeParser(20, Number);
+// Types are incorrect - TypeId is not a real enum and therefore does not exist at runtime.
+// This construction defines the value by hand, but still allows TypeScript to verify it.
+const INT8: typeof pg.types.TypeId.INT8 = 20;
+
+pg.types.setTypeParser(INT8, Number);
 
 export type LoggerProps = {
 	disableQueryTruncation?: boolean;
