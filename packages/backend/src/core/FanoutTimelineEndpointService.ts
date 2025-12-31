@@ -127,10 +127,10 @@ export class FanoutTimelineEndpointService {
 				const parentFilter = filter;
 				filter = (note, populated, visData) => {
 					if (!ps.ignoreAuthorFromInstanceBlock) {
-						if (note.user?.instance?.isBlocked) return false;
+						if (note.userHost && this.utilityService.isBlockedHost(note.userHost)) return false;
 					}
-					if (note.userId !== note.renoteUserId && note.renote?.user?.instance?.isBlocked) return false;
-					if (note.userId !== note.replyUserId && note.reply?.user?.instance?.isBlocked) return false;
+					if (note.renoteUserHost && note.userId !== note.renoteUserId && this.utilityService.isBlockedHost(note.renoteUserHost)) return false;
+					if (note.replyUserHost && note.userId !== note.replyUserId && this.utilityService.isBlockedHost(note.replyUserHost)) return false;
 
 					return parentFilter(note, populated, visData);
 				};
@@ -143,9 +143,9 @@ export class FanoutTimelineEndpointService {
 						if (note.user?.isSuspended) return false;
 						if (note.userHost && !this.utilityService.isFederationAllowedHost(note.userHost)) return false;
 					}
-					if (note.userId !== note.renoteUserId && note.renote?.user?.isSuspended) return false;
+					if (note.userId !== note.renoteUserId && populated.renote?.user?.isSuspended) return false;
 					if (note.userId !== note.renoteUserId && note.renoteUserHost && !this.utilityService.isFederationAllowedHost(note.renoteUserHost)) return false;
-					if (note.userId !== note.replyUserId && note.reply?.user?.isSuspended) return false;
+					if (note.userId !== note.replyUserId && populated.reply?.user?.isSuspended) return false;
 					if (note.userId !== note.replyUserId && note.replyUserHost && !this.utilityService.isFederationAllowedHost(note.replyUserHost)) return false;
 
 					return parentFilter(note, populated, visData);
