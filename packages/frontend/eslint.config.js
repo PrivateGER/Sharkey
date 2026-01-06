@@ -57,7 +57,6 @@ export default [
 			}],
 			// defineExposeが誤検知されてしまう
 			'@typescript-eslint/no-unused-expressions': 'off',
-			'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
 			// window ... グローバルスコープと衝突し、予期せぬ結果を招くため
 			// e ... error や event など、複数のキーワードの頭文字であり分かりにくいため
 			// close ... window.closeと衝突 or 紛らわしい
