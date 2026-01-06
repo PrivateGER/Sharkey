@@ -277,6 +277,7 @@ export default [
 			'**/storybook-static',
 			'vue-shims.d.ts',
 			'assets',
+			'src/utility/libopenmpt',
 		],
 	},
 ];

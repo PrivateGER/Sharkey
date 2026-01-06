@@ -40,6 +40,7 @@
 		"**/temp",
 		"**/coverage",
 		"**/*.min.js",
-		".storybook/**/*"
+		".storybook/**/*",
+		"src/utility/libopenmpt"
 	]
 }
