@@ -276,40 +276,72 @@ export class SearchService {
 		opts: SearchOpts,
 		pagination: SearchPagination,
 	): Promise<MiNote[]> {
-		const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), pagination.sinceId, pagination.untilId);
+		// Query 1: Get candidate IDs using only indexed columns
+		// This allows PostgreSQL to use the indexes properly (single massive query confuses the planner)
+		const candidateQuery = this.notesRepository.createQueryBuilder('note')
+			.select('note.id');
 
-		if (opts.userId) {
-			query.andWhere('note.userId = :userId', { userId: opts.userId });
-		} else if (opts.channelId) {
-			query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
+		// Pagination (match makePaginationQuery behavior)
+		let sortOrder: 'ASC' | 'DESC';
+		if (pagination.sinceId && pagination.untilId) {
+			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
+			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
+			sortOrder = 'DESC';
+		} else if (pagination.sinceId) {
+			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
+			sortOrder = 'ASC';
+		} else if (pagination.untilId) {
+			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
+			sortOrder = 'DESC';
+		} else {
+			sortOrder = 'DESC';
+		}
+		candidateQuery.orderBy('note.id', sortOrder);
+
+		// Full-text search filter (provider-specific)
+		if (this.config.fulltextSearch?.provider === 'sqlPgroonga') {
+			candidateQuery.andWhere('note.text &@~ :q', { q });
+		} else if (this.config.fulltextSearch?.provider === 'sqlTsvector') {
+			candidateQuery.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
+		} else {
+			candidateQuery.andWhere('note.text ILIKE :q', { q: `%${sqlLikeEscape(q)}%` });
 		}
 
-		query
-			.innerJoinAndSelect('note.user', 'user')
-			.leftJoinAndSelect('note.reply', 'reply')
-			.leftJoinAndSelect('note.renote', 'renote')
-			.leftJoinAndSelect('reply.user', 'replyUser')
-			.leftJoinAndSelect('renote.user', 'renoteUser');
-
-		if (this.config.fulltextSearch?.provider === 'sqlPgroonga') {
-			query.andWhere('note.text &@~ :q', { q });
-		} else if (this.config.fulltextSearch?.provider === 'sqlTsvector') {
-			query.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
-		} else {
-			query.andWhere('note.text ILIKE :q', { q: `%${ sqlLikeEscape(q) }%` });
+		if (opts.userId) {
+			candidateQuery.andWhere('note.userId = :userId', { userId: opts.userId });
+		} else if (opts.channelId) {
+			candidateQuery.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 		}
 
 		if (opts.host) {
 			if (opts.host === '.') {
-				query.andWhere('note.userHost IS NULL');
+				candidateQuery.andWhere('note.userHost IS NULL');
 			} else {
-				query.andWhere('note.userHost = :host', { host: opts.host });
+				candidateQuery.andWhere('note.userHost = :host', { host: opts.host });
 			}
 		}
 
 		if (opts.filetype) {
-			query.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
+			candidateQuery.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
 		}
+
+		// Fetch more candidates than needed since some will likely be filtered by visibility checks
+		const candidateRows = await candidateQuery.limit(pagination.limit * 5).getRawMany();
+		const candidateIds: string[] = candidateRows.map(r => r.note_id);
+
+		if (candidateIds.length === 0) {
+			return [];
+		}
+
+		// Query 2: Fetch full notes with visibility/blocking/muting checks
+		const query = this.notesRepository.createQueryBuilder('note')
+			.where('note.id IN (:...ids)', { ids: candidateIds })
+			.innerJoinAndSelect('note.user', 'user')
+			.leftJoinAndSelect('note.reply', 'reply')
+			.leftJoinAndSelect('note.renote', 'renote')
+			.leftJoinAndSelect('reply.user', 'replyUser')
+			.leftJoinAndSelect('renote.user', 'renoteUser')
+			.orderBy('note.id', sortOrder);
 
 		this.queryService.generateVisibilityQuery(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query);
