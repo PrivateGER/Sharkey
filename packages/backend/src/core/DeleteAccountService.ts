@@ -90,6 +90,6 @@ export class DeleteAccountService {
 			isDeleted: true,
 		});
 
-		await this.internalEventService.emit('userChangeDeletedState', { id: user.id, isDeleted: true, token: user.token, uri: user.uri, usernameLower: user.usernameLower, host: user.host });
+		await this.internalEventService.emit('userChangeDeletedState', { id: user.id, isDeleted: true, token: user.token, uri: user.uri, usernameLower: user.username.toLowerCase(), host: user.host });
 	}
 }
