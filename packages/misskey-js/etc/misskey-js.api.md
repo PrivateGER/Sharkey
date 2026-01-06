@@ -3451,7 +3451,7 @@ type PagesUnlikeRequest = operations['pages___unlike']['requestBody']['content']
 type PagesUpdateRequest = operations['pages___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
-function parse(_acct: string): Acct;
+function parse(acct: string, lower?: boolean): Acct;
 
 // Warning: (ae-forgotten-export) The symbol "Values" needs to be exported by the entry point index.d.ts
 //
@@ -3819,7 +3819,7 @@ type TestRequest = operations['test']['requestBody']['content']['application/jso
 type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
-function toString(acct: Acct): string;
+function toString(acct: Acct, lower?: boolean): string;
 
 // @public (undocumented)
 type User = components['schemas']['User'];
