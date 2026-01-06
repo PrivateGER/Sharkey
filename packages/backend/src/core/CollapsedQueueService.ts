@@ -4,16 +4,26 @@
  */
 
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import type { PartialEntityUpdate } from '@/types.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { bindThis } from '@/decorators.js';
 import { callAllAsync } from '@/misc/call-all.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import type { MiAntenna, FollowingsRepository } from '@/models/_.js';
+import type {
+	MiAntenna,
+	FollowingsRepository,
+	ChannelsRepository,
+	AntennasRepository,
+	AccessTokensRepository,
+	NotesRepository,
+	UsersRepository,
+	InstancesRepository,
+} from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheManagementService, type ManagedCollapsedQueue } from '@/global/CacheManagementService.js';
 import { AntennaService } from '@/core/AntennaService.js';
 import { CacheService } from '@/core/CacheService.js';
-import type { DataSource } from 'typeorm';
+import type { Brackets, ObjectLiteral, Repository, UpdateQueryBuilder } from 'typeorm';
 
 export type UpdateInstanceJob = {
 	latestRequestReceivedAt?: Date,
@@ -76,8 +86,23 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 		@Inject(DI.followingsRepository)
 		private readonly followingsRepository: FollowingsRepository,
 
-		@Inject(DI.db)
-		private readonly db: DataSource,
+		@Inject(DI.channelsRepository)
+		private readonly channelsRepository: ChannelsRepository,
+
+		@Inject(DI.antennasRepository)
+		private readonly antennasRepository: AntennasRepository,
+
+		@Inject(DI.accessTokensRepository)
+		private readonly accessTokensRepository: AccessTokensRepository,
+
+		@Inject(DI.notesRepository)
+		private readonly notesRepository: NotesRepository,
+
+		@Inject(DI.usersRepository)
+		private readonly usersRepository: UsersRepository,
+
+		@Inject(DI.instancesRepository)
+		private readonly instancesRepository: InstancesRepository,
 
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly internalEventService: InternalEventService,
@@ -102,99 +127,90 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
 				check: (_, job) =>
-					job.notRespondingSince !== undefined || // This one allows null
-					!!job.latestRequestReceivedAt ||
-					!!job.shouldSuspendNotResponding ||
-					!!job.shouldSuspendGone ||
-					!!job.shouldUnsuspend ||
-					!!job.notesCountDelta ||
+					job.notRespondingSince !== undefined ||
+					job.latestRequestReceivedAt !== undefined ||
+					job.shouldSuspendNotResponding || // exclude false too
+					job.shouldSuspendGone ||
+					job.shouldUnsuspend ||
+					!!job.notesCountDelta || // exclude 0 too
 					!!job.usersCountDelta ||
 					!!job.followingCountDelta ||
 					!!job.followersCountDelta,
 				perform: async (host, job) => {
-					const sb = new SqlBuilder();
-					sb.add('UPDATE "instance"');
-					sb.add('SET');
+					const qb = new UpdateBuilder(this.instancesRepository, 'instance')
+						.where({ host });
 
-					const sets = sb.list();
-
-					if (job.latestRequestReceivedAt) {
-						sets.add('"latestRequestReceivedAt" = GREATEST("latestRequestReceivedAt", $?)', job.latestRequestReceivedAt);
+					if (job.latestRequestReceivedAt !== undefined) {
+						qb.setSql('latestRequestReceivedAt', 'GREATEST("latestRequestReceivedAt", :latestRequestReceivedAt)', { latestRequestReceivedAt: job.latestRequestReceivedAt });
 					}
 
 					// null (responding) > Date (not responding)
 					if (job.notRespondingSince != null) {
-						sets.add(`
-							"notRespondingSince" =
-								CASE
-									WHEN "notRespondingSince" IS NULL THEN NULL
-									ELSE LEAST("notRespondingSince", $?)
-								END
-						`, job.notRespondingSince);
+						qb.setSql('notRespondingSince', `
+							CASE
+								WHEN "notRespondingSince" IS NULL THEN NULL
+								ELSE LEAST("notRespondingSince", :notRespondingSince)
+							END
+						`, { notRespondingSince: job.notRespondingSince });
 					} else if (job.notRespondingSince === null) {
-						sets.add('"notRespondingSince" = NULL');
+						qb.setValue('notRespondingSince', null);
 					}
 
 					// isNotResponding derives from latestRequestReceivedAt and notRespondingSince
 					if (job.latestRequestReceivedAt || job.notRespondingSince !== undefined) {
 						if (job.latestRequestReceivedAt || job.notRespondingSince === null) {
-							sets.add('"isNotResponding" = false');
+							qb.setValue('isNotResponding', false);
 						} else {
-							sets.add('"isNotResponding" = true');
+							// TODO this should be atomic
+							qb.setValue('isNotResponding', true);
 						}
 					}
 
 					// manual > gone > none > auto
 					if (job.shouldSuspendGone) {
-						sets.add(`
-							"suspensionState" =
-								CASE
-									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
-									ELSE 'goneSuspended'::instance_suspensionstate_enum
-								END
+						qb.setSql('suspensionState', `
+							CASE
+								WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+								ELSE 'goneSuspended'::instance_suspensionstate_enum
+							END
 						`);
 					} else if (job.shouldUnsuspend) {
-						sets.add(`
-							"suspensionState" =
-								CASE
-									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
-									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
-									ELSE 'none'::instance_suspensionstate_enum
-								END
+						qb.setSql('suspensionState', `
+							CASE
+								WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+								WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
+								ELSE 'none'::instance_suspensionstate_enum
+							END
 						`);
 					} else if (job.shouldSuspendNotResponding) {
-						sets.add(`
-							"suspensionState" =
-								CASE
-										WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
-										WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
-										WHEN "notRespondingSince" IS NULL THEN 'none'::instance_suspensionstate_enum
-										ELSE 'autoSuspendedForNotResponding'::instance_suspensionstate_enum
-								END
+						qb.setSql('suspensionState', `
+							CASE
+									WHEN "suspensionState" = 'manuallySuspended' THEN 'manuallySuspended'::instance_suspensionstate_enum
+									WHEN "suspensionState" = 'goneSuspended' THEN 'goneSuspended'::instance_suspensionstate_enum
+									WHEN "notRespondingSince" IS NULL THEN 'none'::instance_suspensionstate_enum
+									ELSE 'autoSuspendedForNotResponding'::instance_suspensionstate_enum
+							END
 						`);
 					}
 
 					if (job.notesCountDelta) {
-						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+						qb.setSql('notesCount', '"notesCount" + :notesCountDelta', { notesCountDelta: job.notesCountDelta });
 					}
 
 					if (job.usersCountDelta) {
-						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
+						qb.setSql('usersCount', '"usersCount" + :usersCountDelta', { usersCountDelta: job.usersCountDelta });
 					}
 
 					if (job.followersCountDelta) {
-						sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
+						qb.setSql('followersCount', '"followersCount" + :followersCountDelta', { followersCountDelta: job.followersCountDelta });
 					}
 
 					if (job.followingCountDelta) {
-						sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
+						qb.setSql('followingCount', '"followingCount" + :followingCountDelta', { followingCountDelta: job.followingCountDelta });
 					}
 
-					sb.add('WHERE "host" = $?', host);
-					const query = sb.build();
-
-					// Manually update and sync caches
-					await this.db.query(query.sql, query.parameters);
+					// Update and sync caches
+					await qb.execute();
 					await this.federatedInstanceService.refresh('host');
 				},
 			},
@@ -213,55 +229,49 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					followersCountDelta: sum(oldJob.followersCountDelta, newJob.followersCountDelta),
 				}),
 				check: (_, job) =>
-					!!job.updatedAt ||
-					!!job.lastActiveDate ||
-					!!job.notesCountDelta ||
+					job.updatedAt !== undefined ||
+					job.lastActiveDate !== undefined ||
+					!!job.notesCountDelta || // exclude 0 too
 					!!job.followingCountDelta ||
 					!!job.followersCountDelta,
 				perform:
-					async (userId, job) => {
-						const sb = new SqlBuilder();
-						sb.add('UPDATE "user"');
-						sb.add('SET');
+					async (id, job) => {
+						const qb = new UpdateBuilder(this.usersRepository, 'user')
+							.where({ id });
 
-						const sets = sb.list();
-
-						if (job.updatedAt) {
-							sets.add('"updatedAt" = GREATEST("updatedAt", $?)', job.updatedAt);
+						if (job.updatedAt !== undefined) {
+							qb.setSql('updatedAt', 'GREATEST("updatedAt", :updatedAt)', { updatedAt: job.updatedAt });
 						}
 
 						const lastActiveDate = job.lastActiveDate ?? job.updatedAt;
-						if (lastActiveDate) {
-							sets.add('"lastActiveDate" = GREATEST("lastActiveDate", $?)', lastActiveDate);
+						if (lastActiveDate !== undefined) {
+							qb.setSql('lastActiveDate', 'GREATEST("lastActiveDate", :lastActiveDate)', { lastActiveDate });
 						}
 
-						const isWakingUp = lastActiveDate && (await this.cacheService.findUserById(userId)).isHibernated;
+						const isWakingUp = lastActiveDate != null && (await this.cacheService.findOptionalUserById(id))?.isHibernated;
 						if (isWakingUp) {
-							sets.add('"isHibernated" = false');
+							qb.setValue('isHibernated', false);
 						}
 
 						if (job.notesCountDelta) {
-							sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+							qb.setSql('notesCount', '"notesCount" + :notesCountDelta', { notesCountDelta: job.notesCountDelta });
 						}
 
 						if (job.followersCountDelta) {
-							sets.add('"followersCount" = "followersCount" + $?', job.followersCountDelta);
+							qb.setSql('followersCount', '"followersCount" + :followersCountDelta', { followersCountDelta: job.followersCountDelta });
 						}
 
 						if (job.followingCountDelta) {
-							sets.add('"followingCount" = "followingCount" + $?', job.followingCountDelta);
+							qb.setSql('followingCount', '"followingCount" + :followingCountDelta', { followingCountDelta: job.followingCountDelta });
 						}
 
-						sb.add('WHERE "id" = $?', userId);
-						const query = sb.build();
-
 						// Manually update and sync caches
-						await this.db.query(query.sql, query.parameters);
-						await this.internalEventService.emit('userUpdated', { id: userId });
+						await qb.execute();
+						await this.internalEventService.emit('userUpdated', { id });
 
 						if (isWakingUp) {
-							// Cache event is covered by user sync above
-							await this.followingsRepository.update({ followerId: userId }, { isFollowerHibernated: false });
+							await this.followingsRepository.update({ followerId: id }, { isFollowerHibernated: false });
+							await this.internalEventService.emit('userChangeHibernatedState', { id, isHibernated: false });
 						}
 					},
 			},
@@ -278,32 +288,26 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					clippedCountDelta: sum(oldJob.clippedCountDelta, newJob.clippedCountDelta),
 				}),
 				check: (_, job) =>
-					!!job.repliesCountDelta ||
+					!!job.repliesCountDelta || // exclude 0 too
 					!!job.renoteCountDelta ||
 					!!job.clippedCountDelta,
-				perform: async (noteId, job) => {
-					const sb = new SqlBuilder();
-					sb.add('UPDATE "note"');
-					sb.add('SET');
-
-					const sets = sb.list();
+				perform: async (id, job) => {
+					const qb = new UpdateBuilder(this.notesRepository, 'note')
+						.where({ id });
 
 					if (job.repliesCountDelta) {
-						sets.add('"repliesCount" = "repliesCount" + $?', job.repliesCountDelta);
+						qb.setSql('repliesCount', '"repliesCount" + :repliesCountDelta', { repliesCountDelta: job.repliesCountDelta });
 					}
 
 					if (job.renoteCountDelta) {
-						sets.add('"renoteCount" = "renoteCount" + $?', job.renoteCountDelta);
+						qb.setSql('renoteCount', '"renoteCount" + :renoteCountDelta', { renoteCountDelta: job.renoteCountDelta });
 					}
 
 					if (job.clippedCountDelta) {
-						sets.add('"clippedCount" = "clippedCount" + $?', job.clippedCountDelta);
+						qb.setSql('clippedCount', '"clippedCount" + :clippedCountDelta', { clippedCountDelta: job.clippedCountDelta });
 					}
 
-					sb.add('WHERE "id" = $?', noteId);
-					const query = sb.build();
-
-					await this.db.query(query.sql, query.parameters);
+					await qb.execute();
 				},
 			},
 		);
@@ -317,13 +321,16 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
 				check: (_, job) =>
-					!!job.lastUsedAt,
+					job.lastUsedAt !== undefined,
 				perform: async (id, job) => {
-					await this.db.sql`
-						UPDATE "access_token"
-						SET "lastUsedAt" = GREATEST("lastUsedAt", ${job.lastUsedAt})
-						WHERE "id" = ${id}
-					`;
+					const qb = new UpdateBuilder(this.accessTokensRepository, 'accessToken')
+						.where({ id });
+
+					if (job.lastUsedAt !== undefined) {
+						qb.setSql('lastUsedAt', 'GREATEST("lastUsedAt", :lastUsedAt)', { lastUsedAt: job.lastUsedAt });
+					}
+
+					await qb.execute();
 				},
 			},
 		);
@@ -338,29 +345,23 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					lastUsedAt: maxDate(oldJob.lastUsedAt, newJob.lastUsedAt),
 				}),
 				check: (_, job) =>
-					!!job.isActive ||
-					!!job.lastUsedAt,
-				perform: async (antennaId, job) => {
-					const sb = new SqlBuilder();
-					sb.add('UPDATE "antenna"');
-					sb.add('SET');
+					job.isActive !== undefined ||
+					job.lastUsedAt !== undefined,
+				perform: async (id, job) => {
+					const qb = new UpdateBuilder(this.antennasRepository, 'antenna')
+						.where({ id });
 
-					const sets = sb.list();
-
-					if (job.isActive) {
-						sets.add('"isActive" = "isActive" OR $?', job.isActive);
+					if (job.isActive !== undefined) {
+						qb.setSql('isActive', '"isActive" OR :isActive', { isActive: job.isActive });
 					}
 
-					if (job.lastUsedAt) {
-						sets.add('"lastUsedAt" = GREATEST("lastUsedAt", $?)', job.lastUsedAt);
+					if (job.lastUsedAt !== undefined) {
+						qb.setSql('lastUsedAt', 'GREATEST("lastUsedAt", :lastUsedAt)', { lastUsedAt: job.lastUsedAt });
 					}
 
-					sb.add('WHERE "id" = $?', antennaId);
-					const query = sb.build();
-
-					// Manually update and sync caches
-					await this.db.query(query.sql, query.parameters);
-					await this.antennaService.refreshAntenna(antennaId);
+					// Update and sync caches
+					await qb.execute();
+					await this.antennaService.refreshAntenna(id);
 				},
 			},
 		);
@@ -376,33 +377,26 @@ export class CollapsedQueueService implements OnApplicationShutdown {
 					usersCountDelta: sum(oldJob.usersCountDelta, newJob.usersCountDelta),
 				}),
 				check: (_, job) =>
-					!!job.lastNotedAt ||
-					!!job.notesCountDelta ||
+					job.lastNotedAt !== undefined ||
+					!!job.notesCountDelta || // exclude 0 too
 					!!job.usersCountDelta,
-				perform: async (channelId, job) => {
-					const sb = new SqlBuilder();
-					sb.add('UPDATE "channel"');
-					sb.add('SET');
+				perform: async (id, job) => {
+					const qb = new UpdateBuilder(this.channelsRepository, 'channel')
+						.where({ id });
 
-					const sets = sb.list();
-
-					if (job.lastNotedAt) {
-						sets.add('"lastNotedAt" = GREATEST("lastNotedAt", $?)', job.lastNotedAt);
+					if (job.lastNotedAt !== undefined) {
+						qb.setSql('lastNotedAt', 'GREATEST("lastNotedAt", :lastNotedAt)', { lastNotedAt: job.lastNotedAt });
 					}
 
 					if (job.notesCountDelta) {
-						sets.add('"notesCount" = "notesCount" + $?', job.notesCountDelta);
+						qb.setSql('notesCount', '"notesCount" + :notesCountDelta', { notesCountDelta: job.notesCountDelta });
 					}
 
 					if (job.usersCountDelta) {
-						sets.add('"usersCount" = "usersCount" + $?', job.usersCountDelta);
+						qb.setSql('usersCount', '"usersCount" + :usersCountDelta', { usersCountDelta: job.usersCountDelta });
 					}
 
-					sb.add('WHERE "id" = $?', channelId);
-					const query = sb.build();
-
-					// Manually update and sync caches
-					await this.db.query(query.sql, query.parameters);
+					await qb.execute();
 				},
 			},
 		);
@@ -548,75 +542,139 @@ function or(first: boolean | null | undefined, second: boolean | null | undefine
 	return first || second;
 }
 
-class SqlBuilder {
-	private readonly lines: string[] = [];
-	private readonly parameters: unknown[] = [];
-	private nextVarId = 1;
-
-	constructor() {}
-
-	private getNextReplacement(): string {
-		const replacement = '$' + this.nextVarId;
-		this.nextVarId++;
-		return replacement;
-	}
-
-	// https://typeorm.io/docs/data-source/data-source-api/
-	public add(sql: string, ...params: unknown[]): void {
-		// Populate the variable number for all parameters
-		const namedParams = new Map<string, string>();
-		sql = sql.replaceAll(/\$\?(\d+\b)?/g, match => {
-			// Named variable - store & reuse the mapping
-			if (match[1]) {
-				let name = namedParams.get(match[1]);
-				if (name == null) {
-					name = this.getNextReplacement();
-					namedParams.set(match[1], name);
-				}
-				return name;
-			}
-
-			// Unnamed variable
-			return this.getNextReplacement();
-		});
-
-		this.lines.push(sql);
-
-		this.parameters.push(...params);
-	}
-
-	public list(): SqlListBuilder {
-		return new SqlListBuilder(this, '    ');
-	}
-
-	public build() {
-		return {
-			sql: this.lines.join('\n'),
-			parameters: this.parameters,
-		};
-	}
-}
-
-class SqlListBuilder {
-	private isFirst = true;
+class UpdateBuilder<T extends ObjectLiteral> {
+	private readonly qb: UpdateQueryBuilder<T>;
+	private readonly updates: UpdateHash<T> = {};
 
 	constructor(
-		private readonly sqlBuilder: SqlBuilder,
-		private readonly indent: string,
-	) {}
+		repository: Repository<T>,
+		private readonly alias: string,
+	) {
+		this.qb = repository.createQueryBuilder(alias).update();
+	}
 
-	add(sql: string, ...params: unknown[]): void {
-		if (this.isFirst) {
-			this.isFirst = false;
-		} else {
-			sql = ', ' + sql;
+	/**
+	 * Sets WHERE condition in the query builder.
+	 * If you had previously WHERE expression defined,
+	 * calling this function will override previously set WHERE conditions.
+	 * Additionally you can add parameters used in where expression.
+	 */
+	@bindThis
+	public where(where: string | ((qb: UpdateQueryBuilder<T>) => string) | Brackets | ObjectLiteral | ObjectLiteral[], parameters?: ObjectLiteral): this {
+		this.qb.where(where, parameters);
+		return this;
+	}
+
+	/**
+	 * Adds new AND WHERE condition in the query builder.
+	 * Additionally you can add parameters used in where expression.
+	 */
+	@bindThis
+	public andWhere(where: string | ((qb: UpdateQueryBuilder<T>) => string) | Brackets | ObjectLiteral | ObjectLiteral[], parameters?: ObjectLiteral): this {
+		this.qb.andWhere(where, parameters);
+		return this;
+	}
+
+	/**
+	 * Adds new OR WHERE condition in the query builder.
+	 * Additionally you can add parameters used in where expression.
+	 */
+	@bindThis
+	public orWhere(where: string | ((qb: UpdateQueryBuilder<T>) => string) | Brackets | ObjectLiteral | ObjectLiteral[], parameters?: ObjectLiteral): this {
+		this.qb.orWhere(where, parameters);
+		return this;
+	}
+
+	/**
+	 * Updates a single property
+	 * @param property Name of the property to update
+	 * @param update Expression or SQL to apply
+	 */
+	@bindThis
+	public set<P extends keyof T>(property: P, update: Update<T, P>): this {
+		this.updates[property] = update;
+		return this;
+	}
+
+	/**
+	 * Updates a single property with a SQL expression
+	 * @param property Name of the property to update
+	 * @param sql SQL expression
+	 * @param parameters Optional parameters for the expression
+	 */
+	@bindThis
+	public setSql<P extends keyof T>(property: P, sql: string, parameters?: ObjectLiteral): this {
+		this.updates[property] = { sql, parameters };
+		return this;
+	}
+
+	/**
+	 * Updates a single property with an inline value.
+	 * @param property Name of the property to update
+	 * @param value Value to set
+	 */
+	@bindThis
+	public setValue<P extends keyof T>(property: P, value: T[P]): this {
+		this.updates[property] = { value };
+		return this;
+	}
+
+	/**
+	 * Updates multiple properties.
+	 * @param updates Hash of property names to expression or SQL updates.
+	 */
+	@bindThis
+	public setMany(updates: Partial<UpdateHash<T>>): this {
+		Object.assign(this.updates, updates);
+		return this;
+	}
+
+	/**
+	 * Executes all queued updates, if any.
+	 * @returns the number of rows updated, or zero if no updates were queued.
+	 */
+	@bindThis
+	public async execute(): Promise<number> {
+		// Consolidate queued updates
+		const updates: PartialEntityUpdate<T> = {};
+		const parameters: ObjectLiteral = {};
+		for (const e of Object.entries(this.updates)) {
+			const key = e[0] as keyof T;
+			const update = e[1] as Update<T, keyof T> | undefined;
+
+			if (update) {
+				if ('sql' in update) {
+					updates[key] = () => update.sql;
+					if (update.parameters) {
+						Object.assign(parameters, update.parameters);
+					}
+				} else {
+					updates[key] = update.value;
+				}
+			}
 		}
 
-		sql = this.indent + sql;
-		this.sqlBuilder.add(sql, ...params);
-	}
+		// Skip the whole query if it would be a no-op - otherwise we'll get an error.
+		if (Object.keys(updates).length < 1) {
+			return 0;
+		}
 
-	public list(): SqlListBuilder {
-		return new SqlListBuilder(this.sqlBuilder, this.indent + '    ');
+		// Do it!
+		const results = await this.qb
+			.setParameters(parameters)
+			.set(updates)
+			.execute();
+		return results.affected ?? 0;
 	}
 }
+
+type UpdateHash<T> = {
+	[K in keyof T]?: Update<T, K>;
+};
+
+type Update<T, K extends keyof T> =
+	ValueUpdate<T, K> |
+	SqlUpdate;
+
+type ValueUpdate<T, K extends keyof T> = { value: T[K] };
+type SqlUpdate = { sql: string, parameters?: ObjectLiteral };

@@ -38,11 +38,7 @@ export default class Connection {
 	private channels = new Map<string, Channel>();
 	private subscribingNotes = new Map<string, number>();
 	public userProfile: MiUserProfile | null = null;
-	public following: Map<string, Omit<MiFollowing, 'isFollowerHibernated'>> = new Map();
 	public followingChannels: Set<string> = new Set();
-	public userIdsWhoMeMuting: Set<string> = new Set();
-	public userIdsWhoBlockingMe: Set<string> = new Set();
-	public userIdsWhoMeMutingRenotes: Set<string> = new Set();
 	public userMutedInstances: Set<string> = new Set();
 	public userMutedThreads: Set<string> = new Set();
 	public userMutedNotes: Set<string> = new Set();
@@ -127,11 +123,7 @@ export default class Connection {
 		await Promise.all([
 			this.onUserByIdCacheChanged({ keys: [this.user.id] }),
 			this.onUserProfileCacheChanged({ keys: [this.user.id] }),
-			this.onUserFollowingCacheChanged({ keys: [this.user.id] }),
 			this.onUserFollowingChannelsCacheChanged({ keys: [this.user.id] }),
-			this.onUserMutingsCacheChanged({ keys: [this.user.id] }),
-			this.onUserBlockedCacheChanged({ keys: [this.user.id] }),
-			this.onRenoteMutingsCacheChanged({ keys: [this.user.id] }),
 			this.onThreadMutingsCacheChanged({ keys: [this.user.id] }),
 			this.onNoteMutingsCacheChanged({ keys: [this.user.id] }),
 		]);
@@ -144,11 +136,7 @@ export default class Connection {
 	private connectCacheService(): void {
 		this.cacheService.userByIdCache.on('changed', this.onUserByIdCacheChanged);
 		this.cacheService.userProfileCache.on('changed', this.onUserProfileCacheChanged);
-		this.cacheService.userFollowingsCache.on('changed', this.onUserFollowingCacheChanged);
 		this.cacheService.userFollowingChannelsCache.on('changed', this.onUserFollowingChannelsCacheChanged);
-		this.cacheService.userMutingsCache.on('changed', this.onUserMutingsCacheChanged);
-		this.cacheService.userBlockedCache.on('changed', this.onUserBlockedCacheChanged);
-		this.cacheService.renoteMutingsCache.on('changed', this.onRenoteMutingsCacheChanged);
 		this.cacheService.threadMutingsCache.on('changed', this.onThreadMutingsCacheChanged);
 		this.cacheService.noteMutingsCache.on('changed', this.onNoteMutingsCacheChanged);
 	}
@@ -157,11 +145,7 @@ export default class Connection {
 	private disconnectCacheService(): void {
 		this.cacheService.userByIdCache.off('changed', this.onUserByIdCacheChanged);
 		this.cacheService.userProfileCache.off('changed', this.onUserProfileCacheChanged);
-		this.cacheService.userFollowingsCache.off('changed', this.onUserFollowingCacheChanged);
 		this.cacheService.userFollowingChannelsCache.off('changed', this.onUserFollowingChannelsCacheChanged);
-		this.cacheService.userMutingsCache.off('changed', this.onUserMutingsCacheChanged);
-		this.cacheService.userBlockedCache.off('changed', this.onUserBlockedCacheChanged);
-		this.cacheService.renoteMutingsCache.off('changed', this.onRenoteMutingsCacheChanged);
 		this.cacheService.threadMutingsCache.off('changed', this.onThreadMutingsCacheChanged);
 		this.cacheService.noteMutingsCache.off('changed', this.onNoteMutingsCacheChanged);
 	}
@@ -191,43 +175,11 @@ export default class Connection {
 	}
 
 	@bindThis
-	private async onUserFollowingCacheChanged(body: { keys: string[] }): Promise<void> {
-		if (!this.user) return;
-		if (!body.keys.includes(this.user.id)) return;
-
-		this.following = await this.cacheService.userFollowingsCache.fetch(this.user.id);
-	}
-
-	@bindThis
 	private async onUserFollowingChannelsCacheChanged(body: { keys: string[] }): Promise<void> {
 		if (!this.user) return;
 		if (!body.keys.includes(this.user.id)) return;
 
 		this.followingChannels = await this.cacheService.userFollowingChannelsCache.fetch(this.user.id);
-	}
-
-	@bindThis
-	private async onUserMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
-		if (!this.user) return;
-		if (!body.keys.includes(this.user.id)) return;
-
-		this.userIdsWhoMeMuting = await this.cacheService.userMutingsCache.fetch(this.user.id);
-	}
-
-	@bindThis
-	private async onUserBlockedCacheChanged(body: { keys: string[] }): Promise<void> {
-		if (!this.user) return;
-		if (!body.keys.includes(this.user.id)) return;
-
-		this.userIdsWhoBlockingMe = await this.cacheService.userBlockedCache.fetch(this.user.id);
-	}
-
-	@bindThis
-	private async onRenoteMutingsCacheChanged(body: { keys: string[] }): Promise<void> {
-		if (!this.user) return;
-		if (!body.keys.includes(this.user.id)) return;
-
-		this.userIdsWhoMeMutingRenotes = await this.cacheService.renoteMutingsCache.fetch(this.user.id);
 	}
 
 	@bindThis
@@ -358,10 +310,11 @@ export default class Connection {
 		// we must not send to the frontend information about notes from
 		// users who blocked the logged-in user, even when they're replies
 		// to notes the logged-in user can see
-		if (data.type === 'replied') {
+		if (this.user != null && 'userId' in data.body.body) {
 			const noteUserId = data.body.body.userId;
-			if (noteUserId !== null) {
-				if (this.userIdsWhoBlockingMe.has(noteUserId)) {
+			if (noteUserId !== this.user.id) {
+				const relation = await this.cacheService.getUserRelation(noteUserId, this.user.id);
+				if (relation.isBlocking) {
 					return;
 				}
 			}

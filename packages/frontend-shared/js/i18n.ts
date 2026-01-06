@@ -28,10 +28,11 @@ type ParametersOf<T extends ILocale, TKey extends FlattenKeys<T, ParameterizedSt
 		: never;
 
 type Tsx<T extends ILocale> = {
-	readonly [K in keyof T as T[K] extends string ? never : K]: T[K] extends ParameterizedString<infer P>
+	readonly [K in keyof T]: T[K] extends ParameterizedString<infer P>
 		? (arg: { readonly [_ in P]: string | number }) => string
-		// @ts-expect-error -- 証明省略
-		: Tsx<T[K]>;
+		: T[K] extends object
+			? Tsx<T[K]>
+			: never;
 };
 
 export class I18n<T extends ILocale> {

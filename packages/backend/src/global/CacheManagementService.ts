@@ -25,7 +25,7 @@ import { DI } from '@/di-symbols.js';
 import { CollapsedQueue, type CollapsedQueueOpts, type CollapsedQueueServices } from '@/misc/collapsed-queue.js';
 import { TimeService, type TimerHandle } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import { callAllOn, callAllOnAsync } from '@/misc/call-all.js';
+import { callAllAsync, callAllOn, callAllOnAsync } from '@/misc/call-all.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 import type * as Redis from 'ioredis';
@@ -42,7 +42,7 @@ export type ManagedCollapsedQueue<T> = Managed<CollapsedQueue<T>>;
 
 export type Managed<T> = Omit<T, 'dispose' | 'onApplicationShutdown' | 'gc'>;
 export type CacheManager = { dispose(): Promise<void> | void, clear(): void, gc(): void };
-export type QueueManager = { dispose(): Promise<void> | void };
+export type QueueManager = { dispose(): Promise<void>, performAllNow(): Promise<void> };
 
 type CacheServices = MemoryCacheServices & RedisCacheServices & QuantumCacheServices & CollapsedQueueServices;
 
@@ -138,9 +138,12 @@ export class CacheManagementService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public clear(): void {
-		this.resetGcTimer(() => {
-			callAllOn(this.managedCaches.values(), 'clear');
+	public async clear(): Promise<void> {
+		await this.resetGcTimerAsync(async () => {
+			await callAllAsync([
+				() => callAllOnAsync(this.managedQueues.values(), 'performAllNow'),
+				() => callAllOn(this.managedCaches.values(), 'clear'),
+			]);
 		});
 	}
 
@@ -186,6 +189,17 @@ export class CacheManagementService implements OnApplicationShutdown {
 			if (onBlank) {
 				onBlank();
 			}
+		} finally {
+			this.startGcTimer();
+		}
+	}
+
+	@bindThis
+	private async resetGcTimerAsync(onBlank: () => Promise<void> | void): Promise<void> {
+		this.stopGcTimer();
+
+		try {
+			await onBlank();
 		} finally {
 			this.startGcTimer();
 		}

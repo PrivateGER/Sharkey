@@ -20,8 +20,10 @@ import * as Acct from '@/misc/acct.js';
 import { genIdenticon } from '@/misc/gen-identicon.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { EnvService } from '@/global/EnvService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { bindThis } from '@/decorators.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ActivityPubServerService } from './ActivityPubServerService.js';
@@ -77,6 +79,8 @@ export class ServerService implements OnApplicationShutdown {
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly envService: EnvService,
 		private readonly internalEventService: InternalEventService,
+		private readonly cacheService: CacheService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -219,18 +223,11 @@ export class ServerService implements OnApplicationShutdown {
 		});
 
 		fastify.get<{ Params: { acct: string } }>('/avatar/@:acct', async (request, reply) => {
-			const { username, host } = Acct.parse(request.params.acct);
-			const user = await this.usersRepository.findOne({
-				where: {
-					usernameLower: username.toLowerCase(),
-					host: (host == null) || (host === this.config.host) ? IsNull() : host,
-					isSuspended: false,
-				},
-			});
+			const user = await this.cacheService.findOptionalUserByAcct(request.params.acct);
 
 			reply.header('Cache-Control', 'public, max-age=86400');
 
-			if (user) {
+			if (user && this.utilityService.isActiveUser(user)) {
 				reply.redirect((user.avatarId == null ? null : user.avatarUrl) ?? this.userEntityService.getIdenticonUrl(user));
 			} else {
 				reply.redirect('/static-assets/user-unknown.png');
@@ -238,7 +235,7 @@ export class ServerService implements OnApplicationShutdown {
 		});
 
 		fastify.get<{ Params: { x: string } }>('/identicon/:x', (request, reply) => {
- 			reply.header('Content-Type', 'image/png');
+			reply.header('Content-Type', 'image/png');
 			reply.header('Cache-Control', 'public, max-age=86400');
 
 			if (this.meta.enableIdenticonGeneration) {

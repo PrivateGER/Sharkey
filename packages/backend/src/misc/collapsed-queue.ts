@@ -29,7 +29,7 @@ export interface CollapsedQueueOpts<V> {
 }
 
 export class CollapsedQueue<V> {
-	private readonly limiter?: Limiter;
+	private readonly limiter: Limiter;
 	private readonly jobs = new Map<string, Job<V>>();
 
 	private readonly timeService: TimeService;
@@ -53,7 +53,7 @@ export class CollapsedQueue<V> {
 		this.check = opts.check;
 		this.limiter = typeof(opts.limiter) === 'number'
 			? promiseLimit(opts.limiter)
-			: opts.limiter;
+			: (opts.limiter ?? (cb => cb()));
 	}
 
 	@bindThis
@@ -83,6 +83,21 @@ export class CollapsedQueue<V> {
 
 		this.timeService.stopTimer(job.timer);
 		this.jobs.delete(key);
+	}
+
+	@bindThis
+	public async performNow(key: string): Promise<void> {
+		const job = this.jobs.get(key);
+		if (!job) {
+			return;
+		}
+
+		this.timeService.stopTimer(job.timer);
+		this.jobs.delete(key);
+
+		await this.limiter(async () => {
+			await this.performSafe(key, job.value);
+		});
 	}
 
 	@bindThis

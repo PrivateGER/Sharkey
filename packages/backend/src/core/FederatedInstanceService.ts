@@ -9,6 +9,7 @@ import type { InstancesRepository } from '@/models/_.js';
 import type { MiMeta } from '@/models/Meta.js';
 import type { MiInstance } from '@/models/Instance.js';
 import type { InternalEventTypes } from '@/core/GlobalEventService.js';
+import type { PartialEntityUpdate } from '@/types.js';
 import { IdService } from '@/core/IdService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
@@ -17,7 +18,6 @@ import { InternalEventService } from '@/global/InternalEventService.js';
 import { diffArraysSimple } from '@/misc/diff-arrays.js';
 import { bindThis } from '@/decorators.js';
 import { TimeService } from '@/global/TimeService.js';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 
 @Injectable()
 export class FederatedInstanceService implements OnApplicationShutdown {
@@ -135,7 +135,7 @@ export class FederatedInstanceService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public async update(id: MiInstance['id'], data: QueryDeepPartialEntity<MiInstance>): Promise<MiInstance> {
+	public async update(id: MiInstance['id'], data: PartialEntityUpdate<MiInstance>): Promise<MiInstance> {
 		const result = await this.instancesRepository.createQueryBuilder().update()
 			.set(data)
 			.where('id = :id', { id })

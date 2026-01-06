@@ -33,6 +33,12 @@ export default [
 		},
 	},
 	{
+		files: ['src/**/*.stories.ts'],
+		rules: {
+			'no-restricted-globals': 'off',
+		}
+	},
+	{
 		rules: {
 			'no-restricted-imports': ['error', {
 				paths: [{ name: 'punycode' }],
@@ -43,11 +49,5 @@ export default [
 			}],
 			'no-param-reassign': 'off',
 		},
-	},
-	{
-		files: ['src/**/*.stories.ts'],
-		rules: {
-			'no-restricted-globals': 'off',
-		}
 	},
 ];

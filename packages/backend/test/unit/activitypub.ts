@@ -201,7 +201,7 @@ describe('ActivityPub', () => {
 		await usersRepository.deleteAll();
 
 		// Clear all caches app-wide
-		cacheManagementService.clear();
+		await cacheManagementService.clear();
 
 		// Reset mocks
 		mockConsole.mockReset();

@@ -439,7 +439,7 @@ export class ApInboxService {
 			return 'skip: ブロックしようとしているユーザーはローカルユーザーではありません';
 		}
 
-		await this.userBlockingService.block(await this.usersRepository.findOneByOrFail({ id: actor.id }), await this.usersRepository.findOneByOrFail({ id: blockee.id }));
+		await this.userBlockingService.block(actor, blockee);
 		return 'ok';
 	}
 
@@ -572,7 +572,7 @@ export class ApInboxService {
 
 		const job = await this.queueService.createDeleteAccountJob(actor);
 
-		await this.internalEventService.emit('userChangeDeletedState', { id: actor.id, isDeleted: true });
+		await this.internalEventService.emit('userChangeDeletedState', { id: actor.id, isDeleted: true, token: null, uri: actor.uri, usernameLower: actor.username.toLowerCase(), host: actor.host });
 
 		return `ok: queued ${job.name} ${job.id}`;
 	}
@@ -617,14 +617,12 @@ export class ApInboxService {
 			.filter(uri => uri.startsWith(this.config.url + '/users/'))
 			.map(uri => uri.split('/').at(-1))
 			.filter(x => x != null);
-		const users = await this.usersRepository.findBy({
-			id: In(userIds),
-		});
-		if (users.length < 1) return 'skip';
+		const user = (await this.cacheService.findUsersById(userIds)).values().take(1).toArray().at(0);
+		if (!user) return 'skip';
 
 		await this.abuseReportService.report([{
-			targetUserId: users[0].id,
-			targetUserHost: users[0].host,
+			targetUserId: user.id,
+			targetUserHost: user.host,
 			reporterId: actor.id,
 			reporterHost: actor.host,
 			comment: `${activity.content}\n${JSON.stringify(uris, null, 2)}`,
@@ -736,7 +734,7 @@ export class ApInboxService {
 			return 'skip: follower not found';
 		}
 
-		const isFollowing = await this.cacheService.userFollowingsCache.fetch(follower.id).then(f => f.has(actor.id));
+		const isFollowing = await this.cacheService.isFollowing(follower, actor);
 
 		if (isFollowing) {
 			await this.userFollowingService.unfollow(follower, actor);
@@ -773,7 +771,7 @@ export class ApInboxService {
 			return 'skip: ブロック解除しようとしているユーザーはローカルユーザーではありません';
 		}
 
-		await this.userBlockingService.unblock(await this.usersRepository.findOneByOrFail({ id: actor.id }), blockee);
+		await this.userBlockingService.unblock(actor, blockee);
 		return 'ok';
 	}
 
@@ -795,7 +793,7 @@ export class ApInboxService {
 			},
 		});
 
-		const isFollowing = await this.cacheService.userFollowingsCache.fetch(actor.id).then(f => f.has(followee.id));
+		const isFollowing = await this.cacheService.isFollowing(actor, followee);
 
 		if (requestExist) {
 			await this.userFollowingService.cancelFollowRequest(followee, actor);

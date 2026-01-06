@@ -22,7 +22,7 @@ RUN pnpm config set fetch-retries 5
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
 	pnpm i --frozen-lockfile --aggregate-output
 RUN pnpm build
-RUN node scripts/trim-deps.mjs
+RUN node scripts/trim-deps.js
 RUN mv packages/frontend/assets sharkey-assets
 RUN mv packages/frontend-embed/assets sharkey-embed-assets
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \

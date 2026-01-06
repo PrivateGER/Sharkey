@@ -17,6 +17,8 @@ import { bindThis } from '@/decorators.js';
 import type { Antenna } from '@/server/api/endpoints/i/import-antennas.js';
 import { ApRequestCreator } from '@/core/activitypub/ApRequestService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 import type { SystemWebhookPayload } from '@/core/SystemWebhookService.js';
 import type { MiNote } from '@/models/Note.js';
 import type { MinimalNote } from '@/misc/is-renote.js';
@@ -62,6 +64,8 @@ export const QUEUE_TYPES = [
 
 @Injectable()
 export class QueueService implements OnModuleInit {
+	private readonly logger: Logger;
+
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
@@ -79,10 +83,43 @@ export class QueueService implements OnModuleInit {
 		@Inject('queue:backgroundTask') public readonly backgroundTaskQueue: BackgroundTaskQueue,
 
 		private readonly timeService: TimeService,
-	) {}
+
+		loggerService: LoggerService,
+	) {
+		this.logger = loggerService.getLogger('queue-service');
+	}
 
 	@bindThis
 	public async onModuleInit() {
+		// Remove any obsolete scheduled jobs
+		const removeScheduleJobs = async (jobs: { key: string, id?: string | null, name?: string | null }[]) => {
+			for (const job of jobs) {
+				// Known schedulers will be updated below.
+				if (job.id === 'tickCharts-scheduler' || job.key === 'tickCharts-scheduler') continue;
+				if (job.id === 'resyncCharts-scheduler' || job.key === 'resyncCharts-scheduler') continue;
+				if (job.id === 'cleanCharts-scheduler' || job.key === 'cleanCharts-scheduler') continue;
+				if (job.id === 'aggregateRetention-scheduler' || job.key === 'aggregateRetention-scheduler') continue;
+				if (job.id === 'clean-scheduler' || job.key === 'clean-scheduler') continue;
+				if (job.id === 'checkExpiredMutings-scheduler' || job.key === 'checkExpiredMutings-scheduler') continue;
+				if (job.id === 'bakeBufferedReactions-scheduler' || job.key === 'bakeBufferedReactions-scheduler') continue;
+				if (job.id === 'checkModeratorsActivity-scheduler' || job.key === 'checkModeratorsActivity-scheduler') continue;
+				if (job.id === 'cleanupApLogs-scheduler' || job.key === 'cleanupApLogs-scheduler') continue;
+				if (job.id === 'hibernateUsers-scheduler' || job.key === 'hibernateUsers-scheduler') continue;
+
+				if (job.id) {
+					this.logger.info(`Removing obsolete job scheduler key=${job.key} id=${job.id} name=${job.name}`);
+					await this.systemQueue.removeJobScheduler(job.id);
+				} else {
+					this.logger.info(`Removing obsolete repeatable job key=${job.key} id=${job.id} name=${job.name}`);
+					await this.systemQueue.removeRepeatableByKey(job.key);
+				}
+			}
+		};
+
+		// These have to be separate, since there's some unpredictable overlap between the results!
+		await removeScheduleJobs(await this.systemQueue.getJobSchedulers());
+		await removeScheduleJobs(await this.systemQueue.getRepeatableJobs());
+
 		await this.systemQueue.upsertJobScheduler(
 			'tickCharts-scheduler',
 			{ pattern: '0 * * * *' }, // every hour at :00
@@ -321,7 +358,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `deleteDriveFiles_${user.id}`,
 			},
 		});
 	}
@@ -340,7 +377,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportCustomEmojis_${user.id}`,
 			},
 		});
 	}
@@ -353,7 +390,7 @@ export class QueueService implements OnModuleInit {
 			removeOnComplete: true,
 			removeOnFail: true,
 			deduplication: {
-				id: user.id,
+				id: `exportAccountData_${user.id}`,
 			},
 		});
 	}
@@ -372,7 +409,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportNotes_${user.id}`,
 			},
 		});
 	}
@@ -391,7 +428,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportClips_${user.id}`,
 			},
 		});
 	}
@@ -410,7 +447,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportFavorites_${user.id}`,
 			},
 		});
 	}
@@ -431,7 +468,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportFollowing_${user.id}_${excludeMuting ? '' : 'M'}${excludeInactive ? '' : 'I'}`,
 			},
 		});
 	}
@@ -450,7 +487,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportMuting_${user.id}`,
 			},
 		});
 	}
@@ -469,7 +506,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportBlocking_${user.id}`,
 			},
 		});
 	}
@@ -488,7 +525,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportUserLists_${user.id}`,
 			},
 		});
 	}
@@ -507,7 +544,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `exportAntennas_${user.id}`,
 			},
 		});
 	}
@@ -528,7 +565,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}_${withReplies ?? false}`,
+				id: `importFollowing_${user.id}_${fileId}_${withReplies ? 'R' : ''}`,
 			},
 		});
 	}
@@ -543,7 +580,7 @@ export class QueueService implements OnModuleInit {
 			removeOnComplete: true,
 			removeOnFail: true,
 			deduplication: {
-				id: `${user.id}_${fileId}_${type ?? null}`,
+				id: `importNotes_${user.id}_${fileId}_${type ?? ''}`,
 			},
 		});
 	}
@@ -605,7 +642,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importMuting_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -625,7 +662,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importBlocking_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -673,7 +710,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importUserLists_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -693,7 +730,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importCustomEmojis_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -714,7 +751,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${user.id}_${fileId}`,
+				id: `importAntennas_${user.id}_${fileId}`,
 			},
 		});
 	}
@@ -734,7 +771,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: user.id,
+				id: `deleteAccount_${user.id}`,
 			},
 		});
 	}
@@ -801,7 +838,7 @@ export class QueueService implements OnModuleInit {
 				},
 				...opts,
 				deduplication: {
-					id: `${data.from.id}_${data.to.id}_${data.requestId ?? ''}_${data.silent ?? false}_${data.withReplies ?? false}`,
+					id: `${name}_${data.from.id}_${data.to.id}_${data.requestId ?? ''}_${data.silent ? 'S' : ''}_${data.withReplies ? 'R' : ''}`,
 				},
 			},
 		};
@@ -821,7 +858,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: key,
+				id: `deleteFile_${key}`,
 			},
 		});
 	}
@@ -841,7 +878,7 @@ export class QueueService implements OnModuleInit {
 				count: 100,
 			},
 			deduplication: {
-				id: `${olderThanSeconds}_${keepFilesInUse}`,
+				id: `cleanRemoteFiles_${olderThanSeconds}_${keepFilesInUse}`,
 			},
 		});
 	}

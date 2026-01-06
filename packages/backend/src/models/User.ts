@@ -55,7 +55,7 @@ export class MiUser {
 		length: 128, select: false,
 		comment: 'The username (lowercased) of the User.',
 	})
-	public usernameLower: string;
+	public usernameLower?: string;
 
 	@Column('varchar', {
 		length: 128, nullable: true,
@@ -434,6 +434,8 @@ export type MiPartialRemoteUser = Partial<MiUser> & {
 	host: string;
 	uri: string;
 };
+
+export type MiPartialUser = Partial<MiUser> & Pick<MiUser, 'id' | 'host' | 'uri'>;
 
 export function isRemoteUser(user: MiUser): user is MiRemoteUser;
 export function isRemoteUser<U extends PartialUser>(user: U): user is PartialRemoteUser<U>;

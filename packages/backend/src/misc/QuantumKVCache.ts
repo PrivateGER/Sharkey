@@ -107,6 +107,13 @@ export interface CallbackMeta<T> {
 	 * Should be propagated to ensure smooth cleanup and shutdown.
 	 */
 	readonly disposeSignal: AbortSignal;
+
+	/**
+	 * Aborts the callback operation with a given error message and optional cause.
+	 * @param message Error message to include.
+	 * @param opts Options to attach to the resulting Error instance.
+	 */
+	fail(message: string, opts?: ErrorOptions): never;
 }
 
 /**
@@ -237,6 +244,19 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 		return {
 			cache: this,
 			disposeSignal: this.disposeController.signal,
+			fail: (message, opts) => {
+				throw new QuantumCacheError(this.nameForError, message, opts);
+			},
+		};
+	}
+
+	@bindThis
+	private getCallbackMetaForFetch(keys: string | readonly string[]): CallbackMeta<T> {
+		return {
+			...this.callbackMeta,
+			fail: (message, opts) => {
+				throw new FetchFailedError(this.nameForError, keys, message, opts);
+			},
 		};
 	}
 
@@ -891,6 +911,8 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 			throw new QuantumCacheError(this.nameForError, `Internal error: attempted to call fetcher multiple times for key "${key}"`);
 		}
 
+		const meta = this.getCallbackMetaForFetch(key);
+
 		// Start limiter cascade
 		return this.globalLimiter(async () => {
 			this.throwIfDisposed();
@@ -900,7 +922,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 				return await withSignal(
 					// Execute callback and adapt results
-					async () => await this.fetcher(key, this.callbackMeta),
+					async () => await this.fetcher(key, meta),
 
 					// Bind abort signal in case fetcher stalls out
 					this.disposeController.signal,
@@ -925,6 +947,8 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 			throw new QuantumCacheError(this.nameForError, `Internal error: attempted to call optionalFetcher multiple times for key "${key}"`);
 		}
 
+		const meta = this.getCallbackMetaForFetch(key);
+
 		// Start limiter cascade
 		return this.globalLimiter(async () => {
 			this.throwIfDisposed();
@@ -934,7 +958,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 				return await withSignal(
 					// Execute callback and adapt results
-					async () => await optionalFetcher(key, this.callbackMeta),
+					async () => await optionalFetcher(key, meta),
 
 					// Bind abort signal in case fetcher stalls out
 					this.disposeController.signal,
@@ -1000,6 +1024,8 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 			throw new QuantumCacheError(this.nameForError, `Internal error: attempted to call bulkFetcher multiple times for key(s) ${allKeys}`);
 		}
 
+		const meta = this.getCallbackMetaForFetch(keys);
+
 		// Start limiter cascade
 		return this.globalLimiter(async () => {
 			this.throwIfDisposed();
@@ -1009,7 +1035,7 @@ export class QuantumKVCache<TIn, T extends Value<TIn> = Value<TIn>> implements I
 
 				return await withSignal(
 					// Execute callback and adapt results
-					async () => await bulkFetcher(keys, this.callbackMeta),
+					async () => await bulkFetcher(keys, meta),
 
 					// Bind abort signal in case fetcher stalls out
 					this.disposeController.signal,

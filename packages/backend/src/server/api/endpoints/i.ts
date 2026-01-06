@@ -87,7 +87,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			return await this.userEntityService.pack(user, user, {
 				schema: 'MeDetailed',
 				includeSecrets: isSecure,
-				userProfile,
+				hint: { userProfile },
 			});
 		});
 	}

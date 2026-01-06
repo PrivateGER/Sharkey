@@ -244,7 +244,7 @@ export class MiUserProfile {
 	@Column('boolean', {
 		default: false, select: false,
 	})
-	public enableWordMute: boolean;
+	public enableWordMute?: boolean;
 
 	@Column('jsonb', {
 		default: [],

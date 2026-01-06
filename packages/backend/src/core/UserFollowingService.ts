@@ -124,8 +124,8 @@ export class UserFollowingService implements OnModuleInit {
 		 * 必ず最新のユーザー情報を取得する
 		 */
 		const [follower, followee] = await Promise.all([
-			this.usersRepository.findOneByOrFail({ id: _follower.id }),
-			this.usersRepository.findOneByOrFail({ id: _followee.id }),
+			this.cacheService.findUserById(_follower.id),
+			this.cacheService.findUserById(_followee.id),
 		]) as [MiLocalUser | MiRemoteUser, MiLocalUser | MiRemoteUser];
 
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isRemoteUser(followee)) {
@@ -166,7 +166,7 @@ export class UserFollowingService implements OnModuleInit {
 			}
 		}
 
-		const followeeProfile = await this.userProfilesRepository.findOneByOrFail({ userId: followee.id });
+		const followeeProfile = await this.cacheService.userProfileCache.fetch(followee.id);
 		// フォロー対象が鍵アカウントである or
 		// フォロワーがBotであり、フォロー対象がBotからのフォローに慎重である or
 		// フォロワーがローカルユーザーであり、フォロー対象がリモートユーザーである or
@@ -255,19 +255,11 @@ export class UserFollowingService implements OnModuleInit {
 		// Handled by CacheService
 		//this.cacheService.userFollowingsCache.refresh(follower.id);
 
-		const requestExist = await this.followRequestsRepository.exists({
-			where: {
-				followeeId: followee.id,
-				followerId: follower.id,
-			},
+		// Delete any duplicate requests
+		await this.followRequestsRepository.delete({
+			followeeId: followee.id,
+			followerId: follower.id,
 		});
-
-		if (requestExist) {
-			await this.followRequestsRepository.delete({
-				followeeId: followee.id,
-				followerId: follower.id,
-			});
-		}
 
 		if (alreadyFollowed) return;
 
@@ -280,11 +272,11 @@ export class UserFollowingService implements OnModuleInit {
 			}, followee.id);
 		}
 
-		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id });
+		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id, withReplies });
 
 		const [followeeUser, followerUser] = await Promise.all([
-			this.usersRepository.findOneByOrFail({ id: followee.id }),
-			this.usersRepository.findOneByOrFail({ id: follower.id }),
+			this.cacheService.findUserById(followee.id),
+			this.cacheService.findUserById(follower.id),
 		]);
 
 		// Neither followee nor follower has moved.
@@ -353,19 +345,19 @@ export class UserFollowingService implements OnModuleInit {
 		const [
 			followerUser,
 			followeeUser,
-			following,
+			relations,
 		] = await Promise.all([
 			this.cacheService.findUserById(follower.id),
 			this.cacheService.findUserById(followee.id),
-			this.cacheService.userFollowingsCache.fetch(follower.id).then(fs => fs.get(followee.id)),
+			this.cacheService.getUserRelation(follower, followee),
 		]);
 
-		if (following == null) {
+		if (!relations.isFollowing) {
 			this.logger.warn('フォロー解除がリクエストされましたがフォローしていませんでした');
 			return;
 		}
 
-		await this.followingsRepository.delete(following.id);
+		await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
 		await this.internalEventService.emit('unfollow', { followerId: follower.id, followeeId: followee.id });
 
 		this.decrementFollowing(followerUser, followeeUser);
@@ -475,6 +467,19 @@ export class UserFollowingService implements OnModuleInit {
 	): Promise<void> {
 		if (follower.id === followee.id) return;
 
+		// Ignore duplicate remote requests
+		if (requestId) {
+			const hasDuplicate = await this.followRequestsRepository.existsBy({
+				followeeId: followee.id,
+				followerId: follower.id,
+				requestId,
+			});
+
+			if (hasDuplicate) {
+				return;
+			}
+		}
+
 		// check blocking
 		const [blocking, blocked] = await Promise.all([
 			this.userBlockingService.checkBlocked(follower.id, followee.id),
@@ -505,6 +510,8 @@ export class UserFollowingService implements OnModuleInit {
 			followeeInbox: this.userEntityService.isRemoteUser(followee) ? followee.inbox : undefined,
 			followeeSharedInbox: this.userEntityService.isRemoteUser(followee) ? followee.sharedInbox : undefined,
 		});
+
+		await this.internalEventService.emit('followRequested', { followerId: follower.id, followeeId: followee.id });
 
 		// Publish receiveRequest event
 		if (this.userEntityService.isLocalUser(followee)) {
@@ -557,6 +564,7 @@ export class UserFollowingService implements OnModuleInit {
 			followeeId: followee.id,
 			followerId: follower.id,
 		});
+		await this.internalEventService.emit('followRequestCancelled', { followerId: follower.id, followeeId: followee.id });
 
 		this.userEntityService.pack(followee.id, followee, {
 			schema: 'MeDetailed',
@@ -660,6 +668,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (!request) return;
 
 		await this.followRequestsRepository.delete(request.id);
+		await this.internalEventService.emit('followRequestCancelled', { followerId: follower.id, followeeId: followee.id });
 	}
 
 	/**
@@ -670,16 +679,16 @@ export class UserFollowingService implements OnModuleInit {
 		const [
 			followerUser,
 			followeeUser,
-			following,
+			relations,
 		] = await Promise.all([
 			this.cacheService.findUserById(follower.id),
 			this.cacheService.findUserById(followee.id),
-			this.cacheService.userFollowingsCache.fetch(follower.id).then(fs => fs.get(followee.id)),
+			this.cacheService.getUserRelation(follower, followee),
 		]);
 
-		if (!following) return;
+		if (!relations.isFollowing) return;
 
-		await this.followingsRepository.delete(following.id);
+		await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
 		await this.internalEventService.emit('unfollow', { followerId: follower.id, followeeId: followee.id });
 
 		this.decrementFollowing(followerUser, followeeUser);
@@ -713,26 +722,13 @@ export class UserFollowingService implements OnModuleInit {
 	}
 
 	@bindThis
-	public async getFollowees(userId: MiUser['id']) {
-		const followings = await this.cacheService.userFollowingsCache.fetch(userId);
-		return Array.from(followings.values());
-	}
-
-	@bindThis
 	public async isFollowing(followerId: MiUser['id'], followeeId: MiUser['id']) {
 		return await this.cacheService.isFollowing(followerId, followeeId);
 	}
 
 	@bindThis
-	public async isMutual(aUserId: MiUser['id'], bUserId: MiUser['id']) {
-		const [
-			isFollowing,
-			isFollowed,
-		] = await Promise.all([
-			this.isFollowing(aUserId, bUserId),
-			this.isFollowing(bUserId, aUserId),
-		]);
-
-		return isFollowing && isFollowed;
+	public async isMutual(aUserId: MiUser['id'], bUserId: MiUser['id']): Promise<boolean> {
+		const relations = await this.cacheService.getUserRelation(aUserId, bUserId);
+		return !!relations.isFollowing && !!relations.isFollowed;
 	}
 }

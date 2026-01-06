@@ -14,6 +14,7 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { CacheService } from '@/core/CacheService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { IdService } from './IdService.js';
 
@@ -32,6 +33,7 @@ export class AbuseReportService {
 		private systemAccountService: SystemAccountService,
 		private apRendererService: ApRendererService,
 		private moderationLogService: ModerationLogService,
+		private readonly cacheService: CacheService,
 	) {
 	}
 
@@ -139,7 +141,7 @@ export class AbuseReportService {
 		});
 
 		const actor = await this.systemAccountService.fetch('actor');
-		const targetUser = await this.usersRepository.findOneByOrFail({ id: report.targetUserId });
+		const targetUser = await this.cacheService.findUserById(report.targetUserId);
 
 		const flag = this.apRendererService.renderFlag(actor, targetUser.uri!, report.comment);
 		const contextAssignedFlag = this.apRendererService.addContext(flag);

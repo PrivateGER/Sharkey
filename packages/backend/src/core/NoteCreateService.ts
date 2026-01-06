@@ -51,7 +51,6 @@ import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { isReply } from '@/misc/is-reply.js';
-import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
@@ -435,7 +434,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		tags = tags.filter(tag => Array.from(tag).length <= 128).splice(0, 32);
 
 		if (data.reply && (user.id !== data.reply.userId) && !mentionedUsers.some(u => u.id === data.reply!.userId)) {
-			mentionedUsers.push(await this.usersRepository.findOneByOrFail({ id: data.reply!.userId }));
+			mentionedUsers.push(await this.cacheService.findUserById(data.reply.userId));
 		}
 
 		if (data.visibility === 'specified') {
@@ -448,7 +447,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 
 			if (data.reply && !data.visibleUsers.some(x => x.id === data.reply!.userId)) {
-				data.visibleUsers.push(await this.usersRepository.findOneByOrFail({ id: data.reply!.userId }));
+				data.visibleUsers.push(await this.cacheService.findUserById(data.reply.userId));
 			}
 		}
 
@@ -521,9 +520,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Append mentions data
 		if (mentionedUsers.length > 0) {
 			insert.mentions = mentionedUsers.map(u => u.id);
-			const profiles = await this.userProfilesRepository.findBy({ userId: In(insert.mentions) });
+			const profiles = new Map(await this.cacheService.userProfileCache.fetchMany(insert.mentions));
 			insert.mentionedRemoteUsers = JSON.stringify(mentionedUsers.filter(u => isRemoteUser(u)).map(u => {
-				const profile = profiles.find(p => p.userId === u.id);
+				const profile = profiles.get(u.id);
 				const url = profile != null ? profile.url : null;
 				return {
 					uri: u.uri,
@@ -608,40 +607,78 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });
 
-		await this.pushToTl(note, user);
+		const allUserIds = new Set([note.userId, note.replyUserId, note.renoteUserId]).values().filter(u => u != null).toArray();
 
-		await this.antennaService.addNoteToAntennas({
-			...note,
-			channel: data.channel ?? null,
-		}, user);
+		// noinspection ES6MissingAwait
+		const [userRelations, followings, threadMutings, noteMutings] = await Promise.all([
+			// userRelations - cross-matrix of each user to each other
+			this.cacheService.getUsersRelations(allUserIds, allUserIds),
+
+			// followings
+			this.followingsRepository.find({
+				where: { followeeId: user.id, notify: 'normal', followerHost: IsNull() },
+				select: { followerId: true },
+			}).then(async followings => {
+				const followerIds = followings.map(f => f.followerId);
+				const [followerUsers, followerRelations] = await Promise.all([
+					this.cacheService.findUsersById(followerIds),
+					this.cacheService.getUsersRelation(followerIds, note.userId),
+				]);
+
+				return followerIds.map(followerId => ({
+					followerId,
+					followerUser: followerUsers.get(followerId),
+					followerRelation: followerRelations.get(followerId),
+				}));
+			}),
+
+			// threadMutings
+			this.cacheService.threadMutingsCache.fetchMany(allUserIds)
+				.then(ms => new Map(ms)),
+
+			// noteMutings
+			this.cacheService.noteMutingsCache.fetchMany(allUserIds)
+				.then(ms => new Map(ms)),
+
+			// (void)
+			this.pushToTl(note, user),
+
+			// (void)
+			this.antennaService.addNoteToAntennas({
+				...note,
+				channel: data.channel ?? null,
+			}, user),
+		]);
 
 		if (data.reply) {
 			this.collapsedQueueService.updateNoteQueue.enqueue(data.reply.id, { repliesCountDelta: 1 });
 		}
 
 		if (data.reply == null) {
-			this.cacheService.userFollowersCache.fetch(user.id).then(async followingsMap => {
-				const followings = Array
-					.from(followingsMap.values())
-					.filter(f => f.notify === 'normal');
-
+			{
 				if (note.visibility !== 'specified') {
-					const isPureRenote = this.isRenote(data) && !this.isQuote(data) ? true : false;
+					const isBoost = isPureRenote(data);
 					for (const following of followings) {
-						// TODO: ワードミュート考慮
-						let isRenoteMuted = false;
-						if (isPureRenote) {
-							const userIdsWhoMeMutingRenotes = await this.cacheService.renoteMutingsCache.fetch(following.followerId);
-							isRenoteMuted = userIdsWhoMeMutingRenotes.has(user.id);
-						}
-						if (!isRenoteMuted) {
-							this.notificationService.createNotification(following.followerId, 'note', {
-								noteId: note.id,
-							}, user.id);
+						const isMuted = isBoost
+							? following.followerRelation?.isMutingRenotes
+							: following.followerRelation?.isMuting;
+						if (!isMuted) {
+							await this.notificationService.createNotificationImmediate(
+								following.followerId, // notifieeId
+								'note', // type
+								{ // data
+									noteId: note.id,
+								},
+								user.id, // notifierId
+								{ // hint
+									notifieeUser: following.followerUser,
+									notifieeRelation: following.followerRelation,
+								},
+							);
 						}
 					}
 				}
-			});
+			}
 		}
 
 		if (this.isPureRenote(data)) {
@@ -668,12 +705,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (!silent) {
-			if (isLocalUser(user)) this.activeUsersChart.write(user);
-
 			// Pack the note
 			const noteObj = await this.noteEntityService.pack(note, null, { skipHide: true, withReactionAndUserPairCache: true });
 
-			this.globalEventService.publishNotesStream(noteObj);
+			await this.globalEventService.publishNotesStream(noteObj);
 
 			await this.roleService.addNoteToRoleTimeline(noteObj);
 
@@ -685,27 +720,28 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			// If has in reply to note
 			if (data.reply) {
-				this.globalEventService.publishNoteStream(data.reply.id, 'replied', {
+				await this.globalEventService.publishNoteStream(data.reply.id, 'replied', {
 					id: note.id,
 					userId: user.id,
 				});
 				// 通知
 				if (data.reply.userHost === null) {
-					const threadId = data.reply.threadId ?? data.reply.id;
+					const replyUserNoteMutings = noteMutings.get(data.reply.userId);
+					const replyUserThreadMutings = threadMutings.get(data.reply.userId);
+					const replyUserRelations = userRelations.get(data.reply.userId);
 
-					const [
-						isThreadMuted,
-						userIdsWhoMeMuting,
-					] = await Promise.all([
-						this.cacheService.threadMutingsCache.fetch(data.reply.userId).then(ms => ms.has(threadId)),
-						this.cacheService.userMutingsCache.fetch(data.reply.userId),
-					]);
+					// Target user should not be notified if they're muting the replier or the replied-to thread/note.
+					const muted =
+						// reply user is muting note
+						replyUserNoteMutings?.has(data.reply.id) ||
+						// reply user is muting note thread
+						replyUserThreadMutings?.has(data.reply.threadId ?? data.reply.id) ||
+						// reply user is muting note author
+						replyUserRelations?.get(data.userId)?.isMuting;
 
-					const muted = isUserRelated(note, userIdsWhoMeMuting);
-
-					if (!isThreadMuted && !muted) {
+					if (!muted) {
 						nm.push(data.reply.userId, 'reply');
-						this.globalEventService.publishMainStream(data.reply.userId, 'reply', noteObj);
+						await this.globalEventService.publishMainStream(data.reply.userId, 'reply', noteObj);
 						await this.webhookService.enqueueUserWebhook(data.reply.userId, 'reply', { note: noteObj });
 					}
 				}
@@ -717,26 +753,30 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 				// Notify
 				if (data.renote.userHost === null) {
-					const threadId = data.renote.threadId ?? data.renote.id;
+					const renoteUserNoteMutings = noteMutings.get(data.renote.userId);
+					const renoteUserThreadMutings = threadMutings.get(data.renote.userId);
+					const renoteUserRelations = userRelations.get(data.renote.userId);
 
-					const [
-						isThreadMuted,
-						userIdsWhoMeMuting,
-					] = await Promise.all([
-						this.cacheService.threadMutingsCache.fetch(data.renote.userId).then(ms => ms.has(threadId)),
-						this.cacheService.userMutingsCache.fetch(data.renote.userId),
-					]);
+					// Target user should not be notified if they're muting the renoter or the renoted thread/note.
+					// They should also not be notified if the renote is also a quote, and they're muting the replied-to thread.
+					const muted =
+						// renote user is muting note
+						renoteUserNoteMutings?.has(data.renote.id) ||
+						// renote user is muting note thread
+						renoteUserThreadMutings?.has(data.renote.threadId ?? data.renote.id) ||
+						// renote user is muting note author
+						renoteUserRelations?.get(data.userId)?.isMuting ||
+						// renote user is muting reply target thread
+						(data.reply && renoteUserThreadMutings?.has(data.reply.threadId ?? data.reply.id));
 
-					const muted = data.renote.userId && isUserRelated(note, userIdsWhoMeMuting);
-
-					if (!isThreadMuted && !muted) {
+					if (!muted) {
 						nm.push(data.renote.userId, type);
 					}
 				}
 
 				// Publish event
 				if ((user.id !== data.renote.userId) && data.renote.userHost === null) {
-					this.globalEventService.publishMainStream(data.renote.userId, 'renote', noteObj);
+					await this.globalEventService.publishMainStream(data.renote.userId, 'renote', noteObj);
 					await this.webhookService.enqueueUserWebhook(data.renote.userId, 'renote', { note: noteObj });
 				}
 			}
@@ -756,13 +796,13 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 					// 投稿がリプライかつ投稿者がローカルユーザーかつリプライ先の投稿の投稿者がリモートユーザーなら配送
 					if (data.reply && data.reply.userHost !== null) {
-						const u = await this.usersRepository.findOneBy({ id: data.reply.userId });
+						const u = await this.cacheService.findOptionalUserById(data.reply.userId);
 						if (u && isRemoteUser(u)) dm.addDirectRecipe(u);
 					}
 
 					// 投稿がRenoteかつ投稿者がローカルユーザーかつRenote元の投稿の投稿者がリモートユーザーなら配送
 					if (data.renote && data.renote.userHost !== null) {
-						const u = await this.usersRepository.findOneBy({ id: data.renote.userId });
+						const u = await this.cacheService.findOptionalUserById(data.renote.userId);
 						if (u && isRemoteUser(u)) dm.addDirectRecipe(u);
 					}
 
@@ -843,24 +883,37 @@ export class NoteCreateService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
-		const [
-			threadMutings,
-			userMutings,
-		] = await Promise.all([
-			this.cacheService.threadMutingsCache.fetchMany(mentionedUsers.map(u => u.id)).then(ms => new Map(ms)),
-			this.cacheService.userMutingsCache.fetchMany(mentionedUsers.map(u => u.id)).then(ms => new Map(ms)),
+	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager): Promise<void> {
+		// Only create mention events for local users, and users for whom the note is visible
+		const relevantMentionedUsers = mentionedUsers.filter(u => (note.visibility !== 'specified' || note.visibleUserIds.some(x => x === u.id)) && isLocalUser(u));
+		if (relevantMentionedUsers.length < 1) {
+			return;
+		}
+
+		const userIds = relevantMentionedUsers.map(u => u.id);
+		const targetUserIds = [note.userId, note.renoteUserId, note.replyUserId].filter(u => u != null);
+
+		const [threadMutings, noteMutings, userRelations] = await Promise.all([
+			this.cacheService.threadMutingsCache.fetchMany(userIds).then(ms => new Map(ms)),
+			this.cacheService.noteMutingsCache.fetchMany(userIds).then(ms => new Map(ms)),
+			this.cacheService.getUsersRelations(userIds, targetUserIds),
 		]);
 
-		// Only create mention events for local users, and users for whom the note is visible
-		for (const u of mentionedUsers.filter(u => (note.visibility !== 'specified' || note.visibleUserIds.some(x => x === u.id)) && isLocalUser(u))) {
-			const threadId = note.threadId ?? note.id;
-			const isThreadMuted = threadMutings.get(u.id)?.has(threadId);
+		for (const u of relevantMentionedUsers) {
+			const mentionedUserNoteMutings = noteMutings.get(u.id);
+			const mentionedUserThreadMutings = threadMutings.get(u.id);
+			const mentionedUserRelations = userRelations.get(u.id);
 
-			const mutings = userMutings.get(u.id);
-			const isUserMuted = mutings != null && isUserRelated(note, mutings);
+			// Mentioned user should not be notified if they're muting the author, thread, or note.
+			const isMuted =
+				// mentioned user is muting note
+				mentionedUserNoteMutings?.has(note.id) ||
+				// mentioned user is muting note thread
+				mentionedUserThreadMutings?.has(note.threadId ?? note.id) ||
+				// mentioned user is muting note author
+				mentionedUserRelations?.get(note.userId)?.isMuting;
 
-			if (isThreadMuted || isUserMuted) {
+			if (isMuted) {
 				continue;
 			}
 
@@ -868,7 +921,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				detail: true,
 			});
 
-			this.globalEventService.publishMainStream(u.id, 'mention', detailPackedNote);
+			await this.globalEventService.publishMainStream(u.id, 'mention', detailPackedNote);
 			await this.webhookService.enqueueUserWebhook(u.id, 'mention', { note: detailPackedNote });
 
 			// Create notification
@@ -903,9 +956,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 		const r = this.redisForTimelines.pipeline();
 
 		if (note.channelId) {
-			this.fanoutTimelineService.push(`channelTimeline:${note.channelId}`, note.id, this.config.perChannelMaxNoteCacheCount, r);
+			await this.fanoutTimelineService.push(`channelTimeline:${note.channelId}`, note.id, this.config.perChannelMaxNoteCacheCount, r);
 
-			this.fanoutTimelineService.push(`userTimelineWithChannel:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
+			await this.fanoutTimelineService.push(`userTimelineWithChannel:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 
 			const channelFollowings = await this.channelFollowingsRepository.find({
 				where: {
@@ -915,16 +968,23 @@ export class NoteCreateService implements OnApplicationShutdown {
 			});
 
 			for (const channelFollowing of channelFollowings) {
-				this.fanoutTimelineService.push(`homeTimeline:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
+				await this.fanoutTimelineService.push(`homeTimeline:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 				if (note.fileIds.length > 0) {
-					this.fanoutTimelineService.push(`homeTimelineWithFiles:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
+					await this.fanoutTimelineService.push(`homeTimelineWithFiles:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
 				}
 			}
 		} else {
 			// TODO: キャッシュ？
 			// eslint-disable-next-line prefer-const
 			let [followings, userListMemberships] = await Promise.all([
-				this.cacheService.getNonHibernatedFollowers(user.id),
+				this.followingsRepository.find({
+					where: {
+						followeeId: user.id,
+						followerHost: IsNull(),
+						isFollowerHibernated: false,
+					},
+					select: ['followerId', 'withReplies'],
+				}),
 				this.cacheService.userListMembershipsCache.fetch(user.id).then(ms => ms.values().toArray()),
 			]);
 
@@ -935,7 +995,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			// TODO: あまりにも数が多いと redisPipeline.exec に失敗する(理由は不明)ため、3万件程度を目安に分割して実行するようにする
 			for (const following of followings) {
-				if (following.followerHost !== null) continue;
 				// 基本的にvisibleUserIdsには自身のidが含まれている前提であること
 				if (note.visibility === 'specified' && !note.visibleUserIds.some(v => v === following.followerId)) continue;
 
@@ -944,9 +1003,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 					if (!following.withReplies) continue;
 				}
 
-				this.fanoutTimelineService.push(`homeTimeline:${following.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
+				await this.fanoutTimelineService.push(`homeTimeline:${following.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 				if (note.fileIds.length > 0) {
-					this.fanoutTimelineService.push(`homeTimelineWithFiles:${following.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
+					await this.fanoutTimelineService.push(`homeTimelineWithFiles:${following.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
 				}
 			}
 
@@ -963,42 +1022,42 @@ export class NoteCreateService implements OnApplicationShutdown {
 					if (!userListMembership.withReplies) continue;
 				}
 
-				this.fanoutTimelineService.push(`userListTimeline:${userListMembership.userListId}`, note.id, this.meta.perUserListTimelineCacheMax, r);
+				await this.fanoutTimelineService.push(`userListTimeline:${userListMembership.userListId}`, note.id, this.meta.perUserListTimelineCacheMax, r);
 				if (note.fileIds.length > 0) {
-					this.fanoutTimelineService.push(`userListTimelineWithFiles:${userListMembership.userListId}`, note.id, this.meta.perUserListTimelineCacheMax / 2, r);
+					await this.fanoutTimelineService.push(`userListTimelineWithFiles:${userListMembership.userListId}`, note.id, this.meta.perUserListTimelineCacheMax / 2, r);
 				}
 			}
 
 			// 自分自身のHTL
 			if (note.userHost == null) {
 				if (note.visibility !== 'specified' || !note.visibleUserIds.some(v => v === user.id) || note.userId === user.id) {
-					this.fanoutTimelineService.push(`homeTimeline:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
+					await this.fanoutTimelineService.push(`homeTimeline:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 					if (note.fileIds.length > 0) {
-						this.fanoutTimelineService.push(`homeTimelineWithFiles:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
+						await this.fanoutTimelineService.push(`homeTimelineWithFiles:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
 					}
 				}
 			}
 
 			// 自分自身以外への返信
 			if (isReply(note)) {
-				this.fanoutTimelineService.push(`userTimelineWithReplies:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
+				await this.fanoutTimelineService.push(`userTimelineWithReplies:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 
 				if (note.visibility === 'public' && note.userHost == null) {
-					this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
+					await this.fanoutTimelineService.push('localTimelineWithReplies', note.id, 300, r);
 					if (note.replyUserHost == null) {
-						this.fanoutTimelineService.push(`localTimelineWithReplyTo:${note.replyUserId}`, note.id, 300 / 10, r);
+						await this.fanoutTimelineService.push(`localTimelineWithReplyTo:${note.replyUserId}`, note.id, 300 / 10, r);
 					}
 				}
 			} else {
-				this.fanoutTimelineService.push(`userTimeline:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
+				await this.fanoutTimelineService.push(`userTimeline:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 				if (note.fileIds.length > 0) {
-					this.fanoutTimelineService.push(`userTimelineWithFiles:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax / 2 : this.meta.perRemoteUserUserTimelineCacheMax / 2, r);
+					await this.fanoutTimelineService.push(`userTimelineWithFiles:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax / 2 : this.meta.perRemoteUserUserTimelineCacheMax / 2, r);
 				}
 
 				if (note.visibility === 'public' && note.userHost == null) {
-					this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
+					await this.fanoutTimelineService.push('localTimeline', note.id, 1000, r);
 					if (note.fileIds.length > 0) {
-						this.fanoutTimelineService.push('localTimelineWithFiles', note.id, 500, r);
+						await this.fanoutTimelineService.push('localTimelineWithFiles', note.id, 500, r);
 					}
 				}
 			}

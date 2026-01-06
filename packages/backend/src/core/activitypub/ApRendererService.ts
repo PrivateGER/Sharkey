@@ -11,7 +11,7 @@ import { UnrecoverableError } from 'bullmq';
 import { Element, Text } from 'domhandler';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import type { MiPartialLocalUser, MiLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser } from '@/models/User.js';
+import type { MiPartialLocalUser, MiLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser, MiPartialUser } from '@/models/User.js';
 import type { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiBlocking } from '@/models/Blocking.js';
 import type { MiRelay } from '@/models/Relay.js';
@@ -235,11 +235,10 @@ export class ApRendererService {
 
 	/**
 	 * Convert (local|remote)(Follower|Followee)ID to URL
-	 * @param id Follower|Followee ID
+	 * @param user User to render
 	 */
 	@bindThis
-	public async renderFollowUser(id: MiUser['id']): Promise<string> {
-		const user = await this.cacheService.findUserById(id) as MiPartialLocalUser | MiPartialRemoteUser;
+	public async renderFollowUser(user: MiPartialUser | MiPartialLocalUser | MiPartialRemoteUser): Promise<string> {
 		return this.userEntityService.getUserUri(user);
 	}
 
@@ -462,12 +461,9 @@ export class ApRendererService {
 			to = mentions;
 		}
 
-		const mentionedUsers = note.mentions && note.mentions.length > 0 ? await this.usersRepository.findBy({
-			id: In(note.mentions),
-		}) : [];
-
+		const mentionedUsers = await this.cacheService.findUsersById(note.mentions);
 		const hashtagTags = note.tags.map(tag => this.renderHashtag(tag));
-		const mentionTags = mentionedUsers.map(u => this.renderMention(u as MiLocalUser | MiRemoteUser));
+		const mentionTags = mentionedUsers.values().map(u => this.renderMention(u as MiLocalUser | MiRemoteUser)).toArray();
 
 		const files = await getPromisedFiles(note.fileIds);
 
@@ -591,7 +587,7 @@ export class ApRendererService {
 			user.avatarId ? this.driveFilesRepository.findOneBy({ id: user.avatarId }) : undefined,
 			user.bannerId ? this.driveFilesRepository.findOneBy({ id: user.bannerId }) : undefined,
 			user.backgroundId ? this.driveFilesRepository.findOneBy({ id: user.backgroundId }) : undefined,
-			this.userProfilesRepository.findOneByOrFail({ userId: user.id }),
+			this.cacheService.userProfileCache.fetch(user.id),
 		]);
 
 		const attachment = profile.fields.map(field => ({

@@ -5,7 +5,6 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import ms from 'ms';
-import * as argon2 from 'argon2';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MiMeta, UserProfilesRepository } from '@/models/_.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
@@ -35,6 +34,12 @@ export const meta = {
 			message: 'Incorrect password.',
 			code: 'INCORRECT_PASSWORD',
 			id: 'e54c1d7e-e7d6-4103-86b6-0a95069b4ad3',
+		},
+
+		incorrectTotp: {
+			message: 'Incorrect 2FA code.',
+			code: 'INCORRECT_TOTP',
+			id: 'cdf1235b-ac71-46d4-a3a6-84ccce48df6f',
 		},
 
 		unavailable: {
@@ -86,24 +91,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const token = ps.token;
-			const profile = await this.cacheService.userProfileCache.fetch(me.id);
+			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: me.id });
 
-			if (profile.twoFactorEnabled) {
-				if (token == null) {
-					throw new Error('authentication failed');
-				}
-
-				try {
-					await this.userAuthService.twoFactorAuthenticate(profile, token);
-				} catch (e) {
-					throw new Error('authentication failed');
-				}
+			if (!await this.userAuthService.checkPassword(profile, ps.password)) {
+				throw new ApiError(meta.errors.incorrectPassword);
 			}
 
-			const passwordMatched = await argon2.verify(profile.password!, ps.password);
-			if (!passwordMatched) {
-				throw new ApiError(meta.errors.incorrectPassword);
+			if (!await this.userAuthService.check2FA(profile, ps.token)) {
+				throw new ApiError(meta.errors.incorrectTotp);
 			}
 
 			if (ps.email != null) {

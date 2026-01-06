@@ -7,10 +7,11 @@ import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import * as yaml from 'js-yaml';
-import { globSync } from 'glob';
+import fastGlob from 'fast-glob';
 import ipaddr from 'ipaddr.js';
+import { coreLoggerService } from '@/boot/coreLogger.js';
 import type { LoggerService } from '@/core/LoggerService.js';
-import Logger from './logger.js';
+import type Logger from './logger.js';
 import type * as Sentry from '@sentry/node';
 import type * as SentryVue from '@sentry/vue';
 import type { RedisOptions } from 'ioredis';
@@ -46,7 +47,6 @@ type Source = {
 		pass?: string;
 		slowQueryThreshold?: number;
 		disableCache?: boolean;
-		pgroongaSearch?: boolean;
 		extra?: { [x: string]: string };
 	};
 	dbReplications?: boolean;
@@ -54,7 +54,6 @@ type Source = {
 		host: string;
 		port: number;
 		db: string;
-		poolSize?: number;
 		user: string;
 		pass: string;
 	}[];
@@ -145,24 +144,7 @@ type Source = {
 	};
 
 	pidFile: string;
-
-	ntfyURL: string;
-
-	imgproxyURL: string,
-	imgproxySalt: string,
-	imgproxyKey: string,
 	filePermissionBits?: string;
-
-	openai?: {
-		apiKey: string;
-		baseUrl: string;
-		headers: { [x: string]: string };
-		models: {
-			fast: string;
-			quality: string;
-			experimental: string;
-		};
-	}
 
 	logging?: {
 		sql?: {
@@ -253,8 +235,6 @@ export type Config = {
 		pass: string;
 		slowQueryThreshold?: number;
 		disableCache?: boolean;
-		pgroongaSearch?: boolean;
-		poolSize?: number;
 		extra?: { [x: string]: string };
 	};
 	dbReplications: boolean | undefined;
@@ -362,12 +342,6 @@ export type Config = {
 	} | undefined;
 
 	pidFile: string;
-
-	ntfyURL: string;
-
-	imgproxyURL: string,
-	imgproxySalt: string,
-	imgproxyKey: string,
 	filePermissionBits?: string;
 
 	activityLogging: {
@@ -375,17 +349,6 @@ export type Config = {
 		preSave: boolean;
 		maxAge: number;
 	};
-
-  openai?: {
-		apiKey: string;
-		baseUrl: string;
-		headers: { [x: string]: string };
-		models: {
-			fast: string;
-			quality: string;
-			experimental: string;
-		};
-	}
 
 	websocketCompression?: boolean;
 
@@ -402,18 +365,16 @@ const _dirname = dirname(_filename);
 /**
  * Path of configuration directory
  */
-const dir = process.env.MISSKEY_CONFIG_DIR ?? `${_dirname}/../../../.config`;
+const dir = resolve(process.env.MISSKEY_CONFIG_DIR ?? `${_dirname}/../../../.config`);
 
 /**
  * Path of configuration file
  */
-const path = process.env.MISSKEY_CONFIG_YML
-	? resolve(dir, process.env.MISSKEY_CONFIG_YML)
-	: process.env.NODE_ENV === 'test'
-		? resolve(dir, 'test.yml')
-		: resolve(dir, 'default.yml');
+const path = process.env.MISSKEY_CONFIG_YML ?? (process.env.NODE_ENV === 'test' ? 'test.yml' : 'default.yml');
 
-export function loadConfig(loggerService: LoggerService): Config {
+export function loadConfig(loggerService?: LoggerService): Config {
+	loggerService ??= coreLoggerService;
+
 	const configLogger = loggerService.getLogger('config');
 
 	const meta = JSON.parse(fs.readFileSync(`${_dirname}/../../../built/meta.json`, 'utf-8'));
@@ -427,7 +388,7 @@ export function loadConfig(loggerService: LoggerService): Config {
 		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_embed_vite_/manifest.json`, 'utf-8'))
 		: { 'src/boot.ts': { file: 'src/boot.ts' } };
 
-	const configFiles = globSync(path).sort();
+	const configFiles = fastGlob.globSync(path, { cwd: dir, absolute: true }).sort();
 
 	if (configFiles.length === 0
 			&& !process.env['MK_WARNED_ABOUT_CONFIG']) {
@@ -467,17 +428,6 @@ export function loadConfig(loggerService: LoggerService): Config {
 	// nullish => 300 (default)
 	// 0 => undefined (disabled)
 	const slowQueryThreshold = (config.db.slowQueryThreshold ?? 300) || undefined;
-
-	const openai = config.openai ? {
-		apiKey: config.openai.apiKey,
-		baseUrl: config.openai.baseUrl ?? 'https://api.openai.com/v1',
-		headers: config.openai.headers ?? {},
-		models: {
-			fast: config.openai.models?.fast ?? 'google/gemini-2.5-flash',
-			quality: config.openai.models?.quality ?? 'google/gemini-2.5-pro',
-			experimental: config.openai.models?.experimental ?? 'thudm/glm-4.1v-9b-thinking',
-		},
-	} : undefined;
 
 	return {
 		version,
@@ -561,11 +511,6 @@ export function loadConfig(loggerService: LoggerService): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		import: config.import,
 		pidFile: config.pidFile,
-		ntfyURL: config.ntfyURL,
-
-		imgproxyURL: config.imgproxyURL,
-		imgproxySalt: config.imgproxySalt,
-		imgproxyKey: config.imgproxyKey,
 		filePermissionBits: config.filePermissionBits,
 		logging: config.logging,
 		activityLogging: {
@@ -574,10 +519,9 @@ export function loadConfig(loggerService: LoggerService): Config {
 			maxAge: config.activityLogging?.maxAge ?? (1000 * 60 * 60 * 24 * 30),
 		},
 		websocketCompression: config.websocketCompression ?? false,
-		openai: openai,
 		customHtml: {
 			head: config.customHtml?.head ?? '',
-		}
+		},
 	};
 }
 

@@ -8,7 +8,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { OnApplicationShutdown } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
 import * as Redis from 'ioredis';
-import bcrypt from 'bcryptjs';
 import { MiLocalUser, MiUser } from '@/models/User.js';
 import { MiSystemAccount, MiUsedUsername, MiUserKeypair, MiUserProfile, type UsersRepository, type SystemAccountsRepository } from '@/models/_.js';
 import type { MiMeta, UserProfilesRepository } from '@/models/_.js';
@@ -120,12 +119,6 @@ export class SystemAccountService implements OnApplicationShutdown {
 		username: MiUser['username'];
 		name?: MiUser['name'];
 	}): Promise<MiLocalUser> {
-		const password = randomUUID();
-
-		// Generate hash of password
-		const salt = await bcrypt.genSalt(8);
-		const hash = await bcrypt.hash(password, salt);
-
 		// Generate secret
 		const secret = generateNativeUserToken();
 
@@ -172,7 +165,10 @@ export class SystemAccountService implements OnApplicationShutdown {
 			await transactionalEntityManager.insert(MiUserProfile, {
 				userId: account.id,
 				autoAcceptFollowed: false,
-				password: hash,
+
+				// System accounts can't be logged into, so don't give them a password.
+				// (null password prevents all password auth for the user)
+				password: null,
 			});
 
 			await transactionalEntityManager.insert(MiUsedUsername, {
@@ -212,6 +208,8 @@ export class SystemAccountService implements OnApplicationShutdown {
 			await this.userProfilesRepository.update(user.id, profileUpdates);
 			await this.internalEventService.emit('updateUserProfile', { userId: user.id });
 		}
+
+		// TODO federate this?
 
 		return await this.cacheService.findLocalUserById(user.id);
 	}

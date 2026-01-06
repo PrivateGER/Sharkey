@@ -106,8 +106,8 @@ export class AntennaService implements OnApplicationShutdown {
 		const redisPipeline = this.redisForTimelines.pipeline();
 
 		for (const antenna of matchedAntennas) {
-			this.fanoutTimelineService.push(`antennaTimeline:${antenna.id}`, note.id, 200, redisPipeline);
-			this.globalEventService.publishAntennaStream(antenna.id, 'note', note);
+			await this.fanoutTimelineService.push(`antennaTimeline:${antenna.id}`, note.id, 200, redisPipeline);
+			await this.globalEventService.publishAntennaStream(antenna.id, 'note', note);
 		}
 
 		await redisPipeline.exec();
@@ -133,8 +133,7 @@ export class AntennaService implements OnApplicationShutdown {
 		}
 
 		if (note.visibility === 'followers') {
-			const followings = await this.cacheService.userFollowingsCache.fetch(antenna.userId);
-			const isFollowing = followings.has(note.userId);
+			const isFollowing = await this.cacheService.isFollowing(antenna.userId, note.userId);
 			if (!isFollowing && antenna.userId !== note.userId) return false;
 		}
 

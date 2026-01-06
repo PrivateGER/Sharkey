@@ -36,6 +36,7 @@
 		"**/built-test",
 		"**/js-built",
 		"**/temp",
-		"**/coverage"
+		"**/coverage",
+		"**/*.min.js"
 	]
 }

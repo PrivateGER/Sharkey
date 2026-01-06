@@ -14,8 +14,7 @@ import { StatusError } from '@/misc/status-error.js';
 import { TimeService } from '@/global/TimeService.js';
 import { CONTEXT, PRELOADED_CONTEXTS } from './misc/contexts.js';
 import { validateContentTypeSetAsJsonLD } from './misc/validator.js';
-import type { ContextDefinition, JsonLdDocument } from 'jsonld';
-import type { JsonLd as JsonLdObject, RemoteDocument } from 'jsonld/jsonld-spec.js';
+import type { ContextDefinition, NodeObject } from 'jsonld';
 
 // https://stackoverflow.com/a/66252656
 type RemoveIndex<T> = {
@@ -29,7 +28,8 @@ type RemoveIndex<T> = {
 	] : T[K];
 };
 
-export type Document = RemoveIndex<JsonLdDocument>;
+export type JsonLd = NodeObject | NodeObject[];
+export type Document = RemoveIndex<JsonLd>;
 
 export type Signature = {
 	id?: string;
@@ -149,7 +149,7 @@ export class JsonLdService {
 
 	@bindThis
 	private getLoader() {
-		return async (url: string): Promise<RemoteDocument> => {
+		return async (url: string) => {
 			if (!/^https?:\/\//.test(url)) throw new UnrecoverableError(`Invalid URL: ${url}`);
 
 			{
@@ -174,7 +174,7 @@ export class JsonLdService {
 	}
 
 	@bindThis
-	private async fetchDocument(url: string): Promise<JsonLdObject> {
+	private async fetchDocument(url: string): Promise<JsonLd> {
 		const json = await this.httpRequestService.send(
 			url,
 			{
@@ -194,7 +194,7 @@ export class JsonLdService {
 			}
 		});
 
-		return json as JsonLdObject;
+		return json as JsonLd;
 	}
 
 	@bindThis

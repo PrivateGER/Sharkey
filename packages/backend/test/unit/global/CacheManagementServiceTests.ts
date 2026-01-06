@@ -104,13 +104,13 @@ describe(CacheManagementService, () => {
 			expect(allTracked).toContain(cache);
 		});
 
-		it('should start GC timer', () => {
+		it('should start GC timer', async () => {
 			const cache = act();
 
 			// Queues don't have a GC method, so there's nothing to test
 			if (!Reflect.has(cache, 'gc')) return;
 
-			const gc = jest.spyOn(cache as unknown as { gc(): void }, 'gc');
+			const gc = jest.spyOn(cache as unknown as { gc(): Promise<void> }, 'gc');
 
 			mockTimeService.tick({ milliseconds: GC_INTERVAL * 3 });
 
@@ -212,9 +212,9 @@ describe(CacheManagementService, () => {
 		].join(', ') + ' GC';
 
 		const arrange = () => jest.spyOn(createCache(), 'gc');
-		const act = () => {
+		const act = async () => {
 			mockTimeService.tick({ milliseconds: GC_INTERVAL - 1 });
-			serviceUnderTest[func]();
+			await serviceUnderTest[func]();
 			mockTimeService.tick({ milliseconds: 1 });
 			mockTimeService.tick({ milliseconds: GC_INTERVAL });
 		};
@@ -222,9 +222,9 @@ describe(CacheManagementService, () => {
 			expect(spy).toHaveBeenCalledTimes(expectedCalls);
 		};
 
-		it(testName, () => {
+		it(testName, async () => {
 			const spy = arrange();
-			act();
+			await act();
 			assert(spy);
 		});
 	}

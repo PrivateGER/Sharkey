@@ -15,6 +15,7 @@ import { bindThis } from '@/decorators.js';
 import { createTemp } from '@/misc/create-temp.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type { DBExportAntennasData } from '../types.js';
@@ -39,6 +40,7 @@ export class ExportAntennasProcessorService {
 		private queueLoggerService: QueueLoggerService,
 		private notificationService: NotificationService,
 		private readonly timeService: TimeService,
+		private readonly cacheService: CacheService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('export-antennas');
 	}
@@ -74,9 +76,7 @@ export class ExportAntennasProcessorService {
 				let users: MiUser[] | undefined;
 				if (antenna.userListId !== null) {
 					const memberships = await this.userListMembershipsRepository.findBy({ userListId: antenna.userListId });
-					users = await this.usersRepository.findBy({
-						id: In(memberships.map(j => j.userId)),
-					});
+					users = (await this.cacheService.findUsersById(memberships.map(j => j.userId))).values().toArray();
 				}
 				write(JSON.stringify({
 					name: antenna.name,

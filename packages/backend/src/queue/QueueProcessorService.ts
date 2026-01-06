@@ -163,27 +163,27 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region system
 		{
-			const processer = (job: Bull.Job) => {
+			const processer = async (job: Bull.Job) => {
 				switch (job.name) {
-					case 'tickCharts': return this.tickChartsProcessorService.process();
-					case 'resyncCharts': return this.resyncChartsProcessorService.process();
-					case 'cleanCharts': return this.cleanChartsProcessorService.process();
-					case 'aggregateRetention': return this.aggregateRetentionProcessorService.process();
-					case 'checkExpiredMutings': return this.checkExpiredMutingsProcessorService.process();
-					case 'bakeBufferedReactions': return this.bakeBufferedReactionsProcessorService.process();
-					case 'checkModeratorsActivity': return this.checkModeratorsActivityProcessorService.process();
-					case 'clean': return this.cleanProcessorService.process();
-					case 'cleanupApLogs': return this.cleanupApLogsProcessorService.process();
-					case 'hibernateUsers': return this.hibernateUsersProcessorService.process();
+					case 'tickCharts': return await this.tickChartsProcessorService.process();
+					case 'resyncCharts': return await this.resyncChartsProcessorService.process();
+					case 'cleanCharts': return await this.cleanChartsProcessorService.process();
+					case 'aggregateRetention': return await this.aggregateRetentionProcessorService.process();
+					case 'checkExpiredMutings': return await this.checkExpiredMutingsProcessorService.process();
+					case 'bakeBufferedReactions': return await this.bakeBufferedReactionsProcessorService.process();
+					case 'checkModeratorsActivity': return await this.checkModeratorsActivityProcessorService.process();
+					case 'clean': return await this.cleanProcessorService.process();
+					case 'cleanupApLogs': return await this.cleanupApLogsProcessorService.process();
+					case 'hibernateUsers': return await this.hibernateUsersProcessorService.process();
 					default: throw new Error(`unrecognized job type ${job.name} for system`);
 				}
 			};
 
-			this.systemQueueWorker = new Bull.Worker(QUEUE.SYSTEM, (job) => {
+			this.systemQueueWorker = new Bull.Worker(QUEUE.SYSTEM, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: System: ' + job.name }, () => processer(job));
 				} else {
-					return processer(job);
+					return await processer(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.SYSTEM),
@@ -211,44 +211,44 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region db
 		{
-			const processer = (job: Bull.Job) => {
+			const processer = async (job: Bull.Job) => {
 				switch (job.name) {
-					case 'deleteDriveFiles': return this.deleteDriveFilesProcessorService.process(job);
-					case 'exportCustomEmojis': return this.exportCustomEmojisProcessorService.process(job);
-					case 'exportNotes': return this.exportNotesProcessorService.process(job);
-					case 'exportClips': return this.exportClipsProcessorService.process(job);
-					case 'exportFavorites': return this.exportFavoritesProcessorService.process(job);
-					case 'exportFollowing': return this.exportFollowingProcessorService.process(job);
-					case 'exportMuting': return this.exportMutingProcessorService.process(job);
-					case 'exportBlocking': return this.exportBlockingProcessorService.process(job);
-					case 'exportUserLists': return this.exportUserListsProcessorService.process(job);
-					case 'exportAntennas': return this.exportAntennasProcessorService.process(job);
-					case 'exportAccountData': return this.exportAccountDataProcessorService.process(job);
-					case 'importFollowing': return this.importFollowingProcessorService.process(job);
-					case 'importFollowingToDb': return this.importFollowingProcessorService.processDb(job);
-					case 'importMuting': return this.importMutingProcessorService.process(job);
-					case 'importBlocking': return this.importBlockingProcessorService.process(job);
-					case 'importBlockingToDb': return this.importBlockingProcessorService.processDb(job);
-					case 'importUserLists': return this.importUserListsProcessorService.process(job);
-					case 'importCustomEmojis': return this.importCustomEmojisProcessorService.process(job);
-					case 'importAntennas': return this.importAntennasProcessorService.process(job);
-					case 'importNotes': return this.importNotesProcessorService.process(job);
-					case 'importTweetsToDb': return this.importNotesProcessorService.processTwitterDb(job);
-					case 'importIGToDb': return this.importNotesProcessorService.processIGDb(job);
-					case 'importFBToDb': return this.importNotesProcessorService.processFBDb(job);
-					case 'importMastoToDb': return this.importNotesProcessorService.processMastoToDb(job);
-					case 'importPleroToDb': return this.importNotesProcessorService.processPleroToDb(job);
-					case 'importKeyNotesToDb': return this.importNotesProcessorService.processKeyNotesToDb(job);
-					case 'deleteAccount': return this.deleteAccountProcessorService.process(job);
+					case 'deleteDriveFiles': return await this.deleteDriveFilesProcessorService.process(job);
+					case 'exportCustomEmojis': return await this.exportCustomEmojisProcessorService.process(job);
+					case 'exportNotes': return await this.exportNotesProcessorService.process(job);
+					case 'exportClips': return await this.exportClipsProcessorService.process(job);
+					case 'exportFavorites': return await this.exportFavoritesProcessorService.process(job);
+					case 'exportFollowing': return await this.exportFollowingProcessorService.process(job);
+					case 'exportMuting': return await this.exportMutingProcessorService.process(job);
+					case 'exportBlocking': return await this.exportBlockingProcessorService.process(job);
+					case 'exportUserLists': return await this.exportUserListsProcessorService.process(job);
+					case 'exportAntennas': return await this.exportAntennasProcessorService.process(job);
+					case 'exportAccountData': return await this.exportAccountDataProcessorService.process(job);
+					case 'importFollowing': return await this.importFollowingProcessorService.process(job);
+					case 'importFollowingToDb': return await this.importFollowingProcessorService.processDb(job);
+					case 'importMuting': return await this.importMutingProcessorService.process(job);
+					case 'importBlocking': return await this.importBlockingProcessorService.process(job);
+					case 'importBlockingToDb': return await this.importBlockingProcessorService.processDb(job);
+					case 'importUserLists': return await this.importUserListsProcessorService.process(job);
+					case 'importCustomEmojis': return await this.importCustomEmojisProcessorService.process(job);
+					case 'importAntennas': return await this.importAntennasProcessorService.process(job);
+					case 'importNotes': return await this.importNotesProcessorService.process(job);
+					case 'importTweetsToDb': return await this.importNotesProcessorService.processTwitterDb(job);
+					case 'importIGToDb': return await this.importNotesProcessorService.processIGDb(job);
+					case 'importFBToDb': return await this.importNotesProcessorService.processFBDb(job);
+					case 'importMastoToDb': return await this.importNotesProcessorService.processMastoToDb(job);
+					case 'importPleroToDb': return await this.importNotesProcessorService.processPleroToDb(job);
+					case 'importKeyNotesToDb': return await this.importNotesProcessorService.processKeyNotesToDb(job);
+					case 'deleteAccount': return await this.deleteAccountProcessorService.process(job);
 					default: throw new Error(`unrecognized job type ${job.name} for db`);
 				}
 			};
 
-			this.dbQueueWorker = new Bull.Worker(QUEUE.DB, (job) => {
+			this.dbQueueWorker = new Bull.Worker(QUEUE.DB, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: DB: ' + job.name }, () => processer(job));
 				} else {
-					return processer(job);
+					return await processer(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.DB),
@@ -276,11 +276,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region deliver
 		{
-			this.deliverQueueWorker = new Bull.Worker(QUEUE.DELIVER, (job) => {
+			this.deliverQueueWorker = new Bull.Worker(QUEUE.DELIVER, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: Deliver' }, () => this.deliverProcessorService.process(job));
 				} else {
-					return this.deliverProcessorService.process(job);
+					return await this.deliverProcessorService.process(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.DELIVER),
@@ -316,11 +316,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region inbox
 		{
-			this.inboxQueueWorker = new Bull.Worker(QUEUE.INBOX, (job) => {
+			this.inboxQueueWorker = new Bull.Worker(QUEUE.INBOX, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: Inbox' }, () => this.inboxProcessorService.process(job));
 				} else {
-					return this.inboxProcessorService.process(job);
+					return await this.inboxProcessorService.process(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.INBOX),
@@ -356,11 +356,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region user-webhook deliver
 		{
-			this.userWebhookDeliverQueueWorker = new Bull.Worker(QUEUE.USER_WEBHOOK_DELIVER, (job) => {
+			this.userWebhookDeliverQueueWorker = new Bull.Worker(QUEUE.USER_WEBHOOK_DELIVER, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: UserWebhookDeliver' }, () => this.userWebhookDeliverProcessorService.process(job));
 				} else {
-					return this.userWebhookDeliverProcessorService.process(job);
+					return await this.userWebhookDeliverProcessorService.process(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.USER_WEBHOOK_DELIVER),
@@ -396,11 +396,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region system-webhook deliver
 		{
-			this.systemWebhookDeliverQueueWorker = new Bull.Worker(QUEUE.SYSTEM_WEBHOOK_DELIVER, (job) => {
+			this.systemWebhookDeliverQueueWorker = new Bull.Worker(QUEUE.SYSTEM_WEBHOOK_DELIVER, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: SystemWebhookDeliver' }, () => this.systemWebhookDeliverProcessorService.process(job));
 				} else {
-					return this.systemWebhookDeliverProcessorService.process(job);
+					return await this.systemWebhookDeliverProcessorService.process(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.SYSTEM_WEBHOOK_DELIVER),
@@ -436,22 +436,22 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region relationship
 		{
-			const processer = (job: Bull.Job) => {
+			const processer = async (job: Bull.Job) => {
 				switch (job.name) {
-					case 'follow': return this.relationshipProcessorService.processFollow(job);
-					case 'unfollow': return this.relationshipProcessorService.processUnfollow(job);
-					case 'block': return this.relationshipProcessorService.processBlock(job);
-					case 'unblock': return this.relationshipProcessorService.processUnblock(job);
-					case 'move': return this.relationshipProcessorService.processMove(job);
+					case 'follow': return await this.relationshipProcessorService.processFollow(job);
+					case 'unfollow': return await this.relationshipProcessorService.processUnfollow(job);
+					case 'block': return await this.relationshipProcessorService.processBlock(job);
+					case 'unblock': return await this.relationshipProcessorService.processUnblock(job);
+					case 'move': return await this.relationshipProcessorService.processMove(job);
 					default: throw new Error(`unrecognized job type ${job.name} for relationship`);
 				}
 			};
 
-			this.relationshipQueueWorker = new Bull.Worker(QUEUE.RELATIONSHIP, (job) => {
+			this.relationshipQueueWorker = new Bull.Worker(QUEUE.RELATIONSHIP, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: Relationship: ' + job.name }, () => processer(job));
 				} else {
-					return processer(job);
+					return await processer(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.RELATIONSHIP),
@@ -484,19 +484,19 @@ export class QueueProcessorService implements OnApplicationShutdown {
 
 		//#region object storage
 		{
-			const processer = (job: Bull.Job) => {
+			const processer = async (job: Bull.Job) => {
 				switch (job.name) {
-					case 'deleteFile': return this.deleteFileProcessorService.process(job);
-					case 'cleanRemoteFiles': return this.cleanRemoteFilesProcessorService.process(job);
+					case 'deleteFile': return await this.deleteFileProcessorService.process(job);
+					case 'cleanRemoteFiles': return await this.cleanRemoteFilesProcessorService.process(job);
 					default: throw new Error(`unrecognized job type ${job.name} for objectStorage`);
 				}
 			};
 
-			this.objectStorageQueueWorker = new Bull.Worker(QUEUE.OBJECT_STORAGE, (job) => {
+			this.objectStorageQueueWorker = new Bull.Worker(QUEUE.OBJECT_STORAGE, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: ObjectStorage: ' + job.name }, () => processer(job));
 				} else {
-					return processer(job);
+					return await processer(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.OBJECT_STORAGE),
@@ -527,11 +527,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		{
 			const logger = this.logger.createSubLogger('endedPollNotification');
 
-			this.endedPollNotificationQueueWorker = new Bull.Worker(QUEUE.ENDED_POLL_NOTIFICATION, (job) => {
+			this.endedPollNotificationQueueWorker = new Bull.Worker(QUEUE.ENDED_POLL_NOTIFICATION, async job => {
 				if (this.config.sentryForBackend) {
 					return Sentry.startSpan({ name: 'Queue: EndedPollNotification' }, () => this.endedPollNotificationProcessorService.process(job));
 				} else {
-					return this.endedPollNotificationProcessorService.process(job);
+					return await this.endedPollNotificationProcessorService.process(job);
 				}
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.ENDED_POLL_NOTIFICATION),

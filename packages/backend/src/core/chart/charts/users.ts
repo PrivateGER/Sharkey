@@ -6,6 +6,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Not, IsNull, Like, DataSource } from 'typeorm';
 import type { MiUser } from '@/models/User.js';
+import { isLocalUser } from '@/models/User.js';
 import { AppLockService } from '@/core/AppLockService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { DI } from '@/di-symbols.js';
@@ -62,7 +63,7 @@ export default class UsersChart extends Chart<typeof schema> { // eslint-disable
 
 	@bindThis
 	public update(user: { id: MiUser['id'], host: MiUser['host'] }, isAdditional: boolean): void {
-		const prefix = this.userEntityService.isLocalUser(user) ? 'local' : 'remote';
+		const prefix = isLocalUser(user) ? 'local' : 'remote';
 
 		this.commit({
 			[`${prefix}.total`]: isAdditional ? 1 : -1,

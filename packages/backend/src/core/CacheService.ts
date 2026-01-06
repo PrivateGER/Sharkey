@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In, IsNull, Brackets, MoreThan } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import type {
 	BlockingsRepository,
 	FollowingsRepository,
@@ -13,22 +13,25 @@ import type {
 	MiUserProfile,
 	UserProfilesRepository,
 	UsersRepository,
-	MiFollowing,
 	NoteThreadMutingsRepository,
 	ChannelFollowingsRepository,
 	UserListMembershipsRepository,
 	UserListFavoritesRepository,
+	FollowRequestsRepository,
+	UserMemosRepository,
 } from '@/models/_.js';
 import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import type { MiUserListMembership } from '@/models/UserListMembership.js';
 import { isLocalUser, isRemoteUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
+import { toArray } from '@/misc/prelude/array.js';
+import { IsOne } from '@/misc/is-one.js';
 import type { InternalEventTypes } from '@/core/GlobalEventService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import * as Acct from '@/misc/acct.js';
 import { IdentifiableError, errorCodes } from '@/misc/identifiable-error.js';
-import { TimeService } from '@/global/TimeService.js';
 import {
 	CacheManagementService,
 	type ManagedMemoryKVCache,
@@ -41,6 +44,39 @@ export interface FollowStats {
 	localFollowers: number;
 	remoteFollowing: number;
 	remoteFollowers: number;
+}
+
+/** Sentinel value for "follow requested". Value is 0 (falsy) so that "isFollowing" only evalautes to "true" when the follow is accepted. */
+export const Requested = 0;
+
+export interface UserRelation {
+	/** ID of the user who owns these relations */
+	userId: string;
+	/** ID of the user who is the subject of these relations */
+	targetUserId: string;
+
+	isFollowing: boolean | typeof Requested;
+	isFollowed: boolean | typeof Requested;
+
+	isFollowingWithReplies: boolean;
+	isFollowedWithReplies: boolean;
+
+	isFollowingWithNotifications: boolean;
+	isFollowedWithNotifications: boolean;
+
+	isMuting: boolean;
+	isMuted: boolean;
+
+	isMutingRenotes: boolean;
+	isMutedRenotes: boolean;
+
+	isMutingInstance: boolean;
+	isMutedInstance: boolean;
+
+	isBlocking: boolean;
+	isBlocked: boolean;
+
+	memo: string | null;
 }
 
 @Injectable()
@@ -62,30 +98,15 @@ export class CacheService implements OnApplicationShutdown {
 	public readonly userByAcctCache: ManagedQuantumKVCache<string>;
 
 	/**
+	 * Maps actor URIs (key) to user IDs (value).
+	 */
+	public readonly uriPersonCache: ManagedQuantumKVCache<string>;
+
+	/**
 	 * Maps user IDs (key) to MiUserProfile instances (value).
 	 * This is the ONLY source for cached MiUserProfile entities!
 	 */
 	public readonly userProfileCache: ManagedQuantumKVCache<MiUserProfile>;
-
-	/**
-	 * Maps user IDs (key) to the set of user IDs (value) muted by that user.
-	 */
-	public readonly userMutingsCache: ManagedQuantumKVCache<Set<string>>;
-
-	/**
-	 * Maps user IDs (key) to the set of user IDs (value) muting that user.
-	 */
-	public readonly userMutedCache: ManagedQuantumKVCache<Set<string>>;
-
-	/**
-	 * Maps user IDs (key) to the set of user IDs (value) blocked by that user.
-	 */
-	public readonly userBlockingCache: ManagedQuantumKVCache<Set<string>>;
-
-	/**
-	 * Maps user IDs (key) to the set of user IDs (value) blocking that user.
-	 */
-	public readonly userBlockedCache: ManagedQuantumKVCache<Set<string>>;
 
 	/**
 	 * Maps user IDs (key) to the map of list ID / MiUserListMembership instances (value) for all lists containing this user.
@@ -108,11 +129,6 @@ export class CacheService implements OnApplicationShutdown {
 	public readonly listUserFavoritesCache: ManagedQuantumKVCache<Set<string>>;
 
 	/**
-	 * Maps user IDs (key) to the set of user IDs (value) who's renotes are muted by that user.
-	 */
-	public readonly renoteMutingsCache: ManagedQuantumKVCache<Set<string>>;
-
-	/**
 	 * Maps user IDs (key) to the set of thread IDs (value) muted by that user.
 	 */
 	public readonly threadMutingsCache: ManagedQuantumKVCache<Set<string>>;
@@ -123,21 +139,6 @@ export class CacheService implements OnApplicationShutdown {
 	public readonly noteMutingsCache: ManagedQuantumKVCache<Set<string>>;
 
 	/**
-	 * Maps user IDs (key) to the map of user ID / MiFollowing instances (value) followed by that user.
-	 */
-	public readonly userFollowingsCache: ManagedQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>;
-
-	/**
-	 * Maps user IDs (key) to the map of user ID / MiFollowing instances (value) following that user.
-	 */
-	public readonly userFollowersCache: ManagedQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>;
-
-	/**
-	 * Maps user IDs (key) to hibernation state (value).
-	 */
-	public readonly hibernatedUserCache: ManagedQuantumKVCache<boolean>;
-
-	/**
 	 * Maps user IDs (key) to follow statistics (value).
 	 */
 	public readonly userFollowStatsCache: ManagedMemoryKVCache<FollowStats>;
@@ -146,6 +147,11 @@ export class CacheService implements OnApplicationShutdown {
 	 * Maps user IDs (key) to the set of channel IDs (value) followed by that user.
 	 */
 	public readonly userFollowingChannelsCache: ManagedQuantumKVCache<Set<string>>;
+
+	/**
+	 * Maps user ID:ID pairs (key) to an object describing the relationship(s) between those users.
+	 */
+	public readonly userRelationsCache: ManagedQuantumKVCache<UserRelation>;
 
 	constructor(
 		@Inject(DI.usersRepository)
@@ -166,6 +172,9 @@ export class CacheService implements OnApplicationShutdown {
 		@Inject(DI.followingsRepository)
 		private readonly followingsRepository: FollowingsRepository,
 
+		@Inject(DI.followRequestsRepository)
+		private readonly followRequestsRepository: FollowRequestsRepository,
+
 		@Inject(DI.noteThreadMutingsRepository)
 		private readonly noteThreadMutingsRepository: NoteThreadMutingsRepository,
 
@@ -178,16 +187,19 @@ export class CacheService implements OnApplicationShutdown {
 		@Inject(DI.userListFavoritesRepository)
 		private readonly userListFavoritesRepository: UserListFavoritesRepository,
 
+		@Inject(DI.userMemosRepository)
+		private readonly userMemosRepository: UserMemosRepository,
+
 		private readonly internalEventService: InternalEventService,
 		private readonly cacheManagementService: CacheManagementService,
-		private readonly timeService: TimeService,
+		private readonly utilityService: UtilityService,
 	) {
 		this.userByIdCache = this.cacheManagementService.createQuantumKVCache('userById', {
 			lifetime: 1000 * 60 * 5, // 5m
 			fetcher: async (userId) => await this.usersRepository.findOneByOrFail({ id: userId }),
 			optionalFetcher: async (userId) => await this.usersRepository.findOneBy({ id: userId }),
 			bulkFetcher: async (userIds) => {
-				const users = await this.usersRepository.findBy({ id: In(userIds) });
+				const users = await this.usersRepository.findBy({ id: IsOne(userIds) });
 				return users.map(user => [user.id, user]);
 			},
 		});
@@ -215,7 +227,7 @@ export class CacheService implements OnApplicationShutdown {
 					.createQueryBuilder('user')
 					.select('user.id')
 					.addSelect('user.token')
-					.where({ token: In(tokens) })
+					.where({ token: IsOne(tokens) })
 					.getMany() as { id: string, token: string }[];
 				return users.map(user => [user.token, user.id]);
 			},
@@ -230,7 +242,7 @@ export class CacheService implements OnApplicationShutdown {
 					.select('user.id')
 					.where({
 						usernameLower: parsed.username.toLowerCase(),
-						host: parsed.host ?? IsNull(),
+						host: parsed.host ? this.utilityService.toPuny(parsed.host) : IsNull(),
 					})
 					.getOneOrFail();
 				return id;
@@ -242,7 +254,7 @@ export class CacheService implements OnApplicationShutdown {
 					.select('user.id')
 					.where({
 						usernameLower: parsed.username.toLowerCase(),
-						host: parsed.host ?? IsNull(),
+						host: parsed.host ? this.utilityService.toPuny(parsed.host) : IsNull(),
 					})
 					.getOne();
 				return res?.id;
@@ -250,95 +262,38 @@ export class CacheService implements OnApplicationShutdown {
 			// no bulkFetcher possible
 		});
 
+		this.uriPersonCache = this.cacheManagementService.createQuantumKVCache('uriPerson', {
+			lifetime: 1000 * 60 * 30, // 30m
+			fetcher: async (uri) => {
+				const { id } = await this.usersRepository.findOneOrFail({
+					where: { uri },
+					select: { id: true },
+				});
+				return id;
+			},
+			optionalFetcher: async (uri) => {
+				const res = await this.usersRepository.findOne({
+					where: { uri },
+					select: { id: true },
+				});
+				return res?.id;
+			},
+			bulkFetcher: async (uris) => {
+				const users = await this.usersRepository.find({
+					where: { uri: In(uris) },
+					select: { id: true, uri: true },
+				}) as { id: string, uri: string }[];
+				return users.map(user => [user.uri, user.id]);
+			},
+		});
+
 		this.userProfileCache = this.cacheManagementService.createQuantumKVCache('userProfile', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async userId => await this.userProfilesRepository.findOneByOrFail({ userId }),
 			optionalFetcher: async userId => await this.userProfilesRepository.findOneBy({ userId }),
 			bulkFetcher: async userIds => {
-				const profiles = await this.userProfilesRepository.findBy({ userId: In(userIds) });
+				const profiles = await this.userProfilesRepository.findBy({ userId: IsOne(userIds) });
 				return profiles.map(profile => [profile.userId, profile]);
-			},
-		});
-
-		this.userMutingsCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('userMutings', {
-			lifetime: 1000 * 60 * 3, // 3m (workaround for mute expiration)
-			fetcher: async muterId => {
-				const mutings = await this.mutingsRepository.find({ where: { muterId: muterId }, select: ['muteeId'] });
-				return new Set(mutings.map(muting => muting.muteeId));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async muterIds => {
-				const mutings = await this.mutingsRepository
-					.createQueryBuilder('muting')
-					.select('"muting"."muterId"', 'muterId')
-					.addSelect('array_agg("muting"."muteeId")', 'muteeIds')
-					.where({ muterId: In(muterIds) })
-					.andWhere(new Brackets(qb => qb
-						.orWhere({ expiresAt: IsNull() })
-						.orWhere({ expiresAt: MoreThan(this.timeService.date) })))
-					.groupBy('muting.muterId')
-					.getRawMany<{ muterId: string, muteeIds: string[] }>();
-				return mutings.map(muting => [muting.muterId, new Set(muting.muteeIds)]);
-			},
-		});
-
-		this.userMutedCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('userMuted', {
-			lifetime: 1000 * 60 * 3, // 3m (workaround for mute expiration)
-			fetcher: async muteeId => {
-				const mutings = await this.mutingsRepository.find({ where: { muteeId }, select: ['muterId'] });
-				return new Set(mutings.map(muting => muting.muterId));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async muteeIds => {
-				const mutings = await this.mutingsRepository
-					.createQueryBuilder('muting')
-					.select('"muting"."muteeId"', 'muteeId')
-					.addSelect('array_agg("muting"."muterId")', 'muterIds')
-					.where({ muteeId: In(muteeIds) })
-					.andWhere(new Brackets(qb => qb
-						.orWhere({ expiresAt: IsNull() })
-						.orWhere({ expiresAt: MoreThan(this.timeService.date) })))
-					.groupBy('muting.muteeId')
-					.getRawMany<{ muteeId: string, muterIds: string[] }>();
-				return mutings.map(muting => [muting.muteeId, new Set(muting.muterIds)]);
-			},
-		});
-
-		this.userBlockingCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('userBlocking', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async blockerId => {
-				const blockings = await this.blockingsRepository.find({ where: { blockerId }, select: ['blockeeId'] });
-				return new Set(blockings.map(blocking => blocking.blockeeId));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async blockerIds => {
-				const blockings = await this.blockingsRepository
-					.createQueryBuilder('blocking')
-					.select('"blocking"."blockerId"', 'blockerId')
-					.addSelect('array_agg("blocking"."blockeeId")', 'blockeeIds')
-					.where({ blockerId: In(blockerIds) })
-					.groupBy('blocking.blockerId')
-					.getRawMany<{ blockerId: string, blockeeIds: string[] }>();
-				return blockings.map(blocking => [blocking.blockerId, new Set(blocking.blockeeIds)]);
-			},
-		});
-
-		this.userBlockedCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('userBlocked', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async blockeeId => {
-				const blockings = await this.blockingsRepository.find({ where: { blockeeId: blockeeId }, select: ['blockerId'] });
-				return new Set(blockings.map(blocking => blocking.blockerId));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async blockeeIds => {
-				const blockings = await this.blockingsRepository
-					.createQueryBuilder('blocking')
-					.select('"blocking"."blockeeId"', 'blockeeId')
-					.addSelect('array_agg("blocking"."blockerId")', 'blockerIds')
-					.where({ blockeeId: In(blockeeIds) })
-					.groupBy('blocking.blockeeId')
-					.getRawMany<{ blockeeId: string, blockerIds: string[] }>();
-				return blockings.map(blocking => [blocking.blockeeId, new Set(blocking.blockerIds)]);
 			},
 		});
 
@@ -352,7 +307,7 @@ export class CacheService implements OnApplicationShutdown {
 			bulkFetcher: async userIds => {
 				const groups = new Map<string, Map<string, MiUserListMembership>>;
 
-				const memberships = await this.userListMembershipsRepository.findBy({ userId: In(userIds) });
+				const memberships = await this.userListMembershipsRepository.findBy({ userId: IsOne(userIds) });
 				for (const membership of memberships) {
 					let listsForUser = groups.get(membership.userId);
 					if (!listsForUser) {
@@ -374,7 +329,7 @@ export class CacheService implements OnApplicationShutdown {
 			},
 			// no optionalFetcher needed
 			bulkFetcher: async userListIds => {
-				const memberships = await this.userListMembershipsRepository.findBy({ userListId: In(userListIds) });
+				const memberships = await this.userListMembershipsRepository.findBy({ userListId: IsOne(userListIds) });
 				const groups = new Map<string, Map<string, MiUserListMembership>>();
 				for (const membership of memberships) {
 					let usersForList = groups.get(membership.userListId);
@@ -400,7 +355,7 @@ export class CacheService implements OnApplicationShutdown {
 					.createQueryBuilder('favorite')
 					.select('"favorite"."userId"', 'userId')
 					.addSelect('array_agg("favorite"."userListId")', 'userListIds')
-					.where({ userId: In(userIds) })
+					.where({ userId: IsOne(userIds) })
 					.groupBy('favorite.userId')
 					.getRawMany<{ userId: string, userListIds: string[] }>();
 				return favorites.map(favorite => [favorite.userId, new Set(favorite.userListIds)]);
@@ -419,29 +374,10 @@ export class CacheService implements OnApplicationShutdown {
 					.createQueryBuilder('favorite')
 					.select('"favorite"."userListId"', 'userListId')
 					.addSelect('array_agg("favorite"."userId")', 'userIds')
-					.where({ userListId: In(userListIds) })
+					.where({ userListId: IsOne(userListIds) })
 					.groupBy('favorite.userListId')
 					.getRawMany<{ userListId: string, userIds: string[] }>();
 				return favorites.map(favorite => [favorite.userListId, new Set(favorite.userIds)]);
-			},
-		});
-
-		this.renoteMutingsCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('renoteMutings', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async muterId => {
-				const mutings = await this.renoteMutingsRepository.find({ where: { muterId: muterId }, select: ['muteeId'] });
-				return new Set(mutings.map(muting => muting.muteeId));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async muterIds => {
-				const mutings = await this.renoteMutingsRepository
-					.createQueryBuilder('muting')
-					.select('"muting"."muterId"', 'muterId')
-					.addSelect('array_agg("muting"."muteeId")', 'muteeIds')
-					.where({ muterId: In(muterIds) })
-					.groupBy('muting.muterId')
-					.getRawMany<{ muterId: string, muteeIds: string[] }>();
-				return mutings.map(muting => [muting.muterId, new Set(muting.muteeIds)]);
 			},
 		});
 
@@ -458,7 +394,7 @@ export class CacheService implements OnApplicationShutdown {
 					.select('"muting"."userId"', 'userId')
 					.addSelect('array_agg("muting"."threadId")', 'threadIds')
 					.groupBy('"muting"."userId"')
-					.where({ userId: In(muterIds), isPostMute: false })
+					.where({ userId: IsOne(muterIds), isPostMute: false })
 					.getRawMany<{ userId: string, threadIds: string[] }>();
 				return mutings.map(muting => [muting.userId, new Set(muting.threadIds)]);
 			},
@@ -477,73 +413,9 @@ export class CacheService implements OnApplicationShutdown {
 					.select('"muting"."userId"', 'userId')
 					.addSelect('array_agg("muting"."threadId")', 'threadIds')
 					.groupBy('"muting"."userId"')
-					.where({ userId: In(muterIds), isPostMute: true })
+					.where({ userId: IsOne(muterIds), isPostMute: true })
 					.getRawMany<{ userId: string, threadIds: string[] }>();
 				return mutings.map(muting => [muting.userId, new Set(muting.threadIds)]);
-			},
-		});
-
-		this.userFollowingsCache = this.cacheManagementService.createQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>('userFollowings', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async followerId => {
-				const followings = await this.followingsRepository.findBy({ followerId: followerId });
-				return new Map(followings.map(following => [following.followeeId, following]));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async followerIds => {
-				const groups = new Map<string, Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>();
-
-				const followings = await this.followingsRepository.findBy({ followerId: In(followerIds) });
-				for (const following of followings) {
-					let group = groups.get(following.followerId);
-					if (!group) {
-						group = new Map();
-						groups.set(following.followerId, group);
-					}
-					group.set(following.followeeId, following);
-				}
-
-				return groups;
-			},
-		});
-
-		this.userFollowersCache = this.cacheManagementService.createQuantumKVCache<Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>('userFollowers', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async followeeId => {
-				const followings = await this.followingsRepository.findBy({ followeeId: followeeId });
-				return new Map(followings.map(following => [following.followerId, following]));
-			},
-			// no optionalFetcher needed
-			bulkFetcher: async followeeIds => {
-				const groups = new Map<string, Map<string, Omit<MiFollowing, 'isFollowerHibernated'>>>();
-
-				const followings = await this.followingsRepository.findBy({ followeeId: In(followeeIds) });
-				for (const following of followings) {
-					let group = groups.get(following.followeeId);
-					if (!group) {
-						group = new Map();
-						groups.set(following.followeeId, group);
-					}
-					group.set(following.followerId, following);
-				}
-
-				return groups;
-			},
-		});
-
-		this.hibernatedUserCache = this.cacheManagementService.createQuantumKVCache<boolean>('hibernatedUsers', {
-			lifetime: 1000 * 60 * 30, // 30m
-			fetcher: async userId => {
-				const { isHibernated } = await this.usersRepository.findOneOrFail({ where: { id: userId }, select: { isHibernated: true } });
-				return isHibernated;
-			},
-			optionalFetcher: async userId => {
-				const result = await this.usersRepository.findOne({ where: { id: userId }, select: { isHibernated: true } });
-				return result?.isHibernated;
-			},
-			bulkFetcher: async userIds => {
-				const results = await this.usersRepository.find({ where: { id: In(userIds) }, select: { id: true, isHibernated: true } });
-				return results.map(({ id, isHibernated }) => [id, isHibernated]);
 			},
 		});
 
@@ -561,19 +433,196 @@ export class CacheService implements OnApplicationShutdown {
 					.createQueryBuilder('following')
 					.select('"following"."followerId"', 'followerId')
 					.addSelect('array_agg("following"."followeeId")', 'followeeIds')
-					.where({ followerId: In(followerIds) })
+					.where({ followerId: IsOne(followerIds) })
 					.groupBy('following.followerId')
 					.getRawMany<{ followerId: string, followeeIds: string[] }>();
 				return followings.map(following => [following.followerId, new Set(following.followeeIds)]);
 			},
 		});
 
-		// Update caches based on changes to other caches.
-		this.hibernatedUserCache.on('changed', this.onHibernatedUserCacheChanged);
+		this.userRelationsCache = cacheManagementService.createQuantumKVCache('userRelations', {
+			lifetime: 1000 * 60 * 30, // 30m
+			fetcher: async (pair, { fail }) => {
+				const [userId, targetUserId] = pair.split(':');
+				if (!userId || !targetUserId) fail(`Invalid user ID pair "${pair}"`);
+
+				// Skip no-op fetches
+				if (userId === targetUserId) {
+					return {
+						userId,
+						targetUserId,
+						isFollowing: false,
+						isFollowed: false,
+						isFollowingWithReplies: false,
+						isFollowedWithReplies: false,
+						isFollowingWithNotifications: false,
+						isFollowedWithNotifications: false,
+						isMuting: false,
+						isMuted: false,
+						isMutingRenotes: false,
+						isMutedRenotes: false,
+						isMutingInstance: false,
+						isMutedInstance: false,
+						isBlocking: false,
+						isBlocked: false,
+						memo: null,
+					};
+				}
+
+				const [followingRelation, followedRelation, isFollowRequesting, isFollowRequested, isBlocking, isBlocked, isMuting, isMuted, isMutingRenotes, isMutedRenotes, memoRelation, userProfile, targetUserProfile] = await Promise.all([
+					// followingRelation
+					this.followingsRepository.findOne({ where: { followerId: userId, followeeId: targetUserId }, select: { withReplies: true } }),
+					// followedRelation
+					this.followingsRepository.findOne({ where: { followerId: targetUserId, followeeId: userId }, select: { withReplies: true } }),
+					// isFollowRequesting
+					this.followRequestsRepository.existsBy({ followerId: userId, followeeId: targetUserId }),
+					// isFollowRequested
+					this.followRequestsRepository.existsBy({ followerId: targetUserId, followeeId: userId }),
+
+					// isBlocking
+					this.blockingsRepository.existsBy({ blockerId: userId, blockeeId: targetUserId }),
+					// isBlocked
+					this.blockingsRepository.existsBy({ blockerId: targetUserId, blockeeId: userId }),
+
+					// isMuting
+					this.mutingsRepository.existsBy({ muterId: userId, muteeId: targetUserId }),
+					// isMuted
+					this.mutingsRepository.existsBy({ muterId: targetUserId, muteeId: userId }),
+
+					// isMutingRenotes
+					this.renoteMutingsRepository.existsBy({ muterId: userId, muteeId: targetUserId }),
+					// isMutedRenotes
+					this.renoteMutingsRepository.existsBy({ muterId: targetUserId, muteeId: userId }),
+
+					// memo
+					this.userMemosRepository.findOne({ where: { userId, targetUserId }, select: { memo: true } }),
+
+					// userProfile
+					this.userProfileCache.fetchMaybe(userId),
+					// targetUserProfile
+					this.userProfileCache.fetchMaybe(targetUserId),
+				]);
+
+				// Unpack relations
+				const isFollowing = followingRelation != null || (isFollowRequesting ? Requested : false);
+				const isFollowingWithReplies = followingRelation?.withReplies ?? false;
+				const isFollowingWithNotifications = followingRelation?.notify === 'normal';
+				const isFollowed = followedRelation != null || (isFollowRequested ? Requested : false);
+				const isFollowedWithReplies = followedRelation?.withReplies ?? false;
+				const isFollowedWithNotifications = followedRelation?.notify === 'normal';
+				const isMutingInstance = userProfile != null && targetUserProfile?.userHost != null && userProfile.mutedInstances.includes(targetUserProfile.userHost);
+				const isMutedInstance = userProfile?.userHost != null && targetUserProfile != null && targetUserProfile.mutedInstances.includes(userProfile.userHost);
+				const memo = memoRelation?.memo ?? null;
+
+				return { userId, targetUserId, isFollowing, isFollowed, isFollowingWithReplies, isFollowedWithReplies, isFollowingWithNotifications, isFollowedWithNotifications, isMuting, isMuted, isMutingRenotes, isMutedRenotes, isMutingInstance, isMutedInstance, isBlocking, isBlocked, memo };
+			},
+			// optionalFetcher not needed
+			bulkFetcher: async (pairs, { fail }) => {
+				const userIdSet = new Set<string>();
+				const parsedPairs = pairs.map(pair => {
+					const [userId, targetUserId] = pair.split(':');
+					if (!userId || !targetUserId) {
+						fail(`Invalid user ID pair "${pair}"`);
+					}
+
+					userIdSet.add(userId);
+					userIdSet.add(targetUserId);
+					return { pair, userId, targetUserId };
+				});
+
+				// This must be an array, or TypeORM will fail silently!
+				const userIds = userIdSet.values().toArray();
+
+				// Bulk-fetch all required data up-front
+				const [followings, followRequests, blockings, mutings, renoteMutings, userMemos, userProfiles] = await Promise.all([
+					// followings
+					this.followingsRepository.find({
+						where: { followerId: IsOne(userIds), followeeId: IsOne(userIds) },
+						select: { followerId: true, followeeId: true, withReplies: true },
+					}),
+
+					// followRequests
+					this.followRequestsRepository.find({
+						where: { followerId: IsOne(userIds), followeeId: IsOne(userIds) },
+						select: { followerId: true, followeeId: true },
+					}),
+
+					// blockings
+					this.blockingsRepository.find({
+						where: { blockerId: IsOne(userIds), blockeeId: IsOne(userIds) },
+						select: { blockerId: true, blockeeId: true },
+					}),
+
+					// mutings
+					this.mutingsRepository.find({
+						where: { muterId: IsOne(userIds), muteeId: IsOne(userIds) },
+						select: { muterId: true, muteeId: true },
+					}),
+
+					// renoteMutings
+					this.renoteMutingsRepository.find({
+						where: { muterId: IsOne(userIds), muteeId: IsOne(userIds) },
+						select: { muterId: true, muteeId: true },
+					}),
+
+					// userMemos
+					this.userMemosRepository.find({
+						where: { userId: IsOne(userIds), targetUserId: IsOne(userIds) },
+						select: { userId: true, targetUserId: true, memo: true },
+					}),
+
+					// userProfiles
+					this.userProfileCache.fetchMany(userIds)
+						.then(ps => new Map(ps)),
+				]);
+
+				return parsedPairs.map(({ pair, userId, targetUserId }) => {
+					// Extract relevant data from bulk-fetched objects
+					const followingRelation = followings.find(f => f.followerId === userId && f.followeeId === targetUserId);
+					const followedRelation = followings.find(f => f.followerId === targetUserId && f.followeeId === userId);
+					const isFollowRequesting = followRequests.some(r => r.followerId === userId && r.followeeId === targetUserId);
+					const isFollowRequested = followRequests.some(r => r.followerId === targetUserId && r.followeeId === userId);
+					const isMuting = mutings.some(m => m.muterId === userId && m.muteeId === targetUserId);
+					const isMuted = mutings.some(m => m.muterId === targetUserId && m.muteeId === userId);
+					const isMutingRenotes = renoteMutings.some(m => m.muterId === userId && m.muteeId === targetUserId);
+					const isMutedRenotes = renoteMutings.some(m => m.muterId === targetUserId && m.muteeId === userId);
+					const isBlocking = blockings.some(b => b.blockerId === userId && b.blockeeId === targetUserId);
+					const isBlocked = blockings.some(b => b.blockerId === targetUserId && b.blockeeId === userId);
+					const memoRelation = userMemos.find(m => m.userId === userId && m.targetUserId === targetUserId);
+					const userProfile = userProfiles.get(userId);
+					const targetUserProfile = userProfiles.get(targetUserId);
+
+					// Unpack relations
+					const isFollowing = followingRelation != null || (isFollowRequesting ? Requested : false);
+					const isFollowingWithReplies = followingRelation?.withReplies ?? false;
+					const isFollowingWithNotifications = followingRelation?.notify === 'normal';
+					const isFollowed = followedRelation != null || (isFollowRequested ? Requested : false);
+					const isFollowedWithReplies = followedRelation?.withReplies ?? false;
+					const isFollowedWithNotifications = followedRelation?.notify === 'normal';
+					const isMutingInstance = userProfile != null && targetUserProfile?.userHost != null && userProfile.mutedInstances.includes(targetUserProfile.userHost);
+					const isMutedInstance = userProfile?.userHost != null && targetUserProfile != null && targetUserProfile.mutedInstances.includes(userProfile.userHost);
+					const memo = memoRelation?.memo ?? null;
+
+					const relation: UserRelation = { userId, targetUserId, isFollowing, isFollowed, isFollowingWithReplies, isFollowedWithReplies, isFollowingWithNotifications, isFollowedWithNotifications, isMuting, isMuted, isMutingRenotes, isMutedRenotes, isMutingInstance, isMutedInstance, isBlocking, isBlocked, memo };
+					return [pair, relation];
+				});
+			},
+		});
 
 		// Update memory caches from local *and remote* events since the cache doesn't sync automatically.
 		this.internalEventService.on('follow', this.onFollowEvent);
+		this.internalEventService.on('followChanged', this.onFollowEvent);
 		this.internalEventService.on('unfollow', this.onFollowEvent);
+		this.internalEventService.on('followRequested', this.onFollowRequestEvent);
+		this.internalEventService.on('followRequestCancelled', this.onFollowRequestEvent);
+		this.internalEventService.on('blockingCreated', this.onBlockingEvent);
+		this.internalEventService.on('blockingDeleted', this.onBlockingEvent);
+		this.internalEventService.on('userChangeHibernatedState', this.onHibernationEvent);
+		this.internalEventService.on('mute', this.onMuteEvent);
+		this.internalEventService.on('unmute', this.onMuteEvent);
+		this.internalEventService.on('muteRenotes', this.onMuteEvent);
+		this.internalEventService.on('unmuteRenotes', this.onMuteEvent);
+		this.internalEventService.on('userMemoChanged', this.onMemoEvent);
 
 		// Update quantum caches from local events only, because the cache will automatically produce new sync events.
 		this.internalEventService.on('usersUpdated', this.onUserChangeEvent, { ignoreRemote: true });
@@ -592,8 +641,6 @@ export class CacheService implements OnApplicationShutdown {
 		this.internalEventService.on('userListMemberBulkAdded', this.onListMemberEvent, { ignoreRemote: true });
 		this.internalEventService.on('userListMemberBulkUpdated', this.onListMemberEvent, { ignoreRemote: true });
 		this.internalEventService.on('userListMemberBulkRemoved', this.onListMemberEvent, { ignoreRemote: true });
-		this.internalEventService.on('blockingCreated', this.onBlockingEvent, { ignoreRemote: true });
-		this.internalEventService.on('blockingDeleted', this.onBlockingEvent, { ignoreRemote: true });
 	}
 
 	@bindThis
@@ -604,100 +651,85 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	private async onUserDeleteEvent<E extends 'userChangeDeletedState'>(body: InternalEventTypes[E]): Promise<void> {
-		// Contains IDs of all lists where this user is a member.
-		const userListMemberships = this.listUserMembershipsCache.get(body.id).keys();
+		if (!body.isDeleted) {
+			return;
+		}
 
+		// Empty all caches that:
+		//  A: contain user-owned data (userByIdCache, userProfileCache)
+		//  B: belong to something that is not deleted (listUserMembershipsCache, listUserFavoritesCache)
+		//  C: can be referenced by an alternate key (nativeTokenCache, userByAcctCache, uriPersonCache)
+		//  D: are used in an iterative / non-fetch fashion (userRelationsCache)
 		await Promise.all([
 			this.userByIdCache.delete(body.id),
+			body.token ? this.nativeTokenCache.delete(body.token) : null,
+			body.uri ? this.uriPersonCache.delete(body.uri) : null,
+			this.userByAcctCache.delete(Acct.toString({ username: body.usernameLower, host: body.host })),
 			this.userProfileCache.delete(body.id),
-			this.userMutingsCache.delete(body.id),
-			this.userMutedCache.delete(body.id),
-			this.userBlockingCache.delete(body.id),
-			this.userBlockedCache.delete(body.id),
-			this.renoteMutingsCache.delete(body.id),
-			this.userFollowingsCache.delete(body.id),
-			this.userFollowersCache.delete(body.id),
-			this.hibernatedUserCache.delete(body.id),
-			this.threadMutingsCache.delete(body.id),
-			this.noteMutingsCache.delete(body.id),
-			this.userListMembershipsCache.delete(body.id),
-			this.listUserMembershipsCache.deleteMany(userListMemberships),
+			this.userListMembershipsCache.fetch(body.id)
+				.then(userListMemberships => this.listUserMembershipsCache.deleteMany(userListMemberships.keys())),
+			this.userListFavoritesCache.fetch(body.id)
+				.then(userListFavorites => this.listUserFavoritesCache.deleteMany(userListFavorites.keys())),
+			this.userRelationsCache.delete(body.id),
 		]);
-	}
-
-	@bindThis
-	private async onHibernatedUserCacheChanged(body: { keys: string[] }): Promise<void> {
-		// We only update local copies since each process will get this event, but we can have user objects in multiple different caches.
-		// Before doing anything else we must "find" all the objects to update.
-		const userObjects = new Map<string, MiUser[]>();
-		const toUpdate: string[] = [];
-		for (const uid of body.keys) {
-			const toAdd: MiUser[] = [];
-
-			const userById = this.userByIdCache.getMaybe(uid);
-			if (userById) toAdd.push(userById);
-
-			if (toAdd.length > 0) {
-				toUpdate.push(uid);
-				userObjects.set(uid, toAdd);
-			}
-		}
-
-		// In many cases, we won't have to do anything.
-		// Skipping the DB fetch ensures that this remains a single-step synchronous process.
-		if (toUpdate.length > 0) {
-			const hibernations = await this.usersRepository.find({ where: { id: In(toUpdate) }, select: { id: true, isHibernated: true } });
-			for (const { id, isHibernated } of hibernations) {
-				const users = userObjects.get(id);
-				if (users) {
-					for (const user of users) {
-						user.isHibernated = isHibernated;
-					}
-				}
-			}
-		}
 	}
 
 	@bindThis
 	private async onTokenEvent<E extends 'userTokenRegenerated'>(body: InternalEventTypes[E]): Promise<void> {
 		await Promise.all([
-			this.nativeTokenCache.delete(body.oldToken),
+			body.oldToken ? this.nativeTokenCache.delete(body.oldToken) : null,
 			this.nativeTokenCache.set(body.newToken, body.id),
 		]);
 	}
 
 	@bindThis
-	private async onFollowEvent<E extends 'follow' | 'unfollow'>(body: InternalEventTypes[E], type: E): Promise<void> {
-		{
-			// TODO should we filter for local/remote events?
-			switch (type) {
-				case 'follow': {
-					const follower = this.userByIdCache.getMaybe(body.followerId);
-					if (follower) follower.followingCount++;
-					const followee = this.userByIdCache.getMaybe(body.followeeId);
-					if (followee) followee.followersCount++;
-					await Promise.all([
-						this.userFollowingsCache.delete(body.followerId),
-						this.userFollowersCache.delete(body.followeeId),
-					]);
-					this.userFollowStatsCache.delete(body.followerId);
-					this.userFollowStatsCache.delete(body.followeeId);
-					break;
-				}
-				case 'unfollow': {
-					const follower = this.userByIdCache.getMaybe(body.followerId);
-					if (follower) follower.followingCount--;
-					const followee = this.userByIdCache.getMaybe(body.followeeId);
-					if (followee) followee.followersCount--;
-					await Promise.all([
-						this.userFollowingsCache.delete(body.followerId),
-						this.userFollowersCache.delete(body.followeeId),
-					]);
-					this.userFollowStatsCache.delete(body.followerId);
-					this.userFollowStatsCache.delete(body.followeeId);
-					break;
-				}
-			}
+	private async onFollowEvent<E extends 'follow' | 'unfollow' | 'followChanged'>(body: InternalEventTypes[E], type: E): Promise<void> {
+		const adjustment = type === 'follow' ? 1 : -1;
+
+		// Update follower's following count
+		const follower = this.userByIdCache.getMaybe(body.followerId);
+		if (follower) follower.followingCount += adjustment;
+
+		// Reset follower's follow statistics
+		this.userFollowStatsCache.delete(body.followerId);
+
+		// If followeeId is null, then it means ALL followees for the given follower.
+		const followeeIds = body.followeeId != null
+			? toArray(body.followeeId)
+			: this.userRelationsCache.values()
+				.filter(r => r.userId === body.followerId)
+				.map(r => r.targetUserId);
+
+		for (const followeeId of followeeIds) {
+			// Update followee's follower count
+			const followee = this.userByIdCache.getMaybe(followeeId);
+			if (followee) followee.followersCount += adjustment;
+
+			// Update follower's following status
+			const forwardRelation = this.userRelationsCache.getMaybe(`${body.followerId}:${followeeId}`);
+			if (forwardRelation) forwardRelation.isFollowing = type === 'follow';
+
+			// Update followee's followed status
+			const backRelation = this.userRelationsCache.getMaybe(`${followeeId}:${body.followerId}`);
+			if (backRelation) backRelation.isFollowed = type === 'follow';
+
+			// Reset follow statistics to recalculate later
+			this.userFollowStatsCache.delete(followeeId);
+		}
+	}
+
+	@bindThis
+	private onFollowRequestEvent<E extends 'followRequested' | 'followRequestCancelled'>(body: InternalEventTypes[E], type: E): void {
+		const followingType = type === 'followRequested' ? Requested : false;
+
+		for (const followeeId of toArray(body.followeeId)) {
+			// Update follower's requesting status
+			const forwardRelation = this.userRelationsCache.getMaybe(`${body.followerId}:${followeeId}`);
+			if (forwardRelation) forwardRelation.isFollowing = followingType;
+
+			// Update followee's requested status
+			const backRelation = this.userRelationsCache.getMaybe(`${followeeId}:${body.followerId}`);
+			if (backRelation) backRelation.isFollowed = followingType;
 		}
 	}
 
@@ -708,7 +740,19 @@ export class CacheService implements OnApplicationShutdown {
 
 	@bindThis
 	private async onProfileEvent<E extends 'updateUserProfile'>(body: InternalEventTypes[E]): Promise<void> {
+		// Update the profile cache
 		await this.userProfileCache.delete(body.userId);
+
+		// Reset impacted relation caches
+		// TODO this is not perfect - other instances could have a different subset of relations loaded.
+		//   To fix properly, we need a non-emitting (and non-async) version of refreshMany, and we call it from an event listener attached to the profile cache itself.
+		const relationKeysToClear: string[] = [];
+		for (const [key, relation] of this.userRelationsCache.entries()) {
+			if (relation.userId === body.userId || relation.targetUserId === body.userId) {
+				relationKeysToClear.push(key);
+			}
+		}
+		await this.userRelationsCache.refreshMany(relationKeysToClear);
 	}
 
 	@bindThis
@@ -721,11 +765,59 @@ export class CacheService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async onBlockingEvent<E extends 'blockingCreated' | 'blockingDeleted'>(body: InternalEventTypes[E]): Promise<void> {
-		await Promise.all([
-			this.userBlockingCache.deleteMany([body.blockeeId, body.blockerId]),
-			this.userBlockedCache.deleteMany([body.blockeeId, body.blockerId]),
-		]);
+	private onBlockingEvent<E extends 'blockingCreated' | 'blockingDeleted'>(body: InternalEventTypes[E], type: E): void {
+		// Update blocker's blocking status
+		const forwardRelation = this.userRelationsCache.getMaybe(`${body.blockerId}:${body.blockeeId}`);
+		if (forwardRelation) forwardRelation.isBlocking = type === 'blockingCreated';
+
+		// Update blockee's blocked status
+		const backRelation = this.userRelationsCache.getMaybe(`${body.blockeeId}:${body.blockerId}`);
+		if (backRelation) backRelation.isBlocked = type === 'blockingCreated';
+	}
+
+	@bindThis
+	private onHibernationEvent<E extends 'userChangeHibernatedState'>(body: InternalEventTypes[E]): void {
+		// Update all cached entities
+		for (const id of toArray(body.id)) {
+			const cachedUser = this.userByIdCache.getMaybe(id);
+			if (cachedUser) {
+				cachedUser.isHibernated = body.isHibernated;
+			}
+		}
+	}
+
+	@bindThis
+	private async onMuteEvent<E extends 'mute' | 'unmute' | 'muteRenotes' | 'unmuteRenotes'>(body: InternalEventTypes[E], type: E): Promise<void> {
+		const newMuting =
+			type === 'mute' ? true :
+			type === 'unmute' ? false :
+			null;
+		const newMutingRenotes =
+			type === 'muteRenotes' ? true :
+			type === 'unmuteRenotes' ? false :
+			null;
+
+		for (const muteeId of toArray(body.muteeId)) {
+			// Update muter's muting status
+			const forwardRelation = this.userRelationsCache.getMaybe(`${body.muterId}:${muteeId}`);
+			if (forwardRelation) {
+				if (newMuting != null) forwardRelation.isMuting = newMuting;
+				if (newMutingRenotes != null) forwardRelation.isMutingRenotes = newMutingRenotes;
+			}
+
+			// Update mutee's muting status
+			const backRelation = this.userRelationsCache.getMaybe(`${muteeId}:${body.muterId}`);
+			if (backRelation) {
+				if (newMuting != null) backRelation.isMuted = newMuting;
+				if (newMutingRenotes != null) backRelation.isMutedRenotes = newMutingRenotes;
+			}
+		}
+	}
+
+	@bindThis
+	private onMemoEvent<E extends 'userMemoChanged'>(body: InternalEventTypes[E]): void {
+		const relation = this.userRelationsCache.getMaybe(`${body.userId}:${body.targetUserId}`);
+		if (relation) relation.memo = body.memo;
 	}
 
 	@bindThis
@@ -752,6 +844,8 @@ export class CacheService implements OnApplicationShutdown {
 	@bindThis
 	public async findUserByAcct(acct: string | Acct.Acct): Promise<MiUser> {
 		acct = typeof(acct) === 'string' ? acct : Acct.toString(acct);
+		acct = acct.toLowerCase();
+
 		const id = await this.userByAcctCache.fetch(acct);
 		return await this.findUserById(id);
 	}
@@ -759,11 +853,30 @@ export class CacheService implements OnApplicationShutdown {
 	@bindThis
 	public async findOptionalUserByAcct(acct: string | Acct.Acct): Promise<MiUser | undefined> {
 		acct = typeof(acct) === 'string' ? acct : Acct.toString(acct);
+		acct = acct.toLowerCase();
 
 		const id = await this.userByAcctCache.fetchMaybe(acct);
 		if (id == null) return undefined;
 
 		return await this.findOptionalUserById(id);
+	}
+
+	@bindThis
+	public async findUsersByAcct(accounts: (string | Acct.Acct)[]): Promise<Map<string, MiUser>> {
+		const keys = accounts.map(a => typeof(a) === 'string' ? a.toLowerCase() : Acct.toString(a));
+
+		const ids = await this.userByAcctCache.fetchMany(keys);
+		return await this.findUsersById(ids.values);
+	}
+
+	@bindThis
+	public async findLocalUserByUsername(username: string): Promise<MiLocalUser> {
+		return await this.findUserByAcct({ username: username.toLowerCase(), host: null }) as MiLocalUser;
+	}
+
+	@bindThis
+	public async findOptionalLocalUserByUsername(username: string): Promise<MiLocalUser | undefined> {
+		return await this.findOptionalUserByAcct({ username: username.toLowerCase(), host: null }) as MiLocalUser | undefined;
 	}
 
 	@bindThis
@@ -825,6 +938,233 @@ export class CacheService implements OnApplicationShutdown {
 	}
 
 	@bindThis
+	public async findUserByUri(uri: string): Promise<MiUser> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user == null) {
+			throw new IdentifiableError(errorCodes.userDeleted, `User ${uri} not found`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalUserByUri(uri: string): Promise<MiUser | undefined> {
+		const userId = await this.uriPersonCache.fetchMaybe(uri);
+		if (userId == null) {
+			return undefined;
+		}
+
+		return await this.findOptionalUserById(userId);
+	}
+
+	@bindThis
+	public async findLocalUserByUri(uri: string): Promise<MiLocalUser> {
+		const user = await this.findUserByUri(uri);
+
+		if (!isLocalUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${uri} is not local`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalLocalUserByUri(uri: string): Promise<MiLocalUser | undefined> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user && !isLocalUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotLocal, `User ${uri} is not local`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findRemoteUserByUri(uri: string): Promise<MiRemoteUser> {
+		const user = await this.findUserByUri(uri);
+
+		if (!isRemoteUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${uri} is not remote`);
+		}
+
+		return user;
+	}
+
+	@bindThis
+	public async findOptionalRemoteUserByUri(uri: string): Promise<MiRemoteUser | undefined> {
+		const user = await this.findOptionalUserByUri(uri);
+
+		if (user && !isRemoteUser(user)) {
+			throw new IdentifiableError(errorCodes.userNotRemote, `User ${uri} is not remote`);
+		}
+
+		return user;
+	}
+
+	/**
+	 * Get a 1:1 user relation
+	 * @param userOrId Source user
+	 * @param targetUserOrId Target user
+	 * @param hint Optional hints to speed up the fetch
+	 */
+	@bindThis
+	public async getUserRelation(
+		userOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		targetUserOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		hint?: {
+			userRelation?: UserRelation,
+			userRelations?: Map<string, UserRelation>,
+		},
+	): Promise<UserRelation> {
+		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+		const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+
+		let userRelation = hint?.userRelation ?? hint?.userRelations?.get(targetUserId);
+		if (!userRelation) {
+			const key = `${userId}:${targetUserId}`;
+			userRelation = await this.userRelationsCache.fetch(key);
+		}
+		return userRelation;
+	}
+
+	/**
+	 * Get a 1:N user relation
+	 * @param userOrId Source user
+	 * @param targetUsersOrIds Target users
+	 * @param hint Optional hints to speed up the fetch
+	 */
+	@bindThis
+	public async getUserRelations(
+		userOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		targetUsersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		hint?: {
+			userRelations?: Map<string, UserRelation>,
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
+	): Promise<Map<string, UserRelation>> {
+		const userRelations = new Map<string, UserRelation>(hint?.userRelations);
+
+		// Project IDs into a flat list of cache keys
+		const keysToFetch = new Set<string>();
+		const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+		const groupFromUsersRelations = hint?.usersRelations?.get(userId);
+		for (const targetUserOrId of toArray(targetUsersOrIds)) {
+			const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+			if (targetUserId === userId) continue;
+			if (userRelations.has(targetUserId)) continue;
+
+			const fromUsersRelations = groupFromUsersRelations?.get(targetUserId);
+			if (fromUsersRelations) {
+				userRelations.set(targetUserId, fromUsersRelations);
+			} else {
+				keysToFetch.add(`${userId}:${targetUserId}`);
+			}
+		}
+
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const relation of fetchedRelations.values) {
+				userRelations.set(relation.targetUserId, relation);
+			}
+		}
+
+		return userRelations;
+	}
+
+	/**
+	 * Get an N:1 user relation
+	 * @param usersOrIds Source users
+	 * @param targetUserOrId Target user
+	 * @param hint Optional hints to speed up the fetch
+	 */
+	@bindThis
+	public async getUsersRelation(
+		usersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		targetUserOrId: Pick<MiUser, 'id'> | MiUser['id'],
+		hint?: {
+			usersRelation?: Map<string, UserRelation>,
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
+	): Promise<Map<string, UserRelation>> {
+		const usersRelation = new Map<string, UserRelation>(hint?.usersRelation);
+
+		// Project IDs into a flat list of cache keys
+		const keysToFetch = new Set<string>();
+		const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+		for (const userOrId of toArray(usersOrIds)) {
+			const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+			if (targetUserId === userId) continue;
+			if (usersRelation.has(userId)) continue;
+
+			const fromUsersRelations = hint?.usersRelations?.get(userId)?.get(targetUserId);
+			if (fromUsersRelations) {
+				usersRelation.set(userId, fromUsersRelations);
+			} else {
+				keysToFetch.add(`${userId}:${targetUserId}`);
+			}
+		}
+
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const relation of fetchedRelations.values) {
+				usersRelation.set(relation.userId, relation);
+			}
+		}
+
+		return usersRelation;
+	}
+
+	/**
+	 * Get an N:N user relation
+	 * @param usersOrIds Source user
+	 * @param targetUsersOrIds Target users
+	 * @param hint Optional hints to speed up the fetch
+	 */
+	@bindThis
+	public async getUsersRelations(
+		usersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		targetUsersOrIds: Pick<MiUser, 'id'> | MiUser['id'] | (Pick<MiUser, 'id'> | MiUser['id'])[],
+		hint?: {
+			usersRelations?: Map<string, Map<string, UserRelation>>,
+		},
+	): Promise<Map<string, Map<string, UserRelation>>> {
+		const usersRelations = new Map<string, Map<string, UserRelation>>(hint?.usersRelations);
+
+		// Cross-multiply IDs into a flat list of cache keys
+		const keysToFetch = new Set<string>();
+		for (const userOrId of toArray(usersOrIds)) {
+			const userId = typeof(userOrId) === 'object' ? userOrId.id : userOrId;
+			const userRelations = usersRelations.get(userId);
+
+			for (const targetUserOrId of toArray(targetUsersOrIds)) {
+				const targetUserId = typeof(targetUserOrId) === 'object' ? targetUserOrId.id : targetUserOrId;
+				if (targetUserId === userId) continue;
+				if (userRelations?.has(targetUserId)) continue;
+
+				keysToFetch.add(`${userId}:${targetUserId}`);
+			}
+		}
+
+		// Fetch any missing relations
+		if (keysToFetch.size > 0) {
+			const fetchedRelations = await this.userRelationsCache.fetchMany(keysToFetch);
+			for (const userRelation of fetchedRelations.values) {
+				let group = usersRelations.get(userRelation.userId);
+				if (group == null) {
+					group = new Map();
+					usersRelations.set(userRelation.userId, group);
+				}
+				group.set(userRelation.targetUserId, userRelation);
+			}
+		}
+
+		return usersRelations;
+	}
+
+	@bindThis
 	public async getFollowStats(userId: MiUser['id']): Promise<FollowStats> {
 		return await this.userFollowStatsCache.fetch(userId, async () => {
 			const stats = {
@@ -875,67 +1215,37 @@ export class CacheService implements OnApplicationShutdown {
 		const followerId = typeof(follower) === 'string' ? follower : follower.id;
 		const followeeId = typeof(followee) === 'string' ? followee : followee.id;
 
-		// This lets us use whichever one is in memory, falling back to DB fetch via userFollowingsCache.
-		return this.userFollowersCache.getMaybe(followeeId)?.has(followerId)
-		?? (await this.userFollowingsCache.fetch(followerId)).has(followeeId);
-	}
+		// Try cached back-ref
+		const backRelations = this.userRelationsCache.getMaybe(`${followeeId}:${followerId}`);
+		if (backRelations) {
+			return !!backRelations.isFollowed;
+		}
 
-	/**
-	 * Returns all hibernated followers.
-	 */
-	@bindThis
-	public async getHibernatedFollowers(followeeId: string): Promise<MiFollowing[]> {
-		const followers = await this.getFollowersWithHibernation(followeeId);
-		return followers.filter(follower => follower.isFollowerHibernated);
-	}
-
-	/**
-	 * Returns all non-hibernated followers.
-	 */
-	@bindThis
-	public async getNonHibernatedFollowers(followeeId: string): Promise<MiFollowing[]> {
-		const followers = await this.getFollowersWithHibernation(followeeId);
-		return followers.filter(follower => !follower.isFollowerHibernated);
-	}
-
-	/**
-	 * Returns follower relations with populated isFollowerHibernated.
-	 * If you don't need this field, then please use userFollowersCache directly for reduced overhead.
-	 */
-	@bindThis
-	public async getFollowersWithHibernation(followeeId: string): Promise<MiFollowing[]> {
-		const followers = await this.userFollowersCache.fetch(followeeId);
-		const hibernations = new Map(await this.hibernatedUserCache.fetchMany(followers.keys()));
-		return followers
-			.values()
-			.map(following => ({
-				...following,
-				isFollowerHibernated: hibernations.get(following.followerId) ?? false,
-			}))
-			.toArray();
-	}
-
-	/**
-	 * Refreshes follower and following relations for the given user.
-	 */
-	@bindThis
-	public async refreshFollowRelationsFor(userId: string): Promise<void> {
-		const followings = await this.userFollowingsCache.refresh(userId);
-		const followees = followings.values().map(following => following.followeeId);
-		await this.userFollowersCache.deleteMany(followees);
+		// Try cached or fetch new forward-ref
+		const forwardRelations = await this.userRelationsCache.fetch(`${followerId}:${followeeId}`);
+		return !!forwardRelations.isFollowing;
 	}
 
 	@bindThis
-	public clear(): void {
-		this.cacheManagementService.clear();
+	public async clear(): Promise<void> {
+		await this.cacheManagementService.clear();
 	}
 
 	@bindThis
 	public dispose(): void {
-		this.hibernatedUserCache.off('changed', this.onHibernatedUserCacheChanged);
-
 		this.internalEventService.off('follow', this.onFollowEvent);
+		this.internalEventService.off('followChanged', this.onFollowEvent);
 		this.internalEventService.off('unfollow', this.onFollowEvent);
+		this.internalEventService.off('followRequested', this.onFollowRequestEvent);
+		this.internalEventService.off('followRequestCancelled', this.onFollowRequestEvent);
+		this.internalEventService.off('blockingCreated', this.onBlockingEvent);
+		this.internalEventService.off('blockingDeleted', this.onBlockingEvent);
+		this.internalEventService.off('userChangeHibernatedState', this.onHibernationEvent);
+		this.internalEventService.off('mute', this.onMuteEvent);
+		this.internalEventService.off('unmute', this.onMuteEvent);
+		this.internalEventService.off('muteRenotes', this.onMuteEvent);
+		this.internalEventService.off('unmuteRenotes', this.onMuteEvent);
+		this.internalEventService.off('userMemoChanged', this.onMemoEvent);
 
 		this.internalEventService.off('usersUpdated', this.onUserChangeEvent);
 		this.internalEventService.off('userChangeSuspendedState', this.onUserChangeEvent);
@@ -953,8 +1263,6 @@ export class CacheService implements OnApplicationShutdown {
 		this.internalEventService.off('userListMemberBulkAdded', this.onListMemberEvent);
 		this.internalEventService.off('userListMemberBulkUpdated', this.onListMemberEvent);
 		this.internalEventService.off('userListMemberBulkRemoved', this.onListMemberEvent);
-		this.internalEventService.off('blockingCreated', this.onBlockingEvent);
-		this.internalEventService.off('blockingDeleted', this.onBlockingEvent);
 	}
 
 	@bindThis

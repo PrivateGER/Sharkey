@@ -13,8 +13,9 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
 import { bindThis } from '@/decorators.js';
-import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { isLocalUser } from '@/models/User.js';
+import { CacheService } from '@/core/CacheService.js';
+import { UserBlockingService } from '@/core/UserBlockingService.js';
 
 @Injectable()
 export class PollService {
@@ -37,6 +38,7 @@ export class PollService {
 		private userBlockingService: UserBlockingService,
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
+		private readonly cacheService: CacheService,
 	) {
 	}
 
@@ -92,8 +94,7 @@ export class PollService {
 	public async deliverQuestionUpdate(note: MiNote) {
 		if (note.localOnly) return;
 
-		const user = note.user ?? await this.usersRepository.findOneBy({ id: note.userId });
-		if (user == null) throw new Error('note not found');
+		const user = note.user ?? await this.cacheService.findUserById(note.userId);
 
 		if (isLocalUser(user)) {
 			const content = this.apRendererService.addContext(this.apRendererService.renderUpdate(await this.apRendererService.renderNote(note, user, false), user));

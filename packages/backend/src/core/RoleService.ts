@@ -713,11 +713,8 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 		excludeExpire?: boolean,
 	}): Promise<MiUser[]> {
 		const ids = await this.getModeratorIds(opts);
-		return ids.length > 0
-			? await this.usersRepository.findBy({
-				id: In(ids),
-			})
-			: [];
+		const users = await this.cacheService.findUsersById(ids);
+		return users.values().toArray();
 	}
 
 	@bindThis
@@ -734,10 +731,8 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 	@bindThis
 	public async getAdministrators(): Promise<MiUser[]> {
 		const ids = await this.getAdministratorIds();
-		const users = ids.length > 0 ? await this.usersRepository.findBy({
-			id: In(ids),
-		}) : [];
-		return users;
+		const users = await this.cacheService.findUsersById(ids);
+		return users.values().toArray();
 	}
 
 	@bindThis
@@ -775,7 +770,7 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 
 		this.globalEventService.publishInternalEvent('userRoleAssigned', created);
 
-		const user = await this.usersRepository.findOneByOrFail({ id: userId });
+		const user = await this.cacheService.findUserById(userId);
 
 		if (role.isPublic && user.host === null) {
 			this.notificationService.createNotification(userId, 'roleAssigned', {
@@ -820,7 +815,7 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 
 		if (moderator) {
 			const [user, role] = await Promise.all([
-				this.usersRepository.findOneByOrFail({ id: userId }),
+				this.cacheService.findUserById(userId),
 				this.rolesRepository.findOneByOrFail({ id: roleId }),
 			]);
 			this.moderationLogService.log(moderator, 'unassignRole', {
@@ -840,8 +835,8 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 		const redisPipeline = this.redisForTimelines.pipeline();
 
 		for (const role of roles) {
-			this.fanoutTimelineService.push(`roleTimeline:${role.id}`, note.id, 1000, redisPipeline);
-			this.globalEventService.publishRoleTimelineStream(role.id, 'note', note);
+			await this.fanoutTimelineService.push(`roleTimeline:${role.id}`, note.id, 1000, redisPipeline);
+			await this.globalEventService.publishRoleTimelineStream(role.id, 'note', note);
 		}
 
 		await redisPipeline.exec();

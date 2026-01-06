@@ -13,7 +13,7 @@ import { isJsonObject } from '@/misc/json-value.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import Channel, { type MiChannelService } from '../channel.js';
-import { reversiUpdateKeys } from 'misskey-js';
+import { reversiUpdateKeys } from '@/const.js';
 
 class ReversiGameChannel extends Channel {
 	public readonly chName = 'reversiGame';

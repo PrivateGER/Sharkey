@@ -3,6 +3,7 @@
 	"private": true,
 	"scripts": {
 		"watch": "nodemon -w ../../package.json -e json --exec \"node build.js watch\"",
+		"watch:fast": "nodemon -w ../../package.json -e json --exec \"node build.js watch --no-clean\"",
 		"build": "node build.js",
 		"typecheck-all": "pnpm run --no-bail typecheck:sw && pnpm run --no-bail typecheck:scripts",
 		"typecheck": "pnpm run typecheck:sw && pnpm run typecheck:scripts",
@@ -17,7 +18,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "22.18.1",
-		"@typescript-eslint/parser": "8.44.1",
+		"@typescript-eslint/parser": "8.50.1",
 		"@typescript/lib-webworker": "npm:@types/serviceworker@0.0.153",
 		"esbuild": "0.25.10",
 		"eslint-plugin-import": "2.32.0",

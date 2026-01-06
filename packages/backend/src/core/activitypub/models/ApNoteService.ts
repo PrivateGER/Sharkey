@@ -222,8 +222,8 @@ export class ApNoteService implements OnModuleInit {
 		// ローカルで投稿者を検索し、もし凍結されていたらスキップ
 
 		actor ??= await this.apPersonService.fetchPerson(uri) as MiRemoteUser | undefined;
-		if (actor && actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `failed to create note ${entryUri}: actor ${uri} has been suspended`);
+		if (actor) {
+			this.utilityService.assertActiveRemoteUser(actor);
 		}
 
 		const apMentions = await this.apMentionService.extractApMentions(note.tag, resolver);
@@ -255,9 +255,7 @@ export class ApNoteService implements OnModuleInit {
 		actor ??= await this.apPersonService.resolvePerson(uri, resolver) as MiRemoteUser;
 
 		// 解決した投稿者が凍結されていたらスキップ
-		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `failed to create note ${entryUri}: actor ${actor.id} has been suspended`);
-		}
+		this.utilityService.assertActiveRemoteUser(actor);
 
 		const noteAudience = await this.apAudienceService.parseAudience(actor, note.to, note.cc, resolver);
 		const visibility = noteAudience.visibility;
@@ -413,9 +411,7 @@ export class ApNoteService implements OnModuleInit {
 
 		this.logger.info(`Creating the Note: ${note.id}`);
 
-		if (actor.isSuspended) {
-			throw new IdentifiableError('85ab9bd7-3a41-4530-959d-f07073900109', `failed to update note ${entryUri}: actor ${actor.id} has been suspended`);
-		}
+		this.utilityService.assertActiveRemoteUser(actor);
 
 		const apMentions = await this.apMentionService.extractApMentions(note.tag, resolver);
 		const apHashtags = extractApHashtags(note.tag);

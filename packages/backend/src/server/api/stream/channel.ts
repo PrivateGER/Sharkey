@@ -42,22 +42,6 @@ export default abstract class Channel {
 		return this.connection.cacheService;
 	}
 
-	protected get following() {
-		return this.connection.following;
-	}
-
-	protected get userIdsWhoMeMuting() {
-		return this.connection.userIdsWhoMeMuting;
-	}
-
-	protected get userIdsWhoMeMutingRenotes() {
-		return this.connection.userIdsWhoMeMutingRenotes;
-	}
-
-	protected get userIdsWhoBlockingMe() {
-		return this.connection.userIdsWhoBlockingMe;
-	}
-
 	protected get userMutedInstances() {
 		return this.connection.userMutedInstances;
 	}
@@ -137,8 +121,9 @@ export default abstract class Channel {
 
 		// Hide notes before everything else, since this modifies fields that the other functions will check.
 		const notes = crawl(clonedNote);
+		const users = new Set(notes.map(note => note.userId));
 
-		const [myReactions, myRenotes, myFavorites] = await Promise.all([
+		const [myReactions, myRenotes, myFavorites, userRelations] = await Promise.all([
 			this.noteEntityService.populateMyReactions(notes, this.user.id, {
 				myReactions: this.myRecentReactions,
 			}),
@@ -148,6 +133,7 @@ export default abstract class Channel {
 			this.noteEntityService.populateMyFavorites(notes, this.user.id, {
 				myFavorites: this.myRecentFavorites,
 			}),
+			this.cacheService.getUserRelations(this.user.id, users.values().toArray()),
 		]);
 
 		for (const n of notes) {
@@ -159,16 +145,13 @@ export default abstract class Channel {
 			n.isFavorited = myFavorites.has(n.id);
 			n.isMutingThread = this.userMutedThreads.has(n.id);
 			n.isMutingNote = this.userMutedNotes.has(n.id);
-			n.user.bypassSilence = n.userId === this.user.id || this.following.has(n.userId);
+			n.user.bypassSilence = n.userId === this.user.id || !!userRelations.get(n.userId)?.isFollowing;
 		}
 
 		// TODO should probably pass list context here
 		// Hide notes *after* we sync visibility
 		await this.noteEntityService.hideNotesAsync(notes, this.user, {
-			userFollowings: this.following,
-			userBlockers: this.userIdsWhoBlockingMe,
-			userMutedUsers: this.userIdsWhoMeMuting,
-			userMutedUserRenotes: this.userIdsWhoMeMutingRenotes,
+			userRelations,
 			userMutedInstances: this.userMutedInstances,
 			userMutedNotes: this.userMutedNotes,
 			userMutedThreads: this.userMutedThreads,

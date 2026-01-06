@@ -14,7 +14,7 @@ import { bindThis } from '@/decorators.js';
 import { DI } from '@/di-symbols.js';
 import { MemoryKVCache, RedisSingleCache } from '@/misc/cache.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
-import type { DriveFilesRepository, EmojisRepository, MiRole, MiUser, MiDriveFile, NotesRepository } from '@/models/_.js';
+import type { DriveFilesRepository, EmojisRepository, MiUser, MiDriveFile, NotesRepository } from '@/models/_.js';
 import type { MiEmoji } from '@/models/Emoji.js';
 import type { Serialized } from '@/types.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
@@ -26,7 +26,6 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { promiseMap } from '@/misc/promise-map.js';
 import { isRetryableSymbol } from '@/misc/is-retryable-error.js';
 import type Logger from '@/logger.js';
-import { KeyNotFoundError } from '@/misc/errors/KeyNotFoundError.js';
 
 // TODO move to sk-types.d.ts when merged
 type MinEntity<T> = Omit<T, NullableProps<T>> & {
@@ -148,24 +147,6 @@ export class CustomEmojiService {
 		});
 	}
 
-	/** @deprecated use createEmoji for new code */
-	@bindThis
-	public async add(data: {
-		originalUrl: string;
-		publicUrl: string;
-		fileType: string;
-		name: string;
-		category: string | null;
-		aliases: string[];
-		host: string | null;
-		license: string | null;
-		isSensitive: boolean;
-		localOnly: boolean;
-		roleIdsThatCanBeUsedThisEmojiAsReaction: MiRole['id'][];
-	}, moderator?: MiUser): Promise<MiEmoji> {
-		return await this.createEmoji(data, { moderator });
-	}
-
 	public async createEmoji(
 		data: SemiPartial<MinEntity<MiEmoji>, 'id' | 'updatedAt' | 'aliases' | 'roleIdsThatCanBeUsedThisEmojiAsReaction'>,
 		opts?: { moderator?: { id: string } },
@@ -203,49 +184,6 @@ export class CustomEmojiService {
 		}
 
 		return emoji;
-	}
-
-	/** @deprecated Use updateEmoji for new code */
-	@bindThis
-	public async update(data: (
-		{ id: MiEmoji['id'], name?: string; } | { name: string; id?: MiEmoji['id'], }
-	) & {
-		originalUrl?: string;
-		publicUrl?: string;
-		fileType?: string;
-		category?: string | null;
-		aliases?: string[];
-		license?: string | null;
-		isSensitive?: boolean;
-		localOnly?: boolean;
-		roleIdsThatCanBeUsedThisEmojiAsReaction?: MiRole['id'][];
-	}, moderator?: MiUser): Promise<
-		null
-		| 'NO_SUCH_EMOJI'
-		| 'SAME_NAME_EMOJI_EXISTS'
-		> {
-		try {
-			const criteria = data.id
-				? { id: data.id as string }
-				: { name: data.name as string, host: null };
-
-			const updates = {
-				...data,
-				id: undefined,
-				host: undefined,
-			};
-
-			const opts = {
-				moderator,
-			};
-
-			await this.updateEmoji(criteria, updates, opts);
-			return null;
-		} catch (err) {
-			if (err instanceof KeyNotFoundError) return 'NO_SUCH_EMOJI';
-			if (err instanceof DuplicateEmojiError) return 'SAME_NAME_EMOJI_EXISTS';
-			throw err;
-		}
 	}
 
 	@bindThis

@@ -230,16 +230,21 @@ type UndefinedAsNullAll<T> = {
 
 export interface InternalEventTypes {
 	userChangeSuspendedState: { id: MiUser['id']; isSuspended: MiUser['isSuspended']; };
-	userChangeDeletedState: { id: MiUser['id']; isDeleted: MiUser['isDeleted']; };
-	userTokenRegenerated: { id: MiUser['id']; oldToken: string; newToken: string; };
+	userChangeDeletedState: { id: MiUser['id']; isDeleted: MiUser['isDeleted']; token: string | null, uri: string | null, usernameLower: string, host: string | null };
+	userChangeHibernatedState: { id: MiUser['id'] | MiUser['id'][]; isHibernated: MiUser['isHibernated']; };
+	userMemoChanged: { userId: MiUser['id'], targetUserId: MiUser['id'], memo: string | null };
+	userTokenRegenerated: { id: MiUser['id']; oldToken: string | null; newToken: string; };
 	/** @deprecated Use userUpdated or usersUpdated instead */
 	remoteUserUpdated: { id: MiUser['id']; };
 	/** @deprecated Use userUpdated or usersUpdated instead */
 	localUserUpdated: { id: MiUser['id']; };
 	usersUpdated: { ids: MiUser['id'][]; };
 	userUpdated: { id: MiUser['id']; };
-	follow: { followerId: MiUser['id']; followeeId: MiUser['id']; };
-	unfollow: { followerId: MiUser['id']; followeeId: MiUser['id']; };
+	follow: { followerId: MiUser['id']; followeeId: MiUser['id'] | MiUser['id'][]; withReplies?: boolean, notify?: 'normal' | 'none' };
+	followChanged: { followerId: MiUser['id']; followeeId: MiUser['id'] | MiUser['id'][] | null; withReplies?: boolean, notify?: 'normal' | 'none' };
+	unfollow: { followerId: MiUser['id']; followeeId: MiUser['id'] | MiUser['id'][] | null; };
+	followRequested: { followerId: MiUser['id']; followeeId: MiUser['id']; }
+	followRequestCancelled: { followerId: MiUser['id']; followeeId: MiUser['id']; }
 	blockingCreated: { blockerId: MiUser['id']; blockeeId: MiUser['id']; };
 	blockingDeleted: { blockerId: MiUser['id']; blockeeId: MiUser['id']; };
 	policiesUpdated: MiRole['policies'];
@@ -264,8 +269,10 @@ export interface InternalEventTypes {
 	followChannel: { userId: MiUser['id']; channelId: MiChannel['id']; };
 	unfollowChannel: { userId: MiUser['id']; channelId: MiChannel['id']; };
 	updateUserProfile: { userId: MiUserProfile['userId'] };
-	mute: { muterId: MiUser['id']; muteeId: MiUser['id']; };
-	unmute: { muterId: MiUser['id']; muteeId: MiUser['id']; };
+	mute: { muterId: MiUser['id']; muteeId: MiUser['id'] | MiUser['id'][]; };
+	unmute: { muterId: MiUser['id']; muteeId: MiUser['id'] | MiUser['id'][]; };
+	muteRenotes: { muterId: MiUser['id']; muteeId: MiUser['id'] | MiUser['id'][]; };
+	unmuteRenotes: { muterId: MiUser['id']; muteeId: MiUser['id'] | MiUser['id'][]; };
 	userListMemberAdded: { userListId: MiUserList['id']; memberId: MiUser['id']; };
 	userListMemberUpdated: { userListId: MiUserList['id']; memberId: MiUser['id']; };
 	userListMemberRemoved: { userListId: MiUserList['id']; memberId: MiUser['id']; };

@@ -4,10 +4,10 @@
 
 ```ts
 
-import type { AuthenticationResponseJSON } from '@simplewebauthn/types';
+import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { EventEmitter } from 'eventemitter3';
 import type { Options } from 'reconnecting-websocket';
-import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/types';
+import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/server';
 
 // Warning: (ae-forgotten-export) The symbol "components" needs to be exported by the entry point index.d.ts
 //
@@ -303,6 +303,9 @@ type AdminQueueJobsResponse = operations['admin___queue___jobs']['responses']['2
 
 // @public (undocumented)
 type AdminQueuePromoteJobsRequest = operations['admin___queue___promote-jobs']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminQueueQueuesResponse = operations['admin___queue___queues']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminQueueQueueStatsRequest = operations['admin___queue___queue-stats']['requestBody']['content']['application/json'];
@@ -1623,6 +1626,7 @@ declare namespace entities {
         AdminQueueJobsResponse,
         AdminQueuePromoteJobsRequest,
         AdminQueueQueueStatsRequest,
+        AdminQueueQueuesResponse,
         AdminQueueRemoveJobRequest,
         AdminQueueRetryJobRequest,
         AdminQueueShowJobRequest,
@@ -3447,7 +3451,7 @@ type PagesUnlikeRequest = operations['pages___unlike']['requestBody']['content']
 type PagesUpdateRequest = operations['pages___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
-function parse(_acct: string): Acct;
+function parse(acct: string, lower?: boolean): Acct;
 
 // Warning: (ae-forgotten-export) The symbol "Values" needs to be exported by the entry point index.d.ts
 //
@@ -3815,7 +3819,7 @@ type TestRequest = operations['test']['requestBody']['content']['application/jso
 type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
-function toString(acct: Acct): string;
+function toString(acct: Acct, lower?: boolean): string;
 
 // @public (undocumented)
 type User = components['schemas']['User'];

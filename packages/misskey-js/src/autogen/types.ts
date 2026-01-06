@@ -17033,12 +17033,40 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK (without any results) */
-            204: {
+            /** @description OK (with results) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    'application/json': {
+                        name: string;
+                        counts: {
+                            [key: string]: number;
+                        };
+                        isPaused: boolean;
+                        metrics: {
+                            completed: {
+                                meta: {
+                                    count: number;
+                                    prevTS: number;
+                                    prevCount: number;
+                                };
+                                data: number[];
+                                count: number;
+                            };
+                            failed: {
+                                meta: {
+                                    count: number;
+                                    prevTS: number;
+                                    prevCount: number;
+                                };
+                                data: number[];
+                                count: number;
+                            };
+                        };
+                    }[];
+                };
             };
             /** @description Client error */
             400: {
@@ -36372,6 +36400,7 @@ export interface operations {
             content: {
                 'application/json': {
                     password: string;
+                    token?: string | null;
                 };
             };
         };
@@ -40659,7 +40688,8 @@ export interface operations {
                     sinceId?: string;
                     /** Format: misskey:id */
                     untilId?: string;
-                    visibility?: string;
+                    /** @enum {string} */
+                    visibility?: 'public' | 'home' | 'followers' | 'specified';
                 };
             };
         };
@@ -42421,8 +42451,6 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     noteId: string;
-                    /** @default false */
-                    quote?: boolean;
                 };
             };
         };

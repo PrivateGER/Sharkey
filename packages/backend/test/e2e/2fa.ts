@@ -18,7 +18,7 @@ import type {
 	PublicKeyCredentialCreationOptionsJSON,
 	PublicKeyCredentialRequestOptionsJSON,
 	RegistrationResponseJSON,
-} from '@simplewebauthn/types';
+} from '@simplewebauthn/server';
 import type * as misskey from 'misskey-js';
 import { NativeTimeService } from '@/global/TimeService.js';
 import { LoggerService } from '@/core/LoggerService.js';
