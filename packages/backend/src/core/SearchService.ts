@@ -370,6 +370,7 @@ export class SearchService {
 
 		// Use MATERIALIZED CTE to force the query planner to execute the full-text search
 		// using the GIN index, then apply pagination to the results
+		const order = sortOrder === 'ASC' ? 'ASC' : 'DESC';
 		const sql = `
 			WITH matches AS MATERIALIZED (
 				SELECT id AS note_id
@@ -377,7 +378,7 @@ export class SearchService {
 				WHERE ${whereClauses.join(' AND ')}
 			)
 			SELECT note_id FROM matches
-			ORDER BY note_id ${sortOrder}
+			ORDER BY note_id ${order}
 			LIMIT $${paramIndex}
 		`;
 		params.push(String(pagination.limit * 5));
