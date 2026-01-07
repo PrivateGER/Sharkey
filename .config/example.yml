@@ -237,19 +237,25 @@ fulltextSearch:
   #   Use Postgres tsvectors.
   #   You need to create a generated column and index on the note table to use this, followed by an ANALYZE on the table. Beware, this will take a while to be created and the database will remain locked during this process.
   #   This also enables advanced search syntax, see documentation of websearch_to_tsquery: https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-PARSING-QUERIES
-  #   Support for multiple languages is currently rather poor and will be improved once post languages become a feature.
   #
-  #   Example to set up tsvectors for an English instance:
-  #   ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('english', COALESCE(text, '') || ' ' || COALESCE(cw, '') || ' ' || COALESCE(name, ''))) STORED;
+  #   Example to set up tsvectors:
+  #   ALTER TABLE note ADD COLUMN tsvector_embedding tsvector GENERATED ALWAYS AS ( to_tsvector('simple', COALESCE(text, '') || ' ' || COALESCE(cw, '') || ' ' || COALESCE(name, ''))) STORED;
   #   CREATE INDEX vector_idx ON note USING GIN (tsvector_embedding);
   #   ANALYZE note;
   #
-  #   Note: You can opt to use a different dictionary for better results if your main instance language is not English.
-  #   To get a list, use "SELECT cfgname FROM pg_ts_config;" and replace 'english' with the desired dictionary name.
+  #   We recommend using the 'simple' dictionary rather than a language specific one, as it preserves stop words and works with any language.
+  #   To get a list of dictionaries, use "SELECT cfgname FROM pg_ts_config;" and replace 'simple' with the desired one.
   # - meilisearch
   #   Use Meilisearch.
   #   You need to install Meilisearch and configure.
   provider: sqlLike
+
+  # Language dictionary for sqlTsvector searches (default: simple)
+  # Must match the language used when creating the tsvector_embedding column.
+  # 'simple' is recommended for social media (preserves stop words, works with any language).
+  # Use 'english', 'german', etc. for stemming (e.g., "run" finds "running").
+  # See: https://www.postgresql.org/docs/current/textsearch-configuration.html
+  #language: simple
 
 # For Meilisearch settings.
 # If you select "meilisearch" for "fulltextSearch.provider", it must be set.

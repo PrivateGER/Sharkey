@@ -278,56 +278,22 @@ export class SearchService {
 	): Promise<MiNote[]> {
 		// Query 1: Get candidate IDs using only indexed columns
 		// This allows PostgreSQL to use the indexes properly (single massive query confuses the planner)
-		const candidateQuery = this.notesRepository.createQueryBuilder('note')
-			.select('note.id');
 
 		// Pagination (match makePaginationQuery behavior)
 		let sortOrder: 'ASC' | 'DESC';
 		if (pagination.sinceId && pagination.untilId) {
-			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
-			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
 			sortOrder = 'DESC';
 		} else if (pagination.sinceId) {
-			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
 			sortOrder = 'ASC';
-		} else if (pagination.untilId) {
-			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
-			sortOrder = 'DESC';
 		} else {
 			sortOrder = 'DESC';
 		}
-		candidateQuery.orderBy('note.id', sortOrder);
 
-		// Full-text search filter (provider-specific)
-		if (this.config.fulltextSearch?.provider === 'sqlPgroonga') {
-			candidateQuery.andWhere('note.text &@~ :q', { q });
-		} else if (this.config.fulltextSearch?.provider === 'sqlTsvector') {
-			candidateQuery.andWhere('note.tsvector_embedding @@ websearch_to_tsquery(:q)', { q });
-		} else {
-			candidateQuery.andWhere('note.text ILIKE :q', { q: `%${sqlLikeEscape(q)}%` });
-		}
-
-		if (opts.userId) {
-			candidateQuery.andWhere('note.userId = :userId', { userId: opts.userId });
-		} else if (opts.channelId) {
-			candidateQuery.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
-		}
-
-		if (opts.host) {
-			if (opts.host === '.') {
-				candidateQuery.andWhere('note.userHost IS NULL');
-			} else {
-				candidateQuery.andWhere('note.userHost = :host', { host: opts.host });
-			}
-		}
-
-		if (opts.filetype) {
-			candidateQuery.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
-		}
-
-		// Fetch more candidates than needed since some will likely be filtered by visibility checks
-		const candidateRows = await candidateQuery.limit(pagination.limit * 5).getRawMany();
-		const candidateIds: string[] = candidateRows.map(r => r.note_id);
+		// For tsvector, use a materialized CTE to force the query planner to use the GIN index
+		// Without MATERIALIZED, PostgreSQL may incorrectly choose a sequential scan
+		const candidateIds = this.config.fulltextSearch?.provider === 'sqlTsvector'
+			? await this.searchCandidatesByTsvector(q, opts, pagination, sortOrder)
+			: await this.searchCandidatesByQueryBuilder(q, opts, pagination, sortOrder);
 
 		if (candidateIds.length === 0) {
 			return [];
@@ -351,6 +317,123 @@ export class SearchService {
 		if (me) this.queryService.generateBlockedUserQueryForNotes(query, me);
 
 		return await query.limit(pagination.limit).getMany();
+	}
+
+	@bindThis
+	private async searchCandidatesByTsvector(
+		q: string,
+		opts: SearchOpts,
+		pagination: SearchPagination,
+		sortOrder: 'ASC' | 'DESC',
+	): Promise<string[]> {
+		// Language must match the one used when creating the tsvector_embedding column
+		// Sanitizes into valid regconfig name
+		const language = (this.config.fulltextSearch?.language ?? 'simple').replace(/[^a-z_]/gi, '');
+		const whereClauses: string[] = [`tsvector_embedding @@ websearch_to_tsquery('${language}', $1)`];
+		const params: (string | string[])[] = [q];
+		let paramIndex = 2;
+
+		if (pagination.sinceId && pagination.untilId) {
+			whereClauses.push(`id > $${paramIndex++}`);
+			params.push(pagination.sinceId);
+			whereClauses.push(`id < $${paramIndex++}`);
+			params.push(pagination.untilId);
+		} else if (pagination.sinceId) {
+			whereClauses.push(`id > $${paramIndex++}`);
+			params.push(pagination.sinceId);
+		} else if (pagination.untilId) {
+			whereClauses.push(`id < $${paramIndex++}`);
+			params.push(pagination.untilId);
+		}
+
+		if (opts.userId) {
+			whereClauses.push(`"userId" = $${paramIndex++}`);
+			params.push(opts.userId);
+		} else if (opts.channelId) {
+			whereClauses.push(`"channelId" = $${paramIndex++}`);
+			params.push(opts.channelId);
+		}
+
+		if (opts.host) {
+			if (opts.host === '.') {
+				whereClauses.push('"userHost" IS NULL');
+			} else {
+				whereClauses.push(`"userHost" = $${paramIndex++}`);
+				params.push(opts.host);
+			}
+		}
+
+		if (opts.filetype) {
+			whereClauses.push(`"attachedFileTypes" && $${paramIndex++}`);
+			params.push(fileTypes[opts.filetype]);
+		}
+
+		// Use MATERIALIZED CTE to force the query planner to execute the full-text search
+		// using the GIN index, then apply pagination to the results
+		const sql = `
+			WITH matches AS MATERIALIZED (
+				SELECT id AS note_id
+				FROM note
+				WHERE ${whereClauses.join(' AND ')}
+			)
+			SELECT note_id FROM matches
+			ORDER BY note_id ${sortOrder}
+			LIMIT $${paramIndex}
+		`;
+		params.push(String(pagination.limit * 5));
+
+		const rows: { note_id: string }[] = await this.notesRepository.query(sql, params);
+		return rows.map(r => r.note_id);
+	}
+
+	@bindThis
+	private async searchCandidatesByQueryBuilder(
+		q: string,
+		opts: SearchOpts,
+		pagination: SearchPagination,
+		sortOrder: 'ASC' | 'DESC',
+	): Promise<string[]> {
+		const candidateQuery = this.notesRepository.createQueryBuilder('note')
+			.select('note.id');
+
+		// Pagination
+		if (pagination.sinceId && pagination.untilId) {
+			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
+			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
+		} else if (pagination.sinceId) {
+			candidateQuery.andWhere('note.id > :sinceId', { sinceId: pagination.sinceId });
+		} else if (pagination.untilId) {
+			candidateQuery.andWhere('note.id < :untilId', { untilId: pagination.untilId });
+		}
+		candidateQuery.orderBy('note.id', sortOrder);
+
+		// Full-text search filter (provider-specific)
+		if (this.config.fulltextSearch?.provider === 'sqlPgroonga') {
+			candidateQuery.andWhere('note.text &@~ :q', { q });
+		} else {
+			candidateQuery.andWhere('note.text ILIKE :q', { q: `%${sqlLikeEscape(q)}%` });
+		}
+
+		if (opts.userId) {
+			candidateQuery.andWhere('note.userId = :userId', { userId: opts.userId });
+		} else if (opts.channelId) {
+			candidateQuery.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
+		}
+
+		if (opts.host) {
+			if (opts.host === '.') {
+				candidateQuery.andWhere('note.userHost IS NULL');
+			} else {
+				candidateQuery.andWhere('note.userHost = :host', { host: opts.host });
+			}
+		}
+
+		if (opts.filetype) {
+			candidateQuery.andWhere('note."attachedFileTypes" && :types', { types: fileTypes[opts.filetype] });
+		}
+
+		const candidateRows: { note_id: string }[] = await candidateQuery.limit(pagination.limit * 5).getRawMany();
+		return candidateRows.map(r => r.note_id);
 	}
 
 	@bindThis

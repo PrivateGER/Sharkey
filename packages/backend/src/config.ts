@@ -66,6 +66,7 @@ type Source = {
 	redisForRateLimit?: RedisOptionsSource;
 	fulltextSearch?: {
 		provider?: FulltextSearchProvider;
+		language?: string;
 	};
 	meilisearch?: {
 		host: string;
@@ -267,6 +268,7 @@ export type Config = {
 	}[] | undefined;
 	fulltextSearch?: {
 		provider?: FulltextSearchProvider;
+		language?: string;
 	};
 	meilisearch: {
 		host: string;
@@ -723,7 +725,7 @@ function applyEnvOverrides(config: Source) {
 		['redis', 'redisForPubsub', 'redisForJobQueue', 'redisForTimelines', 'redisForReactions', 'redisForRateLimit'],
 		['host', 'port', 'username', 'pass', 'db', 'prefix'],
 	]);
-	_apply_top(['fulltextSearch', 'provider']);
+	_apply_top(['fulltextSearch', ['provider', 'language']]);
 	_apply_top(['meilisearch', ['host', 'port', 'apiKey', 'ssl', 'index', 'scope']]);
 	_apply_top([['sentryForFrontend', 'sentryForBackend'], 'options', ['dsn', 'profileSampleRate', 'serverName', 'includeLocalVariables', 'proxy', 'keepAlive', 'caCerts']]);
 	_apply_top(['sentryForBackend', 'enableNodeProfiling']);
