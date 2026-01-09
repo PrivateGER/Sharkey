@@ -281,6 +281,13 @@ export namespace Converter {
 		}
 	}
 
+	export const noteWithText = (n: Entity.Note, host: string | null = null): MegalodonEntity.StatusWithText => {
+		return {
+			...note(n, host),
+			text: n.text ?? ''
+		}
+	}
+
 	export const notesource = (n: Entity.Note): MegalodonEntity.StatusSource => {
 		return {
 			id: n.id,
