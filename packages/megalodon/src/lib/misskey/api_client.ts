@@ -489,7 +489,11 @@ export namespace Converter {
 					max_characters: m.maxNoteTextLength,
 					max_media_attachments: m.policies.clipLimit
 				}
-			}
+			},
+			rules: m.serverRules.map((r, index) => ({
+				id: (index + 1).toString(),
+				text: r,
+			}))
 		}
 	}
 
