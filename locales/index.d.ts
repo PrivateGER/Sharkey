@@ -13713,6 +13713,16 @@ export interface Locale extends ILocale {
      * Background queue
      */
     "backgroundQueue": string;
+    "_header": {
+        /**
+         * Browse
+         */
+        "browse": string;
+        /**
+         * Manage
+         */
+        "manage": string;
+    };
 }
 declare const locales: {
     [lang: string]: Locale;
