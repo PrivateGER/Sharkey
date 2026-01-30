@@ -312,7 +312,7 @@ export class UrlPreviewService {
 			}
 		}
 
-		await this.previewCache.set(cacheKey, errorResponse);
+		await this.previewCache.set(cacheKey, errorResponse, errorResponse.error.age * 1000);
 
 		return errorResponse;
 	}
