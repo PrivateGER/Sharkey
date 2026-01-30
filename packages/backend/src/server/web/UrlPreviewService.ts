@@ -301,14 +301,13 @@ export class UrlPreviewService {
 		if (error instanceof StatusError) {
 			if (error.isPermanentError) {
 				// a permanent HTTP error (4xx), avoid trying again for a week
-				errorResponse.error.age = 86400*7;
+				errorResponse.error.age = 86400 * 7;
 			}
-		}
-		else if (error instanceof Error) {
+		} else if (error instanceof Error) {
 			if (error.message.match(/maxSize/)) {
 				// a file too large isn't going to become smaller any time
 				// soon, avoid trying again for a week
-				errorResponse.error.age = 86400*7;
+				errorResponse.error.age = 86400 * 7;
 			}
 		}
 
