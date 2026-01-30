@@ -43,18 +43,18 @@ export class RedisKVCache<T> {
 	}
 
 	@bindThis
-	public async set(key: string, value: T): Promise<void> {
+	public async set(key: string, value: T, lifetime: number = this.lifetime): Promise<void> {
 		this.memoryCache.set(key, value);
-		if (this.lifetime === Infinity) {
+		if (lifetime === Infinity) {
 			await this.redisClient.set(
 				`kvcache:${this.name}:${key}`,
 				this.toRedisConverter(value),
 			);
-		} else if (this.lifetime > 0) {
+		} else if (lifetime > 0) {
 			await this.redisClient.set(
 				`kvcache:${this.name}:${key}`,
 				this.toRedisConverter(value),
-				'EX', Math.round(this.lifetime / 1000),
+				'EX', Math.round(lifetime / 1000),
 			);
 		}
 	}
@@ -159,18 +159,18 @@ export class RedisSingleCache<T> {
 	}
 
 	@bindThis
-	public async set(value: T): Promise<void> {
+	public async set(value: T, lifetime: number = this.lifetime): Promise<void> {
 		this.memoryCache.set(value);
-		if (this.lifetime === Infinity) {
+		if (lifetime === Infinity) {
 			await this.redisClient.set(
 				`singlecache:${this.name}`,
 				this.toRedisConverter(value),
 			);
-		} else if (this.lifetime > 0) {
+		} else if (lifetime > 0) {
 			await this.redisClient.set(
 				`singlecache:${this.name}`,
 				this.toRedisConverter(value),
-				'EX', Math.round(this.lifetime / 1000),
+				'EX', Math.round(lifetime / 1000),
 			);
 		}
 	}
