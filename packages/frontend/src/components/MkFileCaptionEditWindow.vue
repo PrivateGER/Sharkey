@@ -20,8 +20,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
-		<div v-if="isImage">
-			<MkSelect v-model="selectedModel" :style="{ marginTop: '16px' }">
+		<div v-if="isImage || isVideo">
+			<MkSelect v-if="isImage" v-model="selectedModel" :style="{ marginTop: '16px' }">
 				<template #label>{{ i18n.ts.altTextModel }}</template>
 				<option value="fast">{{ i18n.ts.altTextModelFast }}</option>
 				<option value="quality">{{ i18n.ts.altTextModelQuality }}</option>
@@ -52,6 +52,7 @@ const props = defineProps<{
 }>();
 
 const isImage = props.file.type.startsWith('image/');
+const isVideo = props.file.type.startsWith('video/');
 let loading = ref(false);
 const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
 
@@ -65,7 +66,7 @@ const dialog = useTemplateRef('dialog');
 const caption = ref(props.default);
 
 async function generateAltText() {
-	if (!isImage) return;
+	if (!isImage && !isVideo) return;
 	loading.value = true;
 
 	try {
@@ -82,8 +83,12 @@ async function generateAltText() {
 		os.toast(i18n.ts.generatedAltTextSuccess);
 		caption.value = res.text;
 		// eslint-disable-next-line id-denylist
-	} catch (e) {
-		os.toast(i18n.ts.failedToGenerateAltText);
+	} catch (e: unknown) {
+		if (e != null && typeof e === 'object' && 'code' in e && e.code === 'VIDEO_TOO_LONG') {
+			os.toast(i18n.ts.videoTooLong);
+		} else {
+			os.toast(i18n.ts.failedToGenerateAltText);
+		}
 		return;
 	} finally {
 		loading.value = false;

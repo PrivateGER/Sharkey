@@ -13050,6 +13050,10 @@ export interface Locale extends ILocale {
      */
     "altTextModelExperimental": string;
     /**
+     * Video is too long (max 1 minute)
+     */
+    "videoTooLong": string;
+    /**
      * Default content warning for new posts
      */
     "defaultCW": string;

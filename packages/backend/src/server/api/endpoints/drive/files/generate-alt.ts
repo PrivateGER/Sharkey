@@ -40,6 +40,12 @@ export const meta = {
 			code: 'GENERATION_FAILED',
 			id: 'f9b3e8d2-1b7e-4e1c-8c5b-3e3e8a8d0d7b',
 		},
+
+		videoTooLong: {
+			message: 'Video is too long (max 1 minute).',
+			code: 'VIDEO_TOO_LONG',
+			id: 'e30b9ece-76f8-44eb-a04c-d3b936037429',
+		},
 	},
 
 	res: {
@@ -84,9 +90,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.accessDenied);
 			}
 
-			// Only generate alt text for images
-			if (!file.type.startsWith('image/')) {
+			const isImage = file.type.startsWith('image/');
+			const isVideo = file.type.startsWith('video/');
+
+			if (!isImage && !isVideo) {
 				throw new ApiError(meta.errors.generationFailed);
+			}
+
+			if (isVideo) {
+				const duration = file.properties.duration;
+				if (duration == null || duration > 60) {
+					throw new ApiError(meta.errors.videoTooLong);
+				}
 			}
 
 			// Generate alt text
@@ -96,22 +111,30 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				defaultHeaders: this.config.openai?.headers,
 			});
 
-			const selectedModel = this.config.openai?.models?.[ps.modelType] ?? 'google/gemini-2.5-flash';
-			
+			const modelType = isVideo ? 'fast' : ps.modelType;
+			const selectedModel = this.config.openai?.models?.[modelType] ?? 'google/gemini-2.5-flash';
+
+			const systemPrompt = isVideo
+				? 'Generate concise, descriptive, and accessible alt text for the following video, which is a description for people who can\'t see it. Focus on describing the sequence of events, actions, movements, and any important visual or auditory elements. Mention any text shown on screen. Only return the alt text and ensure the description is concise.'
+				: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.';
+
+			const mediaContent = isVideo
+				? { type: 'video_url' as const, video_url: { url: file.url } }
+				: { type: 'image_url' as const, image_url: { url: file.url } };
+
 			const response = await client.chat.completions.create({
 				model: selectedModel,
 				messages: [
 					{
 						role: 'system',
 						content: [
-							{ type: 'text', text: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.' },
+							{ type: 'text', text: systemPrompt },
 						],
 					},
 					{
 						role: 'user',
-						content: [
-							{ type: 'image_url', image_url: { url: file.url } },
-						],
+						// @ts-expect-error -- video_url content type is OpenRouter-specific, not in openai SDK types
+						content: [mediaContent],
 					},
 				],
 				stream: false,

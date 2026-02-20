@@ -66,6 +66,21 @@ export class VideoProcessingService {
 	}
 
 	@bindThis
+	public getVideoDuration(source: string): Promise<number | null> {
+		return new Promise((resolve) => {
+			FFmpeg.ffprobe(source, (err, metadata) => {
+				if (err) {
+					this.logger.warn(`ffprobe failed: ${err.message}`);
+					resolve(null);
+					return;
+				}
+				const dur = metadata.format.duration;
+				resolve(dur != null && Number.isFinite(dur) && dur > 0 ? dur : null);
+			});
+		});
+	}
+
+	@bindThis
 	public getExternalVideoThumbnailUrl(url: string): string | null {
 		if (this.config.videoThumbnailGenerator == null) return null;
 

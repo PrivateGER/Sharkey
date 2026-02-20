@@ -535,6 +535,7 @@ altTextModel: "Vision Model"
 altTextModelFast: "Fast"
 altTextModelQuality: "High Quality"
 altTextModelExperimental: "Experimental"
+videoTooLong: "Video is too long (max 1 minute)"
 
 defaultCW: "Default content warning for new posts"
 defaultCWDescription: "The value here will be auto-filled as the content warning for all new posts and replies."

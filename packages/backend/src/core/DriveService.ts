@@ -160,6 +160,10 @@ export class DriveService {
 		// thunbnail, webpublic を必要なら生成
 		const alts = await this.generateAlts(path, type, !file.uri);
 
+		if (alts.duration != null) {
+			file.properties = { ...file.properties, duration: alts.duration };
+		}
+
 		if (type && type.startsWith('video/')) {
 			try {
 				await this.videoProcessingService.webOptimizeVideo(path, type);
@@ -300,11 +304,14 @@ export class DriveService {
 	@bindThis
 	public async generateAlts(path: string, type: string, generateWeb: boolean) {
 		if (type.startsWith('video/')) {
+			const duration = await this.videoProcessingService.getVideoDuration(path);
+
 			if (this.config.videoThumbnailGenerator != null) {
 				// videoThumbnailGeneratorが指定されていたら動画サムネイル生成はスキップ
 				return {
 					webpublic: null,
 					thumbnail: null,
+					duration,
 				};
 			}
 
@@ -313,12 +320,14 @@ export class DriveService {
 				return {
 					webpublic: null,
 					thumbnail,
+					duration,
 				};
 			} catch (err) {
 				this.registerLogger.warn(`GenerateVideoThumbnail failed: ${renderInlineError(err)}`);
 				return {
 					webpublic: null,
 					thumbnail: null,
+					duration,
 				};
 			}
 		}
@@ -579,6 +588,7 @@ export class DriveService {
 			width?: number;
 			height?: number;
 			orientation?: number;
+			duration?: number;
 		} = {};
 
 		if (info.width) {
