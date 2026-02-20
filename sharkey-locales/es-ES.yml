@@ -12,3 +12,11 @@ _initialTutorial:
     reactDone: "Puedes deshacer una reacción pulsando en el botón '{undo}'."
 _poll:
   multiple: "Opciones múltiples"
+generateAltText: "Generar texto alternativo"
+failedToGenerateAltText: "Error al generar el texto alternativo"
+generatedAltTextSuccess: "Texto alternativo generado correctamente. Revísalo y edítalo si es necesario."
+altTextModel: "Modelo de visión"
+altTextModelFast: "Rápido"
+altTextModelQuality: "Alta calidad"
+altTextModelExperimental: "Experimental"
+videoTooLong: "El vídeo es demasiado largo (máximo 1 minuto)"

@@ -7,3 +7,11 @@ _initialTutorial:
   _reaction:
     letsTryReacting: "回应可以通过点击帖子中的「{reaction}」按钮来添加。试着给这个示例帖子添加一个回应！"
     reactDone: "通过按下「{undo}」按钮，可以取消已经添加的回应"
+generateAltText: "生成替代文本"
+failedToGenerateAltText: "生成替代文本失败"
+generatedAltTextSuccess: "替代文本已成功生成。请检查并根据需要进行编辑。"
+altTextModel: "视觉模型"
+altTextModelFast: "快速"
+altTextModelQuality: "高质量"
+altTextModelExperimental: "实验性"
+videoTooLong: "视频太长（最长1分钟）"

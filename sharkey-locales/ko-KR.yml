@@ -9,3 +9,11 @@ _initialTutorial:
     reactDone: "'{undo}' 버튼을 눌러서 리액션을 취소할 수 있습니다."
 _urlPreviewSetting:
   requireContentLength: "Content-Length를 얻었을 때만 미리보기 만들기"
+generateAltText: "대체 텍스트 생성"
+failedToGenerateAltText: "대체 텍스트 생성에 실패했습니다"
+generatedAltTextSuccess: "대체 텍스트가 성공적으로 생성되었습니다. 필요에 따라 확인하고 수정해 주세요."
+altTextModel: "비전 모델"
+altTextModelFast: "빠름"
+altTextModelQuality: "고품질"
+altTextModelExperimental: "실험적"
+videoTooLong: "동영상이 너무 깁니다 (최대 1분)"

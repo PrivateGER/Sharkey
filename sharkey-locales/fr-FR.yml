@@ -11,3 +11,11 @@ _achievements:
   _types:
     _notes1:
       title: "Je viens tout juste de configurer mon shonk"
+generateAltText: "Générer le texte alternatif"
+failedToGenerateAltText: "Échec de la génération du texte alternatif"
+generatedAltTextSuccess: "Texte alternatif généré avec succès. Veuillez vérifier et modifier si nécessaire."
+altTextModel: "Modèle de vision"
+altTextModelFast: "Rapide"
+altTextModelQuality: "Haute qualité"
+altTextModelExperimental: "Expérimental"
+videoTooLong: "La vidéo est trop longue (1 minute maximum)"

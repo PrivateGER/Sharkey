@@ -403,6 +403,7 @@ altTextModel: "Vision-Modell"
 altTextModelFast: "Schnell"
 altTextModelQuality: "Hohe Qualität"
 altTextModelExperimental: "Experimentell"
+videoTooLong: "Video ist zu lang (maximal 1 Minute)"
 fetchLinkedNote: "Verknüpfte Notiz abrufen"
 
 _processErrors:

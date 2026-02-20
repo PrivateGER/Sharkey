@@ -7,3 +7,11 @@ _initialTutorial:
   _reaction:
     letsTryReacting: "可以透過點擊貼文上的「{reaction}」按鈕來添加反應。請嘗試在此範例貼文添加反應！"
     reactDone: "按下「{undo}」按鈕可以取消反應。"
+generateAltText: "產生替代文字"
+failedToGenerateAltText: "產生替代文字失敗"
+generatedAltTextSuccess: "替代文字已成功產生。請檢查並視需要進行編輯。"
+altTextModel: "視覺模型"
+altTextModelFast: "快速"
+altTextModelQuality: "高品質"
+altTextModelExperimental: "實驗性"
+videoTooLong: "影片太長（最長1分鐘）"
