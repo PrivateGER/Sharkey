@@ -51,7 +51,7 @@ class HomeTimelineChannel extends NoteChannel {
 
 		const preparedNote = await this.prepareNote(note);
 		if (preparedNote) {
-			this.send('note', note);
+			this.send('note', preparedNote);
 		}
 	}
 
