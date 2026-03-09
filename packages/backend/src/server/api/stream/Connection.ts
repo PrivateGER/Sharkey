@@ -142,10 +142,7 @@ export default class Connection {
 
 		this.wsConnection = wsConnection;
 		this.wsConnection.on('message', this.onWsConnectionMessage);
-
-		this.subscriber.on('broadcast', data => {
-			this.onBroadcastMessage(data);
-		});
+		this.subscriber.on('broadcast', this.onBroadcastMessage);
 	}
 
 	/**
@@ -175,7 +172,7 @@ export default class Connection {
 		const { type, body } = obj;
 
 		switch (type) {
-			case 'readNotification': this.onReadNotification(body); break;
+			case 'readNotification': await this.onReadNotification(); break;
 			case 'subNote': this.onSubscribeNote(body); break;
 			case 's': this.onSubscribeNote(body); break; // alias
 			case 'sr': this.onSubscribeNote(body); break;
@@ -396,6 +393,7 @@ export default class Connection {
 		for (const k of this.subscribingNotes.keys()) {
 			this.subscriber?.off(`noteStream:${k}`, this.onNoteStreamMessage);
 		}
+		this.subscriber?.off('broadcast', this.onBroadcastMessage);
 		this.wsConnection?.off('message', this.onWsConnectionMessage);
 
 		this.fetchIntervalId = null;

@@ -9,6 +9,7 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import type { JsonObject } from '@/misc/json-value.js';
+import type { GlobalEvents } from '@/core/GlobalEventService.js';
 import { type Channel, NoteChannel, type MiChannelService } from '../channel.js';
 
 // TODO does not need to be NoteChannel?
@@ -29,36 +30,44 @@ class MainChannel extends NoteChannel {
 	@bindThis
 	public async init(): Promise<boolean> {
 		if (!this.user) return false;
-		this.subscriber.on(`mainStream:${this.user.id}`, async data => {
-			switch (data.type) {
-				case 'notification': {
-					// TODO all this logic should match
-					// Ignore notifications from instances the user has muted
-					if (isUserFromMutedInstance(data.body, this.userMutedInstances)) return;
-					if (data.body.userId && this.userIdsWhoMeMuting.has(data.body.userId)) return;
-
-					if (data.body.note) {
-						const { accessible, silence } = await this.checkNoteVisibility(data.body.note, { includeReplies: true });
-						if (!accessible || silence) return;
-
-						data.body.note = await this.rePackNote(data.body.note);
-					}
-					break;
-				}
-				case 'mention': {
-					const { accessible, silence } = await this.checkNoteVisibility(data.body, { includeReplies: true });
-					if (!accessible || silence) return;
 		if (!this.subscriber) throw new IdentifiableError(errorCodes.websocketError, `Cannot init ${this.chName} channel: socket is not connected`);
 
-					data.body = await this.rePackNote(data.body);
-					break;
-				}
-			}
-
-			this.send(data.type, data.body);
-		});
+		this.subscriber.on(`mainStream:${this.user.id}`, this.onEvent);
 
 		return true;
+	}
+
+	@bindThis
+	private async onEvent(data: GlobalEvents['main']['payload']): Promise<void> {
+		switch (data.type) {
+			case 'notification': {
+				// Ignore notifications from instances the user has muted
+				if (isUserFromMutedInstance(data.body, this.userMutedInstances)) return;
+				if (data.body.userId && this.userIdsWhoMeMuting.has(data.body.userId)) return;
+
+				if (data.body.note) {
+					const clonedNote = await this.prepareNote(data.body.note);
+					if (!clonedNote) return;
+
+					data.body.note = clonedNote;
+				}
+				break;
+			}
+			case 'mention': {
+				const clonedNote = await this.prepareNote(data.body);
+				if (clonedNote) {
+					this.send(data.type, clonedNote);
+				}
+				return;
+			}
+		}
+
+		this.send(data.type, data.body);
+	}
+
+	@bindThis
+	public dispose() {
+		this.subscriber?.off(`mainStream:${this.user?.id}`, this.onEvent);
 	}
 }
 
