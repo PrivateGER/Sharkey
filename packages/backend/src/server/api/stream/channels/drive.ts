@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
+import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import Channel, { type MiChannelService } from '../channel.js';
 
 class DriveChannel extends Channel {
@@ -16,11 +17,14 @@ class DriveChannel extends Channel {
 	public static kind = 'read:account';
 
 	@bindThis
-	public async init(params: JsonObject) {
+	public async init(): Promise<boolean> {
+		if (!this.user) return false;
+		if (!this.subscriber) throw new IdentifiableError(errorCodes.websocketError, `Cannot init ${this.chName} channel: socket is not connected`);
 		// Subscribe drive stream
 		this.subscriber?.on(`driveStream:${this.user!.id}`, data => {
 			this.send(data);
 		});
+		return true;
 	}
 }
 
@@ -30,17 +34,11 @@ export class DriveChannelService implements MiChannelService<true> {
 	public readonly requireCredential = DriveChannel.requireCredential;
 	public readonly kind = DriveChannel.kind;
 
-	constructor(
-		private readonly noteEntityService: NoteEntityService,
-	) {
-	}
-
 	@bindThis
 	public create(id: string, connection: Channel['connection']): DriveChannel {
 		return new DriveChannel(
 			id,
 			connection,
-			this.noteEntityService,
 		);
 	}
 }

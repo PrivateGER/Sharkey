@@ -4,32 +4,22 @@
  */
 
 import { bindThis } from '@/decorators.js';
-import { isInstanceMuted } from '@/misc/is-instance-muted.js';
-import { isUserRelated } from '@/misc/is-user-related.js';
-import { isRenotePacked, isQuotePacked, isPackedPureRenote } from '@/misc/is-renote.js';
+import { deepClone } from '@/misc/clone.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
-import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
-import { deepClone } from '@/misc/clone.js';
 import type Connection from '@/server/api/stream/Connection.js';
-import { NoteVisibilityFilters } from '@/core/NoteVisibilityService.js';
+import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 
 /**
  * Stream channel
  */
-// eslint-disable-next-line import/no-default-export
-export default abstract class Channel {
-	protected readonly noteEntityService: NoteEntityService;
+export abstract class Channel {
 	protected connection: Connection;
 	public id: string;
 	public abstract readonly chName: string;
 	public static readonly shouldShare: boolean;
 	public static readonly requireCredential: boolean;
 	public static readonly kind?: string | null;
-
-	protected get noteVisibilityService() {
-		return this.noteEntityService.noteVisibilityService;
-	}
 
 	protected get user() {
 		return this.connection.user;
@@ -72,6 +62,9 @@ export default abstract class Channel {
 		return this.connection.userIdsWhoBlockingMe;
 	}
 
+	/**
+	 * @deprecated use cacheService.threadMutingsCache to avoid stale data
+	 */
 	protected get userMutedInstances() {
 		return this.connection.userMutedInstances;
 	}
@@ -90,6 +83,9 @@ export default abstract class Channel {
 		return this.connection.userMutedNotes;
 	}
 
+	/**
+	 * @deprecated use cacheService.threadMutingsCache to avoid stale data
+	 */
 	protected get followingChannels() {
 		return this.connection.followingChannels;
 	}
@@ -110,69 +106,9 @@ export default abstract class Channel {
 		return this.connection.myRecentFavorites;
 	}
 
-	protected async checkNoteVisibility(note: Packed<'Note'>, filters?: NoteVisibilityFilters) {
-		// Don't use any of the local cached data, because this does everything through CacheService which is just as fast with updated data.
-		return await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user, { filters });
-	}
-
-	/**
-	 * Checks if a note is visible to the current user *excluding* blocks and mutes.
-	 * @deprecated use isNoteHidden instead
-	 */
-	protected isNoteVisibleToMe(note: Packed<'Note'>): boolean {
-		if (note.visibility === 'public') return true;
-		if (note.visibility === 'home') return true;
-		if (!this.user) return false;
-		if (this.user.id === note.userId) return true;
-		if (note.visibility === 'followers') {
-			return this.following.has(note.userId);
-		}
-		if (!note.visibleUserIds) return false;
-		return note.visibleUserIds.includes(this.user.id);
-	}
-
-	/**
-	 * ミュートとブロックされてるを処理する
-	 * @deprecated use isNoteHidden instead
-	 */
-	protected isNoteMutedOrBlocked(note: Packed<'Note'>): boolean {
-		// Ignore notes that require sign-in
-		if (note.user.requireSigninToViewContents && !this.user) return true;
-
-		// 流れてきたNoteがインスタンスミュートしたインスタンスが関わる
-		if (isInstanceMuted(note, this.userMutedInstances) && !this.following.has(note.userId)) return true;
-
-		// 流れてきたNoteがミュートしているユーザーが関わる
-		if (isUserRelated(note, this.userIdsWhoMeMuting)) return true;
-		// 流れてきたNoteがブロックされているユーザーが関わる
-		if (isUserRelated(note, this.userIdsWhoBlockingMe)) return true;
-
-		// 流れてきたNoteがリノートをミュートしてるユーザが行ったもの
-		if (isRenotePacked(note) && !isQuotePacked(note) && this.userIdsWhoMeMutingRenotes.has(note.user.id)) return true;
-
-		// Muted thread
-		if (this.userMutedThreads.has(note.threadId)) return true;
-
-		// Muted note
-		if (this.userMutedNotes.has(note.id)) return true;
-
-		// If it's a boost (pure renote) then we need to check the target as well
-		if (isPackedPureRenote(note) && note.renote && this.isNoteMutedOrBlocked(note.renote)) return true;
-
-		// Hide silenced notes
-		if (note.user.isSilenced || note.user.instance?.isSilenced) {
-			if (this.user == null) return true;
-			if (this.user.id === note.userId) return false;
-			if (!this.following.has(note.userId)) return true;
-		}
-
-		return false;
-	}
-
-	constructor(id: string, connection: Connection, noteEntityService: NoteEntityService) {
+	constructor(id: string, connection: Connection) {
 		this.id = id;
 		this.connection = connection;
-		this.noteEntityService = noteEntityService;
 	}
 
 	public send(payload: { type: string, body: JsonValue }): void;
@@ -189,11 +125,29 @@ export default abstract class Channel {
 		});
 	}
 
-	public abstract init(params: JsonObject): void;
+	public abstract init(params: JsonObject): void | Promise<void> | Promise<boolean>;
 
 	public dispose?(): void;
 
 	public onMessage?(type: string, body: JsonValue): void;
+}
+
+// For compatability with old code
+// eslint-disable-next-line import/no-default-export
+export default Channel;
+
+export abstract class NoteChannel extends Channel {
+	protected constructor(
+		id: string,
+		connection: Connection,
+		protected readonly noteEntityService: NoteEntityService,
+	) {
+		super(id, connection);
+	}
+
+	protected get noteVisibilityService() {
+		return this.noteEntityService.noteVisibilityService;
+	}
 
 	public async rePackNote(note: Packed<'Note'>): Promise<Packed<'Note'>> {
 		// If there's no user, then packing won't change anything.
@@ -245,6 +199,24 @@ export default abstract class Channel {
 		});
 
 		return clonedNote;
+	}
+
+	/**
+	 * Prepares a note before it gets sent to the client.
+	 * @returns A packed note, or `null` if the note shouldn't be seen by the user
+	 * who owns this connection, for whatever reason.
+	 */
+	protected async prepareNote(note: Packed<'Note'>, opts?: { includeSilenced?: boolean }): Promise<Packed<'Note'> | null> {
+		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user);
+
+		// Skip notes that the user cannot access
+		if (!accessible) return null;
+
+		// Skip notes that the user has silenced
+		if (silence && !opts?.includeSilenced) return null;
+
+		// Include everything else, but make sure to re-pack it for the user's context!
+		return await this.rePackNote(note);
 	}
 }
 

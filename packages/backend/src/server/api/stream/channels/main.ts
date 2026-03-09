@@ -4,33 +4,35 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { isInstanceMuted, isUserFromMutedInstance } from '@/misc/is-instance-muted.js';
+import { isUserFromMutedInstance } from '@/misc/is-instance-muted.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
+import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import type { JsonObject } from '@/misc/json-value.js';
-import Channel, { type MiChannelService } from '../channel.js';
+import { type Channel, NoteChannel, type MiChannelService } from '../channel.js';
 
-class MainChannel extends Channel {
+// TODO does not need to be NoteChannel?
+class MainChannel extends NoteChannel {
 	public readonly chName = 'main';
 	public static shouldShare = true;
 	public static requireCredential = true as const;
 	public static kind = 'read:account';
 
 	constructor(
-		noteEntityService: NoteEntityService,
-
 		id: string,
 		connection: Channel['connection'],
+		noteEntityService: NoteEntityService,
 	) {
 		super(id, connection, noteEntityService);
 	}
 
 	@bindThis
-	public async init(params: JsonObject) {
-		// Subscribe main stream channel
-		this.subscriber?.on(`mainStream:${this.user!.id}`, async data => {
+	public async init(): Promise<boolean> {
+		if (!this.user) return false;
+		this.subscriber.on(`mainStream:${this.user.id}`, async data => {
 			switch (data.type) {
 				case 'notification': {
+					// TODO all this logic should match
 					// Ignore notifications from instances the user has muted
 					if (isUserFromMutedInstance(data.body, this.userMutedInstances)) return;
 					if (data.body.userId && this.userIdsWhoMeMuting.has(data.body.userId)) return;
@@ -46,6 +48,7 @@ class MainChannel extends Channel {
 				case 'mention': {
 					const { accessible, silence } = await this.checkNoteVisibility(data.body, { includeReplies: true });
 					if (!accessible || silence) return;
+		if (!this.subscriber) throw new IdentifiableError(errorCodes.websocketError, `Cannot init ${this.chName} channel: socket is not connected`);
 
 					data.body = await this.rePackNote(data.body);
 					break;
@@ -54,6 +57,8 @@ class MainChannel extends Channel {
 
 			this.send(data.type, data.body);
 		});
+
+		return true;
 	}
 }
 
@@ -71,9 +76,9 @@ export class MainChannelService implements MiChannelService<true> {
 	@bindThis
 	public create(id: string, connection: Channel['connection']): MainChannel {
 		return new MainChannel(
-			this.noteEntityService,
 			id,
 			connection,
+			this.noteEntityService,
 		);
 	}
 }
