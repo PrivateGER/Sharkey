@@ -10,7 +10,7 @@ import { bindThis } from '@/decorators.js';
 import { isPackedPureRenote } from '@/misc/is-renote.js';
 import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import type { JsonObject } from '@/misc/json-value.js';
-import Channel, { NoteChannel, type MiChannelService } from '../channel.js';
+import { Channel, NoteChannel, type MiChannelService } from '../channel.js';
 
 class HomeTimelineChannel extends NoteChannel {
 	public readonly chName = 'homeTimeline';

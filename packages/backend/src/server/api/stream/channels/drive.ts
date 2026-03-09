@@ -8,7 +8,7 @@ import { bindThis } from '@/decorators.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
-import Channel, { type MiChannelService } from '../channel.js';
+import { Channel, type MiChannelService } from '../channel.js';
 
 class DriveChannel extends Channel {
 	public readonly chName = 'drive';

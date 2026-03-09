@@ -12,7 +12,7 @@ import { ChatService } from '@/core/ChatService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import type { ChatRoomsRepository } from '@/models/_.js';
-import Channel, { type MiChannelService } from '../channel.js';
+import { Channel, type MiChannelService } from '../channel.js';
 
 class ChatRoomChannel extends Channel {
 	public readonly chName = 'chatRoom';
