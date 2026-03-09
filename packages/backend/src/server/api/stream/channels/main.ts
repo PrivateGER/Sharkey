@@ -46,17 +46,17 @@ class MainChannel extends NoteChannel {
 				if (data.body.userId && this.userIdsWhoMeMuting.has(data.body.userId)) return;
 
 				if (data.body.note) {
-					const clonedNote = await this.prepareNote(data.body.note);
-					if (!clonedNote) return;
+					const preparedNote = await this.prepareNote(data.body.note);
+					if (!preparedNote) return;
 
-					data.body.note = clonedNote;
+					data.body.note = preparedNote;
 				}
 				break;
 			}
 			case 'mention': {
-				const clonedNote = await this.prepareNote(data.body);
-				if (clonedNote) {
-					this.send(data.type, clonedNote);
+				const preparedNote = await this.prepareNote(data.body);
+				if (preparedNote) {
+					this.send(data.type, preparedNote);
 				}
 				return;
 			}

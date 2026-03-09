@@ -52,12 +52,13 @@ class AntennaChannel extends NoteChannel {
 
 	@bindThis
 	private async onEvent(data: GlobalEvents['antenna']['payload']) {
-		const note = await this.noteEntityService.pack(data.body.id, this.user, { detail: true });
+		const preparedNote = await this.noteEntityService.pack(data.body.id, this.user, { detail: true });
 
-		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user);
+		// TODO this duplicate work could be avoided if the visibility data were returned from NoteEntityService.pack().
+		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(preparedNote, this.user);
 		if (!accessible || silence) return;
 
-		this.send('note', note);
+		this.send('note', preparedNote);
 	}
 
 	@bindThis
