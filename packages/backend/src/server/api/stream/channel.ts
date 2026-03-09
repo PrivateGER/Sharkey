@@ -4,11 +4,10 @@
  */
 
 import { bindThis } from '@/decorators.js';
-import { deepClone } from '@/misc/clone.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
+import type { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import type Connection from '@/server/api/stream/Connection.js';
-import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 
 /**
  * Stream channel
@@ -149,63 +148,12 @@ export abstract class NoteChannel extends Channel {
 		return this.noteEntityService.noteVisibilityService;
 	}
 
-	public async rePackNote(note: Packed<'Note'>): Promise<Packed<'Note'>> {
-		// If there's no user, then packing won't change anything.
-		// We can just re-use the original note.
-		if (!this.user) {
-			return note;
-		}
-
-		// StreamingApiServerService creates a single EventEmitter per server process,
-		// so a new note arriving from redis gets de-serialised once per server process,
-		// and then that single object is passed to all active channels on each connection.
-		// If we didn't clone the notes here, different connections would asynchronously write
-		// different values to the same object, resulting in a random value being sent to each frontend. -- Dakkar
-		const clonedNote = deepClone(note);
-
-		// Hide notes before everything else, since this modifies fields that the other functions will check.
-		const notes = crawl(clonedNote);
-
-		const [myReactions, myRenotes, myFavorites, myThreadMutings, myNoteMutings, myFollowings] = await Promise.all([
-			this.noteEntityService.populateMyReactions(notes, this.user.id, {
-				myReactions: this.myRecentReactions,
-			}),
-			this.noteEntityService.populateMyRenotes(notes, this.user.id, {
-				myRenotes: this.myRecentRenotes,
-			}),
-			this.noteEntityService.populateMyFavorites(notes, this.user.id, {
-				myFavorites: this.myRecentFavorites,
-			}),
-			this.noteEntityService.populateMyTheadMutings(notes, this.user.id),
-			this.noteEntityService.populateMyNoteMutings(notes, this.user.id),
-			this.cacheService.userFollowingsCache.fetch(this.user.id),
-		]);
-
-		for (const n of notes) {
-			// Sync visibility in case there's something like "makeNotesFollowersOnlyBefore" enabled
-			this.noteVisibilityService.syncVisibility(n);
-
-			n.myReaction = myReactions.get(n.id) ?? null;
-			n.isRenoted = myRenotes.has(n.id);
-			n.isFavorited = myFavorites.has(n.id);
-			n.isMutingThread = myThreadMutings.has(n.id);
-			n.isMutingNote = myNoteMutings.has(n.id);
-			n.user.bypassSilence = n.userId === this.user.id || myFollowings.has(n.userId);
-		}
-
-		// Hide notes *after* we sync visibility
-		await this.noteEntityService.hideNotes(notes, this.user.id, {
-			userFollowings: myFollowings,
-		});
-
-		return clonedNote;
-	}
-
 	/**
 	 * Prepares a note before it gets sent to the client.
 	 * @returns A packed note, or `null` if the note shouldn't be seen by the user
 	 * who owns this connection, for whatever reason.
 	 */
+	@bindThis
 	protected async prepareNote(note: Packed<'Note'>): Promise<Packed<'Note'> | null> {
 		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user);
 
@@ -214,8 +162,18 @@ export abstract class NoteChannel extends Channel {
 			return null;
 		}
 
-		// Include everything else, but make sure to re-pack it for the user's context!
-		return await this.rePackNote(note);
+		// If there's no user, then packing won't change anything.
+		// We can just re-use the original note.
+		if (!this.user) {
+			return note;
+		}
+
+		// Otherwise, re-pack the anonymous note for the actual target user.
+		return await this.noteEntityService.rePack(note, this.user, {
+			myReactions: this.myRecentReactions,
+			myRenotes: this.myRecentRenotes,
+			myFavorites: this.myRecentFavorites,
+		});
 	}
 }
 
@@ -225,21 +183,3 @@ export type MiChannelService<T extends boolean> = {
 	kind: T extends true ? string : string | null | undefined;
 	create: (id: string, connection: Connection) => Channel;
 };
-
-function crawl(note: Packed<'Note'>, into?: Packed<'Note'>[]): Packed<'Note'>[] {
-	into ??= [];
-
-	if (!into.includes(note)) {
-		into.push(note);
-	}
-
-	if (note.reply) {
-		crawl(note.reply, into);
-	}
-
-	if (note.renote) {
-		crawl(note.renote, into);
-	}
-
-	return into;
-}
