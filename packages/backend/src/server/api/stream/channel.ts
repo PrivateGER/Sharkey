@@ -206,14 +206,13 @@ export abstract class NoteChannel extends Channel {
 	 * @returns A packed note, or `null` if the note shouldn't be seen by the user
 	 * who owns this connection, for whatever reason.
 	 */
-	protected async prepareNote(note: Packed<'Note'>, opts?: { includeSilenced?: boolean }): Promise<Packed<'Note'> | null> {
+	protected async prepareNote(note: Packed<'Note'>): Promise<Packed<'Note'> | null> {
 		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user);
 
-		// Skip notes that the user cannot access
-		if (!accessible) return null;
-
-		// Skip notes that the user has silenced
-		if (silence && !opts?.includeSilenced) return null;
+		// Skip notes that the user can't or shouldn't access
+		if (!accessible || silence) {
+			return null;
+		}
 
 		// Include everything else, but make sure to re-pack it for the user's context!
 		return await this.rePackNote(note);
