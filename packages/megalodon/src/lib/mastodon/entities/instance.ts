@@ -57,7 +57,7 @@ export type InstanceV2 = {
 	domain: string
 	title: string
 	version: string
-	source_url: string
+	source_url: string | null
 	description: string
 	usage: {
 		users: {
@@ -83,7 +83,7 @@ export type InstanceV2 = {
 			terms_of_service: string | null
 		}
 		vapid: {
-			public_key: string
+			public_key: string | null
 		}
 		accounts: {
 			max_featured_tags: number;

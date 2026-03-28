@@ -94,12 +94,14 @@ export class ApiInstanceMastodon {
 
 		fastify.get('/v2/instance', async (_request, reply) => {
 			const { client, me } = await this.clientService.getAuthClient(_request);
-			const data = await client.getInstance();
-			const contact = this.meta.rootUser != null
-				? await this.mastoConverters.convertAccount(this.meta.rootUser)
-				: null;
-			const roles = await this.roleService.getUserPolicies(me?.id ?? null);
-			const instanceStats = await this.instanceStatsService.fetch();
+			const [data, contact, roles, instanceStats] = await Promise.all([
+				client.getInstance(),
+				this.meta.rootUser != null
+					? this.mastoConverters.convertAccount(this.meta.rootUser)
+					: null,
+				this.roleService.getUserPolicies(me?.id ?? null),
+				this.instanceStatsService.fetch(),
+			]);
 
 			const instance = data.data;
 			const response: MastodonEntity.InstanceV2 = {
@@ -115,7 +117,7 @@ export class ApiInstanceMastodon {
 				},
 				thumbnail: {
 					url: this.meta.backgroundImageUrl || '/static-assets/transparent.png',
-					blurhash: null,
+					blurhash: undefined,
 					versions: {
 						'@1x': this.meta.backgroundImageUrl || '/static-assets/transparent.png',
 					},

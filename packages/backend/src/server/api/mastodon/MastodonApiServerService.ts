@@ -19,11 +19,11 @@ import { ApiTimelineMastodon } from '@/server/api/mastodon/endpoints/timeline.js
 import { ApiSearchMastodon } from '@/server/api/mastodon/endpoints/search.js';
 import { ApiError } from '@/server/api/error.js';
 import { ServerUtilityService } from '@/server/ServerUtilityService.js';
+import { promiseMap } from '@/misc/promise-map.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from './argsUtils.js';
 import { convertAnnouncement, convertAttachment, MastodonConverters, convertRelationship } from './MastodonConverters.js';
 import type { Entity } from 'megalodon';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { promiseMap } from '@/misc/promise-map.js';
 
 @Injectable()
 export class MastodonApiServerService {
