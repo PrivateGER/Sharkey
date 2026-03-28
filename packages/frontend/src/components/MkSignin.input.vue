@@ -160,6 +160,7 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 
 		& input:user-invalid {
 			outline-style: solid;
+			outline-offset: -5px;
 			outline-color: var(--MI_THEME-error);
 		}
 	}
