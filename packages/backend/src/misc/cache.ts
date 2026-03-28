@@ -36,7 +36,7 @@ export class RedisKVCache<T> {
 		this.lifetime = opts.lifetime;
 		// OK: we forward all management calls to the inner cache.
 		// eslint-disable-next-line no-restricted-syntax
-		this.memoryCache = new MemoryKVCache(name + ':mem', services, { lifetime: opts.memoryCacheLifetime });
+		this.memoryCache = new MemoryKVCache(name + ':mem', services, { lifetime: Math.min(opts.lifetime, opts.memoryCacheLifetime) });
 		this.fetcher = opts.fetcher ?? (() => { throw new Error('fetch not supported - use get/set directly'); });
 		this.toRedisConverter = opts.toRedisConverter ?? ((value) => JSON.stringify(value));
 		this.fromRedisConverter = opts.fromRedisConverter ?? ((value) => JSON.parse(value));
@@ -45,6 +45,7 @@ export class RedisKVCache<T> {
 	@bindThis
 	public async set(key: string, value: T, lifetime: number = this.lifetime): Promise<void> {
 		this.memoryCache.set(key, value);
+		lifetime = Math.max(lifetime, this.lifetime);
 		if (lifetime === Infinity) {
 			await this.redisClient.set(
 				`kvcache:${this.name}:${key}`,
@@ -151,7 +152,7 @@ export class RedisSingleCache<T> {
 		this.lifetime = opts.lifetime;
 		// OK: we forward all management calls to the inner cache.
 		// eslint-disable-next-line no-restricted-syntax
-		this.memoryCache = new MemorySingleCache(name + ':mem', services, { lifetime: opts.memoryCacheLifetime });
+		this.memoryCache = new MemorySingleCache(name + ':mem', services, { lifetime: Math.min(opts.lifetime, opts.memoryCacheLifetime) });
 
 		this.fetcher = opts.fetcher ?? (() => { throw new Error('fetch not supported - use get/set directly'); });
 		this.toRedisConverter = opts.toRedisConverter ?? ((value) => JSON.stringify(value));
@@ -161,6 +162,7 @@ export class RedisSingleCache<T> {
 	@bindThis
 	public async set(value: T, lifetime: number = this.lifetime): Promise<void> {
 		this.memoryCache.set(value);
+		lifetime = Math.max(lifetime, this.lifetime);
 		if (lifetime === Infinity) {
 			await this.redisClient.set(
 				`singlecache:${this.name}`,
