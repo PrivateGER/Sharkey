@@ -352,7 +352,7 @@ function onSignupApiError() {
 }
 
 .root input:user-invalid {
-	color: #fff;
-	background: hsl(from var(--MI_THEME-error) h s calc(l - 10));
+	outline-style: solid;
+	outline-color: var(--MI_THEME-error);
 }
 </style>
