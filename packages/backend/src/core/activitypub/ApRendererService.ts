@@ -587,7 +587,7 @@ export class ApRendererService {
 		const id = this.userEntityService.genLocalUserUri(user.id);
 		const isSystem = user.username.includes('.');
 		// if we ever support split-domain setups, this will differ from the ActivityPub host
-		const webfingerDomain = config.host;
+		const webfingerDomain = this.config.host;
 
 		const [avatar, banner, background, profile] = await Promise.all([
 			user.avatarId ? this.driveFilesRepository.findOneBy({ id: user.avatarId }) : undefined,
