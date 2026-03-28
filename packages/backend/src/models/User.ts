@@ -149,7 +149,7 @@ export class MiUser {
 
 	// bannerId が null になったとしてもこれが null でない可能性があるため、このフィールドを使うときは bannerId の non-null チェックをすること
 	@Column('varchar', {
-		length: 1021024, nullable: true,
+		length: 1024, nullable: true,
 	})
 	public bannerUrl: string | null;
 
