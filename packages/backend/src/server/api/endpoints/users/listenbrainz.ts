@@ -9,6 +9,7 @@ import type { MiMeta, UserProfilesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -98,14 +99,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				headers['Authorization'] = `Token ${this.serverSettings.listenbrainzAuthKey}`;
 			}
 
-			this.loggerService.logger.debug(listenbrainzUsername);
-
 			const res = await this.httpRequestService.send(`https://api.listenbrainz.org/1/user/${listenbrainzUsername}/playing-now`, {
 				method: 'GET',
 				headers,
 				timeout: 10000,
 			}).catch((err) => {
-				this.loggerService.logger.error(`/playing-now error: ${err}`);
+				this.loggerService.logger.error(`/playing-now error: ${renderInlineError(err)}`);
 				throw new ApiError(meta.errors.listenbrainzError);
 			});
 
@@ -162,7 +161,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						timeout: 10000,
 					}
 				).catch((err) => {
-					this.loggerService.logger.error(`/metadata/lookup error: ${err}`);
+					this.loggerService.logger.error(`/metadata/lookup error: ${renderInlineError(err)}`);
 					throw new ApiError(meta.errors.listenbrainzError);
 				});
 
@@ -171,16 +170,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					recording_mbid: string | undefined,
 				};
 
-				this.loggerService.logger.debug(JSON.stringify(json));
-
-				if (!response.coverArt) {
-					response.coverArt = `https://coverartarchive.org/release/${json.release_mbid}/front-250`;
-				}
-
-				if (!response.listenbrainzUrl || !response.musicbrainzUrl) {
-					response.musicbrainzUrl = `https://musicbrainz.org/recording/${json.recording_mbid}`;
-					response.listenbrainzUrl = `https://listenbrainz.org/player?recording_mbids=${json.recording_mbid}`;
-				}
+				response.coverArt ??= `https://coverartarchive.org/release/${json.release_mbid}/front-250`;
+				response.listenbrainzUrl ??= `https://listenbrainz.org/player?recording_mbids=${json.recording_mbid}`;
+				response.musicbrainzUrl ??= `https://musicbrainz.org/recording/${json.recording_mbid}`;
 			}
 			return response;
 		});

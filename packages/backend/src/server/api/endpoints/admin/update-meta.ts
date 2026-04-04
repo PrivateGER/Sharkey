@@ -623,11 +623,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			if (ps.listenbrainzAuthKey !== undefined) {
-				if (ps.listenbrainzAuthKey === '') {
-					set.listenbrainzAuthKey = null;
-				} else {
-					set.listenbrainzAuthKey = ps.listenbrainzAuthKey;
-				}
+				set.listenbrainzAuthKey = ps.listenbrainzAuthKey || null;
 			}
 
 			if (ps.enableIpLogging !== undefined) {

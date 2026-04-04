@@ -102,7 +102,13 @@ const emit = defineEmits<{
 
 const zIndex = os.claimZIndex('middle');
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-const listenbrainzdata = ref();
+const listenbrainzdata = ref<{
+	title: string,
+	artist: string,
+	coverArt: string | undefined,
+	listenbrainzUrl: string | undefined,
+	musicbrainzUrl: string | undefined,
+}>();
 const top = ref(0);
 const left = ref(0);
 const error = ref(false);
