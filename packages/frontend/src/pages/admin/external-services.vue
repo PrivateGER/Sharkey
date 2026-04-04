@@ -104,6 +104,7 @@ async function init() {
 	deeplFreeInstance.value = meta.deeplFreeInstance;
 	libreTranslateURL.value = meta.libreTranslateURL;
 	libreTranslateKey.value = meta.libreTranslateKey;
+	listenbrainzAuthKey.value = meta.listenbrainzAuthKey;
 }
 
 async function saveTranslationTimeout() {

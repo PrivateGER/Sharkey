@@ -765,6 +765,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				deeplFreeInstance: instance.deeplFreeInstance,
 				libreTranslateURL: instance.libreTranslateURL,
 				libreTranslateKey: instance.libreTranslateKey,
+				listenbrainzAuthKey: instance.listenbrainzAuthKey,
 				enableIpLogging: instance.enableIpLogging,
 				enableActiveEmailValidation: instance.enableActiveEmailValidation,
 				enableVerifymailApi: instance.enableVerifymailApi,
