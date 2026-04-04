@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="flex">
 		<a :href="data.musicbrainzUrl">
 			<div class="imageContainer">
-				<div v-if="shouldShowBars" class="musicBars">
+				<div v-if="prefer.s.animation && shouldShowBars" class="musicBars">
 					<div class="bar" :style="{ bottom: barPosition }"/>
 					<div class="bar" :style="{ bottom: barPosition }"/>
 					<div class="bar" :style="{ bottom: barPosition }"/>
@@ -34,6 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api';
+import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n';
 
 interface ListenBrainzData {
