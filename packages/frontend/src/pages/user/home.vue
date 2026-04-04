@@ -294,7 +294,7 @@ const noteview = ref<string | null>(props.user.pinnedNotes.length ? 'pinned' : n
 
 const listenbrainzdata = ref();
 if (props.user.listenbrainz) {
-	await misskeyApi('users/listenbrainz', { userId: props.user.id }).then((data) => listenbrainzdata.value = data);
+	misskeyApi('users/listenbrainz', { userId: props.user.id }).then((data) => listenbrainzdata.value = data);
 }
 
 const background = computed(() => {
