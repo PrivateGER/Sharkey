@@ -172,7 +172,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				response.musicbrainzUrl =
 					`https://musicbrainz.org/recording/${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
 				response.listenbrainzUrl =
-					`https://listenbrainz.org/player?recording_mbids=${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
+					`https://listenbrainz.org/track/${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
 			}
 
 			if ((!response.coverArt || !response.musicbrainzUrl || !response.listenbrainzUrl) && this.serverSettings.listenbrainzAuthKey) {
@@ -200,7 +200,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					response.coverArt ??= `https://coverartarchive.org/release/${encodeURIComponent(json.release_mbid)}/front-250`;
 				}
 				if (json.recording_mbid) {
-					response.listenbrainzUrl ??= `https://listenbrainz.org/player?recording_mbids=${encodeURIComponent(json.recording_mbid)}`;
+					response.listenbrainzUrl ??= `https://listenbrainz.org/track/${encodeURIComponent(json.recording_mbid)}`;
 					response.musicbrainzUrl ??= `https://musicbrainz.org/recording/${encodeURIComponent(json.recording_mbid)}`;
 				}
 
