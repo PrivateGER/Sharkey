@@ -59,7 +59,7 @@ const barPosition = computed(() => data.value?.coverArt ? '1px' : '1rem');
 let intervalId: number;
 onMounted(() => {
 	const fetchLB = async () => misskeyApi('users/listenbrainz', { userId: props.userId })
-		.then((res) => data.value = res);
+		.then((res: ListenBrainzData) => data.value = res);
 
 	fetchLB();
 	intervalId = window.setInterval(fetchLB, 15000);
