@@ -4,31 +4,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="data" style="padding: 4px">
-	<div class="flex">
-		<a :href="data.musicbrainzUrl">
-			<div class="imageContainer">
-				<div v-if="prefer.s.animation && shouldShowBars" class="musicBars">
-					<div class="bar" :style="{ bottom: barPosition }"/>
-					<div class="bar" :style="{ bottom: barPosition }"/>
-					<div class="bar" :style="{ bottom: barPosition }"/>
+<Transition>
+	<div v-if="data" style="padding: 4px">
+		<div class="flex">
+			<a :href="data.musicbrainzUrl">
+				<div class="imageContainer">
+					<div v-if="prefer.s.animation && shouldShowBars" class="musicBars">
+						<div class="bar" :style="{ bottom: barPosition }"/>
+						<div class="bar" :style="{ bottom: barPosition }"/>
+						<div class="bar" :style="{ bottom: barPosition }"/>
+					</div>
+					<img v-if="data.coverArt" v-show="!loading" :src="data.coverArt" :alt="data.title" class="image" @load="loading = false"/>
+					<MkLoading v-if="loading && data.coverArt" class="spinner"/>
 				</div>
-				<img v-if="data.coverArt" v-show="!loading" :src="data.coverArt" :alt="data.title" class="image" @load="loading = false"/>
-				<MkLoading v-if="loading && data.coverArt" class="spinner"/>
+			</a>
+			<div class="flex flex-col items-start titles">
+				<p class="listening-to">{{ i18n.ts._profile.listeningTo }}</p>
+				<p class="text-sm font-bold ellipsis">{{ data.title }}</p>
+				<p class="text-xs font-medium ellipsis">{{ data.artist }}</p>
 			</div>
-		</a>
-		<div class="flex flex-col items-start titles">
-			<p class="listening-to">{{ i18n.ts._profile.listeningTo }}</p>
-			<p class="text-sm font-bold ellipsis">{{ data.title }}</p>
-			<p class="text-xs font-medium ellipsis">{{ data.artist }}</p>
+			<a v-if="data.listenbrainzUrl" :href="data.listenbrainzUrl">
+				<div class="playicon">
+					<i class="ph-play ph-bold ph-lg"></i>
+				</div>
+			</a>
 		</div>
-		<a v-if="data.listenbrainzUrl" :href="data.listenbrainzUrl">
-			<div class="playicon">
-				<i class="ph-play ph-bold ph-lg"></i>
-			</div>
-		</a>
 	</div>
-</div>
+</Transition>
 </template>
 
 <script lang="ts" setup>
@@ -69,6 +71,17 @@ onBeforeUnmount(() => window.clearInterval(intervalId));
 </script>
 
 <style lang="scss" scoped>
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  transform: scaleY(80%);
+  opacity: 0;
+}
+
 .flex {
 	display: flex;
 	align-items: center;
