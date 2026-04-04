@@ -16,3 +16,6 @@ _serverSettings:
 _profile:
   listenbrainz: "Nome de usuário ListenBrainz"
   listeningTo: "Ouvindo..."
+listenbrainzIntegration: "Integração ListenBrainz"
+listenbrainzUserToken: "Token de Usuário ListenBrainz"
+listenbrainzUserTokenDescription: "Ter uma token de usuário permite ao Sharkey solicitar metadados de faixas diretamente, melhorando a confiabilidade de artes de capa e links."

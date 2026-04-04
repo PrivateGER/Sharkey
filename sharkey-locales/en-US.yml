@@ -737,3 +737,7 @@ backgroundQueue: "Background queue"
 _header:
   browse: "Browse"
   manage: "Manage"
+
+listenbrainzIntegration: "ListenBrainz Integration"
+listenbrainzUserToken: "ListenBrainz User Token"
+listenbrainzUserTokenDescription: "Having an user token allows Sharkey to query track metadata directly, improving reliability of cover art and links."

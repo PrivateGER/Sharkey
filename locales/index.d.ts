@@ -13687,6 +13687,18 @@ export interface Locale extends ILocale {
          */
         "manage": string;
     };
+    /**
+     * ListenBrainz Integration
+     */
+    "listenbrainzIntegration": string;
+    /**
+     * ListenBrainz User Token
+     */
+    "listenbrainzUserToken": string;
+    /**
+     * Having an user token allows Sharkey to query track metadata directly, improving reliability of cover art and links.
+     */
+    "listenbrainzUserTokenDescription": string;
 }
 declare const locales: {
     [lang: string]: Locale;

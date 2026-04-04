@@ -55,16 +55,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkButton primary @click="save_libre">Save</MkButton>
 					</div>
 				</MkFolder>
-				
+
 				<MkFolder>
-					<template #label>ListenBrainz Integration</template>
+					<template #label>{{ i18n.ts.listenbrainzIntegration }}</template>
 
 					<div class="_gaps_m">
 						<MkInput v-model="listenbrainzAuthKey">
 							<template #prefix><i class="ti ti-key"></i></template>
-							<template #label>ListenBrainz Auth Key</template>
+							<template #label>{{ i18n.ts.listenbrainzUserToken }}</template>
+							<template #caption>{{ i18n.ts.listenbrainzUserTokenDescription }}</template>
 						</MkInput>
-						<MkButton primary @click="save_listenbrainz">Save</MkButton>
+						<MkButton primary @click="save_listenbrainz">{{ i18n.ts.save }}</MkButton>
 					</div>
 				</MkFolder>
 			</div>
