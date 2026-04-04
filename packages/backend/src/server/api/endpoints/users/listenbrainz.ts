@@ -14,6 +14,8 @@ import { bindThis } from '@/decorators.js';
 import { CacheManagementService, ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiError } from '../../error.js';
+import { IEndpointMeta } from '../../endpoints.js';
+import { Schema } from '@/misc/json-schema.js';
 
 type ListenBrainzResponse = {
 	title: string,
@@ -22,6 +24,27 @@ type ListenBrainzResponse = {
 	listenbrainzUrl: string | undefined,
 	musicbrainzUrl: string | undefined,
 };
+
+type ListenbrainzPlayingNowResponse = {
+	payload?: {
+		listens?: Array<{
+			track_metadata?: {
+				artist_name?: string,
+				track_name?: string,
+				release_name?: string,
+				additional_info?: {
+					release_mbid?: string,
+					recording_mbid?: string,
+				},
+			},
+		}>
+	}
+}
+
+type ListenbrainzMetadataResponse = {
+	release_mbid?: string,
+	recording_mbid?: string,
+}
 
 export const meta = {
 	tags: ['users'],
@@ -61,10 +84,11 @@ export const meta = {
 	},
 
 	limit: {
-		duration: 1000,
-		max: 5,
+		type: 'bucket',
+		size: 20,
+		dripRate: 200,
 	},
-} as const;
+} as const satisfies IEndpointMeta;
 
 export const paramDef = {
 	type: 'object',
@@ -72,7 +96,7 @@ export const paramDef = {
 		userId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['userId'],
-} as const;
+} as const satisfies Schema;
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
@@ -109,23 +133,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				headers['Authorization'] = `Token ${this.serverSettings.listenbrainzAuthKey}`;
 			}
 
-			const json = await this.httpRequestService.getJson<
-				{
-					payload?: {
-						listens?: Array<{
-							track_metadata?: {
-								artist_name?: string,
-								track_name?: string,
-								release_name?: string,
-								additional_info?: {
-									release_mbid?: string,
-									recording_mbid?: string,
-								},
-							},
-						}>
-					}
-				}
-			>(`https://api.listenbrainz.org/1/user/${encodeURIComponent(listenbrainzUsername)}/playing-now`,
+			const json = await this.httpRequestService.getJson<ListenbrainzPlayingNowResponse>(
+				`https://api.listenbrainz.org/1/user/${encodeURIComponent(listenbrainzUsername)}/playing-now`,
 				undefined,
 				headers,
 				undefined,
@@ -172,12 +181,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					return cachedResponse;
 				}
 
-				const json = await this.httpRequestService.getJson<
-					{
-						release_mbid?: string,
-						recording_mbid?: string,
-					}
-				>(
+				const json = await this.httpRequestService.getJson<ListenbrainzMetadataResponse>(
 					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
 					undefined,
 					headers,
@@ -189,7 +193,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				});
 
 				if (!json.release_mbid || !json.recording_mbid) {
-					this.loggerService.logger.warn(`listenbrainz /metadata/lookup: malformed json\n${JSON.stringify(json)}`);
+					this.loggerService.logger.warn('listenbrainz /metadata/lookup: malformed json');
+					this.loggerService.logger.debug(`listenbrainz /metadata/lookup: ${JSON.stringify(json)}`);
 				}
 				if (json.release_mbid) {
 					response.coverArt ??= `https://coverartarchive.org/release/${encodeURIComponent(json.release_mbid)}/front-250`;

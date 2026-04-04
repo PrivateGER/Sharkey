@@ -39,8 +39,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
 							<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
 							<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
-							<li v-if="listenbrainzdata">
-								<XListenBrainz :key="user.id" :data="listenbrainzdata"/>
+							<li v-if="user.listenbrainz" :class="$style.listenbrainz">
+								<XListenBrainz :key="user.id" :userId="user.id"/>
 							</li>
 						</ul>
 						<div :class="$style.actions" class="actions">
@@ -242,7 +242,7 @@ function calcAge(birthdate: string): number {
 
 const XFiles = defineAsyncComponent(() => import('./index.files.vue'));
 const XActivity = defineAsyncComponent(() => import('./index.activity.vue'));
-const XListenBrainz = defineAsyncComponent(() => import('../../components/SkListenBrainz.vue'));
+const XListenBrainz = defineAsyncComponent(() => import('@/components/SkListenBrainz.vue'));
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
@@ -291,11 +291,6 @@ const isEditingMemo = ref(false);
 const moderationNote = ref(props.user.moderationNote);
 const editModerationNote = ref(false);
 const noteview = ref<string | null>(props.user.pinnedNotes.length ? 'pinned' : null);
-
-const listenbrainzdata = ref();
-if (props.user.listenbrainz) {
-	misskeyApi('users/listenbrainz', { userId: props.user.id }).then((data) => listenbrainzdata.value = data);
-}
 
 const background = computed(() => {
 	if (props.user.backgroundUrl == null) return {};
@@ -909,6 +904,10 @@ onUnmounted(() => {
 	> :not(:first-child) {
 		margin-left: 8px;
 	}
+}
+
+.listenbrainz:empty {
+	display: none;
 }
 
 .actions {

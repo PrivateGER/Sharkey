@@ -45,8 +45,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</dd>
 				</dl>
 			</div>
-			<div v-if="listenbrainzdata" :class="$style.fields">
-				<SkListenBrainz :data="listenbrainzdata" :popup="true"/>
+			<div v-if="user.listenbrainz" :class="$style.fields">
+				<XListenBrainz :userId="user.id" :popup="true"/>
 			</div>
 			<div :class="$style.status">
 				<div :class="$style.statusItem">
@@ -73,10 +73,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { defineAsyncComponent, onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
-import SkListenBrainz from '@/components/SkListenBrainz.vue';
 import { userPage } from '@/filters/user.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -87,6 +86,8 @@ import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
+
+const XListenBrainz = defineAsyncComponent(() => import('@/components/SkListenBrainz.vue'));
 
 const props = defineProps<{
 	showing: boolean;
@@ -102,13 +103,6 @@ const emit = defineEmits<{
 
 const zIndex = os.claimZIndex('middle');
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-const listenbrainzdata = ref<{
-	title: string,
-	artist: string,
-	coverArt: string | undefined,
-	listenbrainzUrl: string | undefined,
-	musicbrainzUrl: string | undefined,
-}>();
 const top = ref(0);
 const left = ref(0);
 const error = ref(false);
@@ -138,14 +132,8 @@ async function fetchUser() {
 	}
 }
 
-async function fetchListenBrainz() {
-	if (user.value?.listenbrainz) {
-		await misskeyApi('users/listenbrainz', { userId: user.value.id }).then(res => listenbrainzdata.value = res);
-	}
-}
-
 onMounted(() => {
-	fetchUser().then(() => fetchListenBrainz());
+	fetchUser();
 
 	const rect = props.source.getBoundingClientRect();
 	const x = Math.max(1, ((rect.left + (props.source.offsetWidth / 2)) - (300 / 2)) + window.scrollX);
@@ -269,6 +257,9 @@ onMounted(() => {
 	padding: 16px;
 	border-top: solid 1px var(--MI_THEME-divider);
 	border-bottom: solid 1px var(--MI_THEME-divider);
+	&:empty {
+		display: none;
+	}
 }
 
 .field {

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div style="padding: 4px">
+<div v-if="data" style="padding: 4px">
 	<div class="flex">
 		<a :href="data.musicbrainzUrl">
 			<div class="imageContainer">
@@ -31,23 +31,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { misskeyApi } from '@/utility/misskey-api';
+
+interface ListenBrainzData {
+	title: string,
+	artist: string,
+	coverArt?: string,
+	listenbrainzUrl?: string,
+	musicbrainzUrl?: string,
+}
 
 const props = defineProps<{
-	data: {
-		title: string,
-		artist: string,
-		coverArt: string | undefined,
-		listenbrainzUrl: string | undefined,
-		musicbrainzUrl: string | undefined,
-	},
+	userId: string,
 	popup?: boolean,
 }>();
 
+const data = ref<ListenBrainzData>();
+
 const loading = ref(true);
 
-const shouldShowBars = computed(() => !props.data.coverArt || !loading.value);
-const barPosition = props.data.coverArt ? '1px' : '1rem';
+const shouldShowBars = computed(() => !data.value?.coverArt || !loading.value);
+const barPosition = computed(() => data.value?.coverArt ? '1px' : '1rem');
+
+let intervalId: number;
+onMounted(() => {
+	const fetchLB = async () => misskeyApi('users/listenbrainz', { userId: props.userId })
+		.then((res) => data.value = res);
+
+	fetchLB();
+	intervalId = window.setInterval(fetchLB, 15000);
+});
+onBeforeUnmount(() => window.clearInterval(intervalId));
 </script>
 
 <style lang="scss" scoped>
