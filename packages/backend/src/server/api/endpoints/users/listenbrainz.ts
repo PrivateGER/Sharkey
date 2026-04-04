@@ -5,12 +5,23 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { MiMeta, UserProfilesRepository } from '@/models/_.js';
+import type { MiMeta } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
+import { bindThis } from '@/decorators.js';
+import { CacheManagementService, ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiError } from '../../error.js';
+
+type ListenBrainzResponse = {
+	title: string,
+	artist: string,
+	coverArt: string | undefined,
+	listenbrainzUrl: string | undefined,
+	musicbrainzUrl: string | undefined,
+};
 
 export const meta = {
 	tags: ['users'],
@@ -65,33 +76,31 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
+	private readonly listenBrainzCache: ManagedRedisKVCache<CachedListenBrainzEntity>;
+
 	constructor(
 		@Inject(DI.meta)
 		private serverSettings: MiMeta,
 
-		@Inject(DI.userProfilesRepository)
-		private userProfilesRepository: UserProfilesRepository,
-
 		private httpRequestService: HttpRequestService,
+		private readonly cacheService: CacheService,
 		private readonly loggerService: ApiLoggerService,
+
+		cacheManagementService: CacheManagementService,
 	) {
 		super(meta, paramDef, async (ps) => {
-			type ResponseType = {
-				title: string,
-				artist: string,
-				coverArt: string | undefined,
-				listenbrainzUrl: string | undefined,
-				musicbrainzUrl: string | undefined,
-			};
-
-			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: ps.userId }).catch(() => {
-				throw new ApiError(meta.errors.noSuchUser);
-			});
+			const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
 
 			const listenbrainzUsername = profile.listenbrainz;
 			if (!listenbrainzUsername) {
 				throw new ApiError(meta.errors.noListenbrainz);
 			}
+
+			const cachedResponse = await this.getCachedListenBrainz(listenbrainzUsername);
+			if (cachedResponse !== null) {
+				return cachedResponse;
+			}
+
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 			};
@@ -127,10 +136,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			};
 
-			if (json.payload.listens.length === 0) { return undefined; }
+			if (json.payload.listens.length === 0) {
+				await this.setCachedListenBrainz(listenbrainzUsername, undefined);
+				return undefined;
+			}
 			const playingNow = json.payload.listens[0];
 
-			const response: ResponseType = {
+			const response: ListenBrainzResponse = {
 				title: playingNow.track_metadata.track_name,
 				artist: playingNow.track_metadata.artist_name,
 				coverArt: undefined,
@@ -159,7 +171,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						method: 'GET',
 						headers,
 						timeout: 10000,
-					}
+					},
 				).catch((err) => {
 					this.loggerService.logger.error(`/metadata/lookup error: ${renderInlineError(err)}`);
 					throw new ApiError(meta.errors.listenbrainzError);
@@ -174,7 +186,67 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				response.listenbrainzUrl ??= `https://listenbrainz.org/player?recording_mbids=${json.recording_mbid}`;
 				response.musicbrainzUrl ??= `https://musicbrainz.org/recording/${json.recording_mbid}`;
 			}
+
+			await this.setCachedListenBrainz(listenbrainzUsername, response);
+
 			return response;
 		});
+
+		this.listenBrainzCache = cacheManagementService.createRedisKVCache<CachedListenBrainzEntity>('listenbrainz', {
+			lifetime: 1000 * 5, // 5 seconds
+			memoryCacheLifetime: 1000 * 5, // 5 seconds
+		});
+	}
+
+	@bindThis
+	private async getCachedListenBrainz(username: string): Promise<ListenBrainzResponse | undefined | null> {
+		const cacheKey = username;
+
+		const cached = await this.listenBrainzCache.get(cacheKey);
+		if (cached) {
+			if (cached.d) {
+				return {
+					title: cached.d.t,
+					artist: cached.d.a,
+					coverArt: cached.d.c,
+					listenbrainzUrl: cached.d.l,
+					musicbrainzUrl: cached.d.m,
+				};
+			} else {
+				return undefined;
+			}
+		}
+
+		// no cache entry : (
+		return null;
+	}
+
+	@bindThis
+	private async setCachedListenBrainz(username: string, data: ListenBrainzResponse | undefined): Promise<void> {
+		const cacheKey = username;
+
+		if (data) {
+			await this.listenBrainzCache.set(cacheKey, {
+				d: {
+					t: data.title,
+					a: data.artist,
+					c: data.coverArt,
+					l: data.listenbrainzUrl,
+					m: data.musicbrainzUrl,
+				},
+			});
+		} else {
+			await this.listenBrainzCache.set(cacheKey, { d: undefined });
+		}
+	}
+}
+
+interface CachedListenBrainzEntity {
+	d?: {
+		t: string,
+		a: string,
+		c?: string,
+		l?: string,
+		m?: string,
 	}
 }
