@@ -884,6 +884,7 @@ onUnmounted(() => {
 
 .infoBadges {
 	position: absolute;
+	max-width: calc(100% - 6rem);
 	top: 12px;
 	left: 12px;
 
@@ -894,6 +895,8 @@ onUnmounted(() => {
 	margin: 0;
 
 	> * {
+		width: 100%;
+		box-sizing: border-box;
 		padding: 4px 8px;
 		color: #fff;
 		background: rgba(0, 0, 0, 0.7);

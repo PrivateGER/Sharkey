@@ -18,8 +18,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</a>
 		<div class="flex flex-col items-start titles">
-			<p class="text-sm font-bold">{{ data.title }}</p>
-			<p class="text-xs font-medium">{{ data.artist }}</p>
+			<p class="text-sm font-bold ellipsis">{{ data.title }}</p>
+			<p class="text-xs font-medium ellipsis">{{ data.artist }}</p>
 		</div>
 		<a v-if="data.listenbrainzUrl" :href="data.listenbrainzUrl">
 			<div class="playicon">
@@ -47,7 +47,7 @@ const props = defineProps<{
 const loading = ref(true);
 
 const shouldShowBars = computed(() => !props.data.coverArt || !loading.value);
-const barPosition = props.data.coverArt ? '2px' : '1rem';
+const barPosition = props.data.coverArt ? '1px' : '1rem';
 </script>
 
 <style lang="scss" scoped>
@@ -109,6 +109,7 @@ const barPosition = props.data.coverArt ? '2px' : '1rem';
 }
 .titles {
 	flex-grow: 999;
+	width: calc(100% - 6rem);
 }
 .text-sm {
 	font-size: 0.75rem;
@@ -120,6 +121,12 @@ const barPosition = props.data.coverArt ? '2px' : '1rem';
 .text-xs {
 	font-size: 0.75rem;
 	margin: 0;
+}
+.ellipsis {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100%
 }
 .font-medium {
 	font-weight: 500;
