@@ -13,9 +13,9 @@ import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
 import { bindThis } from '@/decorators.js';
 import { CacheManagementService, ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
+import { Schema } from '@/misc/json-schema.js';
 import { ApiError } from '../../error.js';
 import { IEndpointMeta } from '../../endpoints.js';
-import { Schema } from '@/misc/json-schema.js';
 
 type ListenBrainzResponse = {
 	title: string,
@@ -39,12 +39,12 @@ type ListenbrainzPlayingNowResponse = {
 			},
 		}>
 	}
-}
+};
 
 type ListenbrainzMetadataResponse = {
 	release_mbid?: string,
 	recording_mbid?: string,
-}
+};
 
 export const meta = {
 	tags: ['users'],
