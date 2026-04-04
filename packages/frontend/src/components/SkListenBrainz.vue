@@ -7,15 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div style="padding: 4px">
 	<div class="flex">
 		<a :href="data.musicbrainzUrl">
-			<div v-if="data.coverArt" class="imageContainer">
-				<div v-if="!loading" class="musicBars">
-					<div class="bar"/>
-					<div class="bar"/>
-					<div class="bar"/>
-					<div class="bar"/>
+			<div class="imageContainer">
+				<div v-if="shouldShowBars" class="musicBars">
+					<div class="bar" :style="{ bottom: barPosition }"/>
+					<div class="bar" :style="{ bottom: barPosition }"/>
+					<div class="bar" :style="{ bottom: barPosition }"/>
 				</div>
-				<img v-show="!loading" :src="data.coverArt" :alt="data.title" class="image" @load="loading = false"/>
-				<MkLoading v-if="loading" class="spinner"/>
+				<img v-if="data.coverArt" v-show="!loading" :src="data.coverArt" :alt="data.title" class="image" @load="loading = false"/>
+				<MkLoading v-if="loading && data.coverArt" class="spinner"/>
 			</div>
 		</a>
 		<div class="flex flex-col items-start titles">
@@ -32,9 +31,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
-defineProps<{
+const props = defineProps<{
 	data: {
 		title: string,
 		artist: string,
@@ -47,6 +46,8 @@ defineProps<{
 
 const loading = ref(true);
 
+const shouldShowBars = computed(() => !props.data.coverArt || !loading.value);
+const barPosition = props.data.coverArt ? '2px' : '1rem';
 </script>
 
 <style lang="scss" scoped>
@@ -84,10 +85,9 @@ const loading = ref(true);
 .bar {
 	background: var(--MI_THEME-accent);
 	border-radius: 0.25em;
- 	bottom: 1px;
   width: calc(0.8rem - 2px);
   position: absolute;
-  animation: bars 0ms linear infinite alternate;
+  animation: bars 0ms ease-in-out infinite alternate;
 }
 @keyframes bars {
 	0% {
@@ -97,9 +97,9 @@ const loading = ref(true);
 		height: 1rem;
 	}
 }
-.bar:nth-child(1)  { left: 0.3rem; animation-duration: 300ms; animation-delay: -300ms }
-.bar:nth-child(2)  { left: 1.1rem; animation-duration: 303ms; animation-delay: -200ms }
-.bar:nth-child(3)  { left: 1.9rem; animation-duration: 310ms; animation-delay: -500ms }
+.bar:nth-child(1)  { left: 0.3rem; animation-duration: 342ms; animation-delay: -5312ms }
+.bar:nth-child(2)  { left: 1.1rem; animation-duration: 303ms; animation-delay: -1392s }
+.bar:nth-child(3)  { left: 1.9rem; animation-duration: 296ms; animation-delay: -357ms }
 .items-start {
 	align-items: flex-start;
 }
