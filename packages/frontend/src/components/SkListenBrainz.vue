@@ -18,6 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</a>
 		<div class="flex flex-col items-start titles">
+			<p class="listening-to">{{ i18n.ts._profile.listeningTo }}</p>
 			<p class="text-sm font-bold ellipsis">{{ data.title }}</p>
 			<p class="text-xs font-medium ellipsis">{{ data.artist }}</p>
 		</div>
@@ -33,6 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api';
+import { i18n } from '@/i18n';
 
 interface ListenBrainzData {
 	title: string,
@@ -132,6 +134,11 @@ onBeforeUnmount(() => window.clearInterval(intervalId));
 }
 .font-bold {
 	font-weight: 700;
+}
+.listening-to {
+	font-size: 0.625rem;
+	margin: 0 0 0.3rem;
+	color: var(--MI_THEME-accent);
 }
 .text-xs {
 	font-size: 0.75rem;

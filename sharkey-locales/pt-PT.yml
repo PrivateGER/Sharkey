@@ -13,3 +13,6 @@ writtenBy: "Escrito por {user}"
 _serverSettings:
   aboutInstance: "Sobre a instância"
   aboutInstanceDescription: "Uma descrição maior que irá aparecer na página 'Informações da Instância', substituindo a descrição da instância. Aceita HTML."
+_profile:
+  listenbrainz: "Nome de usuário ListenBrainz"
+  listeningTo: "Ouvindo..."

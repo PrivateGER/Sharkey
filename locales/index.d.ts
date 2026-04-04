@@ -9774,6 +9774,10 @@ export interface Locale extends ILocale {
          * ListenBrainz username
          */
         "listenbrainz": string;
+        /**
+         * Listening to...
+         */
+        "listeningTo": string;
     };
     "_exportOrImport": {
         /**
