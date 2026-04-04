@@ -85,7 +85,6 @@ onBeforeUnmount(() => window.clearInterval(intervalId));
 	margin-right: 0.7rem;
 }
 .image {
-	border-radius: 1em;
 	height: 100%;
 	width: 100%;
 }
