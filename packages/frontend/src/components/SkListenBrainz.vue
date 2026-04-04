@@ -87,7 +87,7 @@ const loading = ref(true);
  	bottom: 1px;
   width: calc(0.8rem - 2px);
   position: absolute;
-  animation: bars 0ms -800ms linear infinite alternate;
+  animation: bars 0ms linear infinite alternate;
 }
 @keyframes bars {
 	0% {
@@ -97,9 +97,9 @@ const loading = ref(true);
 		height: 1rem;
 	}
 }
-.bar:nth-child(1)  { left: 0.3rem; animation-duration: 300ms; }
-.bar:nth-child(2)  { left: 1.1rem; animation-duration: 303ms; }
-.bar:nth-child(3)  { left: 1.9rem; animation-duration: 310ms; }
+.bar:nth-child(1)  { left: 0.3rem; animation-duration: 300ms; animation-delay: -300ms }
+.bar:nth-child(2)  { left: 1.1rem; animation-duration: 303ms; animation-delay: -200ms }
+.bar:nth-child(3)  { left: 1.9rem; animation-duration: 310ms; animation-delay: -500ms }
 .items-start {
 	align-items: flex-start;
 }
