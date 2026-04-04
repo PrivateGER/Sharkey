@@ -135,7 +135,6 @@ async function fetchUser() {
 async function fetchListenBrainz() {
 	if (user.value?.listenbrainz) {
 		await misskeyApi('users/listenbrainz', { userId: user.value.id }).then(res => listenbrainzdata.value = res);
-		console.log(JSON.stringify(listenbrainzdata.value));
 	}
 }
 
