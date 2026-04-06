@@ -378,6 +378,7 @@ _moderationLogTypes:
   addRelay: "Added a relay"
   removeRelay: "Removed a relay"
   restartMigration: "Restarted migration for a user"
+  setRoot: "Set the root user"
 
 _mfm:
   uncommonFeature: "This is not a widespread feature, it may not display properly on most other fedi software, including other Misskey forks"
@@ -741,3 +742,5 @@ _header:
 listenbrainzIntegration: "ListenBrainz Integration"
 listenbrainzUserToken: "ListenBrainz User Token"
 listenbrainzUserTokenDescription: "Having an user token allows Sharkey to query track metadata directly, improving reliability of cover art and links."
+previousRootUser: "Previous root user"
+newRootUser: "New root user"
