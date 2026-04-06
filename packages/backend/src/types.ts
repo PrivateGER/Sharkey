@@ -162,6 +162,7 @@ export const moderationLogTypes = [
 	'addRelay',
 	'removeRelay',
 	'updateProxyAccountDescription',
+	'setRoot',
 ] as const;
 
 export type ModerationLogPayloads = {
@@ -542,6 +543,16 @@ export type ModerationLogPayloads = {
 	},
 	removeRelay: {
 		inbox: string;
+	},
+	setRoot: {
+		before: {
+			userId: string;
+			userUsername: string;
+		};
+		after: {
+			userId: string;
+			userUsername: string;
+		};
 	},
 };
 
