@@ -511,6 +511,7 @@ export class UserEntityService implements OnModuleInit {
 		const isMe = meId === user.id;
 		const iAmModerator = opts.iAmModerator ?? (me ? await this.roleService.isModerator(me) : false);
 		const iAmAdmin = opts.iAmAdmin ?? (me ? await this.roleService.isAdministrator(me) : false);
+		const iAmRoot = iAmAdmin && me && this.meta.rootUserId === me.id;
 
 		const profile = isDetailed
 			? (opts.userProfile ?? user.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }))
@@ -691,6 +692,10 @@ export class UserEntityService implements OnModuleInit {
 				securityKeys: profile!.twoFactorEnabled
 					? Promise.resolve(opts.securityKeyCounts?.get(user.id) ?? this.userSecurityKeysRepository.countBy({ userId: user.id })).then(result => result >= 1)
 					: false,
+			} : {}),
+
+			...(isDetailed && iAmRoot ? {
+				isRoot: true,
 			} : {}),
 
 			...(isDetailed && isMe ? {
