@@ -345,8 +345,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 		<template v-else-if="log.type === 'setRoot'">
 			<div>
-				<p>{{ i18n.ts.previousRootUser }}: <MkA :to="`/admin/user/${log.before.userId}`" class="_link">@{{ log.before.userUsername }}</MkA></p>
-				<p>{{ i18n.ts.newRootUser }}: <MkA :to="`/admin/user/${log.after.userId}`" class="_link">@{{ log.after.userUsername }}</MkA></p>
+				<p>{{ i18n.ts.previousRootUser }}: <MkA :to="`/admin/user/${log.info.before.userId}`" class="_link">@{{ log.info.before.userUsername }}</MkA></p>
+				<p>{{ i18n.ts.newRootUser }}: <MkA :to="`/admin/user/${log.info.after.userId}`" class="_link">@{{ log.info.after.userUsername }}</MkA></p>
 			</div>
 		</template>
 
