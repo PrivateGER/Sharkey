@@ -7,23 +7,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 <Transition>
 	<div v-if="data" style="padding: 4px">
 		<div class="flex">
-			<a :href="data.musicbrainzUrl">
+			<component
+				:is="data.musicbrainzUrl ? 'a' : 'div'"
+				:href="data.musicbrainzUrl" 
+				@click.prevent="data.musicbrainzUrl && warningExternalWebsite(data.musicbrainzUrl)"
+			>
 				<div class="imageContainer">
 					<div v-if="prefer.s.animation && shouldShowBars" class="musicBars">
 						<div class="bar" :style="{ bottom: barPosition }"/>
 						<div class="bar" :style="{ bottom: barPosition }"/>
 						<div class="bar" :style="{ bottom: barPosition }"/>
 					</div>
-					<img v-if="data.coverArt" v-show="!loading" :src="data.coverArt" :alt="data.title" class="image" @load="loading = false"/>
+					<img v-if="data.coverArt" v-show="!loading" :src="getProxiedImageUrl(data.coverArt)" :alt="data.title" class="image" @load="loading = false"/>
 					<MkLoading v-if="loading && data.coverArt" class="spinner"/>
 				</div>
-			</a>
+			</component>
 			<div class="flex flex-col items-start titles">
 				<p class="listening-to">{{ i18n.ts._profile.listeningTo }}</p>
 				<p class="text-sm font-bold ellipsis">{{ data.title }}</p>
 				<p class="text-xs font-medium ellipsis">{{ data.artist }}</p>
 			</div>
-			<a v-if="data.listenbrainzUrl" :href="data.listenbrainzUrl">
+			<a 
+				v-if="data.listenbrainzUrl" 
+				:href="data.listenbrainzUrl"
+				@click.prevent="warningExternalWebsite(data.listenbrainzUrl)"
+			>
 				<div class="playicon">
 					<i class="ph-play ph-bold ph-lg"></i>
 				</div>
@@ -38,6 +46,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n';
+import { getProxiedImageUrl } from '@/utility/media-proxy';
+import { warningExternalWebsite } from '@/utility/warning-external-website';
 
 interface ListenBrainzData {
 	title: string,
