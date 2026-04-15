@@ -25,7 +25,7 @@ type ListenBrainzResponse = {
 	musicbrainzUrl: string | undefined,
 };
 
-type ListenbrainzPlayingNowResponse = {
+type ListenBrainzPlayingNowResponse = {
 	payload?: {
 		listens?: Array<{
 			track_metadata?: {
@@ -41,7 +41,7 @@ type ListenbrainzPlayingNowResponse = {
 	}
 };
 
-type ListenbrainzMetadataResponse = {
+type ListenBrainzMetadataResponse = {
 	release_mbid?: string,
 	recording_mbid?: string,
 };
@@ -133,7 +133,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				headers['Authorization'] = `Token ${this.serverSettings.listenbrainzAuthKey}`;
 			}
 
-			const json = await this.httpRequestService.getJson<ListenbrainzPlayingNowResponse>(
+			const json = await this.httpRequestService.getJson<ListenBrainzPlayingNowResponse>(
 				`https://api.listenbrainz.org/1/user/${encodeURIComponent(listenbrainzUsername)}/playing-now`,
 				undefined,
 				headers,
@@ -188,7 +188,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					undefined,
 					10000,
 				).catch((err) => {
-					this.loggerService.logger.error(`listenbrainz /metadata/lookup error: ${renderInlineError(err)}`);
+					this.loggerService.logger.error(`ListenBrainz /metadata/lookup error: ${renderInlineError(err)}`);
 					throw new ApiError(meta.errors.listenbrainzError);
 				});
 
