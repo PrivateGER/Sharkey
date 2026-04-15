@@ -140,7 +140,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				undefined,
 				10000,
 			).catch((err) => {
-				this.loggerService.logger.error(`/playing-now error: ${renderInlineError(err)}`);
+				this.loggerService.logger.error(`ListenBrainz /playing-now error: ${renderInlineError(err)}`);
 				throw new ApiError(meta.errors.listenbrainzError);
 			});
 
