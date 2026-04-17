@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n';
@@ -70,6 +70,13 @@ const shouldShowBars = computed(() => !data.value?.coverArt || !loading.value);
 const barPosition = computed(() => data.value?.coverArt ? '1px' : '1rem');
 
 let intervalId: number;
+
+watch(data, (newData, oldData) => {
+	if (!loading.value && newData?.coverArt !== oldData?.coverArt) {
+		loading.value = true;
+	}
+});
+
 onMounted(() => {
 	const fetchLB = async () => misskeyApi('users/listenbrainz', { userId: props.userId })
 		.then((res: ListenBrainzData) => data.value = res);
