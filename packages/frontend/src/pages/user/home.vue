@@ -31,18 +31,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</button>
 							</div>
 						</div>
-						<ul v-if="$i" :class="$style.infoBadges">
-							<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
-							<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
-							<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
-							<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
-							<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
-							<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
-							<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
-							<li v-if="user.listenbrainz" :class="$style.listenbrainz">
-								<XListenBrainz :key="user.id" :userId="user.id"/>
-							</li>
-						</ul>
+						<div :class="$style.infoDiv">
+							<ul v-if="$i" :class="$style.infoBadges">
+								<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
+								<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
+								<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
+								<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
+								<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
+								<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
+								<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
+							</ul>
+							<ul v-if="$i" :class="$style.infoBadges">
+								<li v-if="user.listenbrainz" :class="$style.listenbrainz">
+									<XListenBrainz :key="user.id" :userId="user.id"/>
+								</li>
+							</ul>
+						</div>
 						<div :class="$style.actions" class="actions">
 							<button :class="$style.actionsMenu" class="menu _button" @click="menu"><i class="ti ti-dots"></i></button>
 							<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" :class="$style.actionsFollow" :disabled="disableFollowControls" :inline="true" :transparent="false" :full="true" class="koudoku" @update:wait="onFollowButtonDisabledChanged"/>
@@ -876,21 +880,25 @@ onUnmounted(() => {
 	margin-left: 4px;
 	color: var(--MI_THEME-success);
 }
-
-.infoBadges {
+.infoDiv {
 	position: absolute;
 	max-width: calc(100% - 6rem);
-	top: 12px;
-	left: 12px;
-
+	top: 1.5rem;
+	left: 1.5rem;
+	
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+.infoBadges {
 	display: flex;
 	flex-direction: row;
+	gap: 0.25rem;
 
 	padding: 0;
 	margin: 0;
 
 	> * {
-		width: 100%;
 		box-sizing: border-box;
 		padding: 4px 8px;
 		color: #fff;
@@ -899,10 +907,6 @@ onUnmounted(() => {
 		border-radius: var(--MI-radius-sm);
 		list-style-type: none;
 		margin-left: 0;
-	}
-
-	> :not(:first-child) {
-		margin-left: 8px;
 	}
 }
 
