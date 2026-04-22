@@ -883,8 +883,8 @@ onUnmounted(() => {
 .infoDiv {
 	position: absolute;
 	max-width: calc(100% - 6rem);
-	top: 1.5rem;
-	left: 1.5rem;
+	top: .75rem;
+	left: .75rem;
 	
 	display: flex;
 	flex-direction: column;
