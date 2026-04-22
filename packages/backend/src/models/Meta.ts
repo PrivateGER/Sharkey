@@ -431,13 +431,12 @@ export class MiMeta {
 		length: 1024,
 		nullable: true,
 	})
+	public listenbrainzAuthKey: string | null;
 
 	@Column('varchar', {
 		length: 1024,
 		nullable: true,
 	})
-	public listenbrainzAuthKey: string | null;
-
 	public termsOfServiceUrl: string | null;
 
 	@Column('varchar', {
