@@ -12,6 +12,8 @@ import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -30,6 +32,15 @@ export const meta = {
 				minLength: 8,
 				maxLength: 8,
 			},
+		},
+	},
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: 'fe0f9e93-6dc5-4d23-a884-b4fb330df485',
+			kind: 'permission',
 		},
 	},
 } as const;
@@ -55,6 +66,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private userProfilesRepository: UserProfilesRepository,
 
 		private moderationLogService: ModerationLogService,
+		private roleService: RoleService,
 		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -70,6 +82,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (isSystemAccount(user)) {
 				throw new Error('cannot reset password of system account');
+			}
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
 			}
 
 			const passwd = secureRndstr(8);
