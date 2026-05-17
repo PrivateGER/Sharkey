@@ -76,6 +76,12 @@ export class ApiAccountMastodon {
 			// Check if there is a Header or Avatar being uploaded, if there is proceed to upload it to the drive of the user and then set it.
 			if (_request.savedRequestFiles?.length && accessTokens) {
 				const tokeninfo = await this.accessTokensRepository.findOneBy({ token: accessTokens.replace('Bearer ', '') });
+				if (tokeninfo && !tokeninfo.permission.includes('write:account')) {
+					return reply.code(403).send({
+						error: 'PERMISSION_DENIED',
+						error_description: 'Your app does not have the necessary permissions to use this endpoint.',
+					});
+				}
 				const avatar = _request.savedRequestFiles.find(obj => {
 					return obj.fieldname === 'avatar';
 				});

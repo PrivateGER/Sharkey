@@ -157,7 +157,8 @@ export class ApiStatusMastodon {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 			if (!_request.body.choices) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "choices"' });
 
-			const client = this.clientService.getClient(_request);
+			const { client, me } = await this.clientService.getAuthClient(_request);
+			await this.mastodonDataService.requireNote(_request.params.id, me);
 			const data = await client.votePoll(_request.params.id, _request.body.choices);
 			const response = convertPoll(data.data);
 
