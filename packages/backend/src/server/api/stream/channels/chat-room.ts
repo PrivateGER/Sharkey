@@ -19,7 +19,7 @@ class ChatRoomChannel extends Channel {
 	public static shouldShare = false;
 	public static requireCredential = true as const;
 	public static kind = 'read:chat';
-	private roomId: string;
+	private roomId: string | null = null;
 
 	constructor(
 		id: string,
@@ -35,16 +35,26 @@ class ChatRoomChannel extends Channel {
 	public async init(params: JsonObject): Promise<boolean> {
 		if (!this.subscriber) throw new IdentifiableError(errorCodes.websocketError, `Cannot init ${this.chName} channel: socket is not connected`);
 		if (typeof params.roomId !== 'string') return false;
+		if (this.user == null) return false;
+
+		const room = await this.chatRoomsRepository.findOne({
+			select: { id: true, ownerId: true },
+			where: { id: params.roomId },
+		});
+
+		if (room == null) return true;
+
+		try {
+			await this.chatService.checkChatAvailability(this.user.id, 'read');
+		} catch {
+			return true;
+		}
+
+		if (!await this.chatService.hasPermissionToViewRoomTimeline(this.user, room)) {
+			return true;
+		}
 
 		this.roomId = params.roomId;
-
-		const exists = await this.chatRoomsRepository.findOne({
-			select: { id: true },
-			where: { id: this.roomId },
-		}) != null;
-
-		if (!exists) return true;
-
 		this.subscriber.on(`chatRoomStream:${this.roomId}`, this.onEvent);
 
 		return true;
@@ -68,7 +78,9 @@ class ChatRoomChannel extends Channel {
 
 	@bindThis
 	public dispose() {
-		this.subscriber?.off(`chatRoomStream:${this.roomId}`, this.onEvent);
+		if (this.roomId != null) {
+			this.subscriber?.off(`chatRoomStream:${this.roomId}`, this.onEvent);
+		}
 	}
 }
 
