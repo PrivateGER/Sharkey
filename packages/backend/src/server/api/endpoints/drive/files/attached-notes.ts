@@ -70,13 +70,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 		private roleService: RoleService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
-			const isModerator = await this.roleService.isModerator(me);
+		super(meta, paramDef, async (ps, me, token) => {
+			const canModerateDrive = await this.roleService.isModerator(me) && (token == null || token.permission.includes('read:admin:drive'));
 
 			// Fetch file
 			const file = await this.driveFilesRepository.findOneBy({
 				id: ps.fileId,
-				userId: isModerator ? undefined : me.id,
+				...(canModerateDrive ? {} : { userId: me.id }),
 			});
 
 			if (file == null) {
@@ -92,7 +92,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.leftJoinAndSelect('renote.user', 'renoteUser')
 				.limit(ps.limit);
 
-			if (!isModerator) {
+			if (!canModerateDrive) {
 				this.queryService.generateVisibilityQuery(query, me);
 				this.queryService.generateBlockedHostQueryForNote(query);
 				this.queryService.generateSilencedUserQueryForNotes(query, me);
@@ -105,7 +105,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			return await this.noteEntityService.packMany(notes, me, {
 				detail: true,
-				skipHide: isModerator,
+				skipHide: canModerateDrive,
 			});
 		});
 	}

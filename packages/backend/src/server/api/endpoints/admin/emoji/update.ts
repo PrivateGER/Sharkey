@@ -9,6 +9,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import type { DriveFilesRepository, MiEmoji } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
+import { RoleService } from '@/core/RoleService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -70,13 +71,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 
 		private customEmojiService: CustomEmojiService,
+		private roleService: RoleService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
 			const nameNfc = ps.name?.normalize('NFC');
 			let driveFile;
 			if (ps.fileId) {
 				driveFile = await this.driveFilesRepository.findOneBy({ id: ps.fileId });
 				if (driveFile == null) throw new ApiError(meta.errors.noSuchFile);
+				const canUseCrossUserDriveFile = await this.roleService.isModerator(me) && (token == null || token.permission.includes('read:admin:drive'));
+				if (driveFile.userId != null && driveFile.userId !== me.id && !canUseCrossUserDriveFile) throw new ApiError(meta.errors.noSuchFile);
 			}
 
 			// JSON schemeのanyOfの型変換がうまくいっていないらしい

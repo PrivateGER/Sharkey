@@ -11,6 +11,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { EmojiEntityService } from '@/core/entities/EmojiEntityService.js';
 import { FILE_TYPE_IMAGE } from '@/const.js';
 import { ApiError } from '../../../error.js';
+import { RoleService } from '@/core/RoleService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -81,16 +82,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 		private customEmojiService: CustomEmojiService,
 		private emojiEntityService: EmojiEntityService,
+		private roleService: RoleService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
 			const nameNfc = ps.name.normalize('NFC');
 			const driveFile = await this.driveFilesRepository.findOneBy({ id: ps.fileId });
 			if (driveFile == null) throw new ApiError(meta.errors.noSuchFile);
 			const isDuplicate = await this.customEmojiService.checkDuplicate(nameNfc);
 			if (isDuplicate) throw new ApiError(meta.errors.duplicateName);
 			if (!FILE_TYPE_IMAGE.includes(driveFile.type)) throw new ApiError(meta.errors.unsupportedFileType);
+			const canUseCrossUserDriveFile = await this.roleService.isModerator(me) && (token == null || token.permission.includes('read:admin:drive'));
+			if (driveFile.userId != null && driveFile.userId !== me.id && !canUseCrossUserDriveFile) throw new ApiError(meta.errors.noSuchFile);
 
-			if (driveFile.user !== null) await this.driveFilesRepository.update(driveFile.id, { user: null });
+			if (driveFile.userId !== null) await this.driveFilesRepository.update(driveFile.id, { user: null });
 
 			const emoji = await this.customEmojiService.add({
 				originalUrl: driveFile.url,
