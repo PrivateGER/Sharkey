@@ -11,6 +11,7 @@ export const meta = {
 	tags: ['users'],
 
 	requireCredential: false,
+	kind: 'read:account',
 
 	description: 'Search for a user by username and/or host.',
 

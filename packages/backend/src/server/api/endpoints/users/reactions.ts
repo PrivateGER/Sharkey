@@ -19,6 +19,7 @@ export const meta = {
 	tags: ['users', 'reactions'],
 
 	requireCredential: false,
+	kind: 'read:account',
 
 	description: 'Show all reactions this user made.',
 
@@ -80,10 +81,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 		private roleService: RoleService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
 			const userIdsWhoBlockingMe = me ? await this.cacheService.userBlockedCache.fetch(me.id) : new Set<string>();
-			const iAmModerator = me ? await this.roleService.isModerator(me) : false; // Moderators can see reactions of all users
-			if (!iAmModerator) {
+			const hasModeratorRole = me ? await this.roleService.isModerator(me) : false;
+			// Moderators can see reactions of all users, but delegated app tokens need an admin read scope.
+			const canUseModeratorBypass = hasModeratorRole && (token == null || token.permission.includes('read:admin:show-user'));
+			if (!canUseModeratorBypass) {
 				const user = await this.cacheService.findUserById(ps.userId);
 				if (this.userEntityService.isRemoteUser(user)) {
 					throw new ApiError(meta.errors.isRemoteUser);

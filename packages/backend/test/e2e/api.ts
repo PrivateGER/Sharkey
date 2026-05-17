@@ -174,6 +174,75 @@ describe('API', () => {
 		});
 	});
 
+	test('public user endpoints require read:account before using app token viewer context', async () => {
+		const application = await createAppToken(alice, []);
+		const user = { token: application };
+
+		await successfulApiCall({
+			endpoint: 'users/show',
+			parameters: { userId: bob.id },
+			user: undefined,
+		});
+
+		await failedApiCall({
+			endpoint: 'users/show',
+			parameters: { userId: bob.id },
+			user,
+		}, {
+			status: 403,
+			code: 'PERMISSION_DENIED',
+			id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+		});
+
+		await failedApiCall({
+			endpoint: 'users/search',
+			parameters: { query: bob.username },
+			user,
+		}, {
+			status: 403,
+			code: 'PERMISSION_DENIED',
+			id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+		});
+
+		await failedApiCall({
+			endpoint: 'users/search-by-username-and-host',
+			parameters: { username: bob.username, host: null },
+			user,
+		}, {
+			status: 403,
+			code: 'PERMISSION_DENIED',
+			id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+		});
+	});
+
+	test('delegated read account tokens do not inherit moderator-only reaction visibility', async () => {
+		await successfulApiCall({
+			endpoint: 'i/update',
+			parameters: { publicReactions: false },
+			user: bob,
+		});
+
+		const application = await createAppToken(alice, ['read:account']);
+
+		await failedApiCall({
+			endpoint: 'users/reactions',
+			parameters: { userId: bob.id },
+			user: { token: application },
+		}, {
+			status: 400,
+			code: 'REACTIONS_NOT_PUBLIC',
+			id: '673a7dd2-6924-1093-e0c0-e68456ceae5c',
+		});
+
+		const adminApplication = await createAppToken(alice, ['read:account', 'read:admin:show-user']);
+
+		await successfulApiCall({
+			endpoint: 'users/reactions',
+			parameters: { userId: bob.id },
+			user: { token: adminApplication },
+		});
+	});
+
 	describe('Authentication header', () => {
 		test('一般リクエスト', async () => {
 			await successfulApiCall({

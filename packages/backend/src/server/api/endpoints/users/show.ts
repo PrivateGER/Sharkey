@@ -22,6 +22,7 @@ export const meta = {
 	tags: ['users'],
 
 	requireCredential: false,
+	kind: 'read:account',
 
 	description: 'Show the properties of a user.',
 
