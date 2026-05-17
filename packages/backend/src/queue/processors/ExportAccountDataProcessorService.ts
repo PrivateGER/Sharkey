@@ -22,6 +22,7 @@ import { Packed } from '@/misc/json-schema.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { DownloadService } from '@/core/DownloadService.js';
 import { EmailService } from '@/core/EmailService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
@@ -80,6 +81,7 @@ export class ExportAccountDataProcessorService {
 		private driveFileEntityService: DriveFileEntityService,
 		private downloadService: DownloadService,
 		private emailService: EmailService,
+		private noteVisibilityService: NoteVisibilityService,
 		private queueLoggerService: QueueLoggerService,
 		private readonly timeService: TimeService,
 	) {
@@ -628,6 +630,10 @@ export class ExportAccountDataProcessorService {
 			favoriteCursor = favorites.at(-1)?.id ?? null;
 
 			for (const favorite of favorites) {
+				if (!await this.canExportNote(favorite.note, user)) {
+					continue;
+				}
+
 				let poll: MiPoll | undefined;
 				if (favorite.note.hasPoll) {
 					poll = await this.pollsRepository.findOneByOrFail({ noteId: favorite.note.id });
@@ -770,6 +776,11 @@ export class ExportAccountDataProcessorService {
 			archive.directory(path, false);
 			await archive.finalize();
 		});
+	}
+
+	private async canExportNote(note: MiNote, user: MiUser): Promise<boolean> {
+		const result = await this.noteVisibilityService.checkNoteVisibilityAsync(note, user);
+		return result.accessible && !result.redact;
 	}
 
 	private noteSerialize(note: MiNote, poll: MiPoll | null = null, files: Packed<'DriveFile'>[]): Record<string, unknown> {

@@ -20,6 +20,7 @@ import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.j
 import { Packed } from '@/misc/json-schema.js';
 import { IdService } from '@/core/IdService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
@@ -46,6 +47,7 @@ export class ExportClipsProcessorService {
 		private queueLoggerService: QueueLoggerService,
 		private idService: IdService,
 		private notificationService: NotificationService,
+		private noteVisibilityService: NoteVisibilityService,
 		private readonly timeService: TimeService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('export-clips');
@@ -123,7 +125,7 @@ export class ExportClipsProcessorService {
 				const isFirst = exportedClipsCount === 0;
 				await writer.write(isFirst ? content : ',\n' + content);
 
-				await this.processClipNotes(writer, clip.id);
+				await this.processClipNotes(writer, clip.id, user);
 
 				await writer.write(']}');
 				exportedClipsCount++;
@@ -137,7 +139,7 @@ export class ExportClipsProcessorService {
 		}
 	}
 
-	async processClipNotes(writer: WritableStreamDefaultWriter, clipId: string): Promise<void> {
+	async processClipNotes(writer: WritableStreamDefaultWriter, clipId: string, user: MiUser): Promise<void> {
 		let exportedClipNotesCount = 0;
 		let cursor: MiClipNote['id'] | null = null;
 
@@ -161,6 +163,10 @@ export class ExportClipsProcessorService {
 			cursor = clipNotes.at(-1)?.id ?? null;
 
 			for (const clipNote of clipNotes) {
+				if (!await this.canExportNote(clipNote.note, user)) {
+					continue;
+				}
+
 				let poll: MiPoll | undefined;
 				if (clipNote.note.hasPoll) {
 					poll = await this.pollsRepository.findOneByOrFail({ noteId: clipNote.note.id });
@@ -172,6 +178,11 @@ export class ExportClipsProcessorService {
 				exportedClipNotesCount++;
 			}
 		}
+	}
+
+	private async canExportNote(note: MiNote, user: MiUser): Promise<boolean> {
+		const result = await this.noteVisibilityService.checkNoteVisibilityAsync(note, user);
+		return result.accessible && !result.redact;
 	}
 
 	private serializeClip(clip: MiClip): Record<string, unknown> {

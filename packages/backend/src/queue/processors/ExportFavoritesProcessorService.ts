@@ -17,6 +17,7 @@ import type { MiNote } from '@/models/Note.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
@@ -40,6 +41,7 @@ export class ExportFavoritesProcessorService {
 		private queueLoggerService: QueueLoggerService,
 		private idService: IdService,
 		private notificationService: NotificationService,
+		private noteVisibilityService: NoteVisibilityService,
 		private readonly timeService: TimeService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('export-favorites');
@@ -102,6 +104,10 @@ export class ExportFavoritesProcessorService {
 				cursor = favorites.at(-1)?.id ?? null;
 
 				for (const favorite of favorites) {
+					if (!await this.canExportNote(favorite.note, user)) {
+						continue;
+					}
+
 					let poll: MiPoll | undefined;
 					if (favorite.note.hasPoll) {
 						poll = await this.pollsRepository.findOneByOrFail({ noteId: favorite.note.id });
@@ -136,6 +142,11 @@ export class ExportFavoritesProcessorService {
 		} finally {
 			cleanup();
 		}
+	}
+
+	private async canExportNote(note: MiNote, user: MiUser): Promise<boolean> {
+		const result = await this.noteVisibilityService.checkNoteVisibilityAsync(note, user);
+		return result.accessible && !result.redact;
 	}
 
 	private serialize(favorite: MiNoteFavorite & { note: MiNote & { user: MiUser } }, poll: MiPoll | null = null): Record<string, unknown> {
