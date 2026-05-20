@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import type { Packed } from '@/misc/json-schema.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
+import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import { isPackedPureRenote } from '@/misc/is-renote.js';
 import { type Channel, type MiChannelService, NoteChannel } from '../channel.js';

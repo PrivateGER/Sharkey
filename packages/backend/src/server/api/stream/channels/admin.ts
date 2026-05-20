@@ -5,7 +5,6 @@
 
 import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
-import type { JsonObject } from '@/misc/json-value.js';
 import type { AdminEventPayload } from '@/core/GlobalEventService.js';
 import { Channel, type MiChannelService } from '../channel.js';
 

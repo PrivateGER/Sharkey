@@ -12,6 +12,7 @@ import { jest } from '@jest/globals';
 import { MockApResolverService } from '../misc/MockApResolverService.js';
 import { MockConsole } from '../misc/MockConsole.js';
 import { FakeQueueService } from '../misc/FakeQueueService.js';
+import { MockResolver } from '../misc/mock-resolver.js';
 import type { Config } from '@/config.js';
 import type {
 	MiMeta,
@@ -23,6 +24,7 @@ import type {
 	UserNotePiningsRepository,
 	MetasRepository,
 } from '@/models/_.js';
+import type { IActor, IApDocument, ICollection, IObject, IPost } from '@/core/activitypub/type.js';
 import { MiUser, type MiLocalUser, type MiRemoteUser } from '@/models/User.js';
 import { MiUserKeypair } from '@/models/UserKeypair.js';
 import { MiNote } from '@/models/Note.js';
@@ -35,17 +37,13 @@ import { JsonLdService } from '@/core/activitypub/JsonLdService.js';
 import { CONTEXT } from '@/core/activitypub/misc/contexts.js';
 import { GlobalModule } from '@/GlobalModule.js';
 import { CoreModule } from '@/core/CoreModule.js';
-import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
-import { LoggerService } from '@/core/LoggerService.js';
 import { CacheManagementService } from '@/global/CacheManagementService.js';
 import { ApResolverService } from '@/core/activitypub/ApResolverService.js';
-import type { IActor, IApDocument, ICollection, IObject, IPost } from '@/core/activitypub/type.js';
 import { DI } from '@/di-symbols.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { DownloadService } from '@/core/DownloadService.js';
 import { genAidx } from '@/misc/id/aidx.js';
 import { IdService } from '@/core/IdService.js';
-import { MockResolver } from '../misc/mock-resolver.js';
 
 const host = 'https://host1.test';
 
@@ -565,7 +563,7 @@ describe('ActivityPub', () => {
 				unknown: 'test test bar',
 				undefined: 'test test baz',
 			};
-			const compacted = await jsonLdService.compact(object);
+			const compacted = await jsonLdService.use().compact(object);
 
 			assert.deepStrictEqual(compacted, {
 				'@context': CONTEXT,

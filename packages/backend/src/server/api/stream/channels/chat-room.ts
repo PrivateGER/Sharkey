@@ -32,7 +32,6 @@ class ChatRoomChannel extends Channel {
 	@bindThis
 	public async init(params: JsonObject): Promise<boolean> {
 		if (typeof params.roomId !== 'string') return false;
-
 		this.roomId = params.roomId;
 
 		const exists = await this.chatRoomsRepository.findOne({

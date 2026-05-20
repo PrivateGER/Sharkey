@@ -8,7 +8,6 @@ import { isUserFromMutedInstance } from '@/misc/is-instance-muted.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { bindThis } from '@/decorators.js';
-import type { JsonObject } from '@/misc/json-value.js';
 import type { MainEventPayload } from '@/core/GlobalEventService.js';
 import { type Channel, NoteChannel, type MiChannelService } from '../channel.js';
 
