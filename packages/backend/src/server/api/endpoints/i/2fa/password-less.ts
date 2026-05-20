@@ -72,7 +72,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					await this.userProfilesRepository.update(me.id, {
 						usePasswordLessLogin: false,
 					});
-					await this.internalEventService.emit('updateUserProfile', { userId: me.id });
+					await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['usePasswordLessLogin'] });
 
 					throw new ApiError(meta.errors.noKey);
 				}
@@ -81,7 +81,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.userProfilesRepository.update(me.id, {
 				usePasswordLessLogin: ps.value,
 			});
-			await this.internalEventService.emit('updateUserProfile', { userId: me.id });
+			await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['usePasswordLessLogin'] });
 
 			// Publish meUpdated event
 			await this.globalEventService.publishMainStream(me.id, 'meUpdated', await this.userEntityService.pack(me.id, me, {

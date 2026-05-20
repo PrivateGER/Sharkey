@@ -9,14 +9,15 @@ import { MockConsole } from '../../misc/MockConsole.js';
 import { GodOfTimeService } from '../../misc/GodOfTimeService.js';
 import { MockInternalEventService } from '../../misc/MockInternalEventService.js';
 import { MockEnvService } from '../../misc/MockEnvService.js';
+import type { Logger } from '@/logger.js';
 import {
 	CacheManagementService,
 	GC_INTERVAL,
 	type CacheManager,
 	type QueueManager,
 } from '@/global/CacheManagementService.js';
-import { LoggerService } from '@/core/LoggerService.js';
 import { MemoryKVCache } from '@/misc/cache.js';
+import { LoggerService } from '@/core/LoggerService.js';
 
 describe(CacheManagementService, () => {
 	let mockTimeService: GodOfTimeService;
@@ -24,7 +25,7 @@ describe(CacheManagementService, () => {
 	let mockInternalEventService: MockInternalEventService;
 	let mockConsole: MockConsole;
 	let mockEnvService: MockEnvService;
-	let fakeLoggerService: LoggerService;
+	let fakeGlobalLogger: Logger;
 
 	let serviceUnderTest: CacheManagementService;
 	let internalsUnderTest: { managedCaches: Map<string, CacheManager>, managedQueues: Map<string, QueueManager> };
@@ -32,10 +33,16 @@ describe(CacheManagementService, () => {
 	beforeAll(() => {
 		mockTimeService = new GodOfTimeService();
 		mockRedisClient = new MockRedis(mockTimeService);
-		mockInternalEventService = MockInternalEventService.create();
 		mockConsole = new MockConsole();
 		mockEnvService = new MockEnvService();
-		fakeLoggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
+		mockInternalEventService = MockInternalEventService.create({
+			timeService: mockTimeService,
+			redisForPub: mockRedisClient,
+			redisForSub: mockRedisClient,
+		});
+
+		const loggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
+		fakeGlobalLogger = loggerService.getLogger('global');
 	});
 
 	afterAll(() => {
@@ -50,7 +57,7 @@ describe(CacheManagementService, () => {
 		mockEnvService.mockReset();
 		mockConsole.mockReset();
 
-		serviceUnderTest = new CacheManagementService(mockRedisClient, mockTimeService, mockInternalEventService, fakeLoggerService);
+		serviceUnderTest = new CacheManagementService(mockRedisClient, mockTimeService, mockInternalEventService, fakeGlobalLogger);
 		internalsUnderTest = {
 			get managedCaches() { return Reflect.get(serviceUnderTest, 'managedCaches'); },
 			get managedQueues() { return Reflect.get(serviceUnderTest, 'managedQueues'); },
@@ -104,13 +111,13 @@ describe(CacheManagementService, () => {
 			expect(allTracked).toContain(cache);
 		});
 
-		it('should start GC timer', () => {
+		it('should start GC timer', async () => {
 			const cache = act();
 
 			// Queues don't have a GC method, so there's nothing to test
 			if (!Reflect.has(cache, 'gc')) return;
 
-			const gc = jest.spyOn(cache as unknown as { gc(): void }, 'gc');
+			const gc = jest.spyOn(cache as unknown as { gc(): Promise<void> }, 'gc');
 
 			mockTimeService.tick({ milliseconds: GC_INTERVAL * 3 });
 
@@ -212,9 +219,9 @@ describe(CacheManagementService, () => {
 		].join(', ') + ' GC';
 
 		const arrange = () => jest.spyOn(createCache(), 'gc');
-		const act = () => {
+		const act = async () => {
 			mockTimeService.tick({ milliseconds: GC_INTERVAL - 1 });
-			serviceUnderTest[func]();
+			await serviceUnderTest[func]();
 			mockTimeService.tick({ milliseconds: 1 });
 			mockTimeService.tick({ milliseconds: GC_INTERVAL });
 		};
@@ -222,9 +229,9 @@ describe(CacheManagementService, () => {
 			expect(spy).toHaveBeenCalledTimes(expectedCalls);
 		};
 
-		it(testName, () => {
+		it(testName, async () => {
 			const spy = arrange();
-			act();
+			await act();
 			assert(spy);
 		});
 	}

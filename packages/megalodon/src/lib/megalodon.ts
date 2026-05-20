@@ -693,9 +693,9 @@ export interface MegalodonInterface {
    * Delete one of your own statuses.
    *
    * @param id The target status id.
-   * @return Status
+   * @return Status with source `text`.
    */
-  deleteStatus(id: string): Promise<Response<{}>>
+  deleteStatus(id: string): Promise<Response<Entity.StatusWithText>>
   /**
    * Get parent and child statuses in context.
    * View statuses above and below this status in the thread.
@@ -807,7 +807,7 @@ export interface MegalodonInterface {
    * @param options.focus Two floating points (x,y), comma-delimited, ranging from -1.0 to 1.0.
    * @return Attachment
    */
-  uploadMedia(file: any, options?: { description?: string; focus?: string }): Promise<Response<Entity.Attachment | Entity.AsyncAttachment>>
+  uploadMedia(file: File, options?: { description?: string; focus?: string }): Promise<Response<Entity.Attachment | Entity.AsyncAttachment>>
   /**
    * Get media attachment.
    *

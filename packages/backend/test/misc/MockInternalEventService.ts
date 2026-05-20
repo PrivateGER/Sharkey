@@ -4,16 +4,17 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { MockRedis } from './MockRedis.js';
+import { GodOfTimeService } from './GodOfTimeService.js';
 import type { Redis } from 'ioredis';
 import type { Config } from '@/config.js';
 import type { InternalEventContext, InternalEventProps, InternalEventTypes } from '@/global/InternalEventService.js';
-import type { AnyListener, EventListener } from '@/misc/SkEventEmitter.js';
+import type { EventListener } from '@/misc/SkEventEmitter.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { bindThis } from '@/decorators.js';
 import { DI } from '@/di-symbols.js';
-import { MockRedis } from './MockRedis.js';
 import { TimeService } from '@/global/TimeService.js';
-import { GodOfTimeService } from './GodOfTimeService.js';
+import { IdService } from '@/core/IdService.js';
 
 type FakeCall<K extends keyof InternalEventService> = [K, Parameters<InternalEventService[K]>];
 
@@ -54,18 +55,21 @@ export class MockInternalEventService extends InternalEventService {
 
 		@Inject(DI.redisForSub)
 		redisForSub: Redis,
+
+		@Inject(DI.nodeId)
+		nodeId: string,
 	) {
-		super(redisForPub, redisForSub, config);
+		super(redisForPub, redisForSub, config, nodeId);
 	}
 
 	@bindThis
-	public override on<K extends keyof InternalEventTypes>(type: K, listener: EventListener<InternalEventTypes, K>, props?: Partial<InternalEventProps>): void {
-		this._calls.push(['on', [type, listener as AnyListener, props]]);
+	public override on<K extends keyof InternalEventTypes>(type: K, listener: EventListener<InternalEventTypes, K, InternalEventContext>, props?: Partial<InternalEventProps>): void {
+		this._calls.push(['on', [type, listener, props]]);
 		super.on(type, listener, props);
 	}
 
 	@bindThis
-	public override off<K extends keyof InternalEventTypes>(type: K, listener: EventListener<InternalEventTypes, K>): void {
+	public override off<K extends keyof InternalEventTypes>(type: K, listener: EventListener<InternalEventTypes, K, InternalEventContext>): void {
 		this._calls.push(['off', [type, listener]]);
 		super.off(type, listener);
 	}
@@ -110,13 +114,21 @@ export class MockInternalEventService extends InternalEventService {
 		redisForPub?: Redis,
 		redisForSub?: Redis,
 		config?: Config,
+		idService?: IdService,
+		nodeId?: string,
 	}): MockInternalEventService {
 		const timeService = opts?.timeService ?? new GodOfTimeService();
 		const redisForPub = opts?.redisForPub ?? opts?.redisForSub ?? new MockRedis(timeService);
 		const redisForSub = opts?.redisForSub ?? redisForPub;
-		const config = opts?.config ?? { host: 'example.com' } as Config;
+		const config = opts?.config ?? {
+			url: 'https://example.com',
+			host: 'example.com',
+			id: 'aidx',
+		} as Config;
+		const idService = opts?.idService ?? new IdService(timeService, config);
+		const nodeId = opts?.nodeId ?? idService.genSimple();
 
-		return new MockInternalEventService(config, redisForPub, redisForSub);
+		return new MockInternalEventService(config, redisForPub, redisForSub, nodeId);
 	}
 }
 

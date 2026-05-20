@@ -11,15 +11,16 @@ import { MockRedis } from '../../../misc/MockRedis.js';
 import type { MiUser } from '@/models/User.js';
 import type { RolePolicies, RoleService } from '@/core/RoleService.js';
 import type { Config } from '@/config.js';
-import { LoggerService } from '@/core/LoggerService.js';
+import type { Logger } from '@/logger.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { BucketRateLimit, Keyed, LegacyRateLimit } from '@/misc/rate-limit-utils.js';
 import { CacheManagementService } from '@/global/CacheManagementService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 
 describe(SkRateLimiterService, () => {
 	// Real service instances
 	let cacheManagementService: CacheManagementService;
-	let loggerService: LoggerService;
+	let globalLogger: Logger;
 
 	// Mock service instances
 	let mockInternalEventService: MockInternalEventService;
@@ -39,13 +40,24 @@ describe(SkRateLimiterService, () => {
 		mockEnvService = new MockEnvService();
 
 		mockRedis = new MockRedis(mockTimeService);
-		const fakeConfig = { host: 'example.com' } as unknown as Config;
-		mockInternalEventService = MockInternalEventService.create({ config: fakeConfig });
+		const fakeConfig = {
+			url: 'https://example.com',
+			host: 'example.com',
+			id: 'aidx',
+		} as unknown as Config;
+		mockInternalEventService = MockInternalEventService.create({
+			config: fakeConfig,
+			timeService: mockTimeService,
+			redisForSub: mockRedis,
+			redisForPub: mockRedis,
+		});
 
 		mockConsole = new MockConsole();
-		loggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
 
-		cacheManagementService = new CacheManagementService(mockRedis, mockTimeService, mockInternalEventService, loggerService);
+		const loggerService = new LoggerService(mockConsole, mockTimeService, mockEnvService);
+		globalLogger = loggerService.getLogger('global');
+
+		cacheManagementService = new CacheManagementService(mockRedis, mockTimeService, mockInternalEventService, globalLogger);
 	});
 
 	afterAll(() => {

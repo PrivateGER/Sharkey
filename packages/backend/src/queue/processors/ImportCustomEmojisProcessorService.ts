@@ -13,14 +13,15 @@ import type Logger from '@/logger.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { createTempDir } from '@/misc/create-temp.js';
 import { DriveService } from '@/core/DriveService.js';
+import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { DownloadService } from '@/core/DownloadService.js';
 import { bindThis } from '@/decorators.js';
 import type { Config } from '@/config.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
-import { QueueLoggerService } from '../QueueLoggerService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
-import type { DbUserImportJobData } from '../types.js';
+import type { DbImportCustomEmojisJobData } from '../types.js';
 
 // TODO: 名前衝突時の動作を選べるようにする
 @Injectable()
@@ -39,6 +40,7 @@ export class ImportCustomEmojisProcessorService {
 
 		private customEmojiService: CustomEmojiService,
 		private driveService: DriveService,
+		private driveFileEntityService: DriveFileEntityService,
 		private downloadService: DownloadService,
 		private queueLoggerService: QueueLoggerService,
 		private notificationService: NotificationService,
@@ -47,7 +49,7 @@ export class ImportCustomEmojisProcessorService {
 	}
 
 	@bindThis
-	public async process(job: Bull.Job<DbUserImportJobData>): Promise<void> {
+	public async process(job: Bull.Job<DbImportCustomEmojisJobData>): Promise<void> {
 		const file = await this.driveFilesRepository.findOneBy({
 			id: job.data.fileId,
 		});
@@ -81,8 +83,23 @@ export class ImportCustomEmojisProcessorService {
 
 			for (const record of meta.emojis) {
 				if (!record.downloaded) continue;
-				if (!/^[a-zA-Z0-9_]+?([a-zA-Z0-9\.]+)?$/.test(record.fileName)) {
-					this.logger.error(`invalid filename: ${record.fileName}`);
+				/*
+					record.fileName must refer to a member of the zip file; we
+					could be clever and normalise the given string to avoid path
+					traversals and general shenanigans… or we could just
+					prohibit slashes: all existing emoji packs have all the
+					files at the top level anyway
+
+					(aside: ZipReader (via the rust `zip` crate) takes enough
+					care to prevent directory traversals from the zip file
+					itself)
+
+					the colon is in case we're on windows, the zero is because
+					too many libraries get confused by a zero byte in strings,
+					I blame C
+				*/
+				if (!this.driveFileEntityService.validateFileName(record.fileName) || /[\0:]/.test(record.fileName)) {
+					this.logger.error(`invalid filename (can't have slashes or colons): ${record.fileName}`);
 					continue;
 				}
 				const emojiInfo = record.emoji;
@@ -105,10 +122,9 @@ export class ImportCustomEmojisProcessorService {
 						name: record.fileName,
 						force: true,
 					});
-					await this.customEmojiService.add({
+					await this.customEmojiService.createEmoji({
 						originalUrl: driveFile.url,
 						publicUrl: driveFile.webpublicUrl ?? driveFile.url,
-						fileType: driveFile.webpublicType ?? driveFile.type,
 						name: nameNfc,
 						category: emojiInfo.category?.normalize('NFC'),
 						host: null,
@@ -119,10 +135,7 @@ export class ImportCustomEmojisProcessorService {
 						roleIdsThatCanBeUsedThisEmojiAsReaction: [],
 					});
 				} catch (e) {
-					if (e instanceof Error || typeof e === 'string') {
-						this.logger.error(`couldn't import ${emojiPath} for ${emojiInfo.name}: ${renderInlineError(e)}`);
-					}
-					continue;
+					this.logger.error(`couldn't import ${emojiPath} for ${emojiInfo.name}: ${renderInlineError(e)}`);
 				}
 			}
 

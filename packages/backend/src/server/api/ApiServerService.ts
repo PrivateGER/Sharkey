@@ -7,18 +7,18 @@ import { Inject, Injectable } from '@nestjs/common';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import { ModuleRef } from '@nestjs/core';
-import { AuthenticationResponseJSON } from '@simplewebauthn/types';
+import { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import type { Config } from '@/config.js';
 import type { InstancesRepository, AccessTokensRepository, UserProfilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 import { bindThis } from '@/decorators.js';
 import endpoints from './endpoints.js';
 import { ApiCallService } from './ApiCallService.js';
 import { SignupApiService } from './SignupApiService.js';
 import { SigninApiService } from './SigninApiService.js';
 import { SigninWithPasskeyApiService } from './SigninWithPasskeyApiService.js';
-import { CacheService } from '@/core/CacheService.js';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { InternalEventService } from '@/global/InternalEventService.js';
 
@@ -44,7 +44,7 @@ export class ApiServerService {
 		private signupApiService: SignupApiService,
 		private signinApiService: SigninApiService,
 		private signinWithPasskeyApiService: SigninWithPasskeyApiService,
-		private cacheService: CacheService,
+		private readonly internalEventService: InternalEventService,
 		private readonly internalEventService: InternalEventService,
 	) {
 		//this.createServer = this.createServer.bind(this);
@@ -54,6 +54,7 @@ export class ApiServerService {
 	public createServer(fastify: FastifyInstance, options: FastifyPluginOptions, done: (err?: Error) => void) {
 		fastify.register(cors, {
 			origin: '*',
+			methods: '*',
 		});
 
 		fastify.register(multipart, {
@@ -165,8 +166,8 @@ export class ApiServerService {
 				receiveAnnouncementEmail: false,
 			});
 			if (affected) {
-				await this.internalEventService.emit('updateUserProfile', { userId: request.params.user });
-				return ["Unsubscribed."];
+				await this.internalEventService.emit('updateUserProfile', { userId: request.params.user, keys: ['receiveAnnouncementEmail'] });
+				return ['Unsubscribed.'];
 			} else {
 				reply.code(401);
 				return {

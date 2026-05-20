@@ -377,6 +377,7 @@ _moderationLogTypes:
   addRelay: "Added a relay"
   removeRelay: "Removed a relay"
   restartMigration: "Restarted migration for a user"
+  setRoot: "Set the root user"
 
 _mfm:
   uncommonFeature: "This is not a widespread feature, it may not display properly on most other fedi software, including other Misskey forks"
@@ -509,6 +510,14 @@ schedulePost: "Schedule a note"
 schedulePostList: "List of scheduled notes"
 postOn: "Post on"
 scheduledNotes: "Scheduled Notes"
+never: "Never"
+
+_ago:
+  now: "Now"
+  never: "Never"
+_timeIn:
+  now: "Now"
+  never: "Never"
 
 _permissions:
   "write:admin:approve-user": "Approve new users"
@@ -744,3 +753,21 @@ backgroundQueue: "Background queue"
 _header:
   browse: "Browse"
   manage: "Manage"
+
+setRootUser: "Set the root user"
+setRootUserWarning: "You are currently the root user; you can give that away to someone else. If you want to remain an administrator after that, you should make yourself an administration via a role, <em>before</em> you give root away"
+previousRootUser: "Previous root user"
+newRootUser: "New root user"
+
+carefulBot: "Follow requests from bots require approval"
+
+userDeleted: "This user has been deleted."
+restartDeletion: "Restart account deletion"
+restartDeletionDescription: "Account deletion was last attempted {date}. If the deletion failed or was incomplete, then you may click this button to restart the process."
+restartDeletionConfirm: "Are you sure you want to restart this account deletion?"
+deletedAt: "Deleted at"
+lastFetchedAt: "Last fetched at"
+lastFetchedFeaturedAt: "Last fetched featured at"
+lastFetchedOutboxAt: "Last fetched outbox at"
+loginDates: "Login Dates"
+root: "Root"

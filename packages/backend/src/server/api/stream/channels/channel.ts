@@ -9,7 +9,6 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { bindThis } from '@/decorators.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import { isPackedPureRenote } from '@/misc/is-renote.js';
-import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import { type Channel, type MiChannelService, NoteChannel } from '../channel.js';
 
 class ChannelChannel extends NoteChannel {
@@ -30,8 +29,6 @@ class ChannelChannel extends NoteChannel {
 
 	@bindThis
 	public async init(params: JsonObject): Promise<boolean> {
-		if (!this.subscriber) throw new IdentifiableError(errorCodes.websocketError, `Cannot init ${this.chName} channel: socket is not connected`);
-
 		if (typeof params.channelId !== 'string') return false;
 
 		this.channelId = params.channelId;
@@ -57,7 +54,7 @@ class ChannelChannel extends NoteChannel {
 
 	@bindThis
 	public dispose() {
-		this.subscriber?.off('notesStream', this.onNote);
+		this.subscriber.off('notesStream', this.onNote);
 	}
 }
 

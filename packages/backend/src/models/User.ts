@@ -55,7 +55,7 @@ export class MiUser {
 		length: 128, select: false,
 		comment: 'The username (lowercased) of the User.',
 	})
-	public usernameLower: string;
+	public usernameLower?: string;
 
 	@Column('varchar', {
 		length: 128, nullable: true,
@@ -143,18 +143,18 @@ export class MiUser {
 
 	// avatarId が null になったとしてもこれが null でない可能性があるため、このフィールドを使うときは avatarId の non-null チェックをすること
 	@Column('varchar', {
-		length: 512, nullable: true,
+		length: 1024, nullable: true,
 	})
 	public avatarUrl: string | null;
 
 	// bannerId が null になったとしてもこれが null でない可能性があるため、このフィールドを使うときは bannerId の non-null チェックをすること
 	@Column('varchar', {
-		length: 512, nullable: true,
+		length: 1024, nullable: true,
 	})
 	public bannerUrl: string | null;
 
 	@Column('varchar', {
-		length: 512, nullable: true,
+		length: 1024, nullable: true,
 	})
 	public backgroundUrl: string | null;
 
@@ -275,6 +275,12 @@ export class MiUser {
 		comment: 'Whether the User is deleted.',
 	})
 	public isDeleted: boolean;
+
+	@Column('timestamp with time zone', {
+		nullable: true,
+		comment: 'When the account was deleted.',
+	})
+	public deletedAt: Date | null;
 
 	@Column('varchar', {
 		length: 128, array: true, default: '{}',
@@ -434,6 +440,8 @@ export type MiPartialRemoteUser = Partial<MiUser> & {
 	host: string;
 	uri: string;
 };
+
+export type MiPartialUser = Partial<MiUser> & Pick<MiUser, 'id' | 'host' | 'uri'>;
 
 export function isRemoteUser(user: MiUser): user is MiRemoteUser;
 export function isRemoteUser<U extends PartialUser>(user: U): user is PartialRemoteUser<U>;

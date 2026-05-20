@@ -6,7 +6,6 @@
 export interface EnvOption {
 	onlyQueue: boolean;
 	onlyServer: boolean;
-	noDaemons: boolean;
 	disableClustering: boolean;
 	verbose: boolean;
 	withLogTime: boolean;
@@ -18,7 +17,6 @@ export interface EnvOption {
 const defaultEnvOption: Readonly<EnvOption> = {
 	onlyQueue: false,
 	onlyServer: false,
-	noDaemons: false,
 	disableClustering: false,
 	verbose: false,
 	withLogTime: false,
@@ -34,7 +32,6 @@ const testEnvOption: Readonly<EnvOption> = {
 	...defaultEnvOption,
 	disableClustering: true,
 	quiet: true,
-	noDaemons: true,
 };
 
 export function createEnvOptions(getEnv: () => Partial<Record<string, string>>): EnvOption {
