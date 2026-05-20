@@ -66,20 +66,6 @@ export class UserMutingService {
 	}
 
 	@bindThis
-	public async tryUnmute(user: { id: string }, target: { id: string }): Promise<boolean> {
-		const mutes = await this.mutingsRepository.findBy({
-			muterId: user.id,
-			muteeId: target.id,
-		});
-		if (mutes.length < 1) {
-			return false;
-		}
-
-		await this.unmute(mutes);
-		return true;
-	}
-
-	@bindThis
 	public async unmute(mutings: MiMuting[]): Promise<void> {
 		if (mutings.length === 0) return;
 

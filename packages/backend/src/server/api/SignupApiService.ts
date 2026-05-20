@@ -26,8 +26,7 @@ import { TimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { SigninService } from './SigninService.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { UserFollowingService } from "@/core/UserFollowingService.js";
-import { InternalEventService } from '@/global/InternalEventService.js';
+import { UserFollowingService } from '@/core/UserFollowingService.js';
 
 @Injectable()
 export class SignupApiService {

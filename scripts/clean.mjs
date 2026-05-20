@@ -109,7 +109,6 @@ const cleanTasks = process.argv
 		}
 	});
 
-await Promise.all(cleanTasks);
-await new Promise(resolve => setTimeout(resolve, 1000));
-console.log('Cleanup complete.');
-
+	await Promise.all(cleanTasks);
+	await new Promise(resolve => setTimeout(resolve, 1000));
+	console.log('Cleanup complete.');

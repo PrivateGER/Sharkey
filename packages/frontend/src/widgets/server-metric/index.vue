@@ -72,7 +72,7 @@ const toggleView = () => {
 		widgetProps.view = 0;
 	} else {
 		widgetProps.view++;
-	}	
+		}
 	save();
 };
 

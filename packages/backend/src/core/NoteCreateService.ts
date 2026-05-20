@@ -58,7 +58,6 @@ import { TimeService } from '@/global/TimeService.js';
 import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import { promiseMap } from '@/misc/promise-map.js';
-import { DataSource, IsNull } from 'typeorm';
 import { MfmService } from '@/core/MfmService.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention';

@@ -20,7 +20,6 @@ import { SignupApiService } from './SignupApiService.js';
 import { SigninApiService } from './SigninApiService.js';
 import { SigninWithPasskeyApiService } from './SigninWithPasskeyApiService.js';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { InternalEventService } from '@/global/InternalEventService.js';
 
 @Injectable()
 export class ApiServerService {
@@ -44,7 +43,6 @@ export class ApiServerService {
 		private signupApiService: SignupApiService,
 		private signinApiService: SigninApiService,
 		private signinWithPasskeyApiService: SigninWithPasskeyApiService,
-		private readonly internalEventService: InternalEventService,
 		private readonly internalEventService: InternalEventService,
 	) {
 		//this.createServer = this.createServer.bind(this);

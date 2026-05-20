@@ -26,7 +26,6 @@ import {
 	type QuantumCacheServices,
 } from '@/misc/QuantumKVCache.js';
 import { CollapsedQueue, type CollapsedQueueOpts, type CollapsedQueueServices } from '@/misc/collapsed-queue.js';
-import { CollapsedQueue, type CollapsedQueueOpts, type CollapsedQueueServices } from '@/misc/collapsed-queue.js';
 import { TimeService, type TimerHandle } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { callAllAsync, callAllOn, callAllOnAsync } from '@/misc/call-all.js';
@@ -59,8 +58,6 @@ export const GC_INTERVAL = 1000 * 60 * 3; // 3m
  */
 @Injectable()
 export class CacheManagementService implements BeforeApplicationShutdown, OnApplicationShutdown {
-	private readonly collapsedQueueLogger: Logger;
-
 	private readonly collapsedQueueLogger: Logger;
 
 	private readonly managedCaches = new Map<string, CacheManager>();

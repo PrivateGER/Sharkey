@@ -34,8 +34,7 @@ export const packedQueueCountSchema = {
 			optional: true, nullable: false,
 		},
 	},
-} as const;
-
+	} as const;
 export const packedQueueCountsSchema = {
 	type: 'object',
 	properties: QUEUE_TYPES.reduce((props, qt) => {
@@ -278,4 +277,3 @@ export const packedQueueStatsSchema = {
 		ref: 'QueueStat',
 	}>),
 } as const;
-

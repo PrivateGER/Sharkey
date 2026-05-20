@@ -86,7 +86,7 @@ unfollowConfirm: "{name} kişisini takipten çıkarmak istediğinize emin misini
 exportRequested: "Dışa aktarma talebinde bulundunuz. Bu işlem biraz zaman alabilir. Tamamlandığında Sürücünüze eklenecektir."
 importRequested: "İçe aktarma talebinde bulundunuz. Bu işlem biraz zaman alabilir."
 lists: "Listeler"
-noLists: "Hiç listeniz yok"  
+noLists: "Hiç listeniz yok"
 note: "Not"
 notes: "Notlar"
 following: "Takip edilen"

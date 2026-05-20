@@ -15,7 +15,7 @@ export enum MMrfAction {
 export type MMrfResponse = {
 	action: MMrfAction;
 	data: IActivity;
-}
+};
 
 export interface MMrfPolicy {
 	runPolicy(activity: IActivity): Promise<MMrfResponse>;
@@ -43,7 +43,7 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 	const policies = [
 		new KeywordFilterPolicy(logger),
 		new NewUserSpamPolicy(apDbResolverService, idService, logger),
-		new HellthreadPolicy(logger)
+		new HellthreadPolicy(logger),
 	];
 
 	let mmrfActivity = activity;
@@ -58,4 +58,3 @@ export async function runMMrf(activity: IActivity, logger: Logger, idService: Id
 
 	return { action: MMrfAction.Neutral, data: mmrfActivity };
 }
-
