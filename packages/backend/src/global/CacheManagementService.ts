@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
+import {
+	Inject,
+	Injectable,
+	type BeforeApplicationShutdown,
+	type OnApplicationShutdown,
+} from '@nestjs/common';
 import {
 	MemoryKVCache,
 	MemorySingleCache,
@@ -20,13 +25,12 @@ import {
 	type QuantumKVOpts,
 	type QuantumCacheServices,
 } from '@/misc/QuantumKVCache.js';
-import { bindThis } from '@/decorators.js';
-import { DI } from '@/di-symbols.js';
 import { CollapsedQueue, type CollapsedQueueOpts, type CollapsedQueueServices } from '@/misc/collapsed-queue.js';
 import { TimeService, type TimerHandle } from '@/global/TimeService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
-import { callAllOn, callAllOnAsync } from '@/misc/call-all.js';
-import { LoggerService } from '@/core/LoggerService.js';
+import { callAllAsync, callAllOn, callAllOnAsync } from '@/misc/call-all.js';
+import { bindThis } from '@/decorators.js';
+import { DI } from '@/di-symbols.js';
 import type Logger from '@/logger.js';
 import type * as Redis from 'ioredis';
 
@@ -42,7 +46,7 @@ export type ManagedCollapsedQueue<T> = Managed<CollapsedQueue<T>>;
 
 export type Managed<T> = Omit<T, 'dispose' | 'onApplicationShutdown' | 'gc'>;
 export type CacheManager = { dispose(): Promise<void> | void, clear(): void, gc(): void };
-export type QueueManager = { dispose(): Promise<void> | void };
+export type QueueManager = { dispose(): Promise<void>, performAllNow(): Promise<void> };
 
 type CacheServices = MemoryCacheServices & RedisCacheServices & QuantumCacheServices & CollapsedQueueServices;
 
@@ -53,12 +57,11 @@ export const GC_INTERVAL = 1000 * 60 * 3; // 3m
  * Instances produced by this class are automatically tracked for disposal when the application shuts down.
  */
 @Injectable()
-export class CacheManagementService implements OnApplicationShutdown {
+export class CacheManagementService implements BeforeApplicationShutdown, OnApplicationShutdown {
 	private readonly collapsedQueueLogger: Logger;
 
 	private readonly managedCaches = new Map<string, CacheManager>();
 	private readonly managedQueues = new Map<string, QueueManager>();
-
 	private gcTimer?: TimerHandle | null;
 
 	constructor(
@@ -68,9 +71,10 @@ export class CacheManagementService implements OnApplicationShutdown {
 		private readonly timeService: TimeService,
 		private readonly internalEventService: InternalEventService,
 
-		loggerService: LoggerService,
+		@Inject(DI.globalLogger)
+		globalLogger: Logger,
 	) {
-		this.collapsedQueueLogger = loggerService.getLogger('collapsed-queue');
+		this.collapsedQueueLogger = globalLogger.createSubLogger('defer');
 	}
 
 	private get cacheServices(): CacheServices {
@@ -138,9 +142,12 @@ export class CacheManagementService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public clear(): void {
-		this.resetGcTimer(() => {
-			callAllOn(this.managedCaches.values(), 'clear');
+	public async clear(): Promise<void> {
+		await this.resetGcTimerAsync(async () => {
+			await callAllAsync([
+				() => callAllOnAsync(this.managedQueues.values(), 'performAllNow'),
+				() => callAllOn(this.managedCaches.values(), 'clear'),
+			]);
 		});
 	}
 
@@ -148,14 +155,24 @@ export class CacheManagementService implements OnApplicationShutdown {
 	public async dispose(): Promise<void> {
 		this.stopGcTimer();
 
-		const toDispose = [
-			...this.managedCaches.values(),
-			...this.managedQueues.values(),
-		];
+		const queuesToDispose = this.managedQueues.values().toArray();
+		this.managedQueues.clear();
+
+		const cachesToDispose = this.managedCaches.values().toArray();
 		this.managedCaches.clear();
 		this.managedQueues.clear();
 
-		await callAllOnAsync(toDispose, 'dispose');
+		// Queues first, since some of the persist methods call into caches.
+		await callAllOnAsync(queuesToDispose, 'dispose');
+		await callAllOnAsync(cachesToDispose, 'dispose');
+	}
+
+	@bindThis
+	public async beforeApplicationShutdown(): Promise<void> {
+		// Synchronous cleanup to avoid overloading the DB during shutdown
+		for (const queue of this.managedQueues.values()) {
+			await queue.performAllNow();
+		}
 	}
 
 	@bindThis
@@ -186,6 +203,17 @@ export class CacheManagementService implements OnApplicationShutdown {
 			if (onBlank) {
 				onBlank();
 			}
+		} finally {
+			this.startGcTimer();
+		}
+	}
+
+	@bindThis
+	private async resetGcTimerAsync(onBlank: () => Promise<void> | void): Promise<void> {
+		this.stopGcTimer();
+
+		try {
+			await onBlank();
 		} finally {
 			this.startGcTimer();
 		}

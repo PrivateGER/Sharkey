@@ -6,6 +6,7 @@
 import { LoggerService } from '@nestjs/common';
 import { coreLogger, coreEnvService } from '@/boot/coreLogger.js';
 
+// TODO make this a mutable instance variable inside NestLogger, then "mount" it from common.ts.
 const nestLogger = coreLogger.createSubLogger('nest', 'green');
 
 export class NestLogger implements LoggerService {

@@ -6,6 +6,7 @@
 import { URLSearchParams } from 'node:url';
 import * as nodemailer from 'nodemailer';
 import juice from 'juice';
+import { load as cheerio } from 'cheerio/slim';
 import { nanoid } from 'nanoid';
 import { Inject, Injectable } from '@nestjs/common';
 import { validate as validateEmail } from 'deep-email-validator';
@@ -145,16 +146,18 @@ export class EmailService {
 	</body>
 </html>`;
 
-		const inlinedHtml = juice(htmlContent);
+		const htmlDocument = cheerio(htmlContent);
+		juice.juiceDocument(htmlDocument);
+		const inlinedHtml = htmlDocument.html();
 
-		const headers: any = {};
+		const headers: Record<string, string> = {};
 		if (opts && opts.announcementFor) {
 			const { userId } = opts.announcementFor;
 			let { oneClickUnsubscribeToken } = opts.announcementFor;
 			if (!oneClickUnsubscribeToken) {
 				oneClickUnsubscribeToken = nanoid();
 				await this.userProfilesRepository.update({ userId }, { oneClickUnsubscribeToken });
-				await this.internalEventService.emit('updateUserProfile', { userId });
+				await this.internalEventService.emit('updateUserProfile', { userId, keys: ['oneClickUnsubscribeToken'] });
 			}
 			headers['List-Unsubscribe'] = `<${this.config.apiUrl}/unsubscribe/${userId}/${oneClickUnsubscribeToken}>`;
 			headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
@@ -190,12 +193,12 @@ export class EmailService {
 			};
 		}
 
-		const exist = await this.userProfilesRepository.countBy({
+		const exist = await this.userProfilesRepository.existsBy({
 			emailVerified: true,
 			email: emailAddress,
 		});
 
-		if (exist !== 0) {
+		if (exist) {
 			return {
 				available: false,
 				reason: 'used',

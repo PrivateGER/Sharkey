@@ -29,7 +29,7 @@ export interface CollapsedQueueOpts<V> {
 }
 
 export class CollapsedQueue<V> {
-	private readonly limiter?: Limiter;
+	private readonly limiter: Limiter;
 	private readonly jobs = new Map<string, Job<V>>();
 
 	private readonly timeService: TimeService;
@@ -53,7 +53,7 @@ export class CollapsedQueue<V> {
 		this.check = opts.check;
 		this.limiter = typeof(opts.limiter) === 'number'
 			? promiseLimit(opts.limiter)
-			: opts.limiter;
+			: (opts.limiter ?? (cb => cb()));
 	}
 
 	@bindThis
@@ -86,16 +86,29 @@ export class CollapsedQueue<V> {
 	}
 
 	@bindThis
-	public async performAllNow(): Promise<void> {
-		for (const job of this.jobs.values()) {
-			this.timeService.stopTimer(job.timer);
+	public async performNow(key: string): Promise<void> {
+		const job = this.jobs.get(key);
+		if (!job) {
+			return;
 		}
 
+		this.timeService.stopTimer(job.timer);
+		this.jobs.delete(key);
+
+		await this.limiter(async () => {
+			await this.performSafe(key, job.value);
+		});
+	}
+
+	@bindThis
+	public async performAllNow(): Promise<void> {
+		// Swap the entries to make sure duplicate calls don't conflict
 		const entries = this.jobs.entries().toArray();
 		this.jobs.clear();
 
 		// TODO use the no-bail logic when merged
 		const results = await promiseMap(entries, async ([key, job]) => {
+			this.timeService.stopTimer(job.timer);
 			return await this.performSafe(key, job.value);
 		}, {
 			limiter: this.limiter,

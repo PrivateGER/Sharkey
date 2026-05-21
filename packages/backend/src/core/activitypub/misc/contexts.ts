@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import type { Context, JsonLd } from 'jsonld/jsonld-spec.js';
+import type { ContextDefinition, NodeObject } from 'jsonld';
+
+type JsonLd = NodeObject | NodeObject[];
 
 /* eslint:disable:quotemark indent */
 const id_v1 = {
@@ -530,9 +532,22 @@ const activitystreams = {
 	},
 } satisfies JsonLd;
 
+const fep_2c59 = {
+	'@context': {
+		'wf': 'https://purl.archive.org/socialweb/webfinger#',
+		'xsd': 'http://www.w3.org/2001/XMLSchema#',
+		'webfinger': {
+			'@id': 'wf:webfinger',
+			'@type': 'xsd:string'
+		},
+	},
+} satisfies JsonLd;
+
 const context_iris = [
 	'https://www.w3.org/ns/activitystreams',
 	'https://w3id.org/security/v1',
+	// FEP-2c59 (webfinger backlink)
+	'https://purl.archive.org/socialweb/webfinger',
 ];
 
 const extension_context_definition = {
@@ -591,12 +606,13 @@ const extension_context_definition = {
 	noindex: 'sharkey:noindex',
 	// vcard
 	vcard: 'http://www.w3.org/2006/vcard/ns#',
-} satisfies Context;
+} satisfies ContextDefinition;
 
-export const CONTEXT: (string | Context)[] = [...context_iris, extension_context_definition];
+export const CONTEXT: (string | ContextDefinition)[] = [...context_iris, extension_context_definition];
 
 export const PRELOADED_CONTEXTS: Record<string, JsonLd> = {
 	'https://w3id.org/identity/v1': id_v1,
 	'https://w3id.org/security/v1': security_v1,
 	'https://www.w3.org/ns/activitystreams': activitystreams,
+	'https://purl.archive.org/socialweb/webfinger': fep_2c59,
 };

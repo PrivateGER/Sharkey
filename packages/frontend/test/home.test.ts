@@ -16,7 +16,7 @@ import 'intersection-observer';
 describe('XHome', () => {
 	const renderHome = (user: Partial<Misskey.entities.UserDetailed>): RenderResult => {
 		return render(XHome, {
-			props: { user: user as Misskey.entitites.UserDetailed, disableNotes: true },
+			props: { user: user as Misskey.entities.UserDetailed, disableNotes: true },
 			global: { directives, components },
 		});
 	};
@@ -29,6 +29,7 @@ describe('XHome', () => {
 		const home = renderHome({
 			id: 'blobcat',
 			name: 'blobcat',
+			username: 'blobcat',
 			host: 'example.com',
 			uri: 'https://example.com/@user',
 			url: 'https://example.com/@user/profile',
@@ -49,6 +50,7 @@ describe('XHome', () => {
 		const home = renderHome({
 			id: 'blobcat',
 			name: 'blobcat',
+			username: 'blobcat',
 			host: 'example.com',
 			uri: 'https://example.com/@user',
 			url: null,

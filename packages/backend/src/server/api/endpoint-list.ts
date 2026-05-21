@@ -38,7 +38,7 @@ export * as 'admin/cw-instance' from './endpoints/admin/cw-instance.js';
 export * as 'admin/cw-note' from './endpoints/admin/cw-note.js';
 export * as 'admin/cw-user' from './endpoints/admin/cw-user.js';
 export * as 'admin/decline-user' from './endpoints/admin/decline-user.js';
-export * as 'admin/delete-account' from './endpoints/admin/delete-account.js';
+export * as 'admin/delete-account' from './endpoints/admin/accounts/delete.js'; // alias
 export * as 'admin/delete-all-files-of-a-user' from './endpoints/admin/delete-all-files-of-a-user.js';
 export * as 'admin/drive/clean-remote-files' from './endpoints/admin/drive/clean-remote-files.js';
 export * as 'admin/drive/cleanup' from './endpoints/admin/drive/cleanup.js';
@@ -102,6 +102,7 @@ export * as 'admin/roles/update-default-policies' from './endpoints/admin/roles/
 export * as 'admin/roles/users' from './endpoints/admin/roles/users.js';
 export * as 'admin/send-email' from './endpoints/admin/send-email.js';
 export * as 'admin/server-info' from './endpoints/admin/server-info.js';
+export * as 'admin/set-root' from './endpoints/admin/set-root.js';
 export * as 'admin/show-moderation-logs' from './endpoints/admin/show-moderation-logs.js';
 export * as 'admin/show-user' from './endpoints/admin/show-user.js';
 export * as 'admin/show-users' from './endpoints/admin/show-users.js';

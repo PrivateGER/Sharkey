@@ -25,7 +25,7 @@ export class Deduplicator<T> {
 	public async fetch(key: string): Promise<T> {
 		let job = this.fetched.get(key);
 
-		// If there's not an existing result o
+		// If there's not an existing result or task, then start a new one.
 		if (job == null) {
 			const promise = promiseTry(this.fetcher, key);
 

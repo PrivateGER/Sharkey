@@ -133,11 +133,15 @@ export function getJsonSchema<S extends Schema>(schema: S): ToJsonSchema<Unflatt
 	return jsonSchema as ToJsonSchema<Unflatten<ChartResult<S>>>;
 }
 
+export interface IChart {
+	save(): Promise<void>;
+}
+
 /**
  * 様々なチャートの管理を司るクラス
  */
 // eslint-disable-next-line import/no-default-export
-export default abstract class Chart<T extends Schema> {
+export default abstract class Chart<T extends Schema> implements IChart {
 	private logger: Logger;
 
 	public schema: T;

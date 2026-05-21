@@ -47,7 +47,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				alwaysMarkNsfw: true,
 			});
 
-			await this.internalEventService.emit('updateUserProfile', { userId: ps.userId });
+			await this.internalEventService.emit('updateUserProfile', { userId: ps.userId, keys: ['alwaysMarkNsfw'] });
 
 			await this.moderationLogService.log(me, 'nsfwUser', {
 				userId: ps.userId,

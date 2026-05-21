@@ -40,13 +40,14 @@ export class AchievementService {
 
 		if (profile.achievements.some(a => a.name === type)) return;
 
+		// TODO this should be a separate table
 		await this.userProfilesRepository.update(userId, {
 			achievements: [...profile.achievements, {
 				name: type,
 				unlockedAt: date,
 			}],
 		});
-		await this.internalEventService.emit('updateUserProfile', { userId: userId });
+		await this.internalEventService.emit('updateUserProfile', { userId: userId, keys: ['achievements'] });
 
 		this.notificationService.createNotification(userId, 'achievementEarned', {
 			achievement: type,

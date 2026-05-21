@@ -18,7 +18,7 @@ export const meta = {
 	tags: ['account'],
 
 	requireCredential: true,
-	kind: "read:account",
+	kind: 'read:account',
 
 	res: {
 		type: 'object',
@@ -62,32 +62,35 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly cacheService: CacheService,
 		private readonly internalEventService: InternalEventService,
 	) {
-		super(meta, paramDef, async (ps, user, token) => {
+		super(meta, paramDef, async (ps, me, token) => {
 			const isSecure = token == null;
 
 			const now = this.timeService.date;
-			const today = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+			const [today] = now.toISOString().match(/^\d\d\d\d-\d\d-\d\d/) ?? [];
 
-			// 渡ってきている user はキャッシュされていて古い可能性があるので改めて取得
-			const userProfile = await this.cacheService.userProfileCache.fetchMaybe(user.id);
+			const userProfile = await this.cacheService.userProfileCache.fetchMaybe(me.id);
 			if (userProfile == null) {
 				throw new ApiError(meta.errors.userIsDeleted);
 			}
 
-			if (!userProfile.loggedInDates.includes(today)) {
-				trackTask(async () => {
-					await this.userProfilesRepository.update({ userId: user.id }, {
-						loggedInDates: [...userProfile.loggedInDates, today],
-					});
-					await this.internalEventService.emit('updateUserProfile', { userId: user.id });
-				});
+			// "today" should always be defined, but check just in case.
+			if (today && !userProfile.loggedInDates.includes(today)) {
 				userProfile.loggedInDates = [...userProfile.loggedInDates, today];
+
+				// Run this asynchronously because /i needs to be fast
+				trackTask(async () => {
+					// TODO this field should really just be a table...
+					await this.userProfilesRepository.update({ userId: me.id }, {
+						loggedInDates: userProfile.loggedInDates,
+					});
+					await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['loggedInDates'] });
+				});
 			}
 
-			return await this.userEntityService.pack(user, user, {
+			return await this.userEntityService.pack(me, me, {
 				schema: 'MeDetailed',
 				includeSecrets: isSecure,
-				userProfile,
+				hint: { userProfile },
 			});
 		});
 	}

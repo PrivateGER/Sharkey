@@ -81,9 +81,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.where('note.id = :noteId', { noteId: ps.noteId })
 				.innerJoinAndSelect('note.user', 'user');
 
-			await this.queryService.generateVisibilityQuery(query, me);if (me) {
-				this.queryService.generateBlockedUserQueryForNotes(query, me);
-			}
+				await this.queryService.generateVisibilityQuery(query, me);
+				if (me) {
+					this.queryService.generateBlockedUserQueryForNotes(query, me);
+				}
 			const note = await query.getOne();
 
 			if (note === null) {

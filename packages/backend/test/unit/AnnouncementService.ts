@@ -129,7 +129,7 @@ describe('AnnouncementService', () => {
 		moderationLogService.log.mockReset();
 		globalEventService.publishMainStream.mockReset();
 		globalEventService.publishBroadcastStream.mockReset();
-		cacheManagementService.clear();
+		await cacheManagementService.clear();
 	});
 
 	describe('getUnreadAnnouncements', () => {

@@ -4,16 +4,16 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import * as argon2 from 'argon2';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { UsersRepository, UserProfilesRepository, MiMeta } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
-import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '@/server/api/error.js';
+import { UserAuthService } from '@/core/UserAuthService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -68,6 +68,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private moderationLogService: ModerationLogService,
 		private roleService: RoleService,
 		private readonly internalEventService: InternalEventService,
+		private readonly userAuthService: UserAuthService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.usersRepository.findOneBy({ id: ps.userId });
@@ -91,14 +92,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const passwd = secureRndstr(8);
 
 			// Generate hash of password
-			const hash = await argon2.hash(passwd);
+			const hash = await this.userAuthService.hashPassword(passwd);
 
 			await this.userProfilesRepository.update({
 				userId: user.id,
 			}, {
 				password: hash,
 			});
-			await this.internalEventService.emit('updateUserProfile', { userId: user.id });
+			await this.internalEventService.emit('updateUserProfile', { userId: user.id, keys: ['password'] });
 
 			await this.moderationLogService.log(me, 'resetPassword', {
 				userId: user.id,

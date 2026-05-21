@@ -4,8 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import * as Bull from 'bullmq';
-import { BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask } from '@/queue/types.js';
+import type {
+	BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask, } from '@/queue/types.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
 import Logger from '@/logger.js';
@@ -30,6 +30,7 @@ import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import { isRemoteUser } from '@/models/User.js';
 import { errorCodes, IdentifiableError } from '@/misc/identifiable-error.js';
 import { TimeService } from '@/global/TimeService.js';
+import { bindThis } from '@/decorators.js';
 
 @Injectable()
 export class BackgroundTaskProcessorService {
@@ -73,37 +74,39 @@ export class BackgroundTaskProcessorService {
 		this.logger = queueLoggerService.logger.createSubLogger('background-task');
 	}
 
-	public async process(job: Bull.Job<BackgroundTaskJobData>): Promise<string> {
-		if (job.data.type === 'update-user') {
-			return await this.processUpdateUser(job.data);
-		} else if (job.data.type === 'update-featured') {
-			return await this.processUpdateFeatured(job.data);
-		} else if (job.data.type === 'update-user-tags') {
-			return await this.processUpdateUserTags(job.data);
-		} else if (job.data.type === 'update-note-tags') {
-			return await this.processUpdateNoteTags(job.data);
-		} else if (job.data.type === 'update-instance') {
-			return await this.processUpdateInstance(job.data);
-		} else if (job.data.type === 'post-deliver') {
-			return await this.processPostDeliver(job.data);
-		} else if (job.data.type === 'post-inbox') {
-			return await this.processPostInbox(job.data);
-		} else if (job.data.type === 'post-note') {
-			return await this.processPostNote(job.data);
-		} else if (job.data.type === 'delete-file') {
-			return await this.processDeleteFile(job.data);
-		} else if (job.data.type === 'update-latest-note') {
-			return await this.processUpdateLatestNote(job.data);
-		} else if (job.data.type === 'post-suspend') {
-			return await this.processPostSuspend(job.data);
-		} else if (job.data.type === 'post-unsuspend') {
-			return await this.processPostUnsuspend(job.data);
+	@bindThis
+	public async process(job: BackgroundTaskJobData): Promise<string> {
+		if (job.type === 'update-user') {
+			return await this.processUpdateUser(job);
+		} else if (job.type === 'update-featured') {
+			return await this.processUpdateFeatured(job);
+		} else if (job.type === 'update-user-tags') {
+			return await this.processUpdateUserTags(job);
+		} else if (job.type === 'update-note-tags') {
+			return await this.processUpdateNoteTags(job);
+		} else if (job.type === 'update-instance') {
+			return await this.processUpdateInstance(job);
+		} else if (job.type === 'post-deliver') {
+			return await this.processPostDeliver(job);
+		} else if (job.type === 'post-inbox') {
+			return await this.processPostInbox(job);
+		} else if (job.type === 'post-note') {
+			return await this.processPostNote(job);
+		} else if (job.type === 'delete-file') {
+			return await this.processDeleteFile(job);
+		} else if (job.type === 'update-latest-note') {
+			return await this.processUpdateLatestNote(job);
+		} else if (job.type === 'post-suspend') {
+			return await this.processPostSuspend(job);
+		} else if (job.type === 'post-unsuspend') {
+			return await this.processPostUnsuspend(job);
 			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-		} else if (job.data.type === 'delete-ap-logs') {
-			return await this.processDeleteApLogs(job.data);
+		} else if (job.type === 'delete-ap-logs') {
+			return await this.processDeleteApLogs(job);
 		} else {
-			this.logger.warn(`Can't process unknown job type "${job.data}"; this is likely a bug. Full job data:`, job.data);
-			throw new Error(`Unknown job type ${job.data}, see system logs for details`);
+			const type = (job as { type: string }).type;
+			this.logger.warn(`Can't process unknown job type "${type}"; this is likely a bug. Full job data:`, job);
+			throw new Error(`Unknown job type ${type}, see system logs for details`);
 		}
 	}
 

@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { createReadStream } from 'node:fs';
-import { Readable } from 'node:stream';
 import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
+import { promiseMap } from '@/misc/promise-map.js';
 import { getErrorData, getErrorException, getErrorStatus, MastodonLogger } from '@/server/api/mastodon/MastodonLogger.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { ApiAccountMastodon } from '@/server/api/mastodon/endpoints/account.js';
@@ -23,7 +22,6 @@ import { parseTimelineArgs, TimelineArgs, toBoolean } from './argsUtils.js';
 import { convertAnnouncement, convertAttachment, MastodonConverters, convertRelationship } from './MastodonConverters.js';
 import type { Entity } from 'megalodon';
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { promiseMap } from '@/misc/promise-map.js';
 
 @Injectable()
 export class MastodonApiServerService {
@@ -74,10 +72,12 @@ export class MastodonApiServerService {
 			done();
 		});
 
-		// Tell crawlers not to index API endpoints.
-		// https://developers.google.com/search/docs/crawling-indexing/block-indexing
 		fastify.addHook('onRequest', (request, reply, done) => {
+			// Tell crawlers not to index API endpoints.
+			// https://developers.google.com/search/docs/crawling-indexing/block-indexing
 			reply.header('X-Robots-Tag', 'noindex');
+			// Prevent cache
+			reply.header('Cache-Control', 'private, max-age=0, must-revalidate');
 			done();
 		});
 
@@ -120,11 +120,12 @@ export class MastodonApiServerService {
 				return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'No image' });
 			}
 
-			const client = this.clientService.getClient(_request);
-			const data = await client.uploadMedia({
-				...multipartData,
-				stream: Readable.toWeb(createReadStream(multipartData.filepath)),
+			const buffer = await multipartData.toBuffer();
+			const file = new File([buffer], multipartData.fieldname, {
+				type: multipartData.mimetype,
 			});
+			const client = this.clientService.getClient(_request);
+			const data = await client.uploadMedia(file);
 			const response = convertAttachment(data.data as Entity.Attachment);
 
 			return reply.send(response);
@@ -135,12 +136,13 @@ export class MastodonApiServerService {
 			if (!multipartData) {
 				return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'No image' });
 			}
+			const buffer = await multipartData.toBuffer();
+			const file = new File([buffer], multipartData.fieldname, {
+				type: multipartData.mimetype,
+			});
 
 			const client = this.clientService.getClient(_request);
-			const data = await client.uploadMedia({
-				...multipartData,
-				stream: Readable.toWeb(createReadStream(multipartData.filepath)),
-			}, _request.body);
+			const data = await client.uploadMedia(file, _request.body);
 			const response = convertAttachment(data.data as Entity.Attachment);
 
 			return reply.send(response);

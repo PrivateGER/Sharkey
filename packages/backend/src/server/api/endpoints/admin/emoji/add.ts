@@ -96,10 +96,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (driveFile.userId !== null) await this.driveFilesRepository.update(driveFile.id, { user: null });
 
-			const emoji = await this.customEmojiService.add({
+			const emoji = await this.customEmojiService.createEmoji({
 				originalUrl: driveFile.url,
 				publicUrl: driveFile.webpublicUrl ?? driveFile.url,
-				fileType: driveFile.webpublicType ?? driveFile.type,
 				name: nameNfc,
 				category: ps.category?.normalize('NFC') ?? null,
 				aliases: ps.aliases?.map(a => a.normalize('NFC')) ?? [],
@@ -108,7 +107,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				isSensitive: ps.isSensitive ?? false,
 				localOnly: ps.localOnly ?? false,
 				roleIdsThatCanBeUsedThisEmojiAsReaction: ps.roleIdsThatCanBeUsedThisEmojiAsReaction ?? [],
-			}, me);
+			}, { moderator: me });
 
 			return await this.emojiEntityService.packDetailed(emoji);
 		});
