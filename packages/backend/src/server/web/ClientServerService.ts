@@ -579,7 +579,7 @@ export class ClientServerService {
 				},
 			});
 
-			if (!note || ['specified', 'followers'].includes(note.visibility) || note.userHost != null) {
+			if (!note || ['specified', 'followers'].includes(note.visibility)) {
 				return await renderBase(reply);
 			}
 
@@ -854,7 +854,6 @@ export class ClientServerService {
 
 			if (note == null) return;
 			if (['specified', 'followers'].includes(note.visibility)) return;
-			if (note.userHost != null) return;
 
 			const [user, _note, commonData] = await Promise.all([
 				this.cacheService.findOptionalUserById(note.userId),

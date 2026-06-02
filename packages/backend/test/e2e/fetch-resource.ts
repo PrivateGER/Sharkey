@@ -6,9 +6,11 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-import { channel, clip, galleryPost, page, play, post, signup, simpleGet, uploadFile, api } from '../utils.js';
+import { channel, clip, galleryPost, page, play, post, signup, simpleGet, uploadFile, api, initTestDb } from '../utils.js';
 import type { SimpleGetResponse } from '../utils.js';
 import type * as misskey from 'misskey-js';
+import { MiInstance } from '@/models/Instance.js';
+import { MiNote } from '@/models/Note.js';
 
 // Request Accept in lowercase
 const ONLY_AP = 'application/activity+json';
@@ -25,6 +27,7 @@ describe('Webリソース', () => {
 	let alice: misskey.entities.SignupResponse;
 	let aliceUploadedFile: misskey.entities.DriveFile | null;
 	let alicesPost: misskey.entities.Note;
+	let remotePostId: string;
 	let alicePage: misskey.entities.Page;
 	let alicePlay: misskey.entities.Flash;
 	let aliceClip: misskey.entities.Clip;
@@ -77,6 +80,15 @@ describe('Webリソース', () => {
 	};
 
 	beforeAll(async () => {
+		const connection = await initTestDb(true);
+		const instances = connection.getRepository(MiInstance);
+		const notes = connection.getRepository(MiNote);
+		await instances.insert({
+			id: 'fetch-resource-remote.example',
+			host: 'fetch-resource-remote.example',
+			firstRetrievedAt: new Date(),
+		});
+
 		alice = await signup({ username: 'alice' });
 		await api('i/update', { enableRss: true }, alice);
 		aliceUploadedFile = (await uploadFile(alice)).body;
@@ -93,6 +105,36 @@ describe('Webリソース', () => {
 
 		bob = await signup({ username: 'bob' });
 		await api('i/update', { enableRss: true }, bob);
+
+		const remoteUser = await signup({
+			username: 'charlie',
+			host: 'fetch-resource-remote.example',
+		});
+		remotePostId = remoteUser.id;
+		await notes.insert({
+			id: remotePostId,
+			userId: remoteUser.id,
+			userHost: 'fetch-resource-remote.example',
+			visibility: 'public',
+			localOnly: false,
+			text: 'hello from a remote cache',
+			cw: null,
+			renoteCount: 0,
+			repliesCount: 0,
+			clippedCount: 0,
+			reactions: {},
+			fileIds: [],
+			attachedFileTypes: [],
+			visibleUserIds: [],
+			mentions: [],
+			mentionedRemoteUsers: '[]',
+			reactionAndUserPairCache: [],
+			emojis: [],
+			tags: [],
+			hasPoll: false,
+			uri: 'https://fetch-resource-remote.example/notes/1',
+			url: 'https://fetch-resource-remote.example/notes/1',
+		});
 	}, 1000 * 60 * 2);
 
 	describe.each([
@@ -372,6 +414,17 @@ describe('Webリソース', () => {
 				// TODO twitter:creatorの検証
 			});
 
+			test('はリモートノートでもノートのHTMLメタデータを返す。', async () => {
+				const res = await ok({
+					path: path(remotePostId),
+					accept,
+					type: HTML,
+				});
+				assert.strictEqual(metaTag(res, 'misskey:note-id'), remotePostId);
+				assert.strictEqual(metaTag(res, 'og:description', 'property'), 'hello from a remote cache');
+				assert.strictEqual(metaTag(res, 'robots'), 'noindex');
+			});
+
 			test('はHTMLとしてGETできる。(存在しないIDでも。)', async () => await ok({
 				path: path('xxxxxxxxxx'),
 			}));
@@ -394,6 +447,20 @@ describe('Webリソース', () => {
 				path: path('xxxxxxxxxx'),
 				accept,
 			}));
+		});
+	});
+
+	describe('/embed/notes/:id', () => {
+		const path = (noteId: string): string => `/embed/notes/${noteId}`;
+
+		test('はリモートノートでも埋め込みコンテキストを返す。', async () => {
+			const res = await ok({
+				path: path(remotePostId),
+				type: HTML,
+			});
+			const embedCtx = JSON.parse(res.body('#misskey_embedCtx').text());
+			assert.strictEqual(embedCtx.note.id, remotePostId);
+			assert.strictEqual(embedCtx.note.text, 'hello from a remote cache');
 		});
 	});
 
