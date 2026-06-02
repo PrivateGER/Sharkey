@@ -30,6 +30,9 @@ describe('admin/reset-password ACL', () => {
 		const internalEventService = {
 			emit: jest.fn(async () => undefined),
 		};
+		const userAuthService = {
+			hashPassword: jest.fn(async (password: string) => `hashed:${password}`),
+		};
 		const endpoint = new AdminResetPasswordEndpoint(
 			{ rootUserId: 'root' } as any,
 			usersRepository as any,
@@ -37,9 +40,10 @@ describe('admin/reset-password ACL', () => {
 			moderationLogService as any,
 			roleService as any,
 			internalEventService as any,
+			userAuthService as any,
 		);
 
-		return { endpoint, usersRepository, userProfilesRepository, roleService };
+		return { endpoint, usersRepository, userProfilesRepository, roleService, userAuthService };
 	}
 
 	test('moderators can reset passwords for regular users', async () => {
@@ -52,7 +56,7 @@ describe('admin/reset-password ACL', () => {
 			.resolves.toMatchObject({ password: expect.any(String) });
 
 		expect(userProfilesRepository.update).toHaveBeenCalledWith({ userId: target.id }, {
-			password: expect.any(String),
+			password: expect.stringMatching(/^hashed:/),
 		});
 	});
 
@@ -78,7 +82,7 @@ describe('admin/reset-password ACL', () => {
 			.resolves.toMatchObject({ password: expect.any(String) });
 
 		expect(userProfilesRepository.update).toHaveBeenCalledWith({ userId: admin.id }, {
-			password: expect.any(String),
+			password: expect.stringMatching(/^hashed:/),
 		});
 	});
 });

@@ -12,6 +12,7 @@ import {
 	connectStream,
 	createAppToken,
 	failedApiCall,
+	initTestDb,
 	relativeFetch,
 	signup,
 	successfulApiCall,
@@ -19,6 +20,8 @@ import {
 	waitFire,
 } from '../utils.js';
 import type * as misskey from 'misskey-js';
+import { MiInstance } from '@/models/Instance.js';
+import { MiUser } from '@/models/User.js';
 
 describe('API', () => {
 	let alice: misskey.entities.SignupResponse;
@@ -216,29 +219,40 @@ describe('API', () => {
 	});
 
 	test('delegated read account tokens do not inherit moderator-only reaction visibility', async () => {
-		await successfulApiCall({
-			endpoint: 'i/update',
-			parameters: { publicReactions: false },
-			user: bob,
+		const connection = await initTestDb(true);
+		const remoteUserId = '8remoteacl1';
+		const remoteHost = 'remote-reactions.example';
+		await connection.getRepository(MiInstance).insert({
+			id: remoteHost,
+			host: remoteHost,
+			firstRetrievedAt: new Date(),
 		});
+		await connection.getRepository(MiUser).insert({
+			id: remoteUserId,
+			username: 'remotereactions',
+			usernameLower: 'remotereactions',
+			host: remoteHost,
+			uri: `https://${remoteHost}/users/remotereactions`,
+		});
+		await connection.destroy();
 
 		const application = await createAppToken(alice, ['read:account']);
 
 		await failedApiCall({
 			endpoint: 'users/reactions',
-			parameters: { userId: bob.id },
+			parameters: { userId: remoteUserId },
 			user: { token: application },
 		}, {
 			status: 400,
-			code: 'REACTIONS_NOT_PUBLIC',
-			id: '673a7dd2-6924-1093-e0c0-e68456ceae5c',
+			code: 'IS_REMOTE_USER',
+			id: '6b95fa98-8cf9-2350-e284-f0ffdb54a805',
 		});
 
 		const adminApplication = await createAppToken(alice, ['read:account', 'read:admin:show-user']);
 
 		await successfulApiCall({
 			endpoint: 'users/reactions',
-			parameters: { userId: bob.id },
+			parameters: { userId: remoteUserId },
 			user: { token: adminApplication },
 		});
 	});

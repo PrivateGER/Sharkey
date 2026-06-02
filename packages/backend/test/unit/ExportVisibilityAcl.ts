@@ -58,14 +58,21 @@ describe('export visibility ACLs', () => {
 
 	test('clip export skips notes that are no longer visible to the exporting user', async () => {
 		const visibilityService = createVisibilityService();
-		const writer = { write: jest.fn(async () => undefined) };
+		const writtenChunks: string[] = [];
+		const writer = {
+			write: jest.fn(async (chunk: string) => {
+				writtenChunks.push(chunk);
+			}),
+		};
+		const clipNoteBatches = [
+			[
+				{ id: 'clip-note-a', clipId: 'clip-a', note: hiddenNote },
+				{ id: 'clip-note-b', clipId: 'clip-a', note: visibleNote },
+			],
+			[],
+		];
 		const clipNotesRepository = {
-			find: jest.fn()
-				.mockResolvedValueOnce([
-					{ id: 'clip-note-a', clipId: 'clip-a', note: hiddenNote },
-					{ id: 'clip-note-b', clipId: 'clip-a', note: visibleNote },
-				])
-				.mockResolvedValueOnce([]),
+			find: jest.fn(async () => clipNoteBatches.shift() ?? []),
 		};
 		const pollsRepository = {
 			findOneByOrFail: jest.fn(async () => ({ choices: ['secret'] })),
@@ -92,8 +99,8 @@ describe('export visibility ACLs', () => {
 		expect(visibilityService.checkNoteVisibilityAsync).toHaveBeenCalledWith(visibleNote, user);
 		expect(pollsRepository.findOneByOrFail).not.toHaveBeenCalled();
 		expect(writer.write).toHaveBeenCalledTimes(1);
-		expect(writer.write.mock.calls[0][0]).toContain('exportable text');
-		expect(writer.write.mock.calls[0][0]).not.toContain('secret text');
+		expect(writtenChunks[0]).toContain('exportable text');
+		expect(writtenChunks[0]).not.toContain('secret text');
 	});
 
 	test.each([

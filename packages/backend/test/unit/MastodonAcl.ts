@@ -64,18 +64,22 @@ describe('Mastodon compatibility ACLs', () => {
 		const driveService = {
 			addFile: jest.fn(async () => ({ id: 'file-a', type: 'image/png' })),
 		};
+		const accessTokensRepository = {
+			findOneBy: jest.fn(async () => ({
+				userId: 'user-a',
+				permission: ['read:account'],
+			})),
+		};
+		const client = {
+			updateCredentials: jest.fn(async () => ({ data: { id: 'account-a' } })),
+		};
 		const reply = createReply();
 		const service = new ApiAccountMastodon(
-			{} as any,
-			{
-				findOneBy: jest.fn(async () => ({
-					userId: 'user-a',
-					permission: ['read:account'],
-				})),
-			} as any,
-			{ getClient: jest.fn(() => ({ updateCredentials: jest.fn() })) } as any,
+			accessTokensRepository as any,
+			{ getClient: jest.fn(() => client) } as any,
 			{} as any,
 			driveService as any,
+			{} as any,
 		);
 
 		service.register(fastify as any);
@@ -90,6 +94,8 @@ describe('Mastodon compatibility ACLs', () => {
 		}, reply);
 
 		expect(reply.code).toHaveBeenCalledWith(403);
+		expect(accessTokensRepository.findOneBy).toHaveBeenCalledWith({ token: 'token-a' });
 		expect(driveService.addFile).not.toHaveBeenCalled();
+		expect(client.updateCredentials).not.toHaveBeenCalled();
 	});
 });
