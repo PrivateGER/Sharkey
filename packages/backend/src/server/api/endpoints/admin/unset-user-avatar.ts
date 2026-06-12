@@ -8,6 +8,7 @@ import type { UsersRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -33,6 +34,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 		private usersRepository: UsersRepository,
 
 		private moderationLogService: ModerationLogService,
+		private readonly internalEventService: InternalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.usersRepository.findOneBy({ id: ps.userId });
@@ -49,6 +51,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 				avatarUrl: null,
 				avatarBlurhash: null,
 			});
+			await this.internalEventService.emit(user.host == null ? 'localUserUpdated' : 'remoteUserUpdated', { id: user.id });
 
 			await this.moderationLogService.log(me, 'unsetUserAvatar', {
 				userId: user.id,
