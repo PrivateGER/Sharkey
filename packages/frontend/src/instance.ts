@@ -73,7 +73,7 @@ async function createInstance(): Promise<Misskey.entities.MetaDetailed> {
 					fetchInstance(true).catch(err => {
 						console.warn('Failed to refresh instance meta, using stale cache', err);
 					});
-				}, 10_1000 * Math.abs(Math.random()));
+				}, 10_000 * Math.abs(Math.random()));
 			}
 
 			return cached.meta;
