@@ -253,7 +253,7 @@ export class UtilityService {
 
 	@bindThis
 	public isActiveLocalUser(user: MiLocalUser): boolean {
-		return !user.isDeleted && !user.isSuspended && user.approved;
+		return !user.isDeleted && !user.isSuspended && (user.approved || !this.meta.approvalRequiredForSignup);
 	}
 
 	@bindThis
