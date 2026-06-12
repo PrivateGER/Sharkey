@@ -623,8 +623,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			profileUpdates.verifiedLinks = await verifyFieldLinks(newFields, profileUrls, this.httpRequestService);
 			await this.userProfilesRepository.update(user.id, profileUpdates);
 
-			// Internal event purges the cache, which we immediately refill
+			// Internal events purge the caches (in all processes), which we immediately refill
 			await this.internalEventService.emit('userUpdated', { id: user.id });
+			await this.internalEventService.emit('updateUserProfile', { userId: user.id, keys: Object.keys(profileUpdates) as (keyof MiUserProfile)[] });
 			const updatedUser = await this.cacheService.findLocalUserById(user.id);
 			const updatedProfile = await this.cacheService.userProfileCache.fetch(user.id);
 
@@ -735,7 +736,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (!Array.isArray(oldArray) || !Array.isArray(newArray)) {
 				return true;
 			}
-			if (oldArray.join('\0') !== newArray.join('\0')) {
+			// Elements are objects, so compare structurally - Array.join would render them all as "[object Object]".
+			if (JSON.stringify(oldArray) !== JSON.stringify(newArray)) {
 				return true;
 			}
 		}

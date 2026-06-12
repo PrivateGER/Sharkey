@@ -116,14 +116,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				emailVerifyCode: null,
 			});
 
-			const iObj = await this.userEntityService.pack(me, me, {
-				schema: 'MeDetailed',
-				includeSecrets: true,
-			});
-
-			// Publish meUpdated event
-			await this.globalEventService.publishMainStream(me.id, 'meUpdated', iObj);
-
 			if (ps.email != null) {
 				const code = secureRndstr(16, { chars: L_CHARS });
 
@@ -138,7 +130,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					`To verify email, please click this link: ${link}`));
 			}
 
-			await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['emailVerifyCode'] });
+			// Purge the profile cache (in all processes) *before* packing, so the response reflects the new data.
+			await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['email', 'emailVerified', 'emailVerifyCode'] });
+
+			const iObj = await this.userEntityService.pack(me, me, {
+				schema: 'MeDetailed',
+				includeSecrets: true,
+			});
+
+			// Publish meUpdated event
+			await this.globalEventService.publishMainStream(me.id, 'meUpdated', iObj);
+
 			return iObj;
 		});
 	}
