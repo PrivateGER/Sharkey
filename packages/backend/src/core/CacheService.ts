@@ -789,8 +789,11 @@ export class CacheService implements OnApplicationShutdown {
 			this.userRelationsCache.dropMany(relationKeysToClear);
 		}
 
-		// Update the profile cache for local events only
-		// (isLocal may be undefined for local events, but will *always* be true for remote ones)
+		// Drop the cached profile. This runs for both local and remote events:
+		// isLocal is undefined for local events and false for remote ones, so the condition only skips
+		// callers that explicitly mark the event as local-only.
+		// For local events the quantum delete also syncs the purge to other processes; for remote events
+		// it is a redundant (but harmless) second purge.
 		if (ctx.isLocal !== true) {
 			await this.userProfileCache.delete(body.userId);
 		}
