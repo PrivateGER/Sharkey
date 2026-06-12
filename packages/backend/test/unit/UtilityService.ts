@@ -5,6 +5,7 @@
 
 import * as assert from 'assert';
 import type { MiMeta } from '@/models/_.js';
+import type { MiLocalUser } from '@/models/User.js';
 import type { Config } from '@/config.js';
 import type { SoftwareSuspension } from '@/models/Meta.js';
 import type { MiInstance } from '@/models/Instance.js';
@@ -257,6 +258,47 @@ describe('UtilityService', () => {
 				username: 'UsEr',
 				host: '1.example.com',
 			});
+		});
+	});
+
+	describe('isActiveLocalUser', () => {
+		const localUser = (overrides: Partial<MiLocalUser> = {}) => ({
+			host: null,
+			uri: null,
+			isDeleted: false,
+			isSuspended: false,
+			approved: true,
+			...overrides,
+		}) as MiLocalUser;
+
+		test('should be active when approved', () => {
+			meta.approvalRequiredForSignup = false;
+			expect(utilityService.isActiveLocalUser(localUser())).toBe(true);
+		});
+
+		test('should be active when unapproved but approval is not required', () => {
+			meta.approvalRequiredForSignup = false;
+			expect(utilityService.isActiveLocalUser(localUser({ approved: false }))).toBe(true);
+		});
+
+		test('should not be active when unapproved and approval is required', () => {
+			meta.approvalRequiredForSignup = true;
+			expect(utilityService.isActiveLocalUser(localUser({ approved: false }))).toBe(false);
+		});
+
+		test('should be active when approved and approval is required', () => {
+			meta.approvalRequiredForSignup = true;
+			expect(utilityService.isActiveLocalUser(localUser())).toBe(true);
+		});
+
+		test('should not be active when deleted', () => {
+			meta.approvalRequiredForSignup = false;
+			expect(utilityService.isActiveLocalUser(localUser({ isDeleted: true }))).toBe(false);
+		});
+
+		test('should not be active when suspended', () => {
+			meta.approvalRequiredForSignup = false;
+			expect(utilityService.isActiveLocalUser(localUser({ isSuspended: true }))).toBe(false);
 		});
 	});
 });
