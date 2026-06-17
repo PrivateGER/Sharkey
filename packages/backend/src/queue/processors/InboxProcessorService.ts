@@ -23,10 +23,9 @@ import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { JsonLdError, JsonLdService, Signed } from '@/core/activitypub/JsonLdService.js';
 import { ApInboxService } from '@/core/activitypub/ApInboxService.js';
 import { bindThis } from '@/decorators.js';
-import { MMrfAction, runMMrf } from '@/queue/processors/MMrfPolicy.js';
+import { MMrfAction, MMrfPolicyService } from '@/queue/processors/MMrfPolicy.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import type { UsersRepository } from '@/models/_.js';
-import { IdService } from '@/core/IdService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { MiMeta } from '@/models/Meta.js';
 import { DI } from '@/di-symbols.js';
@@ -64,7 +63,7 @@ export class InboxProcessorService {
 		private queueLoggerService: QueueLoggerService,
 		private readonly apLogService: ApLogService,
 		private readonly queueService: QueueService,
-		private idService: IdService,
+		private readonly mrfPolicyService: MMrfPolicyService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('inbox');
 	}
@@ -277,10 +276,21 @@ export class InboxProcessorService {
 		}
 
 		const mmrfLogger = this.queueLoggerService.logger.createSubLogger('mmrf');
-		const mMrfResponse = await runMMrf(activity, mmrfLogger, this.idService, this.apDbResolverService);
+		const signerHost = this.utilityService.extractDbHost(authUser.user.uri!);
+		const mMrfResponse = await this.mrfPolicyService.run(activity, mmrfLogger, {
+			actor: {
+				uri: authUser.user.uri!,
+				host: authUser.user.host,
+				followersCount: authUser.user.followersCount,
+				followingCount: authUser.user.followingCount,
+			},
+			localHost: this.config.host,
+			signerHost,
+			receivedAt: new Date().toISOString(),
+		});
 		const rewrittenActivity = mMrfResponse.data;
 		if (mMrfResponse.action === MMrfAction.RejectNote) {
-			throw new Bull.UnrecoverableError('skip: rejected by MMrf');
+			throw new Bull.UnrecoverableError(`skip: rejected by MMrf${mMrfResponse.reason ? `: ${mMrfResponse.reason}` : ''}`);
 		}
 
 		// Update instance stats

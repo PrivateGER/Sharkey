@@ -1,10 +1,11 @@
-import { IActivity, IObject } from '@/core/activitypub/type.js';
+import { IActivity } from '@/core/activitypub/type.js';
 import Logger from '@/logger.js';
-import { IdService } from '@/core/IdService.js';
+import { Inject, Injectable } from '@nestjs/common';
+import { DI } from '@/di-symbols.js';
+import type { InstancesRepository, MrfPoliciesRepository, NotesRepository } from '@/models/_.js';
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
-import { KeywordFilterPolicy } from '@/queue/processors/MMrfPolicies/KeywordFilterPolicy.js';
-import { NewUserSpamPolicy } from '@/queue/processors/MMrfPolicies/NewUserSpamPolicy.js';
-import { HellthreadPolicy } from '@/queue/processors/MMrfPolicies/HellthreadPolicy.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import type { MrfLuaPolicy } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 
 export enum MMrfAction {
 	Neutral,
@@ -15,46 +16,181 @@ export enum MMrfAction {
 export type MMrfResponse = {
 	action: MMrfAction;
 	data: IActivity;
+	reason?: string;
 };
 
-export interface MMrfPolicy {
-	runPolicy(activity: IActivity): Promise<MMrfResponse>;
-}
+export type MMrfRuntimeContext = {
+	actor: {
+		uri: string;
+		host: string | null;
+		followersCount: number;
+		followingCount: number;
+	};
+	localHost: string;
+	signerHost: string;
+	receivedAt: string;
+};
 
-async function applyPolicy(policy: any, activity: IActivity): Promise<MMrfResponse> {
-	let response = await policy.runPolicy(activity);
-	while (response.action === MMrfAction.RewriteNote) {
-		activity = response.data;
-		response = await policy.runPolicy(activity);
+@Injectable()
+export class MMrfPolicyService {
+	private readonly mrfLuaPolicyService = new MrfLuaPolicyService();
+
+	constructor(
+		@Inject(DI.mrfPoliciesRepository)
+		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
+
+		@Inject(DI.instancesRepository)
+		private readonly instancesRepository: InstancesRepository,
+
+		@Inject(DI.notesRepository)
+		private readonly notesRepository: NotesRepository,
+
+		private readonly apDbResolverService: ApDbResolverService,
+	) {
 	}
-	return response;
-}
 
-export async function runMMrf(activity: IActivity, logger: Logger, idService: IdService, apDbResolverService: ApDbResolverService): Promise<MMrfResponse> {
-	if (activity.type !== 'Create') {
-		return { action: MMrfAction.Neutral, data: activity };
-	}
+	public async run(activity: IActivity, logger: Logger, context: MMrfRuntimeContext): Promise<MMrfResponse> {
+		let mmrfActivity = structuredClone(activity);
+		const policies = await this.getEnabledPolicies();
+		const lookup = this.createLookupApi();
 
-	const object: IObject = activity.object as IObject;
-	if (object.type !== 'Note') {
-		return { action: MMrfAction.Neutral, data: activity };
-	}
+		for (const policy of policies) {
+			try {
+				const result = await this.mrfLuaPolicyService.run(policy, {
+					...context,
+					activity: mmrfActivity,
+				}, {
+					lookup,
+				});
 
-	const policies = [
-		new KeywordFilterPolicy(logger),
-		new NewUserSpamPolicy(apDbResolverService, idService, logger),
-		new HellthreadPolicy(logger),
-	];
+				if (result.decision.action === 'reject') {
+					logger.warn(`policy ${policy.id} rejected activity: ${result.decision.reason}`);
+					return {
+						action: MMrfAction.RejectNote,
+						data: mmrfActivity,
+						reason: `${policy.id}: ${result.decision.reason}`,
+					};
+				}
 
-	let mmrfActivity = activity;
+				if (result.decision.action === 'rewrite') {
+					logger.info(`policy ${policy.id} rewrote activity: ${result.decision.reason ?? 'no reason provided'}`);
+					mmrfActivity = result.decision.activity;
+				}
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : String(error);
+				logger.error(`policy ${policy.id} failed: ${reason}`);
+				if (policy.failureMode === 'accept') {
+					continue;
+				}
 
-	for (const policy of policies) {
-		const response = await applyPolicy(policy, mmrfActivity);
-		if (response.action === MMrfAction.RejectNote) {
-			return response;
+				return {
+					action: MMrfAction.RejectNote,
+					data: mmrfActivity,
+					reason: `${policy.id}: ${reason}`,
+				};
+			}
 		}
-		mmrfActivity = response.data;
+
+		return { action: MMrfAction.Neutral, data: mmrfActivity };
 	}
 
-	return { action: MMrfAction.Neutral, data: mmrfActivity };
+	private async getEnabledPolicies(): Promise<MrfLuaPolicy[]> {
+		const policies = await this.mrfPoliciesRepository.find({
+			where: {
+				enabled: true,
+			},
+			order: {
+				priority: 'ASC',
+				id: 'ASC',
+			},
+		});
+
+		return policies.map(policy => ({
+			id: policy.id,
+			name: policy.name,
+			source: policy.source,
+			timeoutMs: policy.timeoutMs,
+			failureMode: policy.failureMode,
+			paramsSchema: policy.paramsSchema,
+			params: policy.params,
+		}));
+	}
+
+	private createLookupApi() {
+		const userCache = new Map<string, Promise<Record<string, unknown> | null>>();
+		const instanceCache = new Map<string, Promise<Record<string, unknown> | null>>();
+		const noteCache = new Map<string, Promise<Record<string, unknown> | null>>();
+
+		const userByUri = async (uri: string): Promise<Record<string, unknown> | null> => {
+			if (!userCache.has(uri)) {
+				userCache.set(uri, this.apDbResolverService.getUserFromApId(uri)
+					.then(user => user == null ? null : ({
+						id: user.id,
+						uri: user.uri,
+						username: user.username,
+						host: user.host,
+						hasAvatar: user.avatarId != null || user.avatarUrl != null,
+						hasBanner: user.bannerId != null || user.bannerUrl != null,
+						followersCount: user.followersCount,
+						followingCount: user.followingCount,
+						updatedAt: user.updatedAt?.toISOString() ?? null,
+						lastFetchedAt: user.lastFetchedAt?.toISOString() ?? null,
+						isSuspended: user.isSuspended,
+						isSilenced: user.isSilenced,
+						isLocal: user.host == null,
+					})));
+			}
+
+			return await userCache.get(uri)!;
+		};
+
+		return {
+			userByUri,
+			userByMention: async (mention: Record<string, unknown> | string): Promise<Record<string, unknown> | null> => {
+				const uri = typeof mention === 'string' ? mention : mention.href;
+				if (typeof uri !== 'string') return null;
+				return await userByUri(uri);
+			},
+			instanceByHost: async (host: string): Promise<Record<string, unknown> | null> => {
+				if (!instanceCache.has(host)) {
+					instanceCache.set(host, this.instancesRepository.findOneBy({ host })
+						.then(instance => instance == null ? null : ({
+							host: instance.host,
+							softwareName: instance.softwareName,
+							softwareVersion: instance.softwareVersion,
+							isBlocked: instance.isBlocked,
+							isSilenced: instance.isSilenced,
+							isMediaSilenced: instance.isMediaSilenced,
+							isAllowListed: instance.isAllowListed,
+							moderationNote: instance.moderationNote,
+						})));
+				}
+
+				return await instanceCache.get(host)!;
+			},
+			noteByUri: async (uri: string): Promise<Record<string, unknown> | null> => {
+				if (!noteCache.has(uri)) {
+					noteCache.set(uri, this.notesRepository.findOne({
+						where: [
+							{ uri },
+							{ url: uri },
+						],
+					}).then(note => note == null ? null : ({
+						id: note.id,
+						uri: note.uri,
+						url: note.url,
+						visibility: note.visibility,
+						localOnly: note.localOnly,
+						userId: note.userId,
+						userHost: note.userHost,
+						updatedAt: note.updatedAt?.toISOString() ?? null,
+						isReply: note.replyId != null,
+						isRenote: note.renoteId != null,
+					})));
+				}
+
+				return await noteCache.get(uri)!;
+			},
+		};
+	}
 }

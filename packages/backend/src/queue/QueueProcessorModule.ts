@@ -46,6 +46,7 @@ import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostP
 import { CleanupApLogsProcessorService } from './processors/CleanupApLogsProcessorService.js';
 import { HibernateUsersProcessorService } from './processors/HibernateUsersProcessorService.js';
 import { BackgroundTaskProcessorService } from './processors/BackgroundTaskProcessorService.js';
+import { MMrfPolicyService } from './processors/MMrfPolicy.js';
 
 /** External module dependencies */
 const $Imports = [
@@ -89,6 +90,7 @@ const $Imports = [
 		SystemWebhookDeliverProcessorService,
 		EndedPollNotificationProcessorService,
 		DeliverProcessorService,
+		MMrfPolicyService,
 		InboxProcessorService,
 		AggregateRetentionProcessorService,
 		CheckExpiredMutingsProcessorService,
