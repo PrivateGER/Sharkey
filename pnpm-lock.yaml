@@ -399,6 +399,9 @@ importers:
       vary:
         specifier: 1.1.2
         version: 1.1.2
+      wasmoon:
+        specifier: 1.16.0
+        version: 1.16.0
       web-push:
         specifier: 3.6.7
         version: 3.6.7
@@ -570,7 +573,7 @@ importers:
         version: 7.1.4
       ts-jest:
         specifier: 29.4.5
-        version: 29.4.5(@babel/core@7.28.5)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.28.5))(esbuild@0.27.4)(jest-util@30.2.0)(jest@30.2.0(@types/node@22.18.1)(esbuild-register@3.5.0(esbuild@0.27.4))(ts-node@10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3)))(typescript@5.9.3)
+        version: 29.4.5(@babel/core@7.24.7)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.24.7))(esbuild@0.27.4)(jest-util@30.2.0)(jest@30.2.0(@types/node@22.18.1)(esbuild-register@3.5.0(esbuild@0.27.4))(ts-node@10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3)))(typescript@5.9.3)
       ts-node:
         specifier: 10.9.2
         version: 10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3)
@@ -2479,6 +2482,7 @@ packages:
 
   '@github/webauthn-json@2.1.1':
     resolution: {integrity: sha512-XrftRn4z75SnaJOmZQbt7Mk+IIjqVHw+glDGOxuHwXkZBZh/MBoRS7MHjSZMDaLhT4RjN2VqiEU7EOYleuJWSQ==}
+    deprecated: 'Deprecated: Modern browsers support built-in WebAuthn JSON methods. Please use native browser methods instead. For more information, visit https://github.com/github/webauthn-json'
     hasBin: true
 
   '@hapi/address@5.1.1':
@@ -3783,6 +3787,9 @@ packages:
 
   '@sinonjs/text-encoding@0.7.3':
     resolution: {integrity: sha512-DE427ROAphMQzU4ENbliGYrBSYPXF+TtLg9S8vzeA+OF4ZKzoDdzfL8sxuMUGS/lgRhM6j1URSk9ghf7Xo1tyA==}
+    deprecated: |-
+      Deprecated: no longer maintained and no longer used by Sinon packages. See
+        https://github.com/sinonjs/nise/issues/243 for replacement details.
 
   '@smithy/abort-controller@4.2.15':
     resolution: {integrity: sha512-98zuTrdp06d5jhoIA7gBzEAh+4zZMywxdS1qiiUg0BOTq/EE4zc0bqgbSBKMcRKSNFZrpVFjspExiP7ScO2l5A==}
@@ -4309,6 +4316,9 @@ packages:
   '@types/doctrine@0.0.9':
     resolution: {integrity: sha512-eOIHzCUSH7SMfonMG1LsC2f8vxBFtho6NGBznK41R84YzPuvSBzrhEps33IsQiOW9+VL6NQ9DbjQJznk/S4uRA==}
 
+  '@types/emscripten@1.39.10':
+    resolution: {integrity: sha512-TB/6hBkYQJxsZHSqyeuO1Jt0AB/bW6G7rHt9g7lML7SOF6lbgcHvw/Lr+69iqN0qxgXLhWKScAon73JNnptuDw==}
+
   '@types/eslint@7.29.0':
     resolution: {integrity: sha512-VNcvioYDH8/FxaeTKkM4/TiTwt6pBV9E3OfGmvaw8tPl0rrHCJ4Ll15HRT+pMiFAf/MLQvAzC+6RzUMEL9Ceng==}
 
@@ -4620,6 +4630,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@unrs/resolver-binding-android-arm-eabi@1.11.1':
     resolution: {integrity: sha512-ppLRUgHVaGRWUx0R0Ut06Mjo9gBaBkg3v/8AxusGLhsIotbBLuRk51rAzqLC8gq6NyyAojEXglNjzf6R948DNw==}
@@ -7116,6 +7127,7 @@ packages:
 
   intersection-observer@0.12.2:
     resolution: {integrity: sha512-7m1vEcPCxXYI8HqnL8CKI6siDyD+eIWSwgB3DZA+ZTogxk9I4CDnj4wilt9x/+/QbHI4YG5YZNmC6458/e9Ktg==}
+    deprecated: The Intersection Observer polyfill is no longer needed and can safely be removed. Intersection Observer has been Baseline since 2019.
 
   ioredis@5.8.0:
     resolution: {integrity: sha512-AUXbKn9gvo9hHKvk6LbZJQSKn/qIfkWXrnsyL9Yrf+oeXmla9Nmf6XEumOddyhM8neynpK5oAV6r9r99KBuwzA==}
@@ -8826,6 +8838,7 @@ packages:
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
     engines: {node: '>=10'}
+    deprecated: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
     hasBin: true
 
   prelude-ls@1.2.1:
@@ -10379,10 +10392,12 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   v-code-diff@1.13.1:
@@ -10549,8 +10564,8 @@ packages:
   vue-component-type-helpers@3.0.8:
     resolution: {integrity: sha512-WyR30Eq15Y/+odrUUMax6FmPbZwAp/HnC7qgR1r3lVFAcqwQ4wUoV79Mbh4SxDy3NiqDa+G4TOKD5xXSgBHo5A==}
 
-  vue-component-type-helpers@3.3.1:
-    resolution: {integrity: sha512-pu58kqxmVyEH6VfNYW1UyEfR3XAnJ27ZXT3yzXxxpjLxVzAbyC35Zk/nm/RMs7ijWnJNSd9fWkeex2OhUsx3MA==}
+  vue-component-type-helpers@3.3.5:
+    resolution: {integrity: sha512-Fe1jyPJoUGpJOYKOri44jduR7My4yYINOMJISuMAbmrs+L5LbIDUc8NTWZYY3EJLK0yPLuCmcd5zoCsE4k2/KA==}
 
   vue-demi@0.14.7:
     resolution: {integrity: sha512-EOG8KXDQNwkJILkx/gPcoL/7vH+hORoBaKgGe+6W7VFMvCYJfmF2dGbvgDroVnI8LU7/kTu8mbjRZGBU1z9NTA==}
@@ -10617,6 +10632,10 @@ packages:
     resolution: {integrity: sha512-OSDqupzTlzl2LGyqTdhcXcl6ezMiFhcUwLBP8YKaBIbMYW1wAwDvupw2T9G9oVaKT9RmaSpyTXjxddFPUcFFIw==}
     engines: {node: '>=12'}
 
+  wasmoon@1.16.0:
+    resolution: {integrity: sha512-FlRLb15WwAOz1A9OQDbf6oOKKSiefi5VK0ZRF2wgH9xk3o5SnU11tNPaOnQuAh1Ucr66cwwvVXaeVRaFdRBt5g==}
+    hasBin: true
+
   web-push@3.6.7:
     resolution: {integrity: sha512-OpiIUe8cuGjrj3mMBFWY+e4MMIkW3SVT+7vEIjvD9kejGUypv8GPDf84JdPWskK8zMRIJ6xYGm+Kxr8YkPyA0A==}
     engines: {node: '>= 16'}
@@ -10643,6 +10662,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -11411,35 +11431,77 @@ snapshots:
     dependencies:
       '@babel/types': 7.28.5
 
+  '@babel/plugin-syntax-async-generators@7.8.4(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-async-generators@7.8.4(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-bigint@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-bigint@7.8.3(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
 
+  '@babel/plugin-syntax-class-properties@7.12.13(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-class-properties@7.12.13(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-class-static-block@7.14.5(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-class-static-block@7.14.5(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
 
+  '@babel/plugin-syntax-import-attributes@7.27.1(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.27.1
+    optional: true
+
   '@babel/plugin-syntax-import-attributes@7.27.1(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.27.1
 
+  '@babel/plugin-syntax-import-meta@7.10.4(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-import-meta@7.10.4(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-json-strings@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-json-strings@7.8.3(@babel/core@7.28.5)':
     dependencies:
@@ -11451,40 +11513,88 @@ snapshots:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.27.1
 
+  '@babel/plugin-syntax-logical-assignment-operators@7.10.4(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-logical-assignment-operators@7.10.4(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-nullish-coalescing-operator@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-nullish-coalescing-operator@7.8.3(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
 
+  '@babel/plugin-syntax-numeric-separator@7.10.4(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-numeric-separator@7.10.4(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-object-rest-spread@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-object-rest-spread@7.8.3(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
 
+  '@babel/plugin-syntax-optional-catch-binding@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-optional-catch-binding@7.8.3(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-optional-chaining@7.8.3(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-optional-chaining@7.8.3(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
 
+  '@babel/plugin-syntax-private-property-in-object@7.14.5(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
+
   '@babel/plugin-syntax-private-property-in-object@7.14.5(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/helper-plugin-utils': 7.22.5
+
+  '@babel/plugin-syntax-top-level-await@7.14.5(@babel/core@7.24.7)':
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.22.5
+    optional: true
 
   '@babel/plugin-syntax-top-level-await@7.14.5(@babel/core@7.28.5)':
     dependencies:
@@ -13887,7 +13997,7 @@ snapshots:
       storybook: 10.3.1(@testing-library/dom@10.4.0)(bufferutil@4.0.9)(prettier@3.6.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(utf-8-validate@6.0.5)
       type-fest: 2.19.0
       vue: 3.5.21(typescript@5.9.3)
-      vue-component-type-helpers: 3.3.1
+      vue-component-type-helpers: 3.3.5
 
   '@stylistic/eslint-plugin@5.6.1(eslint@9.39.4)':
     dependencies:
@@ -14162,6 +14272,8 @@ snapshots:
   '@types/disposable-email-domains@1.0.2': {}
 
   '@types/doctrine@0.0.9': {}
+
+  '@types/emscripten@1.39.10': {}
 
   '@types/eslint@7.29.0':
     dependencies:
@@ -15209,6 +15321,20 @@ snapshots:
 
   b4a@1.6.4: {}
 
+  babel-jest@30.2.0(@babel/core@7.24.7):
+    dependencies:
+      '@babel/core': 7.24.7
+      '@jest/transform': 30.2.0
+      '@types/babel__core': 7.20.5
+      babel-plugin-istanbul: 7.0.1
+      babel-preset-jest: 30.2.0(@babel/core@7.24.7)
+      chalk: 4.1.2
+      graceful-fs: 4.2.11
+      slash: 3.0.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
+
   babel-jest@30.2.0(@babel/core@7.28.5):
     dependencies:
       '@babel/core': 7.28.5
@@ -15236,6 +15362,26 @@ snapshots:
     dependencies:
       '@types/babel__core': 7.20.5
 
+  babel-preset-current-node-syntax@1.2.0(@babel/core@7.24.7):
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/plugin-syntax-async-generators': 7.8.4(@babel/core@7.24.7)
+      '@babel/plugin-syntax-bigint': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-class-properties': 7.12.13(@babel/core@7.24.7)
+      '@babel/plugin-syntax-class-static-block': 7.14.5(@babel/core@7.24.7)
+      '@babel/plugin-syntax-import-attributes': 7.27.1(@babel/core@7.24.7)
+      '@babel/plugin-syntax-import-meta': 7.10.4(@babel/core@7.24.7)
+      '@babel/plugin-syntax-json-strings': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-logical-assignment-operators': 7.10.4(@babel/core@7.24.7)
+      '@babel/plugin-syntax-nullish-coalescing-operator': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-numeric-separator': 7.10.4(@babel/core@7.24.7)
+      '@babel/plugin-syntax-object-rest-spread': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-optional-catch-binding': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-optional-chaining': 7.8.3(@babel/core@7.24.7)
+      '@babel/plugin-syntax-private-property-in-object': 7.14.5(@babel/core@7.24.7)
+      '@babel/plugin-syntax-top-level-await': 7.14.5(@babel/core@7.24.7)
+    optional: true
+
   babel-preset-current-node-syntax@1.2.0(@babel/core@7.28.5):
     dependencies:
       '@babel/core': 7.28.5
@@ -15254,6 +15400,13 @@ snapshots:
       '@babel/plugin-syntax-optional-chaining': 7.8.3(@babel/core@7.28.5)
       '@babel/plugin-syntax-private-property-in-object': 7.14.5(@babel/core@7.28.5)
       '@babel/plugin-syntax-top-level-await': 7.14.5(@babel/core@7.28.5)
+
+  babel-preset-jest@30.2.0(@babel/core@7.24.7):
+    dependencies:
+      '@babel/core': 7.24.7
+      babel-plugin-jest-hoist: 30.2.0
+      babel-preset-current-node-syntax: 1.2.0(@babel/core@7.24.7)
+    optional: true
 
   babel-preset-jest@30.2.0(@babel/core@7.28.5):
     dependencies:
@@ -20898,6 +21051,27 @@ snapshots:
 
   ts-dedent@2.2.0: {}
 
+  ts-jest@29.4.5(@babel/core@7.24.7)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.24.7))(esbuild@0.27.4)(jest-util@30.2.0)(jest@30.2.0(@types/node@22.18.1)(esbuild-register@3.5.0(esbuild@0.27.4))(ts-node@10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3)))(typescript@5.9.3):
+    dependencies:
+      bs-logger: 0.2.6
+      fast-json-stable-stringify: 2.1.0
+      handlebars: 4.7.8
+      jest: 30.2.0(@types/node@22.18.1)(esbuild-register@3.5.0(esbuild@0.27.4))(ts-node@10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3))
+      json5: 2.2.3
+      lodash.memoize: 4.1.2
+      make-error: 1.3.6
+      semver: 7.7.3
+      type-fest: 4.41.0
+      typescript: 5.9.3
+      yargs-parser: 21.1.1
+    optionalDependencies:
+      '@babel/core': 7.24.7
+      '@jest/transform': 30.2.0
+      '@jest/types': 30.2.0
+      babel-jest: 30.2.0(@babel/core@7.24.7)
+      esbuild: 0.27.4
+      jest-util: 30.2.0
+
   ts-jest@29.4.5(@babel/core@7.28.5)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.28.5))(esbuild@0.27.4)(jest-util@30.2.0)(jest@30.2.0(@types/node@22.18.1)(esbuild-register@3.5.0(esbuild@0.27.4))(ts-node@10.9.2(@swc/core@1.15.18)(@swc/wasm@1.2.130)(@types/node@22.18.1)(typescript@5.9.3)))(typescript@5.9.3):
     dependencies:
       bs-logger: 0.2.6
@@ -21443,7 +21617,7 @@ snapshots:
 
   vue-component-type-helpers@3.0.8: {}
 
-  vue-component-type-helpers@3.3.1: {}
+  vue-component-type-helpers@3.3.5: {}
 
   vue-demi@0.14.7(vue@3.5.21(typescript@5.9.3)):
     dependencies:
@@ -21526,6 +21700,10 @@ snapshots:
       makeerror: 1.0.12
 
   wanakana@5.3.1: {}
+
+  wasmoon@1.16.0:
+    dependencies:
+      '@types/emscripten': 1.39.10
 
   web-push@3.6.7:
     dependencies:
