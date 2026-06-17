@@ -34,6 +34,7 @@ export const DI = {
 	apContextsRepository: Symbol('apContextsRepository'),
 	apFetchLogsRepository: Symbol('apFetchLogsRepository'),
 	apInboxLogsRepository: Symbol('apInboxLogsRepository'),
+	mrfPoliciesRepository: Symbol('mrfPoliciesRepository'),
 	noteFavoritesRepository: Symbol('noteFavoritesRepository'),
 	noteThreadMutingsRepository: Symbol('noteThreadMutingsRepository'),
 	noteReactionsRepository: Symbol('noteReactionsRepository'),

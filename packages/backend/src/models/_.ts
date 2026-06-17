@@ -39,6 +39,7 @@ import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
 import { MiMeta } from '@/models/Meta.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
+import { MiMrfPolicy } from '@/models/MrfPolicy.js';
 import { MiMuting } from '@/models/Muting.js';
 import { MiNote } from '@/models/Note.js';
 import { MiNoteFavorite } from '@/models/NoteFavorite.js';
@@ -178,6 +179,7 @@ export {
 	MiInstance,
 	MiMeta,
 	MiModerationLog,
+	MiMrfPolicy,
 	MiMuting,
 	MiRenoteMuting,
 	MiNote,
@@ -257,6 +259,7 @@ export type GalleryPostsRepository = Repository<MiGalleryPost> & MiRepository<Mi
 export type HashtagsRepository = Repository<MiHashtag> & MiRepository<MiHashtag>;
 export type InstancesRepository = Repository<MiInstance> & MiRepository<MiInstance>;
 export type MetasRepository = Repository<MiMeta> & MiRepository<MiMeta>;
+export type MrfPoliciesRepository = Repository<MiMrfPolicy> & MiRepository<MiMrfPolicy>;
 export type LatestNotesRepository = Repository<SkLatestNote> & MiRepository<SkLatestNote>;
 export type ApContextsRepository = Repository<SkApContext> & MiRepository<SkApContext>;
 export type ApFetchLogsRepository = Repository<SkApFetchLog> & MiRepository<SkApFetchLog>;

@@ -37,6 +37,7 @@ import {
 	MiInstance,
 	MiMeta,
 	MiModerationLog,
+	MiMrfPolicy,
 	MiMuting,
 	MiNote,
 	MiNoteFavorite,
@@ -391,6 +392,12 @@ const $moderationLogsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $mrfPoliciesRepository: Provider = {
+	provide: DI.mrfPoliciesRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiMrfPolicy).extend(miRepository as MiRepository<MiMrfPolicy>),
+	inject: [DI.db],
+};
+
 const $clipsRepository: Provider = {
 	provide: DI.clipsRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiClip).extend(miRepository as MiRepository<MiClip>),
@@ -623,6 +630,7 @@ export const repositoryProviders: Provider[] = [
 		$galleryPostsRepository,
 		$galleryLikesRepository,
 		$moderationLogsRepository,
+		$mrfPoliciesRepository,
 		$clipsRepository,
 		$clipNotesRepository,
 		$clipFavoritesRepository,
