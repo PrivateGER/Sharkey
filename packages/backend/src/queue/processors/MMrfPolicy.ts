@@ -33,7 +33,7 @@ export type MMrfRuntimeContext = {
 
 @Injectable()
 export class MMrfPolicyService {
-	private readonly mrfLuaPolicyService = new MrfLuaPolicyService();
+	private mrfLuaPolicyService: MrfLuaPolicyService | null = null;
 
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
@@ -56,7 +56,7 @@ export class MMrfPolicyService {
 
 		for (const policy of policies) {
 			try {
-				const result = await this.mrfLuaPolicyService.run(policy, {
+				const result = await this.getMrfLuaPolicyService().run(policy, {
 					...context,
 					activity: mmrfActivity,
 				}, {
@@ -92,6 +92,11 @@ export class MMrfPolicyService {
 		}
 
 		return { action: MMrfAction.Neutral, data: mmrfActivity };
+	}
+
+	private getMrfLuaPolicyService(): MrfLuaPolicyService {
+		this.mrfLuaPolicyService ??= new MrfLuaPolicyService();
+		return this.mrfLuaPolicyService;
 	}
 
 	private async getEnabledPolicies(): Promise<MrfLuaPolicy[]> {

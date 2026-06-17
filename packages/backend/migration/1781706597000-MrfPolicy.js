@@ -3,14 +3,66 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-export class MrfPolicy1792000000000 {
-	name = 'MrfPolicy1792000000000'
+export class MrfPolicy1781706597000 {
+	name = 'MrfPolicy1781706597000'
 
 	async up(queryRunner) {
 		await queryRunner.query(`CREATE TABLE "mrf_policy" ("id" character varying(32) NOT NULL, "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" character varying(256) NOT NULL, "enabled" boolean NOT NULL DEFAULT true, "priority" integer NOT NULL DEFAULT '1000', "source" text NOT NULL, "timeoutMs" integer NOT NULL DEFAULT '50', "failureMode" character varying(32) NOT NULL DEFAULT 'reject', "isBuiltin" boolean NOT NULL DEFAULT false, "builtinPolicyId" character varying(128), "paramsSchema" jsonb NOT NULL DEFAULT '{}', "params" jsonb NOT NULL DEFAULT '{}', CONSTRAINT "PK_mrf_policy" PRIMARY KEY ("id"))`);
 		await queryRunner.query(`CREATE INDEX "IDX_mrf_policy_enabled_priority" ON "mrf_policy" ("enabled", "priority")`);
 		await queryRunner.query(`CREATE UNIQUE INDEX "IDX_mrf_policy_builtinPolicyId" ON "mrf_policy" ("builtinPolicyId")`);
 		await queryRunner.query(`INSERT INTO "mrf_policy" ("id", "name", "enabled", "priority", "source", "timeoutMs", "failureMode", "isBuiltin", "builtinPolicyId", "paramsSchema", "params") VALUES ($1, $2, true, 10, $3, 50, 'reject', true, $4, $5::jsonb, $6::jsonb)`, [
+			'mrfbuiltinkeyword001',
+			'Keyword filter',
+			`
+				policy = {
+					params = {
+						keywords = {
+							type = "string_array",
+							default = {
+								"https://discord.gg/ctkpaarr",
+								"@ap12@mastodon-japan.net",
+								"ctkpaarr",
+							},
+							label = "Blocked keywords",
+						},
+					},
+				}
+
+				function filter(ctx)
+					local note = mrf.activity.note(ctx.activity)
+					if note == nil then
+						return mrf.accept()
+					end
+
+					local content = mrf.note.content(note)
+					if type(content) ~= "string" then
+						return mrf.accept()
+					end
+
+					for _, keyword in ipairs(ctx.params.keywords) do
+						if string.find(content, keyword, 1, true) ~= nil then
+							return mrf.reject("keyword filter matched: " .. keyword)
+						end
+					end
+
+					return mrf.accept()
+				end
+			`,
+			'keyword-filter',
+			JSON.stringify({
+				keywords: {
+					type: 'string_array',
+					default: [
+						'https://discord.gg/ctkpaarr',
+						'@ap12@mastodon-japan.net',
+						'ctkpaarr',
+					],
+					label: 'Blocked keywords',
+				},
+			}),
+			'{}',
+		]);
+		await queryRunner.query(`INSERT INTO "mrf_policy" ("id", "name", "enabled", "priority", "source", "timeoutMs", "failureMode", "isBuiltin", "builtinPolicyId", "paramsSchema", "params") VALUES ($1, $2, true, 20, $3, 50, 'reject', true, $4, $5::jsonb, $6::jsonb)`, [
 			'mrfbuiltinnewuserspam001',
 			'New user spam mention filter',
 			`
@@ -86,7 +138,7 @@ export class MrfPolicy1792000000000 {
 			}),
 			'{}',
 		]);
-		await queryRunner.query(`INSERT INTO "mrf_policy" ("id", "name", "enabled", "priority", "source", "timeoutMs", "failureMode", "isBuiltin", "builtinPolicyId", "paramsSchema", "params") VALUES ($1, $2, true, 20, $3, 50, 'reject', true, $4, $5::jsonb, $6::jsonb)`, [
+		await queryRunner.query(`INSERT INTO "mrf_policy" ("id", "name", "enabled", "priority", "source", "timeoutMs", "failureMode", "isBuiltin", "builtinPolicyId", "paramsSchema", "params") VALUES ($1, $2, true, 30, $3, 50, 'reject', true, $4, $5::jsonb, $6::jsonb)`, [
 			'mrfbuiltinhellthread001',
 			'Hellthread mention filter',
 			`

@@ -7,6 +7,7 @@ import * as assert from 'node:assert';
 import UpdateMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/update.js';
 import DeleteMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/delete.js';
 import CreateMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/create.js';
+import { meta as listMeta } from '@/server/api/endpoints/admin/mrf-policies/list.js';
 import { ApiError } from '@/server/api/error.js';
 
 function createPolicy(overrides: Record<string, unknown> = {}) {
@@ -70,6 +71,11 @@ function createRepository(policy = createPolicy()) {
 }
 
 describe('MRF policy admin endpoints', () => {
+	test('requires administrator privileges to list policy source', () => {
+		assert.equal(listMeta.requireAdmin, true);
+		assert.equal('requireModerator' in listMeta, false);
+	});
+
 	test('allows disabling built-in policies without modifying their source', async () => {
 		const repository = createRepository();
 		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);

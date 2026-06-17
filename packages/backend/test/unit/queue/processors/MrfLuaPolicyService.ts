@@ -381,11 +381,11 @@ describe('MrfLuaPolicyService', () => {
 		);
 	});
 
-	test('exposes note helpers for mention counting and removal', async () => {
-		const service = createService();
-		const activity = {
-			...baseActivity,
-			object: {
+		test('exposes note helpers for mention counting and removal', async () => {
+			const service = createService();
+			const activity = {
+				...baseActivity,
+				object: {
 				...baseActivity.object,
 				tag: [
 					{ type: 'Mention', href: 'https://local.example/@alice' },
@@ -427,13 +427,53 @@ describe('MrfLuaPolicyService', () => {
 			assert.deepStrictEqual((result.decision.activity.object as { tag: unknown[] }).tag, [
 				{ type: 'Hashtag', name: '#test' },
 			]);
-		}
-	});
+			}
+		});
 
-	test('exposes read-only lookup helpers to Lua policies', async () => {
-		const service = createService();
+		test('remove_mentions keeps an empty tag collection as a JavaScript array', async () => {
+			const service = createService();
+			const activity = {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					tag: [
+						{ type: 'Mention', href: 'https://local.example/@alice' },
+						{ type: 'Mention', href: 'https://local.example/@bob' },
+					],
+				},
+			} satisfies IActivity;
 
-		const result = await service.run({
+			const result = await service.run({
+				id: 'remove-all-mentions',
+				name: 'Remove All Mentions Policy',
+				source: `
+					function filter(ctx)
+						local note = mrf.activity.note(ctx.activity)
+						mrf.note.remove_mentions(note)
+						return mrf.rewrite(ctx.activity, "removed all mentions")
+					end
+				`,
+			}, {
+				activity,
+				actor: {
+					uri: 'https://remote.example/users/alice',
+					host: 'remote.example',
+				},
+				localHost: 'local.example',
+				signerHost: 'remote.example',
+				receivedAt: '2026-06-14T00:00:00.000Z',
+			});
+
+			assert.equal(result.decision.action, 'rewrite');
+			if (result.decision.action === 'rewrite') {
+				assert.deepStrictEqual((result.decision.activity.object as { tag: unknown[] }).tag, []);
+			}
+		});
+
+		test('exposes read-only lookup helpers to Lua policies', async () => {
+			const service = createService();
+
+			const result = await service.run({
 			id: 'lookup',
 			name: 'Lookup Policy',
 			source: `

@@ -326,7 +326,7 @@ export class MrfLuaPolicyService {
 			const thread = lua.global.newThread();
 			thread.loadString('return filter(ctx)', policy.name);
 			const returns = await thread.run(0, { timeout: timeoutMs });
-			const decision = this.parseDecision(returns[0]);
+			const decision = this.parseDecision(returns[0], clonedContext.activity);
 
 			return {
 				policy: {
@@ -505,7 +505,7 @@ export class MrfLuaPolicyService {
 		}
 	}
 
-	private parseDecision(value: unknown): MrfLuaDecision {
+	private parseDecision(value: unknown, originalActivity: IActivity): MrfLuaDecision {
 		if (!isRecord(value)) {
 			throw new Error('policy returned a non-object decision');
 		}
@@ -535,12 +535,33 @@ export class MrfLuaPolicyService {
 
 			return {
 				action: 'rewrite',
-				activity: value.activity as unknown as IActivity,
+				activity: this.normalizeLuaArrayShapes(value.activity, originalActivity) as unknown as IActivity,
 				...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
 			};
 		}
 
 		throw new Error(`unknown policy action: ${String(value.action)}`);
+	}
+
+	private normalizeLuaArrayShapes(value: unknown, template: unknown): unknown {
+		if (Array.isArray(template) && isRecord(value) && Object.keys(value).length === 0) {
+			return [];
+		}
+
+		if (Array.isArray(value)) {
+			const templateArray = Array.isArray(template) ? template : [];
+			return value.map((item, index) => this.normalizeLuaArrayShapes(item, templateArray[index]));
+		}
+
+		if (!isRecord(value) || !isRecord(template)) {
+			return value;
+		}
+
+		for (const [key, item] of Object.entries(value)) {
+			value[key] = this.normalizeLuaArrayShapes(item, template[key]);
+		}
+
+		return value;
 	}
 }
 
