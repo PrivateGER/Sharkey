@@ -8,7 +8,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
-import { DEFAULT_MRF_POLICY_FAILURE_MODE, DEFAULT_MRF_POLICY_SCOPE, mrfPolicyFailureModes, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ApiError } from '../../../error.js';
 
@@ -35,7 +35,6 @@ export const paramDef = {
 		priority: { type: 'integer', default: 1000 },
 		source: { type: 'string', minLength: 1 },
 		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, default: 50 },
-		failureMode: { type: 'string', enum: mrfPolicyFailureModes, default: DEFAULT_MRF_POLICY_FAILURE_MODE },
 		scope: {
 			type: 'object',
 			properties: {
@@ -82,7 +81,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				priority: ps.priority ?? 1000,
 				source: ps.source,
 				timeoutMs: ps.timeoutMs ?? 50,
-				failureMode: ps.failureMode ?? DEFAULT_MRF_POLICY_FAILURE_MODE,
 				scope: normalizeMrfPolicyScope(ps.scope ?? DEFAULT_MRF_POLICY_SCOPE),
 				isBuiltin: false,
 				builtinPolicyId: null,
@@ -99,7 +97,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				priority: policy.priority,
 				source: policy.source,
 				timeoutMs: policy.timeoutMs,
-				failureMode: policy.failureMode,
 				scope: policy.scope,
 				isBuiltin: policy.isBuiltin,
 				builtinPolicyId: policy.builtinPolicyId,

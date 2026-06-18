@@ -11,7 +11,6 @@ export type MrfLuaPolicy = {
 	name: string;
 	source: string;
 	timeoutMs?: number;
-	failureMode?: 'reject' | 'accept';
 	paramsSchema?: MrfLuaParamsSchema;
 	params?: MrfLuaParams;
 };

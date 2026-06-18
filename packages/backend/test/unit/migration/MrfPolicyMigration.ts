@@ -25,9 +25,10 @@ describe('MRF policy migration', () => {
 
 		assert.deepStrictEqual(builtinPolicyIds, ['keyword-filter', 'new-user-spam', 'hellthread']);
 		assert.match(createTable?.sql ?? '', /"scope" jsonb NOT NULL DEFAULT/);
+		assert.doesNotMatch(createTable?.sql ?? '', /"failureMode"/);
 		for (const query of builtinInserts) {
 			assert.match(query.sql, /"scope"/);
-			assert.match(query.sql, /'accept'/);
+			assert.doesNotMatch(query.sql, /"failureMode"/);
 			assert.deepStrictEqual(JSON.parse(query.params?.[6] as string), {
 				activityTypes: ['Create'],
 				objectTypes: ['Note'],

@@ -7,10 +7,6 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import type { MrfLuaParams, MrfLuaParamsSchema } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { id } from './util/id.js';
 
-export const mrfPolicyFailureModes = ['reject', 'accept'] as const;
-export type MrfPolicyFailureMode = typeof mrfPolicyFailureModes[number];
-export const DEFAULT_MRF_POLICY_FAILURE_MODE = 'accept' satisfies MrfPolicyFailureMode;
-
 export type MrfPolicyScope = {
 	activityTypes: string[] | null;
 	objectTypes: string[] | null;
@@ -92,12 +88,6 @@ export class MiMrfPolicy {
 		default: 50,
 	})
 	public timeoutMs: number;
-
-	@Column('varchar', {
-		length: 32,
-		default: DEFAULT_MRF_POLICY_FAILURE_MODE,
-	})
-	public failureMode: MrfPolicyFailureMode;
 
 	@Column('jsonb', {
 		default: DEFAULT_MRF_POLICY_SCOPE,

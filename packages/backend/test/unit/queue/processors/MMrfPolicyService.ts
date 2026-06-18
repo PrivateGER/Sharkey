@@ -136,6 +136,20 @@ describe('MMrfPolicyService', () => {
 		assert.deepStrictEqual(result.data, keywordActivity);
 	});
 
+	test('fails open for runtime errors even when a policy was configured fail-closed', async () => {
+		const service = createService([
+			createPolicyRow({
+				failureMode: 'reject',
+				source: 'function filter(ctx) error("broken policy") end',
+			}),
+		]);
+
+		const result = await service.run(keywordActivity, logger as any, runtimeContext);
+
+		assert.equal(result.action, MMrfAction.Neutral);
+		assert.deepStrictEqual(result.data, keywordActivity);
+	});
+
 	test('keeps explicit policy rejections as enforcement decisions', async () => {
 		const service = createService([
 			createPolicyRow({

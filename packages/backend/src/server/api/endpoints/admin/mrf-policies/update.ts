@@ -7,7 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
-import { DEFAULT_MRF_POLICY_SCOPE, mrfPolicyFailureModes, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ApiError } from '../../../error.js';
 
@@ -45,7 +45,6 @@ export const paramDef = {
 		priority: { type: 'integer' },
 		source: { type: 'string', minLength: 1 },
 		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000 },
-		failureMode: { type: 'string', enum: mrfPolicyFailureModes },
 		scope: {
 			type: 'object',
 			properties: {
@@ -74,7 +73,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				ps.name !== undefined ||
 				ps.source !== undefined ||
 				ps.timeoutMs !== undefined ||
-				ps.failureMode !== undefined ||
 				ps.scope !== undefined
 			)) {
 				throw new ApiError(meta.errors.cannotModifyBuiltinPolicy);
@@ -107,7 +105,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...(ps.priority !== undefined ? { priority: ps.priority } : {}),
 				...(ps.source !== undefined ? { source: ps.source } : {}),
 				...(ps.timeoutMs !== undefined ? { timeoutMs: ps.timeoutMs } : {}),
-				...(ps.failureMode !== undefined ? { failureMode: ps.failureMode } : {}),
 				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope ?? DEFAULT_MRF_POLICY_SCOPE) } : {}),
 				...(ps.source !== undefined ? { paramsSchema } : {}),
 				...(ps.source !== undefined || ps.params !== undefined ? { params } : {}),
@@ -125,7 +122,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				priority: policy.priority,
 				source: policy.source,
 				timeoutMs: policy.timeoutMs,
-				failureMode: policy.failureMode,
 				scope: policy.scope,
 				isBuiltin: policy.isBuiltin,
 				builtinPolicyId: policy.builtinPolicyId,

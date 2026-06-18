@@ -20,7 +20,6 @@ function createPolicy(overrides: Record<string, unknown> = {}) {
 		priority: 10,
 		source: 'function filter(ctx) return mrf.accept() end',
 		timeoutMs: 50,
-		failureMode: 'accept',
 		scope: {
 			activityTypes: ['Create'],
 			objectTypes: ['Note'],
@@ -164,7 +163,6 @@ describe('MRF policy admin endpoints', () => {
 		assert.deepStrictEqual(result.params, {
 			threshold: 9,
 		});
-		assert.equal(result.failureMode, 'accept');
 		assert.deepStrictEqual(result.scope, {
 			activityTypes: ['Create'],
 			objectTypes: ['Note'],

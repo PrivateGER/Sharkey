@@ -6,8 +6,8 @@ import type { InstancesRepository, MrfPoliciesRepository, NotesRepository } from
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicy } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
-import { DEFAULT_MRF_POLICY_FAILURE_MODE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
-import type { MrfPolicyFailureMode, MrfPolicyScope } from '@/models/MrfPolicy.js';
+import { normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import type { MrfPolicyScope } from '@/models/MrfPolicy.js';
 
 export enum MMrfAction {
 	Neutral,
@@ -34,7 +34,6 @@ export type MMrfRuntimeContext = {
 };
 
 type ScopedMrfLuaPolicy = MrfLuaPolicy & {
-	failureMode: MrfPolicyFailureMode;
 	scope: MrfPolicyScope;
 };
 
@@ -91,15 +90,7 @@ export class MMrfPolicyService {
 			} catch (error) {
 				const reason = error instanceof Error ? error.message : String(error);
 				logger.error(`policy ${policy.id} failed: ${reason}`);
-				if (policy.failureMode === 'accept') {
-					continue;
-				}
-
-				return {
-					action: MMrfAction.RejectNote,
-					data: mmrfActivity,
-					reason: `${policy.id}: ${reason}`,
-				};
+				continue;
 			}
 		}
 
@@ -149,7 +140,6 @@ export class MMrfPolicyService {
 			name: policy.name,
 			source: policy.source,
 			timeoutMs: policy.timeoutMs,
-			failureMode: policy.failureMode ?? DEFAULT_MRF_POLICY_FAILURE_MODE,
 			scope: normalizeMrfPolicyScope(policy.scope),
 			paramsSchema: policy.paramsSchema,
 			params: policy.params,
