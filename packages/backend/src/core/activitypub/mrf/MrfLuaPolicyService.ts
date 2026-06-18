@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { createHash } from 'node:crypto';
 import { LuaFactory } from 'wasmoon';
 import type { IActivity } from '@/core/activitypub/type.js';
 
@@ -66,11 +67,15 @@ export type MrfLuaRunOptions = {
 export type MrfLuaPolicyServiceOptions = {
 	defaultTimeoutMs: number;
 	defaultMemoryLimitBytes: number;
+	maxPreparedEnginesPerPolicy: number;
+	maxPreparedEngineUses: number;
 };
 
 const DEFAULT_OPTIONS = {
 	defaultTimeoutMs: 50,
 	defaultMemoryLimitBytes: 1024 * 1024 * 8,
+	maxPreparedEnginesPerPolicy: 2,
+	maxPreparedEngineUses: 1000,
 } satisfies MrfLuaPolicyServiceOptions;
 
 const SANDBOX_PRELUDE = `
@@ -276,14 +281,45 @@ export class MrfLuaPolicyError extends Error {
 	}
 }
 
+type LuaEngine = Awaited<ReturnType<LuaFactory['createEngine']>>;
+
+type PreparedPolicyEngine = {
+	key: string;
+	lua: LuaEngine;
+	lookup?: MrfLuaLookupApi;
+	uses: number;
+};
+
+type PreparedPolicyEngineWaiter = {
+	resolve: (engine: PreparedPolicyEngine) => void;
+	reject: (error: unknown) => void;
+};
+
+type PreparedPolicyEnginePool = {
+	key: string;
+	policyId: string;
+	policy: Pick<MrfLuaPolicy, 'id' | 'name' | 'source' | 'timeoutMs'>;
+	timeoutMs: number;
+	total: number;
+	available: PreparedPolicyEngine[];
+	waiters: PreparedPolicyEngineWaiter[];
+	retired: boolean;
+};
+
 export class MrfLuaPolicyService {
 	private readonly luaFactory = new LuaFactory();
 	private readonly options: MrfLuaPolicyServiceOptions;
+	private readonly preparedEnginePools = new Map<string, PreparedPolicyEnginePool>();
 
 	constructor(options?: Partial<MrfLuaPolicyServiceOptions>) {
-		this.options = {
+		const resolvedOptions = {
 			...DEFAULT_OPTIONS,
 			...options,
+		};
+		this.options = {
+			...resolvedOptions,
+			maxPreparedEnginesPerPolicy: normalizePositiveInteger(resolvedOptions.maxPreparedEnginesPerPolicy, DEFAULT_OPTIONS.maxPreparedEnginesPerPolicy),
+			maxPreparedEngineUses: normalizePositiveInteger(resolvedOptions.maxPreparedEngineUses, DEFAULT_OPTIONS.maxPreparedEngineUses),
 		};
 	}
 
@@ -300,32 +336,20 @@ export class MrfLuaPolicyService {
 			params,
 		});
 
-		const lua = await this.luaFactory.createEngine({
-			openStandardLibs: true,
-			injectObjects: true,
-			enableProxy: false,
-			traceAllocations: true,
-			functionTimeout: timeoutMs,
-		});
+		let engine: PreparedPolicyEngine | undefined;
+		let reusable = false;
 
 		try {
-			const mrfApi = this.createMrfApi();
-			lua.global.setMemoryMax(this.options.defaultMemoryLimitBytes);
-			lua.global.set('__mrf_accept', mrfApi.accept);
-			lua.global.set('__mrf_reject', mrfApi.reject);
-			lua.global.set('__mrf_rewrite', mrfApi.rewrite);
-			lua.global.set('__mrf_lookup_user_by_uri', options.lookup?.userByUri ?? (async () => null));
-			lua.global.set('__mrf_lookup_user_by_mention', options.lookup?.userByMention ?? (async () => null));
-			lua.global.set('__mrf_lookup_instance_by_host', options.lookup?.instanceByHost ?? (async () => null));
-			lua.global.set('__mrf_lookup_note_by_uri', options.lookup?.noteByUri ?? (async () => null));
-			lua.global.set('ctx', clonedContext);
-			await lua.doString(SANDBOX_PRELUDE);
-			await this.runString(lua, policy.source, policy.name, timeoutMs);
+			engine = await this.borrowPreparedPolicyEngine(policy, timeoutMs);
+			engine.lookup = options.lookup;
+			engine.uses += 1;
+			engine.lua.global.set('ctx', clonedContext);
 
-			const thread = lua.global.newThread();
+			const thread = engine.lua.global.newThread();
 			thread.loadString('return filter(ctx)', policy.name);
 			const returns = await thread.run(0, { timeout: timeoutMs });
 			const decision = this.parseDecision(returns[0], clonedContext.activity);
+			reusable = true;
 
 			return {
 				policy: {
@@ -338,7 +362,9 @@ export class MrfLuaPolicyService {
 		} catch (error) {
 			throw new MrfLuaPolicyError(policy, error);
 		} finally {
-			lua.global.close();
+			if (engine != null) {
+				this.releasePreparedPolicyEngine(engine, reusable);
+			}
 		}
 	}
 
@@ -374,6 +400,14 @@ export class MrfLuaPolicyService {
 			throw new MrfLuaPolicyError(policy, error);
 		} finally {
 			lua.global.close();
+		}
+	}
+
+	public retainPreparedPolicyEngines(policyIds: Iterable<string>): void {
+		const retainedPolicyIds = new Set(policyIds);
+		for (const pool of this.preparedEnginePools.values()) {
+			if (retainedPolicyIds.has(pool.policyId)) continue;
+			this.retirePreparedPolicyEnginePool(pool);
 		}
 	}
 
@@ -438,6 +472,185 @@ export class MrfLuaPolicyService {
 		const thread = lua.global.newThread();
 		thread.loadString(source, name);
 		await thread.run(0, { timeout: timeoutMs });
+	}
+
+	private async borrowPreparedPolicyEngine(policy: MrfLuaPolicy, timeoutMs: number): Promise<PreparedPolicyEngine> {
+		const key = this.getPreparedPolicyEngineKey(policy, timeoutMs);
+		this.retireStalePreparedPolicyEngines(policy.id, key);
+
+		let pool = this.preparedEnginePools.get(key);
+		if (pool == null) {
+			pool = {
+				key,
+				policyId: policy.id,
+				policy: {
+					id: policy.id,
+					name: policy.name,
+					source: policy.source,
+					timeoutMs: policy.timeoutMs,
+				},
+				timeoutMs,
+				total: 0,
+				available: [],
+				waiters: [],
+				retired: false,
+			};
+			this.preparedEnginePools.set(key, pool);
+		}
+
+		const available = pool.available.pop();
+		if (available != null) {
+			return available;
+		}
+
+		if (pool.total < this.options.maxPreparedEnginesPerPolicy) {
+			pool.total += 1;
+			try {
+				return await this.createPreparedPolicyEngine(pool);
+			} catch (error) {
+				pool.total = Math.max(0, pool.total - 1);
+				this.deletePreparedPolicyEnginePoolIfIdle(pool);
+				throw error;
+			}
+		}
+
+		return await new Promise((resolve, reject) => {
+			pool.waiters.push({ resolve, reject });
+		});
+	}
+
+	private async createPreparedPolicyEngine(pool: PreparedPolicyEnginePool): Promise<PreparedPolicyEngine> {
+		const lua = await this.luaFactory.createEngine({
+			openStandardLibs: true,
+			injectObjects: true,
+			enableProxy: false,
+			traceAllocations: true,
+			functionTimeout: pool.timeoutMs,
+		});
+		const engine: PreparedPolicyEngine = {
+			key: pool.key,
+			lua,
+			uses: 0,
+		};
+
+		try {
+			const mrfApi = this.createMrfApi();
+			lua.global.setMemoryMax(this.options.defaultMemoryLimitBytes);
+			lua.global.set('__mrf_accept', mrfApi.accept);
+			lua.global.set('__mrf_reject', mrfApi.reject);
+			lua.global.set('__mrf_rewrite', mrfApi.rewrite);
+			lua.global.set('__mrf_lookup_user_by_uri', async (uri: string) => await (engine.lookup?.userByUri?.(uri) ?? null));
+			lua.global.set('__mrf_lookup_user_by_mention', async (mention: Record<string, unknown> | string) => await (engine.lookup?.userByMention?.(mention) ?? null));
+			lua.global.set('__mrf_lookup_instance_by_host', async (host: string) => await (engine.lookup?.instanceByHost?.(host) ?? null));
+			lua.global.set('__mrf_lookup_note_by_uri', async (uri: string) => await (engine.lookup?.noteByUri?.(uri) ?? null));
+			lua.global.set('ctx', null);
+			await lua.doString(SANDBOX_PRELUDE);
+			await this.runString(lua, pool.policy.source, pool.policy.name, pool.timeoutMs);
+			return engine;
+		} catch (error) {
+			lua.global.close();
+			throw error;
+		}
+	}
+
+	private releasePreparedPolicyEngine(engine: PreparedPolicyEngine, reusable: boolean): void {
+		const pool = this.preparedEnginePools.get(engine.key);
+		engine.lookup = undefined;
+		if (reusable) {
+			try {
+				engine.lua.global.set('ctx', null);
+			} catch {
+				reusable = false;
+			}
+		}
+
+		if (pool == null || pool.retired || !reusable || engine.uses >= this.options.maxPreparedEngineUses) {
+			this.closePreparedPolicyEngine(engine);
+			if (pool != null) {
+				pool.total = Math.max(0, pool.total - 1);
+				this.startWaitingPreparedPolicyEngine(pool);
+				this.deletePreparedPolicyEnginePoolIfIdle(pool);
+			}
+			return;
+		}
+
+		const waiter = pool.waiters.shift();
+		if (waiter != null) {
+			waiter.resolve(engine);
+			return;
+		}
+
+		pool.available.push(engine);
+	}
+
+	private startWaitingPreparedPolicyEngine(pool: PreparedPolicyEnginePool): void {
+		const waiter = pool.waiters.shift();
+		if (waiter == null) return;
+		if (pool.retired) {
+			waiter.reject(new Error('policy engine pool was retired'));
+			this.startWaitingPreparedPolicyEngine(pool);
+			return;
+		}
+
+		pool.total += 1;
+		void this.createPreparedPolicyEngine(pool)
+			.then(waiter.resolve)
+			.catch(error => {
+				pool.total = Math.max(0, pool.total - 1);
+				waiter.reject(error);
+				this.startWaitingPreparedPolicyEngine(pool);
+				this.deletePreparedPolicyEnginePoolIfIdle(pool);
+			});
+	}
+
+	private retireStalePreparedPolicyEngines(policyId: string, currentKey: string): void {
+		for (const pool of this.preparedEnginePools.values()) {
+			if (pool.policyId !== policyId || pool.key === currentKey) continue;
+			this.retirePreparedPolicyEnginePool(pool);
+		}
+	}
+
+	private retirePreparedPolicyEnginePool(pool: PreparedPolicyEnginePool): void {
+		pool.retired = true;
+		this.preparedEnginePools.delete(pool.key);
+		for (const engine of pool.available) {
+			this.closePreparedPolicyEngine(engine);
+			pool.total = Math.max(0, pool.total - 1);
+		}
+		pool.available = [];
+		for (const waiter of pool.waiters) {
+			waiter.reject(new Error('policy engine pool was retired'));
+		}
+		pool.waiters = [];
+	}
+
+	private deletePreparedPolicyEnginePoolIfIdle(pool: PreparedPolicyEnginePool): void {
+		if (pool.total === 0 && pool.available.length === 0 && pool.waiters.length === 0 && this.preparedEnginePools.get(pool.key) === pool) {
+			this.preparedEnginePools.delete(pool.key);
+		}
+	}
+
+	private closePreparedPolicyEngine(engine: PreparedPolicyEngine): void {
+		try {
+			engine.lua.global.close();
+		} catch {
+			// Nothing useful can be done if an already-failed VM also fails to close.
+		}
+	}
+
+	private getPreparedPolicyEngineKey(policy: MrfLuaPolicy, timeoutMs: number): string {
+		const hash = createHash('sha256')
+			.update(policy.id)
+			.update('\0')
+			.update(policy.name)
+			.update('\0')
+			.update(policy.source)
+			.update('\0')
+			.update(String(timeoutMs))
+			.update('\0')
+			.update(String(this.options.defaultMemoryLimitBytes))
+			.digest('hex');
+		return `${policy.id}:${hash}`;
 	}
 
 	private parseParamsSchema(value: unknown): MrfLuaParamsSchema {
@@ -570,6 +783,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isParamType(value: unknown): value is MrfLuaParamType {
 	return value === 'string' || value === 'boolean' || value === 'number' || value === 'integer' || value === 'string_array';
+}
+
+function normalizePositiveInteger(value: number, fallback: number): number {
+	if (!Number.isFinite(value)) return fallback;
+	return Math.max(1, Math.trunc(value));
 }
 
 function renderLuaError(error: unknown): string {

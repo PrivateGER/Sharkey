@@ -6,7 +6,7 @@
 import * as assert from 'assert';
 import type { IActivity } from '@/core/activitypub/type.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
-import type { MrfLuaPolicy } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import type { MrfLuaPolicy, MrfLuaPolicyServiceOptions } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 
 const baseActivity = {
 	id: 'https://remote.example/activities/1',
@@ -148,10 +148,11 @@ const builtinPolicyFixtures = [
 	},
 ] satisfies MrfLuaPolicy[];
 
-function createService() {
+function createService(options: Partial<MrfLuaPolicyServiceOptions> = {}) {
 	return new MrfLuaPolicyService({
 		defaultTimeoutMs: 100,
 		defaultMemoryLimitBytes: 1024 * 1024 * 4,
+		...options,
 	});
 }
 
@@ -269,6 +270,168 @@ describe('MrfLuaPolicyService', () => {
 			reason: 'no changes',
 		});
 		assert.equal(result.policy.id, 'accept');
+	});
+
+	test('reuses a prepared policy engine across successful runs', async () => {
+		const service = createService();
+		const policy = {
+			id: 'pooled',
+			name: 'Pooled Policy',
+			source: `
+				load_count = (load_count or 0) + 1
+
+				function filter(ctx)
+					run_count = (run_count or 0) + 1
+					return mrf.accept("load:" .. load_count .. ",run:" .. run_count)
+				end
+			`,
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		const first = await service.run(policy, context);
+		const second = await service.run(policy, context);
+
+		assert.deepStrictEqual(first.decision, {
+			action: 'accept',
+			reason: 'load:1,run:1',
+		});
+		assert.deepStrictEqual(second.decision, {
+			action: 'accept',
+			reason: 'load:1,run:2',
+		});
+	});
+
+	test('discards a prepared policy engine after a runtime error', async () => {
+		const service = createService();
+		const policy = {
+			id: 'pooled-error',
+			name: 'Pooled Error Policy',
+			source: `
+				function filter(ctx)
+					run_count = (run_count or 0) + 1
+					if ctx.params.fail then
+						error("boom")
+					end
+					return mrf.accept("run:" .. run_count)
+				end
+			`,
+			paramsSchema: {
+				fail: {
+					type: 'boolean',
+					default: false,
+				},
+			},
+		} satisfies MrfLuaPolicy;
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		await assert.rejects(
+			() => service.run(policy, {
+				...context,
+				params: {
+					fail: true,
+				},
+			}),
+			/policy pooled-error failed/i,
+		);
+		const result = await service.run(policy, context);
+
+		assert.deepStrictEqual(result.decision, {
+			action: 'accept',
+			reason: 'run:1',
+		});
+	});
+
+	test('recycles prepared policy engines after the configured use count', async () => {
+		const service = createService({
+			maxPreparedEngineUses: 1,
+		});
+		const policy = {
+			id: 'pooled-recycle',
+			name: 'Pooled Recycle Policy',
+			source: `
+				function filter(ctx)
+					run_count = (run_count or 0) + 1
+					return mrf.accept("run:" .. run_count)
+				end
+			`,
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		const first = await service.run(policy, context);
+		const second = await service.run(policy, context);
+
+		assert.deepStrictEqual(first.decision, {
+			action: 'accept',
+			reason: 'run:1',
+		});
+		assert.deepStrictEqual(second.decision, {
+			action: 'accept',
+			reason: 'run:1',
+		});
+	});
+
+	test('prunes prepared policy engines for policies that are no longer retained', async () => {
+		const service = createService();
+		const policy = {
+			id: 'pooled-pruned',
+			name: 'Pooled Pruned Policy',
+			source: `
+				function filter(ctx)
+					run_count = (run_count or 0) + 1
+					return mrf.accept("run:" .. run_count)
+				end
+			`,
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		const first = await service.run(policy, context);
+		service.retainPreparedPolicyEngines([]);
+		const second = await service.run(policy, context);
+
+		assert.deepStrictEqual(first.decision, {
+			action: 'accept',
+			reason: 'run:1',
+		});
+		assert.deepStrictEqual(second.decision, {
+			action: 'accept',
+			reason: 'run:1',
+		});
 	});
 
 	test('returns a rewritten cloned activity without mutating the caller activity', async () => {

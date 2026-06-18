@@ -58,6 +58,7 @@ export class MMrfPolicyService {
 	public async run(activity: IActivity, logger: Logger, context: MMrfRuntimeContext): Promise<MMrfResponse> {
 		let mmrfActivity = activity;
 		const policies = await this.getEnabledPolicies();
+		this.mrfLuaPolicyService?.retainPreparedPolicyEngines(policies.map(policy => policy.id));
 		let lookup: ReturnType<MMrfPolicyService['createLookupApi']> | undefined;
 
 		for (const policy of policies) {
