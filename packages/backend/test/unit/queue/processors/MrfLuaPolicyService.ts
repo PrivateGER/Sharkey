@@ -680,6 +680,60 @@ describe('MrfLuaPolicyService', () => {
 		});
 	});
 
+	test('filters stale stored parameters at runtime and falls back to defaults', async () => {
+		const service = createService();
+
+		const result = await service.run({
+			id: 'stale-params',
+			name: 'Stale Params Policy',
+			source: `
+				policy = {
+					params = {
+						threshold = {
+							type = "integer",
+							default = 15,
+						},
+						enabled = {
+							type = "boolean",
+							default = true,
+						},
+					},
+				}
+
+				function filter(ctx)
+					if ctx.params.threshold ~= 15 then
+						return mrf.reject("threshold default missing")
+					end
+					if ctx.params.enabled ~= true then
+						return mrf.reject("enabled default missing")
+					end
+					if ctx.params.removed ~= nil then
+						return mrf.reject("unknown parameter leaked")
+					end
+					return mrf.accept("stale params ignored")
+				end
+			`,
+			params: {
+				threshold: 'wrong type',
+				removed: 'old schema key',
+			},
+		}, {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.deepStrictEqual(result.decision, {
+			action: 'accept',
+			reason: 'stale params ignored',
+		});
+	});
+
 	describe('bundled policies', () => {
 		test('keyword policy rejects matching note content', async () => {
 			const service = createService();

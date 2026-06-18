@@ -379,7 +379,7 @@ export class MrfLuaPolicyService {
 	}
 
 	public resolveParams(schema: MrfLuaParamsSchema, params: MrfLuaParams = {}): MrfLuaParams {
-		const parsedParams = this.validateParams(schema, params);
+		const parsedParams = this.filterCompatibleParams(schema, params);
 		const resolved: MrfLuaParams = {};
 		for (const [key, entry] of Object.entries(schema)) {
 			if (Object.hasOwn(parsedParams, key)) {
