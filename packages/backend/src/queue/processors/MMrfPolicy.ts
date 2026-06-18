@@ -1,4 +1,4 @@
-import { IActivity } from '@/core/activitypub/type.js';
+import { IActivity, IObject } from '@/core/activitypub/type.js';
 import Logger from '@/logger.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
@@ -6,6 +6,8 @@ import type { InstancesRepository, MrfPoliciesRepository, NotesRepository } from
 import { ApDbResolverService } from '@/core/activitypub/ApDbResolverService.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicy } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { DEFAULT_MRF_POLICY_FAILURE_MODE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import type { MrfPolicyFailureMode, MrfPolicyScope } from '@/models/MrfPolicy.js';
 
 export enum MMrfAction {
 	Neutral,
@@ -31,6 +33,11 @@ export type MMrfRuntimeContext = {
 	receivedAt: string;
 };
 
+type ScopedMrfLuaPolicy = MrfLuaPolicy & {
+	failureMode: MrfPolicyFailureMode;
+	scope: MrfPolicyScope;
+};
+
 @Injectable()
 export class MMrfPolicyService {
 	private mrfLuaPolicyService: MrfLuaPolicyService | null = null;
@@ -50,12 +57,17 @@ export class MMrfPolicyService {
 	}
 
 	public async run(activity: IActivity, logger: Logger, context: MMrfRuntimeContext): Promise<MMrfResponse> {
-		let mmrfActivity = structuredClone(activity);
+		let mmrfActivity = activity;
 		const policies = await this.getEnabledPolicies();
-		const lookup = this.createLookupApi();
+		let lookup: ReturnType<MMrfPolicyService['createLookupApi']> | undefined;
 
 		for (const policy of policies) {
+			if (!this.matchesPolicyScope(policy.scope, mmrfActivity)) {
+				continue;
+			}
+
 			try {
+				lookup ??= this.createLookupApi();
 				const result = await this.getMrfLuaPolicyService().run(policy, {
 					...context,
 					activity: mmrfActivity,
@@ -94,12 +106,34 @@ export class MMrfPolicyService {
 		return { action: MMrfAction.Neutral, data: mmrfActivity };
 	}
 
+	private matchesPolicyScope(scope: MrfPolicyScope, activity: IActivity): boolean {
+		return this.matchesTypeSet(scope.activityTypes, this.getTypeSet(activity)) &&
+			this.matchesTypeSet(scope.objectTypes, this.getObjectTypeSet(activity));
+	}
+
+	private matchesTypeSet(allowedTypes: string[] | null, actualTypes: string[]): boolean {
+		if (allowedTypes === null) return true;
+		return actualTypes.some(type => allowedTypes.includes(type));
+	}
+
+	private getTypeSet(object: IObject): string[] {
+		if (typeof object.type === 'string') return [object.type];
+		if (Array.isArray(object.type)) return object.type.filter(type => typeof type === 'string');
+		return [];
+	}
+
+	private getObjectTypeSet(activity: IActivity): string[] {
+		const object = Array.isArray(activity.object) ? activity.object[0] : activity.object;
+		if (typeof object !== 'object' || object === null || Array.isArray(object)) return [];
+		return this.getTypeSet(object);
+	}
+
 	private getMrfLuaPolicyService(): MrfLuaPolicyService {
 		this.mrfLuaPolicyService ??= new MrfLuaPolicyService();
 		return this.mrfLuaPolicyService;
 	}
 
-	private async getEnabledPolicies(): Promise<MrfLuaPolicy[]> {
+	private async getEnabledPolicies(): Promise<ScopedMrfLuaPolicy[]> {
 		const policies = await this.mrfPoliciesRepository.find({
 			where: {
 				enabled: true,
@@ -115,7 +149,8 @@ export class MMrfPolicyService {
 			name: policy.name,
 			source: policy.source,
 			timeoutMs: policy.timeoutMs,
-			failureMode: policy.failureMode,
+			failureMode: policy.failureMode ?? DEFAULT_MRF_POLICY_FAILURE_MODE,
+			scope: normalizeMrfPolicyScope(policy.scope),
 			paramsSchema: policy.paramsSchema,
 			params: policy.params,
 		}));

@@ -20,7 +20,11 @@ function createPolicy(overrides: Record<string, unknown> = {}) {
 		priority: 10,
 		source: 'function filter(ctx) return mrf.accept() end',
 		timeoutMs: 50,
-		failureMode: 'reject',
+		failureMode: 'accept',
+		scope: {
+			activityTypes: ['Create'],
+			objectTypes: ['Note'],
+		},
 		isBuiltin: true,
 		builtinPolicyId: 'keyword-filter',
 		paramsSchema: {
@@ -160,6 +164,36 @@ describe('MRF policy admin endpoints', () => {
 		assert.deepStrictEqual(result.params, {
 			threshold: 9,
 		});
+		assert.equal(result.failureMode, 'accept');
+		assert.deepStrictEqual(result.scope, {
+			activityTypes: ['Create'],
+			objectTypes: ['Note'],
+		});
+	});
+
+	test('allows custom policies to target non-note activity types', async () => {
+		const repository = createRepository(createPolicy({
+			isBuiltin: false,
+			builtinPolicyId: null,
+		}));
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+
+		const result = await endpoint.exec({
+			id: repository.current.id,
+			scope: {
+				activityTypes: ['Announce'],
+				objectTypes: null,
+			},
+		}, {} as any, null);
+
+		assert.deepStrictEqual(result.scope, {
+			activityTypes: ['Announce'],
+			objectTypes: null,
+		});
+		assert.deepStrictEqual(repository.current.scope, {
+			activityTypes: ['Announce'],
+			objectTypes: null,
+		});
 	});
 
 	test('rejects source edits for built-in policies', async () => {
@@ -170,6 +204,22 @@ describe('MRF policy admin endpoints', () => {
 			() => endpoint.exec({
 				id: repository.current.id,
 				source: 'function filter(ctx) return mrf.reject("changed") end',
+			}, {} as any, null),
+			(error: unknown) => error instanceof ApiError && error.code === 'CANNOT_MODIFY_BUILTIN_MRF_POLICY',
+		);
+	});
+
+	test('rejects scope edits for built-in policies', async () => {
+		const repository = createRepository();
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+
+		await assert.rejects(
+			() => endpoint.exec({
+				id: repository.current.id,
+				scope: {
+					activityTypes: ['Announce'],
+					objectTypes: null,
+				},
 			}, {} as any, null),
 			(error: unknown) => error instanceof ApiError && error.code === 'CANNOT_MODIFY_BUILTIN_MRF_POLICY',
 		);

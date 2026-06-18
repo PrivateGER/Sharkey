@@ -45,6 +45,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				source: policy.source,
 				timeoutMs: policy.timeoutMs,
 				failureMode: policy.failureMode,
+				scope: policy.scope,
 				isBuiltin: policy.isBuiltin,
 				builtinPolicyId: policy.builtinPolicyId,
 				paramsSchema: policy.paramsSchema,

@@ -20,7 +20,18 @@ describe('MRF policy migration', () => {
 		const builtinPolicyIds = queries
 			.flatMap(query => query.params ?? [])
 			.filter(param => param === 'keyword-filter' || param === 'new-user-spam' || param === 'hellthread');
+		const createTable = queries.find(query => query.sql.includes('CREATE TABLE "mrf_policy"'));
+		const builtinInserts = queries.filter(query => query.sql.includes('INSERT INTO "mrf_policy"'));
 
 		assert.deepStrictEqual(builtinPolicyIds, ['keyword-filter', 'new-user-spam', 'hellthread']);
+		assert.match(createTable?.sql ?? '', /"scope" jsonb NOT NULL DEFAULT/);
+		for (const query of builtinInserts) {
+			assert.match(query.sql, /"scope"/);
+			assert.match(query.sql, /'accept'/);
+			assert.deepStrictEqual(JSON.parse(query.params?.[6] as string), {
+				activityTypes: ['Create'],
+				objectTypes: ['Note'],
+			});
+		}
 	});
 });
