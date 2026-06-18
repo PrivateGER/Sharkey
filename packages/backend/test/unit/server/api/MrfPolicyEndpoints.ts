@@ -169,6 +169,31 @@ describe('MRF policy admin endpoints', () => {
 		});
 	});
 
+	test('returns warnings for custom policy source globals when creating policies', async () => {
+		const repository = createRepository();
+		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
+			gen: () => 'mrfcustom00000000000000000002',
+		} as any);
+
+		const result = await endpoint.exec({
+			name: 'Custom policy with globals',
+			source: `
+				counter = 0
+
+				function filter(ctx)
+					return mrf.accept()
+				end
+			`,
+		}, {} as any, null);
+
+		assert.deepStrictEqual(result.warnings.map((warning: { code: string; key: string }) => ({
+			code: warning.code,
+			key: warning.key,
+		})), [
+			{ code: 'persistent_global_defined', key: 'counter' },
+		]);
+	});
+
 	test('allows custom policies to target non-note activity types', async () => {
 		const repository = createRepository(createPolicy({
 			isBuiltin: false,

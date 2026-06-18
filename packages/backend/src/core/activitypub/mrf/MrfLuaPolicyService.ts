@@ -35,10 +35,26 @@ export type MrfLuaDecision =
 	| { action: 'reject'; reason: string }
 	| { action: 'rewrite'; activity: IActivity; reason?: string };
 
+export type MrfLuaPolicyWarningCode =
+	| 'persistent_global_defined'
+	| 'persistent_global_modified';
+
+export type MrfLuaPolicyWarning = {
+	code: MrfLuaPolicyWarningCode;
+	key: string;
+	message: string;
+};
+
 export type MrfLuaRunResult = {
 	policy: Pick<MrfLuaPolicy, 'id' | 'name'>;
 	decision: MrfLuaDecision;
 	durationMs: number;
+	warnings: MrfLuaPolicyWarning[];
+};
+
+export type MrfLuaPolicyMetadata = {
+	paramsSchema: MrfLuaParamsSchema;
+	warnings: MrfLuaPolicyWarning[];
 };
 
 export type MrfLuaLookupApi = {
@@ -77,6 +93,8 @@ const DEFAULT_OPTIONS = {
 	maxPreparedEnginesPerPolicy: 2,
 	maxPreparedEngineUses: 1000,
 } satisfies MrfLuaPolicyServiceOptions;
+
+const EXPECTED_POLICY_GLOBALS = new Set(['filter', 'mrf', 'policy']);
 
 const SANDBOX_PRELUDE = `
 	os = nil
@@ -274,6 +292,15 @@ const SANDBOX_PRELUDE = `
 	end
 `;
 
+const POLICY_ENVIRONMENT_SOURCE = `
+	local __mrf_policy_env = {
+		mrf = mrf,
+	}
+	__mrf_policy_env._G = __mrf_policy_env
+	setmetatable(__mrf_policy_env, { __index = _G })
+	rawset(_G, "__mrf_policy_env", __mrf_policy_env)
+`;
+
 export class MrfLuaPolicyError extends Error {
 	constructor(policy: Pick<MrfLuaPolicy, 'id' | 'name'>, cause: unknown) {
 		super(`policy ${policy.id} failed: ${renderLuaError(cause)}`);
@@ -286,6 +313,8 @@ type LuaEngine = Awaited<ReturnType<LuaFactory['createEngine']>>;
 type PreparedPolicyEngine = {
 	key: string;
 	lua: LuaEngine;
+	loadSnapshot: Map<string, string>;
+	loadWarnings: MrfLuaPolicyWarning[];
 	lookup?: MrfLuaLookupApi;
 	uses: number;
 };
@@ -346,10 +375,19 @@ export class MrfLuaPolicyService {
 			engine.lua.global.set('ctx', clonedContext);
 
 			const thread = engine.lua.global.newThread();
-			thread.loadString('return filter(ctx)', policy.name);
+			thread.loadString('return __mrf_policy_env.filter(ctx)', policy.name);
 			const returns = await thread.run(0, { timeout: timeoutMs });
 			const decision = this.parseDecision(returns[0], clonedContext.activity);
+			const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
+			const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
+			const warnings = this.mergeWarnings([
+				...engine.loadWarnings,
+				...runtimeWarnings,
+			]);
 			reusable = true;
+			if (runtimeWarnings.length > 0) {
+				reusable = false;
+			}
 
 			return {
 				policy: {
@@ -358,6 +396,7 @@ export class MrfLuaPolicyService {
 				},
 				decision,
 				durationMs: performance.now() - start,
+				warnings,
 			};
 		} catch (error) {
 			throw new MrfLuaPolicyError(policy, error);
@@ -369,6 +408,10 @@ export class MrfLuaPolicyService {
 	}
 
 	public async extractParamsSchema(policy: Pick<MrfLuaPolicy, 'id' | 'name' | 'source' | 'timeoutMs'>): Promise<MrfLuaParamsSchema> {
+		return (await this.extractPolicyMetadata(policy)).paramsSchema;
+	}
+
+	public async extractPolicyMetadata(policy: Pick<MrfLuaPolicy, 'id' | 'name' | 'source' | 'timeoutMs'>): Promise<MrfLuaPolicyMetadata> {
 		const timeoutMs = policy.timeoutMs ?? this.options.defaultTimeoutMs;
 		const lua = await this.luaFactory.createEngine({
 			openStandardLibs: true,
@@ -388,14 +431,20 @@ export class MrfLuaPolicyService {
 			lua.global.set('__mrf_lookup_instance_by_host', async () => null);
 			lua.global.set('__mrf_lookup_note_by_uri', async () => null);
 			await lua.doString(SANDBOX_PRELUDE);
-			await this.runString(lua, policy.source, policy.name, timeoutMs);
-			const rawPolicy = lua.global.get('policy');
+			const loadResult = await this.loadPolicySource(lua, policy.source, policy.name, timeoutMs);
+			const rawPolicy = await this.getPolicyEnvValue(lua, 'policy', timeoutMs);
 
 			if (!isRecord(rawPolicy) || rawPolicy.params == null) {
-				return {};
+				return {
+					paramsSchema: {},
+					warnings: loadResult.warnings,
+				};
 			}
 
-			return this.parseParamsSchema(rawPolicy.params);
+			return {
+				paramsSchema: this.parseParamsSchema(rawPolicy.params),
+				warnings: loadResult.warnings,
+			};
 		} catch (error) {
 			throw new MrfLuaPolicyError(policy, error);
 		} finally {
@@ -530,6 +579,8 @@ export class MrfLuaPolicyService {
 		const engine: PreparedPolicyEngine = {
 			key: pool.key,
 			lua,
+			loadSnapshot: new Map(),
+			loadWarnings: [],
 			uses: 0,
 		};
 
@@ -545,7 +596,9 @@ export class MrfLuaPolicyService {
 			lua.global.set('__mrf_lookup_note_by_uri', async (uri: string) => await (engine.lookup?.noteByUri?.(uri) ?? null));
 			lua.global.set('ctx', null);
 			await lua.doString(SANDBOX_PRELUDE);
-			await this.runString(lua, pool.policy.source, pool.policy.name, pool.timeoutMs);
+			const loadResult = await this.loadPolicySource(lua, pool.policy.source, pool.policy.name, pool.timeoutMs);
+			engine.loadSnapshot = loadResult.snapshot;
+			engine.loadWarnings = loadResult.warnings;
 			return engine;
 		} catch (error) {
 			lua.global.close();
@@ -651,6 +704,154 @@ export class MrfLuaPolicyService {
 			.update(String(this.options.defaultMemoryLimitBytes))
 			.digest('hex');
 		return `${policy.id}:${hash}`;
+	}
+
+	private async loadPolicySource(lua: LuaEngine, source: string, name: string, timeoutMs: number): Promise<{ snapshot: Map<string, string>; warnings: MrfLuaPolicyWarning[] }> {
+		await this.runString(lua, POLICY_ENVIRONMENT_SOURCE, 'mrf policy environment', timeoutMs);
+		const baseline = await this.capturePolicyGlobalSnapshot(lua, timeoutMs);
+		await this.runString(lua, this.wrapPolicySource(source), name, timeoutMs);
+		const snapshot = await this.capturePolicyGlobalSnapshot(lua, timeoutMs);
+		return {
+			snapshot,
+			warnings: this.createLoadWarnings(baseline, snapshot),
+		};
+	}
+
+	private wrapPolicySource(source: string): string {
+		return `
+			local __mrf_policy_env = rawget(_G, "__mrf_policy_env")
+			do
+				local _ENV = __mrf_policy_env
+${source}
+			end
+		`;
+	}
+
+	private async getPolicyEnvValue(lua: LuaEngine, key: string, timeoutMs: number): Promise<unknown> {
+		const thread = lua.global.newThread();
+		thread.loadString(`return rawget(rawget(_G, "__mrf_policy_env"), ${JSON.stringify(key)})`, 'mrf policy metadata');
+		const returns = await thread.run(0, { timeout: timeoutMs });
+		return returns[0];
+	}
+
+	private async capturePolicyGlobalSnapshot(lua: LuaEngine, timeoutMs: number): Promise<Map<string, string>> {
+		const thread = lua.global.newThread();
+		thread.loadString(`
+			local env = rawget(_G, "__mrf_policy_env")
+			local result = {}
+			if type(env) ~= "table" then
+				return result
+			end
+
+			local seen = {}
+			local function fingerprint(value, depth)
+				local value_type = type(value)
+				if value == nil then
+					return "nil"
+				end
+				if value_type == "string" or value_type == "number" or value_type == "boolean" then
+					return value_type .. ":" .. tostring(value)
+				end
+				if value_type ~= "table" then
+					return value_type .. ":" .. tostring(value)
+				end
+				if seen[value] then
+					return "table:<cycle>"
+				end
+				if depth >= 3 then
+					return "table:<maxdepth>:" .. tostring(value)
+				end
+
+				seen[value] = true
+				local entries = {}
+				local count = 0
+				for item_key, item_value in pairs(value) do
+					count = count + 1
+					if count > 64 then
+						entries[#entries + 1] = "..."
+						break
+					end
+					entries[#entries + 1] = fingerprint(item_key, depth + 1) .. "=" .. fingerprint(item_value, depth + 1)
+				end
+				table.sort(entries)
+				seen[value] = nil
+				return "table:{" .. table.concat(entries, ",") .. "}"
+			end
+
+			for key, value in pairs(env) do
+				if type(key) == "string" and key ~= "_G" then
+					result[#result + 1] = {
+						key = key,
+						fingerprint = fingerprint(value, 0),
+					}
+				end
+			end
+
+			return result
+		`, 'mrf policy globals snapshot');
+		const returns = await thread.run(0, { timeout: timeoutMs });
+		const entries = returns[0];
+		const snapshot = new Map<string, string>();
+		if (!Array.isArray(entries)) {
+			return snapshot;
+		}
+
+		for (const entry of entries) {
+			if (!isRecord(entry) || typeof entry.key !== 'string' || typeof entry.fingerprint !== 'string') continue;
+			snapshot.set(entry.key, entry.fingerprint);
+		}
+
+		return new Map([...snapshot.entries()].sort(([left], [right]) => left.localeCompare(right)));
+	}
+
+	private createLoadWarnings(before: Map<string, string>, after: Map<string, string>): MrfLuaPolicyWarning[] {
+		const keys = new Set([
+			...before.keys(),
+			...after.keys(),
+		]);
+		const warnings: MrfLuaPolicyWarning[] = [];
+		for (const key of [...keys].sort((left, right) => left.localeCompare(right))) {
+			if (!before.has(key)) {
+				if (EXPECTED_POLICY_GLOBALS.has(key)) continue;
+				warnings.push({
+					code: 'persistent_global_defined',
+					key,
+					message: `Policy defines persistent global: ${key}`,
+				});
+				continue;
+			}
+			if (before.get(key) !== after.get(key)) {
+				warnings.push({
+					code: 'persistent_global_modified',
+					key,
+					message: `Policy modified persistent global while loading: ${key}`,
+				});
+			}
+		}
+		return warnings;
+	}
+
+	private createRuntimeWarnings(before: Map<string, string>, after: Map<string, string>): MrfLuaPolicyWarning[] {
+		const keys = new Set([
+			...before.keys(),
+			...after.keys(),
+		]);
+		return [...keys]
+			.sort((left, right) => left.localeCompare(right))
+			.filter(key => before.get(key) !== after.get(key))
+			.map(key => ({
+				code: 'persistent_global_modified' as const,
+				key,
+				message: `Policy modified persistent global during execution: ${key}`,
+			}));
+	}
+
+	private mergeWarnings(warnings: MrfLuaPolicyWarning[]): MrfLuaPolicyWarning[] {
+		const merged = new Map<string, MrfLuaPolicyWarning>();
+		for (const warning of warnings) {
+			merged.set(`${warning.code}:${warning.key}:${warning.message}`, warning);
+		}
+		return [...merged.values()];
 	}
 
 	private parseParamsSchema(value: unknown): MrfLuaParamsSchema {

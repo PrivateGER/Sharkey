@@ -278,11 +278,11 @@ describe('MrfLuaPolicyService', () => {
 			id: 'pooled',
 			name: 'Pooled Policy',
 			source: `
-				load_count = (load_count or 0) + 1
+				local run_count = 0
 
 				function filter(ctx)
-					run_count = (run_count or 0) + 1
-					return mrf.accept("load:" .. load_count .. ",run:" .. run_count)
+					run_count = run_count + 1
+					return mrf.accept("run:" .. run_count)
 				end
 			`,
 		};
@@ -302,12 +302,103 @@ describe('MrfLuaPolicyService', () => {
 
 		assert.deepStrictEqual(first.decision, {
 			action: 'accept',
-			reason: 'load:1,run:1',
+			reason: 'run:1',
 		});
 		assert.deepStrictEqual(second.decision, {
 			action: 'accept',
-			reason: 'load:1,run:2',
+			reason: 'run:2',
 		});
+	});
+
+	test('warns when policy source defines persistent globals', async () => {
+		const service = createService();
+
+		const metadata = await service.extractPolicyMetadata({
+			id: 'global-source',
+			name: 'Global Source Policy',
+			source: `
+				counter = 0
+
+				function helper()
+					return true
+				end
+
+				function filter(ctx)
+					return mrf.accept()
+				end
+			`,
+		});
+
+		assert.deepStrictEqual(metadata.warnings.map(warning => ({
+			code: warning.code,
+			key: warning.key,
+		})), [
+			{ code: 'persistent_global_defined', key: 'counter' },
+			{ code: 'persistent_global_defined', key: 'helper' },
+		]);
+	});
+
+	test('warns when policy source modifies the MRF global API table', async () => {
+		const service = createService();
+
+		const metadata = await service.extractPolicyMetadata({
+			id: 'global-mrf-source',
+			name: 'Global MRF Source Policy',
+			source: `
+				mrf.custom_helper = function()
+					return true
+				end
+
+				function filter(ctx)
+					return mrf.accept()
+				end
+			`,
+		});
+
+		assert.deepStrictEqual(metadata.warnings.map(warning => ({
+			code: warning.code,
+			key: warning.key,
+		})), [
+			{ code: 'persistent_global_modified', key: 'mrf' },
+		]);
+	});
+
+	test('warns when filter mutates persistent globals at runtime', async () => {
+		const service = createService();
+
+		const result = await service.run({
+			id: 'global-runtime',
+			name: 'Global Runtime Policy',
+			source: `
+				counter = 0
+
+				function filter(ctx)
+					counter = counter + 1
+					mrf.custom_runtime = true
+					new_global = true
+					return mrf.accept()
+				end
+			`,
+		}, {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.deepStrictEqual(result.warnings.map(warning => ({
+			code: warning.code,
+			key: warning.key,
+		})), [
+			{ code: 'persistent_global_defined', key: 'counter' },
+			{ code: 'persistent_global_modified', key: 'counter' },
+			{ code: 'persistent_global_modified', key: 'mrf' },
+			{ code: 'persistent_global_modified', key: 'new_global' },
+		]);
 	});
 
 	test('discards a prepared policy engine after a runtime error', async () => {
@@ -316,8 +407,10 @@ describe('MrfLuaPolicyService', () => {
 			id: 'pooled-error',
 			name: 'Pooled Error Policy',
 			source: `
+				local run_count = 0
+
 				function filter(ctx)
-					run_count = (run_count or 0) + 1
+					run_count = run_count + 1
 					if ctx.params.fail then
 						error("boom")
 					end
@@ -367,8 +460,10 @@ describe('MrfLuaPolicyService', () => {
 			id: 'pooled-recycle',
 			name: 'Pooled Recycle Policy',
 			source: `
+				local run_count = 0
+
 				function filter(ctx)
-					run_count = (run_count or 0) + 1
+					run_count = run_count + 1
 					return mrf.accept("run:" .. run_count)
 				end
 			`,
@@ -403,8 +498,10 @@ describe('MrfLuaPolicyService', () => {
 			id: 'pooled-pruned',
 			name: 'Pooled Pruned Policy',
 			source: `
+				local run_count = 0
+
 				function filter(ctx)
-					run_count = (run_count or 0) + 1
+					run_count = run_count + 1
 					return mrf.accept("run:" .. run_count)
 				end
 			`,

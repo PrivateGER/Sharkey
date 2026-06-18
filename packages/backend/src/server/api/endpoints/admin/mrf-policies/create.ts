@@ -59,12 +59,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly idService: IdService,
 	) {
 		super(meta, paramDef, async (ps) => {
-			const paramsSchema = await this.mrfLuaPolicyService.extractParamsSchema({
+			const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
 				id: 'new-policy',
 				name: ps.name,
 				source: ps.source,
 				timeoutMs: ps.timeoutMs,
 			});
+			const paramsSchema = metadata.paramsSchema;
 			let params;
 			try {
 				params = this.mrfLuaPolicyService.validateParams(paramsSchema, ps.params ?? {});
@@ -102,6 +103,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				builtinPolicyId: policy.builtinPolicyId,
 				paramsSchema: policy.paramsSchema,
 				params: policy.params,
+				warnings: metadata.warnings,
 			};
 		});
 	}

@@ -9,6 +9,7 @@ import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
 import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import type { MrfLuaPolicyWarning } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -80,13 +81,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			let paramsSchema = existing.paramsSchema;
 			let params = existing.params;
+			let warnings: MrfLuaPolicyWarning[] = [];
 			if (ps.source !== undefined) {
-				paramsSchema = await this.mrfLuaPolicyService.extractParamsSchema({
+				const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
 					id: existing.id,
 					name: ps.name ?? existing.name,
 					source: ps.source,
 					timeoutMs: ps.timeoutMs ?? existing.timeoutMs,
 				});
+				paramsSchema = metadata.paramsSchema;
+				warnings = metadata.warnings;
 				params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, params);
 			}
 			if (ps.params !== undefined) {
@@ -127,6 +131,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				builtinPolicyId: policy.builtinPolicyId,
 				paramsSchema: policy.paramsSchema,
 				params: policy.params,
+				warnings,
 			};
 		});
 	}

@@ -50,7 +50,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				source: ps.source,
 				timeoutMs: ps.timeoutMs,
 			};
-			const paramsSchema = await this.mrfLuaPolicyService.extractParamsSchema(policy);
+			const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata(policy);
+			const paramsSchema = metadata.paramsSchema;
 			let params;
 			try {
 				params = this.mrfLuaPolicyService.validateParams(paramsSchema, ps.params ?? {});
@@ -80,7 +81,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...result,
 				paramsSchema,
 				params,
+				warnings: dedupeWarnings([
+					...metadata.warnings,
+					...result.warnings,
+				]),
 			};
 		});
 	}
+}
+
+function dedupeWarnings<T extends { code: string; key: string; message: string }>(warnings: T[]): T[] {
+	const deduped = new Map<string, T>();
+	for (const warning of warnings) {
+		deduped.set(`${warning.code}:${warning.key}:${warning.message}`, warning);
+	}
+	return [...deduped.values()];
 }
