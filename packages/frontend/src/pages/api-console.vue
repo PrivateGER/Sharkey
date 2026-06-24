@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-model="endpoint" :datalist="endpoints" debounce @update:modelValue="onEndpointChange()">
 					<template #label>Endpoint</template>
 				</MkInput>
-				<MkTextarea v-model="body" code>
+				<MkTextarea v-model="body" code :spellcheck="false">
 					<template #label>Params (JSON or JSON5)</template>
 				</MkTextarea>
 				<MkSwitch v-model="withCredential">
@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkButton>
 			</div>
 			<div v-if="res">
-				<MkTextarea v-model="res" code readonly tall>
+				<MkTextarea v-model="res" code readonly tall :spellcheck="false">
 					<template #label>Response</template>
 				</MkTextarea>
 			</div>

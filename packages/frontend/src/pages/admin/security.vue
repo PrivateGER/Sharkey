@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 
 				<div class="_gaps_m">
-					<MkTextarea v-model="bannedEmailDomainsForm.state.bannedEmailDomains">
+					<MkTextarea v-model="bannedEmailDomainsForm.state.bannedEmailDomains" :spellcheck="false">
 						<template #label>Banned Email Domains List</template>
 					</MkTextarea>
 				</div>

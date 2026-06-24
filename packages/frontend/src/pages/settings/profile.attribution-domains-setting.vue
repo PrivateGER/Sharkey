@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkTextarea v-model="attributionDomains">
+<MkTextarea v-model="attributionDomains" :spellcheck="false">
 	<template #label><SearchLabel>{{ i18n.ts.attributionDomains }}</SearchLabel></template>
 	<template #caption>
 		{{ i18n.ts.attributionDomainsDescription }}
