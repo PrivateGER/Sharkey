@@ -376,14 +376,18 @@ export class MrfLuaPolicyService {
 
 			const returns = await this.runThread(engine.lua, 'return __mrf_policy_env.filter(ctx)', policy.name, timeoutMs);
 			const decision = this.parseDecision(returns[0], clonedContext.activity);
-			const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
-			const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
-			const warnings = this.mergeWarnings([
-				...engine.loadWarnings,
-				...runtimeWarnings,
-			]);
-			reusable = true;
-			if (runtimeWarnings.length > 0) {
+			let warnings = this.mergeWarnings([...engine.loadWarnings]);
+			try {
+				const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
+				const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
+				warnings = this.mergeWarnings([
+					...engine.loadWarnings,
+					...runtimeWarnings,
+				]);
+				reusable = runtimeWarnings.length === 0;
+			} catch {
+				// The decision is already computed; a snapshot failure must not discard it.
+				// Discard the engine instead, since we can no longer prove it is clean.
 				reusable = false;
 			}
 

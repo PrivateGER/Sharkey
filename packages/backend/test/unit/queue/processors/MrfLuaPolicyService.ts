@@ -4,6 +4,7 @@
  */
 
 import * as assert from 'assert';
+import { jest } from '@jest/globals';
 import type { IActivity } from '@/core/activitypub/type.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicy, MrfLuaPolicyServiceOptions } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
@@ -1025,6 +1026,50 @@ describe('MrfLuaPolicyService', () => {
 				action: 'accept',
 				reason: 'ok',
 			});
+		}
+	});
+
+	test('keeps the decision when the post-run snapshot fails', async () => {
+		const service = createService();
+		const policy = {
+			id: 'snapshot-victim',
+			name: 'Snapshot Victim Policy',
+			source: `
+				function filter(ctx)
+					return mrf.reject("spam detected")
+				end
+			`,
+			// Pre-set the params schema so run() skips extractParamsSchema (which itself
+			// captures globals snapshots). Without this, the one-time snapshot rejection
+			// below would be consumed by extractParamsSchema instead of the post-run
+			// snapshot this test is exercising.
+			paramsSchema: {},
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		// First run creates and pools the engine (load-time snapshots happen here).
+		await service.run(policy, context);
+
+		// Second run reuses the pooled engine, so the next snapshot call is the post-run one.
+		const spy = jest.spyOn(service as any, 'capturePolicyGlobalSnapshot')
+			.mockRejectedValueOnce(new Error('snapshot boom'));
+		try {
+			const result = await service.run(policy, context);
+			assert.deepStrictEqual(result.decision, {
+				action: 'reject',
+				reason: 'spam detected',
+			});
+		} finally {
+			spy.mockRestore();
 		}
 	});
 
