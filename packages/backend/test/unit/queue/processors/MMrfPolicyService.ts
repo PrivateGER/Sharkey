@@ -5,6 +5,7 @@
 
 import * as assert from 'node:assert';
 import { MMrfAction, MMrfPolicyService } from '@/queue/processors/MMrfPolicy.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { IActivity } from '@/core/activitypub/type.js';
 
 const logger = {
@@ -81,6 +82,7 @@ function createService(policyRows: unknown[]) {
 		{
 			getUserFromApId: async () => null,
 		} as any,
+		new MrfLuaPolicyService(),
 	);
 }
 

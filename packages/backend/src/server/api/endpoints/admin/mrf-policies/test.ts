@@ -40,9 +40,9 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	private readonly mrfLuaPolicyService = new MrfLuaPolicyService();
-
-	constructor() {
+	constructor(
+		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+	) {
 		super(meta, paramDef, async (ps) => {
 			const policy = {
 				id: 'dry-run',

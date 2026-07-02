@@ -5,6 +5,7 @@
 
 import { createHash } from 'node:crypto';
 import { LuaFactory } from 'wasmoon';
+import type { OnApplicationShutdown } from '@nestjs/common';
 import type { IActivity } from '@/core/activitypub/type.js';
 
 export type MrfLuaPolicy = {
@@ -335,7 +336,7 @@ type PreparedPolicyEnginePool = {
 	retired: boolean;
 };
 
-export class MrfLuaPolicyService {
+export class MrfLuaPolicyService implements OnApplicationShutdown {
 	private readonly luaFactory = new LuaFactory();
 	private readonly options: MrfLuaPolicyServiceOptions;
 	private readonly preparedEnginePools = new Map<string, PreparedPolicyEnginePool>();
@@ -456,6 +457,12 @@ export class MrfLuaPolicyService {
 		} finally {
 			lua.global.close();
 		}
+	}
+
+	public onApplicationShutdown(): void {
+		// Retaining an empty set retires every pool and closes idle engines;
+		// borrowed engines are closed on release because their pool is retired.
+		this.retainPreparedPolicyEngines([]);
 	}
 
 	public retainPreparedPolicyEngines(policyIds: Iterable<string>): void {

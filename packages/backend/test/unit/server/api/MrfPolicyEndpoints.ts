@@ -9,6 +9,7 @@ import DeleteMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/d
 import CreateMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/create.js';
 import { meta as listMeta } from '@/server/api/endpoints/admin/mrf-policies/list.js';
 import { ApiError } from '@/server/api/error.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 
 function createPolicy(overrides: Record<string, unknown> = {}) {
 	return {
@@ -81,7 +82,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('allows disabling built-in policies without modifying their source', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -96,7 +97,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('allows updating built-in policy params', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -113,7 +114,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects unknown built-in policy params', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -130,7 +131,7 @@ describe('MRF policy admin endpoints', () => {
 		const repository = createRepository();
 		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
 			gen: () => 'mrfcustom00000000000000000001',
-		} as any);
+		} as any, new MrfLuaPolicyService());
 
 		const result = await endpoint.exec({
 			name: 'Custom policy',
@@ -173,7 +174,7 @@ describe('MRF policy admin endpoints', () => {
 		const repository = createRepository();
 		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
 			gen: () => 'mrfcustom00000000000000000002',
-		} as any);
+		} as any, new MrfLuaPolicyService());
 
 		const result = await endpoint.exec({
 			name: 'Custom policy with globals',
@@ -199,7 +200,7 @@ describe('MRF policy admin endpoints', () => {
 			isBuiltin: false,
 			builtinPolicyId: null,
 		}));
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -221,7 +222,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects source edits for built-in policies', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -234,7 +235,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects scope edits for built-in policies', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService());
 
 		await assert.rejects(
 			() => endpoint.exec({

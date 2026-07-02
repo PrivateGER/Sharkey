@@ -39,8 +39,6 @@ type ScopedMrfLuaPolicy = MrfLuaPolicy & {
 
 @Injectable()
 export class MMrfPolicyService {
-	private mrfLuaPolicyService: MrfLuaPolicyService | null = null;
-
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
@@ -52,13 +50,15 @@ export class MMrfPolicyService {
 		private readonly notesRepository: NotesRepository,
 
 		private readonly apDbResolverService: ApDbResolverService,
+
+		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
 	) {
 	}
 
 	public async run(activity: IActivity, logger: Logger, context: MMrfRuntimeContext): Promise<MMrfResponse> {
 		let mmrfActivity = activity;
 		const policies = await this.getEnabledPolicies();
-		this.mrfLuaPolicyService?.retainPreparedPolicyEngines(policies.map(policy => policy.id));
+		this.mrfLuaPolicyService.retainPreparedPolicyEngines(policies.map(policy => policy.id));
 		let lookup: ReturnType<MMrfPolicyService['createLookupApi']> | undefined;
 
 		for (const policy of policies) {
@@ -68,7 +68,7 @@ export class MMrfPolicyService {
 
 			try {
 				lookup ??= this.createLookupApi();
-				const result = await this.getMrfLuaPolicyService().run(policy, {
+				const result = await this.mrfLuaPolicyService.run(policy, {
 					...context,
 					activity: mmrfActivity,
 				}, {
@@ -118,11 +118,6 @@ export class MMrfPolicyService {
 		const object = Array.isArray(activity.object) ? activity.object[0] : activity.object;
 		if (typeof object !== 'object' || object === null || Array.isArray(object)) return [];
 		return this.getTypeSet(object);
-	}
-
-	private getMrfLuaPolicyService(): MrfLuaPolicyService {
-		this.mrfLuaPolicyService ??= new MrfLuaPolicyService();
-		return this.mrfLuaPolicyService;
 	}
 
 	private async getEnabledPolicies(): Promise<ScopedMrfLuaPolicy[]> {
