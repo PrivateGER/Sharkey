@@ -141,6 +141,7 @@ function sanitize<T extends MiMeta>(meta: T): T {
 		objectStorageSecretKey: '<redacted>',
 		deeplAuthKey: '<redacted>',
 		libreTranslateKey: '<redacted>',
+		listenbrainzAuthKey: '<redacted>',
 		verifymailAuthKey: '<redacted>',
 		truemailAuthKey: '<redacted>',
 	};
