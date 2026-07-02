@@ -12,6 +12,11 @@ export type MrfLuaPolicy = {
 	id: string;
 	name: string;
 	source: string;
+	/**
+	 * Wall-clock budget for each Lua execution. wasmoon checks this across coroutine
+	 * resumes, so time spent awaiting JS promises (mrf.lookup.* database calls)
+	 * counts against it. Policies using lookups need a generous budget.
+	 */
 	timeoutMs?: number;
 	paramsSchema?: MrfLuaParamsSchema;
 	params?: MrfLuaParams;
@@ -888,6 +893,13 @@ ${source}
 		return warnings;
 	}
 
+	/**
+	 * NOTE: the persistent-global warnings fingerprint only the policy environment
+	 * (depth <= 3, <= 64 entries per table). Chunk-level `local` upvalues captured by
+	 * filter() persist across pooled runs WITHOUT triggering a warning, as do
+	 * mutations deeper than the fingerprint depth. Treat warnings as a lint,
+	 * not an isolation guarantee.
+	 */
 	private createRuntimeWarnings(before: Map<string, string>, after: Map<string, string>): MrfLuaPolicyWarning[] {
 		const keys = new Set([
 			...before.keys(),

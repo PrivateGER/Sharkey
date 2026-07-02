@@ -7,7 +7,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
-import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import type { MiMrfPolicy } from '@/models/MrfPolicy.js';
+import { normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicyWarning } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
@@ -51,9 +52,10 @@ export const paramDef = {
 		enabled: { type: 'boolean' },
 		priority: { type: 'integer' },
 		source: { type: 'string', minLength: 1 },
-		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000 },
+		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, description: 'Wall-clock budget per execution in milliseconds. Time spent awaiting mrf.lookup.* database calls counts against this budget.' },
 		scope: {
 			type: 'object',
+			description: 'Activity/object type filter. objectTypes only matches inline objects; activities whose object is a bare URI string (e.g. Announce, Like, Delete) never match a non-null objectTypes — use objectTypes: null to receive those.',
 			properties: {
 				activityTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
 				objectTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
@@ -116,18 +118,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			const updates = {
+			const updates: Partial<MiMrfPolicy> = {
 				...(ps.name !== undefined ? { name: ps.name } : {}),
 				...(ps.enabled !== undefined ? { enabled: ps.enabled } : {}),
 				...(ps.priority !== undefined ? { priority: ps.priority } : {}),
 				...(ps.source !== undefined ? { source: ps.source } : {}),
 				...(ps.timeoutMs !== undefined ? { timeoutMs: ps.timeoutMs } : {}),
-				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope ?? DEFAULT_MRF_POLICY_SCOPE) } : {}),
+				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope) } : {}),
 				...(ps.source !== undefined ? { paramsSchema } : {}),
 				...(ps.source !== undefined || ps.params !== undefined ? { params } : {}),
 				updatedAt: new Date(),
 			};
-			await this.mrfPoliciesRepository.update(ps.id, updates as any);
+			await this.mrfPoliciesRepository.update(ps.id, updates);
 
 			const policy = await this.mrfPoliciesRepository.findOneByOrFail({ id: ps.id });
 

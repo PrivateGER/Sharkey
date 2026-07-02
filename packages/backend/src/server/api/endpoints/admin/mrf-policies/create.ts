@@ -40,9 +40,10 @@ export const paramDef = {
 		enabled: { type: 'boolean', default: true },
 		priority: { type: 'integer', default: 1000 },
 		source: { type: 'string', minLength: 1 },
-		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, default: 50 },
+		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, default: 50, description: 'Wall-clock budget per execution in milliseconds. Time spent awaiting mrf.lookup.* database calls counts against this budget.' },
 		scope: {
 			type: 'object',
+			description: 'Activity/object type filter. objectTypes only matches inline objects; activities whose object is a bare URI string (e.g. Announce, Like, Delete) never match a non-null objectTypes — use objectTypes: null to receive those.',
 			properties: {
 				activityTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
 				objectTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
