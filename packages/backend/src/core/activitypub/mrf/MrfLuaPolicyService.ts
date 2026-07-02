@@ -242,12 +242,48 @@ const SANDBOX_PRELUDE = `
 			return note
 		end
 		local public = "https://www.w3.org/ns/activitystreams#Public"
-		local to = note.to
-		local cc = note.cc
-		if type(to) == "string" and to == public then
-			note.to = cc
-			note.cc = public
+		local function to_list(value)
+			if type(value) == "table" then
+				return value
+			end
+			if mrf.is_nil(value) then
+				return {}
+			end
+			return { value }
 		end
+
+		local found = false
+		local kept_to = {}
+		for _, target in ipairs(to_list(note.to)) do
+			if target == public then
+				found = true
+			else
+				kept_to[#kept_to + 1] = target
+			end
+		end
+
+		if not found then
+			return note
+		end
+
+		local new_cc = {}
+		local has_public = false
+		for _, target in ipairs(to_list(note.cc)) do
+			if target == public then
+				has_public = true
+			end
+			new_cc[#new_cc + 1] = target
+		end
+		if not has_public then
+			new_cc[#new_cc + 1] = public
+		end
+
+		if #kept_to > 0 then
+			note.to = kept_to
+		else
+			note.to = nil
+		end
+		note.cc = new_cc
 		return note
 	end
 

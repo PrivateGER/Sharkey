@@ -96,7 +96,7 @@ const builtinPolicyFixtures = [
 					return mrf.accept()
 				end
 
-				local local_prefix = "https://" .. ctx.localHost
+				local local_prefix = "https://" .. ctx.localHost .. "/"
 				local has_local_mention = false
 				for _, mention in ipairs(mentions) do
 					if type(mention.href) == "string" and string.sub(mention.href, 1, #local_prefix) == local_prefix then
@@ -1264,5 +1264,102 @@ describe('MrfLuaPolicyService', () => {
 			}),
 			/must define a global filter/,
 		);
+	});
+
+	test('unlist moves Public from an array to and into cc', async () => {
+		const service = createService();
+		const result = await service.run({
+			id: 'unlist-array',
+			name: 'Unlist Array Policy',
+			source: `
+				function filter(ctx)
+					mrf.note.unlist(mrf.activity.note(ctx.activity))
+					return mrf.rewrite(ctx.activity, "unlisted")
+				end
+			`,
+		}, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					to: ['https://www.w3.org/ns/activitystreams#Public', 'https://remote.example/users/alice/followers'],
+					cc: [],
+				},
+			},
+			actor: { uri: 'https://remote.example/users/alice', host: 'remote.example' },
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'rewrite');
+		if (result.decision.action === 'rewrite') {
+			const note = result.decision.activity.object as { to: unknown; cc: unknown };
+			assert.deepStrictEqual(note.to, ['https://remote.example/users/alice/followers']);
+			assert.deepStrictEqual(note.cc, ['https://www.w3.org/ns/activitystreams#Public']);
+		}
+	});
+
+	test('unlist handles a bare-string Public to field', async () => {
+		const service = createService();
+		const result = await service.run({
+			id: 'unlist-string',
+			name: 'Unlist String Policy',
+			source: `
+				function filter(ctx)
+					mrf.note.unlist(mrf.activity.note(ctx.activity))
+					return mrf.rewrite(ctx.activity, "unlisted")
+				end
+			`,
+		}, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					to: 'https://www.w3.org/ns/activitystreams#Public',
+				},
+			},
+			actor: { uri: 'https://remote.example/users/alice', host: 'remote.example' },
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'rewrite');
+		if (result.decision.action === 'rewrite') {
+			const note = result.decision.activity.object as Record<string, unknown>;
+			assert.equal('to' in note, false);
+			assert.deepStrictEqual(note.cc, ['https://www.w3.org/ns/activitystreams#Public']);
+		}
+	});
+
+	test('new-user spam policy ignores lookalike local hosts', async () => {
+		const service = createService();
+		const newUserPolicy = builtinPolicyFixtures.find(policy => policy.id === 'new-user-spam');
+		assert.ok(newUserPolicy);
+
+		const result = await service.run(newUserPolicy, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					inReplyTo: null,
+					tag: [
+						{ type: 'Mention', href: 'https://local.example.evil.com/users/alice' },
+					],
+				},
+			},
+			actor: {
+				uri: 'https://remote.example/users/spam',
+				host: 'remote.example',
+				followersCount: 0,
+				followingCount: 0,
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'accept');
 	});
 });

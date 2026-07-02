@@ -101,7 +101,7 @@ export class MrfPolicy1781706597000 {
 						return mrf.accept()
 					end
 
-					local local_prefix = "https://" .. ctx.localHost
+					local local_prefix = "https://" .. ctx.localHost .. "/"
 					local has_local_mention = false
 					for _, mention in ipairs(mentions) do
 						if type(mention.href) == "string" and string.sub(mention.href, 1, #local_prefix) == local_prefix then
