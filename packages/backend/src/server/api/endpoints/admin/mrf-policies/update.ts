@@ -34,6 +34,11 @@ export const meta = {
 			code: 'INVALID_MRF_POLICY_PARAMS',
 			id: '5e19454b-3100-4354-9dfd-f2187ec1fe14',
 		},
+		invalidSource: {
+			message: 'Invalid MRF policy source.',
+			code: 'INVALID_MRF_POLICY_SOURCE',
+			id: '2f4bd3d7-2c86-4a0f-bd35-6d1f4f9b1b0a',
+		},
 	},
 } as const;
 
@@ -82,12 +87,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			let params = existing.params;
 			let warnings: MrfLuaPolicyWarning[] = [];
 			if (ps.source !== undefined) {
-				const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
-					id: existing.id,
-					name: ps.name ?? existing.name,
-					source: ps.source,
-					timeoutMs: ps.timeoutMs ?? existing.timeoutMs,
-				});
+				let metadata;
+				try {
+					metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
+						id: existing.id,
+						name: ps.name ?? existing.name,
+						source: ps.source,
+						timeoutMs: ps.timeoutMs ?? existing.timeoutMs,
+					});
+				} catch (error) {
+					throw new ApiError(meta.errors.invalidSource, {
+						reason: error instanceof Error ? error.message : String(error),
+					});
+				}
 				paramsSchema = metadata.paramsSchema;
 				warnings = metadata.warnings;
 				params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, params);

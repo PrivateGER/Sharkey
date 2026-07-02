@@ -260,4 +260,34 @@ describe('MRF policy admin endpoints', () => {
 			(error: unknown) => error instanceof ApiError && error.code === 'CANNOT_DELETE_BUILTIN_MRF_POLICY',
 		);
 	});
+
+	test('rejects creating a policy whose source has a Lua syntax error', async () => {
+		const repository = createRepository();
+		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
+			gen: () => 'mrfcustom00000000000000000003',
+		} as any, new MrfLuaPolicyService());
+
+		await assert.rejects(
+			() => endpoint.exec({
+				name: 'Broken policy',
+				source: 'function filter(',
+			}, {} as any, null),
+			(error: unknown) => error instanceof ApiError && error.code === 'INVALID_MRF_POLICY_SOURCE',
+		);
+	});
+
+	test('rejects creating a policy without a filter function', async () => {
+		const repository = createRepository();
+		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
+			gen: () => 'mrfcustom00000000000000000004',
+		} as any, new MrfLuaPolicyService());
+
+		await assert.rejects(
+			() => endpoint.exec({
+				name: 'Filterless policy',
+				source: 'policy = {}',
+			}, {} as any, null),
+			(error: unknown) => error instanceof ApiError && error.code === 'INVALID_MRF_POLICY_SOURCE',
+		);
+	});
 });

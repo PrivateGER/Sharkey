@@ -21,6 +21,11 @@ export const meta = {
 			code: 'INVALID_MRF_POLICY_PARAMS',
 			id: 'e0a7e055-f639-4024-ab41-293c7fa43d0a',
 		},
+		luaFailed: {
+			message: 'The MRF policy failed to load or run.',
+			code: 'MRF_POLICY_LUA_FAILED',
+			id: '8e2c9b0d-51f3-4c7a-9c25-6a3f6d0e4b91',
+		},
 	},
 } as const;
 
@@ -50,7 +55,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				source: ps.source,
 				timeoutMs: ps.timeoutMs,
 			};
-			const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata(policy);
+			let metadata;
+			try {
+				metadata = await this.mrfLuaPolicyService.extractPolicyMetadata(policy);
+			} catch (error) {
+				throw new ApiError(meta.errors.luaFailed, {
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			}
 			const paramsSchema = metadata.paramsSchema;
 			let params;
 			try {
@@ -60,22 +72,29 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					reason: error instanceof Error ? error.message : String(error),
 				});
 			}
-			const result = await this.mrfLuaPolicyService.run({
-				...policy,
-				paramsSchema,
-				params,
-			}, {
-				activity: ps.activity as IActivity,
-				actor: {
-					uri: typeof ps.actor.uri === 'string' ? ps.actor.uri : '',
-					host: typeof ps.actor.host === 'string' ? ps.actor.host : null,
-					followersCount: typeof ps.actor.followersCount === 'number' ? ps.actor.followersCount : undefined,
-					followingCount: typeof ps.actor.followingCount === 'number' ? ps.actor.followingCount : undefined,
-				},
-				localHost: ps.localHost,
-				signerHost: ps.signerHost,
-				receivedAt: new Date().toISOString(),
-			});
+			let result;
+			try {
+				result = await this.mrfLuaPolicyService.run({
+					...policy,
+					paramsSchema,
+					params,
+				}, {
+					activity: ps.activity as IActivity,
+					actor: {
+						uri: typeof ps.actor.uri === 'string' ? ps.actor.uri : '',
+						host: typeof ps.actor.host === 'string' ? ps.actor.host : null,
+						followersCount: typeof ps.actor.followersCount === 'number' ? ps.actor.followersCount : undefined,
+						followingCount: typeof ps.actor.followingCount === 'number' ? ps.actor.followingCount : undefined,
+					},
+					localHost: ps.localHost,
+					signerHost: ps.signerHost,
+					receivedAt: new Date().toISOString(),
+				});
+			} catch (error) {
+				throw new ApiError(meta.errors.luaFailed, {
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			}
 
 			return {
 				...result,
