@@ -138,7 +138,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					`To verify email, please click this link: ${link}`));
 			}
 
-			await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['emailVerifyCode'] });
+			await this.internalEventService.emit('updateUserProfile', { userId: me.id, keys: ['email', 'emailVerified', 'emailVerifyCode'] });
 			return iObj;
 		});
 	}
