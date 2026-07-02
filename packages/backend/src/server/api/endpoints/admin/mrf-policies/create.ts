@@ -10,6 +10,7 @@ import { IdService } from '@/core/IdService.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
 import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -61,8 +62,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
 		private readonly idService: IdService,
 		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
 			let metadata;
 			try {
 				metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
@@ -98,6 +100,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				builtinPolicyId: null,
 				paramsSchema,
 				params,
+			});
+
+			await this.moderationLogService.log(me, 'createMrfPolicy', {
+				policyId: policy.id,
+				policy,
 			});
 
 			return {

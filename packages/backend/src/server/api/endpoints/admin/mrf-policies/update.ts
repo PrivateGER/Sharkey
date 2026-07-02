@@ -10,6 +10,7 @@ import type { MrfPoliciesRepository } from '@/models/_.js';
 import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicyWarning } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -70,8 +71,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.mrfPoliciesRepository)
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
 		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
 			const existing = await this.mrfPoliciesRepository.findOneBy({ id: ps.id });
 			if (existing == null) throw new ApiError(meta.errors.noSuchPolicy);
 			if (existing.isBuiltin && (
@@ -128,6 +130,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.mrfPoliciesRepository.update(ps.id, updates as any);
 
 			const policy = await this.mrfPoliciesRepository.findOneByOrFail({ id: ps.id });
+
+			await this.moderationLogService.log(me, 'updateMrfPolicy', {
+				policyId: policy.id,
+				before: existing,
+				after: policy,
+			});
+
 			return {
 				id: policy.id,
 				createdAt: policy.createdAt.toISOString(),
