@@ -956,14 +956,55 @@ ${source}
 				throw new Error('rewrite decision must include an activity');
 			}
 
+			const activity = this.normalizeLuaArrayShapes(value.activity, originalActivity) as unknown as IActivity;
+			this.assertJsonSafe(activity, 'activity');
 			return {
 				action: 'rewrite',
-				activity: this.normalizeLuaArrayShapes(value.activity, originalActivity) as unknown as IActivity,
+				activity,
 				...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
 			};
 		}
 
 		throw new Error(`unknown policy action: ${String(value.action)}`);
+	}
+
+	private assertJsonSafe(value: unknown, path: string, seen = new Set<object>()): void {
+		if (value === null) return;
+		switch (typeof value) {
+			case 'string':
+			case 'boolean':
+				return;
+			case 'number':
+				if (!Number.isFinite(value)) {
+					throw new Error(`rewrite activity contains a non-finite number at ${path}`);
+				}
+				return;
+			case 'object':
+				break;
+			default:
+				throw new Error(`rewrite activity contains a non-JSON value (${typeof value}) at ${path}`);
+		}
+
+		const obj = value as object;
+		if (seen.has(obj)) {
+			throw new Error(`rewrite activity contains a cyclic reference at ${path}`);
+		}
+		seen.add(obj);
+		if (Array.isArray(obj)) {
+			for (let i = 0; i < obj.length; i++) {
+				this.assertJsonSafe(obj[i], `${path}[${i}]`, seen);
+			}
+		} else {
+			const proto = Object.getPrototypeOf(obj);
+			if (proto !== Object.prototype && proto !== null) {
+				throw new Error(`rewrite activity contains a non-plain object at ${path}`);
+			}
+			for (const [key, item] of Object.entries(obj as Record<string, unknown>)) {
+				if (item === undefined) continue;
+				this.assertJsonSafe(item, `${path}.${key}`, seen);
+			}
+		}
+		seen.delete(obj);
 	}
 
 	private normalizeLuaArrayShapes(value: unknown, template: unknown): unknown {

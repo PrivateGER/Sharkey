@@ -162,4 +162,27 @@ describe('MMrfPolicyService', () => {
 		assert.equal(result.action, MMrfAction.RejectNote);
 		assert.match(result.reason ?? '', /explicit rejection/);
 	});
+
+	test('a poisoned rewrite fails only its own policy, not the chain', async () => {
+		const service = createService([
+			createPolicyRow({
+				id: 'poisoner',
+				source: `
+					function filter(ctx)
+						ctx.activity.evil = function() return 1 end
+						return mrf.rewrite(ctx.activity, "poisoned")
+					end
+				`,
+			}),
+			createPolicyRow({
+				id: 'rejector',
+				source: 'function filter(ctx) return mrf.reject("caught by second policy") end',
+			}),
+		]);
+
+		const result = await service.run(keywordActivity, logger as any, runtimeContext);
+
+		assert.equal(result.action, MMrfAction.RejectNote);
+		assert.match(result.reason ?? '', /caught by second policy/);
+	});
 });

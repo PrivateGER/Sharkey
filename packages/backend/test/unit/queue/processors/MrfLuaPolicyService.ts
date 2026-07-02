@@ -1213,4 +1213,31 @@ describe('MrfLuaPolicyService', () => {
 			}
 		});
 	});
+
+	test('rejects rewrite decisions that contain non-JSON values', async () => {
+		const service = createService();
+
+		await assert.rejects(
+			() => service.run({
+				id: 'poison-rewrite',
+				name: 'Poison Rewrite Policy',
+				source: `
+					function filter(ctx)
+						ctx.activity.evil = function() return 1 end
+						return mrf.rewrite(ctx.activity, "poisoned")
+					end
+				`,
+			}, {
+				activity: baseActivity,
+				actor: {
+					uri: 'https://remote.example/users/alice',
+					host: 'remote.example',
+				},
+				localHost: 'local.example',
+				signerHost: 'remote.example',
+				receivedAt: '2026-06-14T00:00:00.000Z',
+			}),
+			/non-JSON value/,
+		);
+	});
 });
