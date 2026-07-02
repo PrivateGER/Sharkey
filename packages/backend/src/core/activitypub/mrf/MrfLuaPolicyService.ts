@@ -374,9 +374,7 @@ export class MrfLuaPolicyService {
 			engine.uses += 1;
 			engine.lua.global.set('ctx', clonedContext);
 
-			const thread = engine.lua.global.newThread();
-			thread.loadString('return __mrf_policy_env.filter(ctx)', policy.name);
-			const returns = await thread.run(0, { timeout: timeoutMs });
+			const returns = await this.runThread(engine.lua, 'return __mrf_policy_env.filter(ctx)', policy.name, timeoutMs);
 			const decision = this.parseDecision(returns[0], clonedContext.activity);
 			const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
 			const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
@@ -517,10 +515,22 @@ export class MrfLuaPolicyService {
 		};
 	}
 
-	private async runString(lua: Awaited<ReturnType<LuaFactory['createEngine']>>, source: string, name: string, timeoutMs: number): Promise<void> {
+	private async runThread(lua: LuaEngine, source: string, name: string, timeoutMs: number): Promise<unknown[]> {
+		// lua_newthread pushes the thread onto the parent stack; it MUST be removed
+		// after use or the main state's stack overflows its allocation after ~50 runs
+		// and corrupts the wasm heap. Mirrors wasmoon's own callByteCode() guard.
 		const thread = lua.global.newThread();
-		thread.loadString(source, name);
-		await thread.run(0, { timeout: timeoutMs });
+		const threadIndex = lua.global.getTop();
+		try {
+			thread.loadString(source, name);
+			return await thread.run(0, { timeout: timeoutMs });
+		} finally {
+			lua.global.remove(threadIndex);
+		}
+	}
+
+	private async runString(lua: LuaEngine, source: string, name: string, timeoutMs: number): Promise<void> {
+		await this.runThread(lua, source, name, timeoutMs);
 	}
 
 	private async borrowPreparedPolicyEngine(policy: MrfLuaPolicy, timeoutMs: number): Promise<PreparedPolicyEngine> {
@@ -728,15 +738,12 @@ ${source}
 	}
 
 	private async getPolicyEnvValue(lua: LuaEngine, key: string, timeoutMs: number): Promise<unknown> {
-		const thread = lua.global.newThread();
-		thread.loadString(`return rawget(rawget(_G, "__mrf_policy_env"), ${JSON.stringify(key)})`, 'mrf policy metadata');
-		const returns = await thread.run(0, { timeout: timeoutMs });
+		const returns = await this.runThread(lua, `return rawget(rawget(_G, "__mrf_policy_env"), ${JSON.stringify(key)})`, 'mrf policy metadata', timeoutMs);
 		return returns[0];
 	}
 
 	private async capturePolicyGlobalSnapshot(lua: LuaEngine, timeoutMs: number): Promise<Map<string, string>> {
-		const thread = lua.global.newThread();
-		thread.loadString(`
+		const returns = await this.runThread(lua, `
 			local env = rawget(_G, "__mrf_policy_env")
 			local result = {}
 			if type(env) ~= "table" then
@@ -788,8 +795,7 @@ ${source}
 			end
 
 			return result
-		`, 'mrf policy globals snapshot');
-		const returns = await thread.run(0, { timeout: timeoutMs });
+		`, 'mrf policy globals snapshot', timeoutMs);
 		const entries = returns[0];
 		const snapshot = new Map<string, string>();
 		if (!Array.isArray(entries)) {

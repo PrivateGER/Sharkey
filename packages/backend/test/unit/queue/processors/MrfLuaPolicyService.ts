@@ -994,6 +994,40 @@ describe('MrfLuaPolicyService', () => {
 		});
 	});
 
+	test('survives hundreds of pooled runs on a single engine', async () => {
+		const service = createService({
+			maxPreparedEnginesPerPolicy: 1,
+			maxPreparedEngineUses: 500,
+		});
+		const policy = {
+			id: 'longevity',
+			name: 'Longevity Policy',
+			source: `
+				function filter(ctx)
+					return mrf.accept("ok")
+				end
+			`,
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		for (let i = 0; i < 200; i++) {
+			const result = await service.run(policy, context);
+			assert.deepStrictEqual(result.decision, {
+				action: 'accept',
+				reason: 'ok',
+			});
+		}
+	});
+
 	describe('bundled policies', () => {
 		test('keyword policy rejects matching note content', async () => {
 			const service = createService();
