@@ -1240,4 +1240,29 @@ describe('MrfLuaPolicyService', () => {
 			/non-JSON value/,
 		);
 	});
+
+	test('rejects policy sources that do not define a filter function', async () => {
+		const service = createService();
+
+		await assert.rejects(
+			() => service.extractPolicyMetadata({
+				id: 'no-filter',
+				name: 'No Filter Policy',
+				source: `
+					policy = {}
+					filter = "not a function"
+				`,
+			}),
+			/must define a global filter/,
+		);
+
+		await assert.rejects(
+			() => service.extractPolicyMetadata({
+				id: 'empty',
+				name: 'Empty Policy',
+				source: 'local x = 1',
+			}),
+			/must define a global filter/,
+		);
+	});
 });

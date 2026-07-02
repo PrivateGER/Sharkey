@@ -434,6 +434,10 @@ export class MrfLuaPolicyService {
 			lua.global.set('__mrf_lookup_note_by_uri', async () => null);
 			await lua.doString(SANDBOX_PRELUDE);
 			const loadResult = await this.loadPolicySource(lua, policy.source, policy.name, timeoutMs);
+			const filterType = (await this.runThread(lua, 'return type(rawget(rawget(_G, "__mrf_policy_env"), "filter"))', 'mrf policy filter check', timeoutMs))[0];
+			if (filterType !== 'function') {
+				throw new Error('policy source must define a global filter(ctx) function');
+			}
 			const rawPolicy = await this.getPolicyEnvValue(lua, 'policy', timeoutMs);
 
 			if (!isRecord(rawPolicy) || rawPolicy.params == null) {
