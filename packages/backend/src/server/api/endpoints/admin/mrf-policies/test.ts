@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { IActivity } from '@/core/activitypub/type.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -75,6 +76,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+		private readonly timeService: TimeService,
 	) {
 		super(meta, paramDef, async (ps) => {
 			const policy = {
@@ -116,7 +118,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					},
 					localHost: ps.localHost,
 					signerHost: ps.signerHost,
-					receivedAt: new Date().toISOString(),
+					receivedAt: this.timeService.date.toISOString(),
 				});
 			} catch (error) {
 				throw new ApiError(meta.errors.luaFailed, {

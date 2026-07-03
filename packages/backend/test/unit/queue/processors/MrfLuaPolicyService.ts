@@ -1327,7 +1327,7 @@ describe('MrfLuaPolicyService', () => {
 
 		assert.equal(result.decision.action, 'rewrite');
 		if (result.decision.action === 'rewrite') {
-			const note = result.decision.activity.object as Record<string, unknown>;
+			const note = result.decision.activity.object as unknown as Record<string, unknown>;
 			assert.equal('to' in note, false);
 			assert.deepStrictEqual(note.cc, ['https://www.w3.org/ns/activitystreams#Public']);
 		}

@@ -7,11 +7,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 import type { MiMrfPolicy } from '@/models/MrfPolicy.js';
 import { normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicyWarning } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -79,6 +81,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
 		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
 		private readonly moderationLogService: ModerationLogService,
+		private readonly timeService: TimeService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const existing = await this.mrfPoliciesRepository.findOneBy({ id: ps.id });
@@ -123,7 +126,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			const updates: Partial<MiMrfPolicy> = {
+			const updates = {
 				...(ps.name !== undefined ? { name: ps.name } : {}),
 				...(ps.enabled !== undefined ? { enabled: ps.enabled } : {}),
 				...(ps.priority !== undefined ? { priority: ps.priority } : {}),
@@ -132,9 +135,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope) } : {}),
 				...(ps.source !== undefined ? { paramsSchema } : {}),
 				...(ps.source !== undefined || ps.params !== undefined ? { params } : {}),
-				updatedAt: new Date(),
-			};
-			await this.mrfPoliciesRepository.update(ps.id, updates);
+				updatedAt: this.timeService.date,
+			} satisfies Partial<MiMrfPolicy>;
+			// Cast at the TypeORM boundary only: QueryDeepPartialEntity's mapped type
+			// cannot absorb Record<string, unknown> jsonb columns (params/paramsSchema).
+			await this.mrfPoliciesRepository.update(ps.id, updates as QueryDeepPartialEntity<MiMrfPolicy>);
 
 			const policy = await this.mrfPoliciesRepository.findOneByOrFail({ id: ps.id });
 
