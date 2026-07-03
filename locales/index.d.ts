@@ -11097,6 +11097,18 @@ export interface Locale extends ILocale {
          */
         "removeRelay": string;
         /**
+         * MRF policy created
+         */
+        "createMrfPolicy": string;
+        /**
+         * MRF policy updated
+         */
+        "updateMrfPolicy": string;
+        /**
+         * MRF policy deleted
+         */
+        "deleteMrfPolicy": string;
+        /**
          * Restarted migration for a user
          */
         "restartMigration": string;
@@ -12622,6 +12634,144 @@ export interface Locale extends ILocale {
          * raw.esm.sh could not be accessed, meaning this instance's Content Security Policy is likely out of date. Please contact your instance administrators.
          */
         "cspError": string;
+    };
+    /**
+     * MRF policies
+     */
+    "mrfPolicies": string;
+    "_mrfPolicies": {
+        /**
+         * MRF (Message Rewrite Facility) policies inspect, rewrite, or reject incoming federated activities using Lua scripts. Policies run in ascending priority order.
+         */
+        "description": string;
+        /**
+         * Create policy
+         */
+        "createPolicy": string;
+        /**
+         * Built-in
+         */
+        "builtin": string;
+        /**
+         * Lua source
+         */
+        "source": string;
+        /**
+         * Must define a global filter(ctx) function returning mrf.accept(), mrf.reject(reason) or mrf.rewrite(activity, reason).
+         */
+        "sourceCaption": string;
+        /**
+         * The source of built-in policies cannot be edited.
+         */
+        "builtinSourceCaption": string;
+        /**
+         * Parameters
+         */
+        "params": string;
+        /**
+         * Scope
+         */
+        "scope": string;
+        /**
+         * Activity types
+         */
+        "activityTypes": string;
+        /**
+         * Object types
+         */
+        "objectTypes": string;
+        /**
+         * Comma-separated type lists; leave empty to match all. Object types only match inline objects (e.g. Create/Note) — activities carrying a bare object URI (Announce, Like, Delete) require an empty object type list.
+         */
+        "scopeCaption": string;
+        /**
+         * Execution timeout (ms)
+         */
+        "timeout": string;
+        /**
+         * Wall-clock budget per execution. Time spent in mrf.lookup.* database calls counts against it.
+         */
+        "timeoutCaption": string;
+        /**
+         * Lower values run first.
+         */
+        "priorityCaption": string;
+        /**
+         * Warnings
+         */
+        "warnings": string;
+        /**
+         * Test policy
+         */
+        "test": string;
+        /**
+         * Activity (JSON)
+         */
+        "testActivity": string;
+        /**
+         * Actor
+         */
+        "testActor": string;
+        /**
+         * Actor URI
+         */
+        "actorUri": string;
+        /**
+         * Actor host
+         */
+        "actorHost": string;
+        /**
+         * Followers
+         */
+        "followersCount": string;
+        /**
+         * Following
+         */
+        "followingCount": string;
+        /**
+         * Local host
+         */
+        "localHost": string;
+        /**
+         * Signer host
+         */
+        "signerHost": string;
+        /**
+         * Run test
+         */
+        "runTest": string;
+        /**
+         * Result
+         */
+        "testResult": string;
+        /**
+         * Decision
+         */
+        "decision": string;
+        /**
+         * Reason
+         */
+        "reason": string;
+        /**
+         * Duration
+         */
+        "duration": string;
+        /**
+         * Rewritten activity
+         */
+        "rewrittenActivity": string;
+        /**
+         * The activity field does not contain valid JSON.
+         */
+        "invalidActivityJson": string;
+        /**
+         * Delete the MRF policy "{name}"?
+         */
+        "deleteConfirm": ParameterizedString<"name">;
+        /**
+         * New policy
+         */
+        "newPolicyName": string;
     };
     "_mfm": {
         /**
