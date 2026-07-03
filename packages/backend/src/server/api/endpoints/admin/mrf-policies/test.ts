@@ -98,7 +98,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const paramsSchema = metadata.paramsSchema;
 			// Dry run: tolerate params that no longer match the (possibly just-edited) source
 			// by dropping incompatible ones, rather than hard-failing mid-iteration.
-			const params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, ps.params ?? {});
+			const params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, ps.params);
+			const droppedParamWarnings = Object.keys(ps.params)
+				.filter(key => !Object.hasOwn(params, key))
+				.map(key => ({
+					code: 'incompatible_param_ignored',
+					key,
+					message: `Ignored incompatible parameter: ${key}`,
+				}));
 			let result;
 			try {
 				result = await this.mrfLuaPolicyService.run({
@@ -129,6 +136,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				params,
 				warnings: dedupeWarnings([
 					...metadata.warnings,
+					...droppedParamWarnings,
 					...result.warnings,
 				]),
 			};
