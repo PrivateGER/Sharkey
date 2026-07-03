@@ -12772,6 +12772,172 @@ export interface Locale extends ILocale {
          * New policy
          */
         "newPolicyName": string;
+        /**
+         * Comma-separated.
+         */
+        "commaSeparated": string;
+        /**
+         * Syntax reference
+         */
+        "reference": string;
+        "_reference": {
+            /**
+             * Every policy must define a global filter(ctx) function that returns a decision. An optional policy table declares configurable parameters.
+             */
+            "contract": string;
+            /**
+             * Example
+             */
+            "example": string;
+            /**
+             * Runs in a sandboxed Lua 5.4 VM. os, io, package, require, load and debug are unavailable. Define helpers as local; extra globals trigger persistence warnings. Execution is bounded by the policy timeout.
+             */
+            "sandboxNote": string;
+            /**
+             * Context (ctx)
+             */
+            "contextTitle": string;
+            /**
+             * The context passed to filter(ctx).
+             */
+            "contextNote": string;
+            /**
+             * The raw ActivityPub activity as a table (mutate this for rewrites).
+             */
+            "ctxActivity": string;
+            /**
+             * URI of the activity's actor.
+             */
+            "ctxActorUri": string;
+            /**
+             * Host of the actor, or nil for local.
+             */
+            "ctxActorHost": string;
+            /**
+             * Actor follower count, if known.
+             */
+            "ctxFollowers": string;
+            /**
+             * Actor following count, if known.
+             */
+            "ctxFollowing": string;
+            /**
+             * This instance's host.
+             */
+            "ctxLocalHost": string;
+            /**
+             * Host that signed the request.
+             */
+            "ctxSignerHost": string;
+            /**
+             * ISO timestamp of when the activity was received.
+             */
+            "ctxReceivedAt": string;
+            /**
+             * Configured parameter values, with schema defaults applied.
+             */
+            "ctxParams": string;
+            /**
+             * Decisions
+             */
+            "decisionsTitle": string;
+            /**
+             * Accept the activity unchanged. Optional reason.
+             */
+            "decAccept": string;
+            /**
+             * Reject the activity. Requires a non-empty reason (logged).
+             */
+            "decReject": string;
+            /**
+             * Accept a modified activity. Must be JSON-serializable.
+             */
+            "decRewrite": string;
+            /**
+             * Activity helpers
+             */
+            "activityTitle": string;
+            /**
+             * Activity type string (e.g. Create, Announce), or nil.
+             */
+            "actType": string;
+            /**
+             * The activity's object, or nil.
+             */
+            "actObject": string;
+            /**
+             * Actor URI whether actor is a string or object, or nil.
+             */
+            "actActorUri": string;
+            /**
+             * The Note object if this is a Create of a Note, else nil.
+             */
+            "actNote": string;
+            /**
+             * Note helpers
+             */
+            "noteTitle": string;
+            /**
+             * The note's content string, or nil.
+             */
+            "noteContent": string;
+            /**
+             * Array of Mention tags on the note.
+             */
+            "noteMentions": string;
+            /**
+             * Number of mentions on the note.
+             */
+            "noteMentionCount": string;
+            /**
+             * Remove all Mention tags; returns the note.
+             */
+            "noteRemoveMentions": string;
+            /**
+             * Mark the note sensitive; sets summary to reason if unset.
+             */
+            "noteMarkSensitive": string;
+            /**
+             * Move Public from 'to' into 'cc' (unlists the note).
+             */
+            "noteUnlist": string;
+            /**
+             * True if the note has at least one attachment.
+             */
+            "noteHasMedia": string;
+            /**
+             * Lookups
+             */
+            "lookupTitle": string;
+            /**
+             * Query the local database. These are async and their latency counts against the policy timeout.
+             */
+            "lookupSectionNote": string;
+            /**
+             * Fetch a known user by URI, or nil.
+             */
+            "lookupUserUri": string;
+            /**
+             * Fetch a known user by mention tag or acct string, or nil.
+             */
+            "lookupUserMention": string;
+            /**
+             * Fetch instance metadata by host, or nil.
+             */
+            "lookupInstance": string;
+            /**
+             * Fetch a known note by URI, or nil.
+             */
+            "lookupNoteUri": string;
+            /**
+             * Utilities
+             */
+            "miscTitle": string;
+            /**
+             * True if the value is Lua nil or a JSON null.
+             */
+            "miscIsNil": string;
+        };
     };
     "_mfm": {
         /**

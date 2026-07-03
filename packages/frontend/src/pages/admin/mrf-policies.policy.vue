@@ -40,6 +40,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ entry.def.label ?? entry.key }}</template>
 					<template v-if="entry.def.description" #caption>{{ entry.def.description }}</template>
 				</MkInput>
+				<MkInput v-else-if="entry.def.type === 'string_array'" v-model="draft.params[entry.key]">
+					<template #label>{{ entry.def.label ?? entry.key }}</template>
+					<template #caption>{{ entry.def.description ? entry.def.description + ' ' : '' }}{{ i18n.ts._mrfPolicies.commaSeparated }}</template>
+				</MkInput>
 				<MkInput v-else v-model="draft.params[entry.key]">
 					<template #label>{{ entry.def.label ?? entry.key }}</template>
 					<template v-if="entry.def.description" #caption>{{ entry.def.description }}</template>
@@ -210,12 +214,6 @@ const currentSchema = ref<Record<string, ParamDef>>(initialSchema);
 
 const paramEntries = computed(() => Object.entries(currentSchema.value).map(([key, def]) => ({ key, def })));
 
-function pruneParams(schema: Record<string, ParamDef>) {
-	for (const key of Object.keys(draft.params)) {
-		if (!Object.hasOwn(schema, key)) delete draft.params[key];
-	}
-}
-
 const scopeActivityTypes = ref((props.policy.scope?.activityTypes ?? []).join(', '));
 const scopeObjectTypes = ref((props.policy.scope?.objectTypes ?? []).join(', '));
 
@@ -324,7 +322,7 @@ async function runTest() {
 		// Sync the param form to the schema the tested source actually produced, so editing
 		// the source live and re-testing converges instead of leaving stale param fields.
 		currentSchema.value = { ...(result.paramsSchema ?? {}) as Record<string, ParamDef> };
-		pruneParams(currentSchema.value);
+		draft.params = toEditableParams(currentSchema.value, { ...(result.params ?? {}) });
 	} catch (err: any) {
 		os.alert({ type: 'error', text: err.message ?? String(err) });
 	} finally {
