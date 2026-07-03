@@ -45,18 +45,27 @@ function sortPolicies() {
 	policies.value.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
 }
 
+// Bumped whenever local state changes so an in-flight list response that predates the
+// mutation can't clobber it (e.g. a create finishing before the initial load resolves).
+let refreshToken = 0;
+
 async function refresh() {
-	policies.value = await misskeyApi('admin/mrf-policies/list', {});
+	const token = ++refreshToken;
+	const fetched = await misskeyApi('admin/mrf-policies/list', {});
+	if (token !== refreshToken) return;
+	policies.value = fetched;
 	sortPolicies();
 }
 
 function onUpdated(policy: Misskey.entities.MrfPolicy) {
+	refreshToken++;
 	const idx = policies.value.findIndex(p => p.id === policy.id);
 	if (idx !== -1) policies.value[idx] = policy;
 	sortPolicies();
 }
 
 function onDeleted(id: string) {
+	refreshToken++;
 	policies.value = policies.value.filter(p => p.id !== id);
 }
 
@@ -74,6 +83,9 @@ async function create() {
 	});
 	policies.value.push(created);
 	sortPolicies();
+	// Re-sync with the server; this also discards any still-in-flight initial load whose
+	// response predates the create.
+	refresh();
 }
 
 refresh();

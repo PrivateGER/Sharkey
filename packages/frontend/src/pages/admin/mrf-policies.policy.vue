@@ -71,7 +71,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkInfo>
 
 	<div class="_buttons">
-		<MkButton primary inline @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+		<MkButton primary inline :disabled="saving" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 		<MkButton v-if="!policy.isBuiltin" danger inline @click="remove"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 	</div>
 
@@ -165,6 +165,33 @@ const emit = defineEmits<{
 
 type ParamDef = { type: string; label?: string; description?: string };
 
+// string_array params are edited as comma-separated text; arrays from the server are
+// joined for display and split back into arrays on submit (see coerceParams).
+function toEditableParams(schema: Record<string, ParamDef>, params: Record<string, any>): Record<string, any> {
+	const out: Record<string, any> = { ...params };
+	for (const [key, def] of Object.entries(schema)) {
+		if (def.type === 'string_array' && Array.isArray(out[key])) {
+			out[key] = out[key].join(', ');
+		}
+	}
+	return out;
+}
+
+function coerceParams(schema: Record<string, ParamDef>, params: Record<string, any>): Record<string, unknown> {
+	const out: Record<string, unknown> = { ...params };
+	for (const [key, def] of Object.entries(schema)) {
+		if (!Object.hasOwn(out, key)) continue;
+		if (def.type === 'integer' || def.type === 'number') {
+			out[key] = Number(out[key]);
+		} else if (def.type === 'string_array' && typeof out[key] === 'string') {
+			out[key] = (out[key] as string).split(',').map(s => s.trim()).filter(s => s.length > 0);
+		}
+	}
+	return out;
+}
+
+const initialSchema = { ...(props.policy.paramsSchema ?? {}) as Record<string, ParamDef> };
+
 const draft = reactive({
 	name: props.policy.name,
 	enabled: props.policy.enabled,
@@ -172,14 +199,14 @@ const draft = reactive({
 	timeoutMs: props.policy.timeoutMs,
 	source: props.policy.source,
 	// Params are dynamic (driven by the policy's paramsSchema), so the form model is untyped.
-	params: { ...(props.policy.params ?? {}) } as Record<string, any>,
+	params: toEditableParams(initialSchema, { ...(props.policy.params ?? {}) }),
 });
 
 const warnings = ref<{ code: string; key: string; message: string }[]>(props.policy.warnings ?? []);
 
 // The active param schema. Kept in a ref (not read straight from props) so it can be
 // refreshed from the server after a source edit changes which params exist.
-const currentSchema = ref<Record<string, ParamDef>>({ ...(props.policy.paramsSchema ?? {}) as Record<string, ParamDef> });
+const currentSchema = ref<Record<string, ParamDef>>(initialSchema);
 
 const paramEntries = computed(() => Object.entries(currentSchema.value).map(([key, def]) => ({ key, def })));
 
@@ -213,40 +240,48 @@ function applyPolicy(p: Misskey.entities.MrfPolicy) {
 	draft.priority = p.priority;
 	draft.timeoutMs = p.timeoutMs;
 	draft.source = p.source;
-	draft.params = { ...(p.params ?? {}) };
 	currentSchema.value = { ...(p.paramsSchema ?? {}) as Record<string, ParamDef> };
+	draft.params = toEditableParams(currentSchema.value, { ...(p.params ?? {}) });
 	scopeActivityTypes.value = (p.scope?.activityTypes ?? []).join(', ');
 	scopeObjectTypes.value = (p.scope?.objectTypes ?? []).join(', ');
 	warnings.value = p.warnings ?? [];
 }
 
+const saving = ref(false);
+
 async function save() {
-	const sourceChanged = !props.policy.isBuiltin && draft.source !== props.policy.source;
-	// Built-in policies only allow enabled/priority/params changes; the update endpoint
-	// rejects name/source/scope/timeoutMs on built-ins with cannotModifyBuiltinPolicy.
-	const patch: Misskey.entities.AdminMrfPoliciesUpdateRequest = {
-		id: props.policy.id,
-		enabled: draft.enabled,
-		priority: Number(draft.priority),
-	};
-	// When the source changes, the server re-derives the param schema; submitting the old
-	// params would be rejected as unknown. Let the server filter compatible params instead,
-	// then reseed the form from the returned policy.
-	if (!sourceChanged) {
-		patch.params = draft.params;
-	}
-	if (!props.policy.isBuiltin) {
-		patch.name = draft.name;
-		patch.timeoutMs = Number(draft.timeoutMs);
-		patch.source = draft.source;
-		patch.scope = {
-			activityTypes: parseTypeList(scopeActivityTypes.value),
-			objectTypes: parseTypeList(scopeObjectTypes.value),
+	if (saving.value) return;
+	saving.value = true;
+	try {
+		const sourceChanged = !props.policy.isBuiltin && draft.source !== props.policy.source;
+		// Built-in policies only allow enabled/priority/params changes; the update endpoint
+		// rejects name/source/scope/timeoutMs on built-ins with cannotModifyBuiltinPolicy.
+		const patch: Misskey.entities.AdminMrfPoliciesUpdateRequest = {
+			id: props.policy.id,
+			enabled: draft.enabled,
+			priority: Number(draft.priority),
 		};
+		// When the source changes, the server re-derives the param schema; submitting the old
+		// params would be rejected as unknown. Let the server filter compatible params instead,
+		// then reseed the form from the returned policy.
+		if (!sourceChanged) {
+			patch.params = coerceParams(currentSchema.value, draft.params);
+		}
+		if (!props.policy.isBuiltin) {
+			patch.name = draft.name;
+			patch.timeoutMs = Number(draft.timeoutMs);
+			patch.source = draft.source;
+			patch.scope = {
+				activityTypes: parseTypeList(scopeActivityTypes.value),
+				objectTypes: parseTypeList(scopeObjectTypes.value),
+			};
+		}
+		const updated = await os.apiWithDialog('admin/mrf-policies/update', patch);
+		applyPolicy(updated);
+		emit('updated', updated);
+	} finally {
+		saving.value = false;
 	}
-	const updated = await os.apiWithDialog('admin/mrf-policies/update', patch);
-	applyPolicy(updated);
-	emit('updated', updated);
 }
 
 function remove() {
@@ -283,7 +318,7 @@ async function runTest() {
 			localHost: testLocalHost.value,
 			signerHost: testSignerHost.value,
 			timeoutMs: Number(draft.timeoutMs),
-			params: draft.params,
+			params: coerceParams(currentSchema.value, draft.params),
 		});
 		testResult.value = result;
 		// Sync the param form to the schema the tested source actually produced, so editing
