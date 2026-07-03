@@ -29,6 +29,7 @@ import type {
 	AdminAnnouncementsListRequest,
 	AdminAnnouncementsListResponse,
 	AdminAnnouncementsUpdateRequest,
+	AdminAntennasGlobalResponse,
 	AdminApproveUserRequest,
 	AdminAvatarDecorationsCreateRequest,
 	AdminAvatarDecorationsCreateResponse,
@@ -81,6 +82,14 @@ import type {
 	AdminInviteListRequest,
 	AdminInviteListResponse,
 	AdminMetaResponse,
+	AdminMrfPoliciesCreateRequest,
+	AdminMrfPoliciesCreateResponse,
+	AdminMrfPoliciesDeleteRequest,
+	AdminMrfPoliciesListResponse,
+	AdminMrfPoliciesTestRequest,
+	AdminMrfPoliciesTestResponse,
+	AdminMrfPoliciesUpdateRequest,
+	AdminMrfPoliciesUpdateResponse,
 	AdminNsfwUserRequest,
 	AdminPromoCreateRequest,
 	AdminQueueClearRequest,
@@ -305,6 +314,8 @@ import type {
 	DriveFilesFindResponse,
 	DriveFilesFindByHashRequest,
 	DriveFilesFindByHashResponse,
+	DriveFilesGenerateAltTextRequest,
+	DriveFilesGenerateAltTextResponse,
 	DriveFilesShowRequest,
 	DriveFilesShowResponse,
 	DriveFilesUpdateRequest,
@@ -619,6 +630,8 @@ import type {
 	SwUpdateRegistrationResponse,
 	TestRequest,
 	TestResponse,
+	TopPostsRequest,
+	TopPostsResponse,
 	UsernameAvailableRequest,
 	UsernameAvailableResponse,
 	UsersRequest,
@@ -697,6 +710,7 @@ export type Endpoints = {
 	'admin/announcements/delete': { req: AdminAnnouncementsDeleteRequest; res: EmptyResponse };
 	'admin/announcements/list': { req: AdminAnnouncementsListRequest; res: AdminAnnouncementsListResponse };
 	'admin/announcements/update': { req: AdminAnnouncementsUpdateRequest; res: EmptyResponse };
+	'admin/antennas/global': { req: EmptyRequest; res: AdminAntennasGlobalResponse };
 	'admin/approve-user': { req: AdminApproveUserRequest; res: EmptyResponse };
 	'admin/avatar-decorations/create': { req: AdminAvatarDecorationsCreateRequest; res: AdminAvatarDecorationsCreateResponse };
 	'admin/avatar-decorations/delete': { req: AdminAvatarDecorationsDeleteRequest; res: EmptyResponse };
@@ -739,6 +753,11 @@ export type Endpoints = {
 	'admin/invite/create': { req: AdminInviteCreateRequest; res: AdminInviteCreateResponse };
 	'admin/invite/list': { req: AdminInviteListRequest; res: AdminInviteListResponse };
 	'admin/meta': { req: EmptyRequest; res: AdminMetaResponse };
+	'admin/mrf-policies/create': { req: AdminMrfPoliciesCreateRequest; res: AdminMrfPoliciesCreateResponse };
+	'admin/mrf-policies/delete': { req: AdminMrfPoliciesDeleteRequest; res: EmptyResponse };
+	'admin/mrf-policies/list': { req: EmptyRequest; res: AdminMrfPoliciesListResponse };
+	'admin/mrf-policies/test': { req: AdminMrfPoliciesTestRequest; res: AdminMrfPoliciesTestResponse };
+	'admin/mrf-policies/update': { req: AdminMrfPoliciesUpdateRequest; res: AdminMrfPoliciesUpdateResponse };
 	'admin/nsfw-user': { req: AdminNsfwUserRequest; res: EmptyResponse };
 	'admin/promo/create': { req: AdminPromoCreateRequest; res: EmptyResponse };
 	'admin/queue/clear': { req: AdminQueueClearRequest; res: EmptyResponse };
@@ -883,6 +902,7 @@ export type Endpoints = {
 	'drive/files/delete': { req: DriveFilesDeleteRequest; res: EmptyResponse };
 	'drive/files/find': { req: DriveFilesFindRequest; res: DriveFilesFindResponse };
 	'drive/files/find-by-hash': { req: DriveFilesFindByHashRequest; res: DriveFilesFindByHashResponse };
+	'drive/files/generate-alt-text': { req: DriveFilesGenerateAltTextRequest; res: DriveFilesGenerateAltTextResponse };
 	'drive/files/show': { req: DriveFilesShowRequest; res: DriveFilesShowResponse };
 	'drive/files/update': { req: DriveFilesUpdateRequest; res: DriveFilesUpdateResponse };
 	'drive/files/upload-from-url': { req: DriveFilesUploadFromUrlRequest; res: EmptyResponse };
@@ -1095,6 +1115,7 @@ export type Endpoints = {
 	'sw/unregister': { req: SwUnregisterRequest; res: EmptyResponse };
 	'sw/update-registration': { req: SwUpdateRegistrationRequest; res: SwUpdateRegistrationResponse };
 	'test': { req: TestRequest; res: TestResponse };
+	'top-posts': { req: TopPostsRequest; res: TopPostsResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };
 	'users': { req: UsersRequest; res: UsersResponse };
 	'users/achievements': { req: UsersAchievementsRequest; res: UsersAchievementsResponse };

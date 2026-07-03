@@ -443,6 +443,10 @@ export const ROUTE_DEF = [{
 		name: 'federation',
 		component: page(() => import('@/pages/admin/federation.vue')),
 	}, {
+		path: '/mrf-policies',
+		name: 'mrfPolicies',
+		component: page(() => import('@/pages/admin/mrf-policies.vue')),
+	}, {
 		path: '/announcements',
 		name: 'announcements',
 		component: page(() => import('@/pages/admin/announcements.vue')),

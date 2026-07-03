@@ -125,6 +125,9 @@ type AdminAnnouncementsListResponse = operations['admin___announcements___list']
 type AdminAnnouncementsUpdateRequest = operations['admin___announcements___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminAntennasGlobalResponse = operations['admin___antennas___global']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminApproveUserRequest = operations['admin___approve-user']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -279,6 +282,30 @@ type AdminInviteListResponse = operations['admin___invite___list']['responses'][
 
 // @public (undocumented)
 type AdminMetaResponse = operations['admin___meta']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesCreateRequest = operations['admin___mrf-policies___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesCreateResponse = operations['admin___mrf-policies___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesDeleteRequest = operations['admin___mrf-policies___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesListResponse = operations['admin___mrf-policies___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesTestRequest = operations['admin___mrf-policies___test']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesTestResponse = operations['admin___mrf-policies___test']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesUpdateRequest = operations['admin___mrf-policies___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminMrfPoliciesUpdateResponse = operations['admin___mrf-policies___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminNsfwUserRequest = operations['admin___nsfw-user']['requestBody']['content']['application/json'];
@@ -1345,6 +1372,12 @@ type DriveFilesFindRequest = operations['drive___files___find']['requestBody']['
 type DriveFilesFindResponse = operations['drive___files___find']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type DriveFilesGenerateAltTextRequest = operations['drive___files___generate-alt-text']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type DriveFilesGenerateAltTextResponse = operations['drive___files___generate-alt-text']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type DriveFilesRequest = operations['drive___files']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1578,6 +1611,7 @@ declare namespace entities {
         AdminAnnouncementsListRequest,
         AdminAnnouncementsListResponse,
         AdminAnnouncementsUpdateRequest,
+        AdminAntennasGlobalResponse,
         AdminApproveUserRequest,
         AdminAvatarDecorationsCreateRequest,
         AdminAvatarDecorationsCreateResponse,
@@ -1630,6 +1664,14 @@ declare namespace entities {
         AdminInviteListRequest,
         AdminInviteListResponse,
         AdminMetaResponse,
+        AdminMrfPoliciesCreateRequest,
+        AdminMrfPoliciesCreateResponse,
+        AdminMrfPoliciesDeleteRequest,
+        AdminMrfPoliciesListResponse,
+        AdminMrfPoliciesTestRequest,
+        AdminMrfPoliciesTestResponse,
+        AdminMrfPoliciesUpdateRequest,
+        AdminMrfPoliciesUpdateResponse,
         AdminNsfwUserRequest,
         AdminPromoCreateRequest,
         AdminQueueClearRequest,
@@ -1854,6 +1896,8 @@ declare namespace entities {
         DriveFilesFindResponse,
         DriveFilesFindByHashRequest,
         DriveFilesFindByHashResponse,
+        DriveFilesGenerateAltTextRequest,
+        DriveFilesGenerateAltTextResponse,
         DriveFilesShowRequest,
         DriveFilesShowResponse,
         DriveFilesUpdateRequest,
@@ -2168,6 +2212,8 @@ declare namespace entities {
         SwUpdateRegistrationResponse,
         TestRequest,
         TestResponse,
+        TopPostsRequest,
+        TopPostsResponse,
         UsernameAvailableRequest,
         UsernameAvailableResponse,
         UsersRequest,
@@ -2294,7 +2340,8 @@ declare namespace entities {
         ChatMessageLiteForRoom,
         ChatRoom,
         ChatRoomInvitation,
-        ChatRoomMembership
+        ChatRoomMembership,
+        MrfPolicy
     }
 }
 export { entities }
@@ -3182,6 +3229,9 @@ type ModerationLog = {
 export const moderationLogTypes: readonly ["updateServerSettings", "suspend", "approve", "decline", "unsuspend", "updateUserNote", "addCustomEmoji", "updateCustomEmoji", "deleteCustomEmoji", "assignRole", "unassignRole", "createRole", "updateRole", "deleteRole", "clearQueue", "promoteQueue", "deleteDriveFile", "deleteNote", "createGlobalAnnouncement", "createUserAnnouncement", "updateGlobalAnnouncement", "updateUserAnnouncement", "deleteGlobalAnnouncement", "deleteUserAnnouncement", "resetPassword", "setMandatoryCW", "setMandatoryCWForNote", "setMandatoryCWForInstance", "suspendRemoteInstance", "unsuspendRemoteInstance", "rejectRemoteInstanceReports", "acceptRemoteInstanceReports", "updateRemoteInstanceNote", "markSensitiveDriveFile", "unmarkSensitiveDriveFile", "resolveAbuseReport", "forwardAbuseReport", "updateAbuseReportNote", "createInvitation", "createAd", "updateAd", "deleteAd", "createAvatarDecoration", "updateAvatarDecoration", "deleteAvatarDecoration", "unsetUserAvatar", "unsetUserBanner", "createSystemWebhook", "updateSystemWebhook", "deleteSystemWebhook", "createAbuseReportNotificationRecipient", "updateAbuseReportNotificationRecipient", "deleteAbuseReportNotificationRecipient", "deleteAccount", "deletePage", "deleteFlash", "deleteGalleryPost", "deleteChatRoom"];
 
 // @public (undocumented)
+type MrfPolicy = components['schemas']['MrfPolicy'];
+
+// @public (undocumented)
 type MuteCreateRequest = operations['mute___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3530,7 +3580,7 @@ type PartialRolePolicyOverride = Partial<{
 }>;
 
 // @public (undocumented)
-export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "read:admin:abuse-report:notification-recipient", "write:admin:abuse-report:notification-recipient", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:cw-note", "write:admin:cw-instance", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:restart-migration", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
+export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "read:admin:abuse-report:notification-recipient", "write:admin:abuse-report:notification-recipient", "write:admin:send-email", "read:admin:antennas", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:cw-note", "write:admin:cw-instance", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:restart-migration", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
 
 // @public (undocumented)
 type PingResponse = operations['ping']['responses']['200']['content']['application/json'];
@@ -3882,6 +3932,12 @@ type TestRequest = operations['test']['requestBody']['content']['application/jso
 
 // @public (undocumented)
 type TestResponse = operations['test']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TopPostsRequest = operations['top-posts']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TopPostsResponse = operations['top-posts']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 function toString(acct: Acct, lower?: boolean): string;

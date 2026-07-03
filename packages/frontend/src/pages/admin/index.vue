@@ -161,6 +161,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/admin/federation',
 		active: currentPage.value?.route.name === 'federation',
 	}, {
+		icon: 'ti ti-filter-code',
+		text: i18n.ts.mrfPolicies,
+		to: '/admin/mrf-policies',
+		active: currentPage.value?.route.name === 'mrfPolicies',
+	}, {
 		icon: 'ti ti-clock-play',
 		text: i18n.ts.federationJobs,
 		to: '/admin/federation-job-queue',

@@ -17,11 +17,6 @@ export const meta = {
 	kind: 'write:admin:federation',
 
 	errors: {
-		invalidParams: {
-			message: 'Invalid MRF policy params.',
-			code: 'INVALID_MRF_POLICY_PARAMS',
-			id: 'e0a7e055-f639-4024-ab41-293c7fa43d0a',
-		},
 		luaFailed: {
 			message: 'The MRF policy failed to load or run.',
 			code: 'MRF_POLICY_LUA_FAILED',
@@ -39,7 +34,14 @@ export const meta = {
 					name: { type: 'string', optional: false, nullable: false },
 				},
 			},
-			decision: { type: 'object', optional: false, nullable: false },
+			decision: {
+				type: 'object', optional: false, nullable: false,
+				properties: {
+					action: { type: 'string', optional: false, nullable: false },
+					reason: { type: 'string', optional: true, nullable: false },
+					activity: { type: 'object', optional: true, nullable: false },
+				},
+			},
 			durationMs: { type: 'number', optional: false, nullable: false },
 			paramsSchema: { type: 'object', optional: false, nullable: false },
 			params: { type: 'object', optional: false, nullable: false },
@@ -94,14 +96,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				});
 			}
 			const paramsSchema = metadata.paramsSchema;
-			let params;
-			try {
-				params = this.mrfLuaPolicyService.validateParams(paramsSchema, ps.params ?? {});
-			} catch (error) {
-				throw new ApiError(meta.errors.invalidParams, {
-					reason: error instanceof Error ? error.message : String(error),
-				});
-			}
+			// Dry run: tolerate params that no longer match the (possibly just-edited) source
+			// by dropping incompatible ones, rather than hard-failing mid-iteration.
+			const params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, ps.params);
+			const droppedParamWarnings = Object.keys(ps.params)
+				.filter(key => !Object.hasOwn(params, key))
+				.map(key => ({
+					code: 'incompatible_param_ignored',
+					key,
+					message: `Ignored incompatible parameter: ${key}`,
+				}));
 			let result;
 			try {
 				result = await this.mrfLuaPolicyService.run({
@@ -132,6 +136,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				params,
 				warnings: dedupeWarnings([
 					...metadata.warnings,
+					...droppedParamWarnings,
 					...result.warnings,
 				]),
 			};
