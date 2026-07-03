@@ -27,6 +27,34 @@ export const meta = {
 			id: '8e2c9b0d-51f3-4c7a-9c25-6a3f6d0e4b91',
 		},
 	},
+
+	res: {
+		type: 'object',
+		properties: {
+			policy: {
+				type: 'object', optional: false, nullable: false,
+				properties: {
+					id: { type: 'string', optional: false, nullable: false },
+					name: { type: 'string', optional: false, nullable: false },
+				},
+			},
+			decision: { type: 'object', optional: false, nullable: false },
+			durationMs: { type: 'number', optional: false, nullable: false },
+			paramsSchema: { type: 'object', optional: false, nullable: false },
+			params: { type: 'object', optional: false, nullable: false },
+			warnings: {
+				type: 'array', optional: false, nullable: false,
+				items: {
+					type: 'object', optional: false, nullable: false,
+					properties: {
+						code: { type: 'string', optional: false, nullable: false },
+						key: { type: 'string', optional: false, nullable: false },
+						message: { type: 'string', optional: false, nullable: false },
+					},
+				},
+			},
+		},
+	},
 } as const;
 
 export const paramDef = {

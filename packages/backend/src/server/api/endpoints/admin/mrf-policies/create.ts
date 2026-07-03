@@ -31,6 +31,11 @@ export const meta = {
 			id: 'c9727ba3-6c83-46ba-9d34-1cf5d3c0b4c8',
 		},
 	},
+
+	res: {
+		type: 'object',
+		ref: 'MrfPolicy',
+	},
 } as const;
 
 export const paramDef = {
