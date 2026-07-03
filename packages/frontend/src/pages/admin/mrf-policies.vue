@@ -9,6 +9,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_m">
 			<MkInfo>{{ i18n.ts._mrfPolicies.description }}</MkInfo>
 
+			<MkFolder :defaultOpen="false">
+				<template #icon><i class="ti ti-help-circle"></i></template>
+				<template #label>{{ i18n.ts._mrfPolicies.reference }}</template>
+				<XReference/>
+			</MkFolder>
+
 			<MkFolder v-for="policy in policies" :key="policy.id" :defaultOpen="false">
 				<template #icon>
 					<i v-if="!policy.enabled" class="ti ti-circle-off"></i>
@@ -32,6 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import XPolicy from './mrf-policies.policy.vue';
+import XReference from './mrf-policies.reference.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
