@@ -52,7 +52,14 @@ function filter(ctx)
 \treturn mrf.accept()
 end`;
 
-const workedExample = `function filter(ctx)
+const workedExample = `-- Declare the parameter this policy reads.
+policy = {
+\tparams = {
+\t\tmax_mentions = { type = "integer", default = 5, label = "Max mentions" },
+\t},
+}
+
+function filter(ctx)
 \tlocal note = mrf.activity.note(ctx.activity)
 \tif note == nil then
 \t\treturn mrf.accept()
