@@ -142,6 +142,7 @@ import { MetaEntityService } from './entities/MetaEntityService.js';
 
 import { ApAudienceService } from './activitypub/ApAudienceService.js';
 import { ApDbResolverService } from './activitypub/ApDbResolverService.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { ApDeliverManagerService } from './activitypub/ApDeliverManagerService.js';
 import { ApInboxService } from './activitypub/ApInboxService.js';
 import { ApLoggerService } from './activitypub/ApLoggerService.js';
@@ -297,6 +298,10 @@ const $SystemWebhookEntityService: Provider = { provide: 'SystemWebhookEntitySer
 
 const $ApAudienceService: Provider = { provide: 'ApAudienceService', useExisting: ApAudienceService };
 const $ApDbResolverService: Provider = { provide: 'ApDbResolverService', useExisting: ApDbResolverService };
+const $MrfLuaPolicyService: Provider = {
+	provide: MrfLuaPolicyService,
+	useFactory: () => new MrfLuaPolicyService(),
+};
 const $ApDeliverManagerService: Provider = { provide: 'ApDeliverManagerService', useExisting: ApDeliverManagerService };
 const $ApInboxService: Provider = { provide: 'ApInboxService', useExisting: ApInboxService };
 const $ApLoggerService: Provider = { provide: 'ApLoggerService', useExisting: ApLoggerService };
@@ -616,6 +621,7 @@ const $Imports = [
 
 		$ApAudienceService,
 		$ApDbResolverService,
+		$MrfLuaPolicyService,
 		$ApDeliverManagerService,
 		$ApInboxService,
 		$ApLoggerService,
@@ -928,6 +934,7 @@ const $Imports = [
 
 		$ApAudienceService,
 		$ApDbResolverService,
+		$MrfLuaPolicyService,
 		$ApDeliverManagerService,
 		$ApInboxService,
 		$ApLoggerService,

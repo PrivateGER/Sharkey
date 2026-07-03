@@ -9,6 +9,21 @@ import DeleteMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/d
 import CreateMrfPolicyEndpoint from '@/server/api/endpoints/admin/mrf-policies/create.js';
 import { meta as listMeta } from '@/server/api/endpoints/admin/mrf-policies/list.js';
 import { ApiError } from '@/server/api/error.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+
+function createModerationLogService() {
+	const entries: Array<{ type: string; info: Record<string, unknown> }> = [];
+	return {
+		entries,
+		log: async (_moderator: unknown, type: string, info: Record<string, unknown>) => {
+			entries.push({ type, info });
+		},
+	};
+}
+
+function createTimeService() {
+	return { get date() { return new Date(); } };
+}
 
 function createPolicy(overrides: Record<string, unknown> = {}) {
 	return {
@@ -81,7 +96,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('allows disabling built-in policies without modifying their source', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -96,7 +111,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('allows updating built-in policy params', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -113,7 +128,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects unknown built-in policy params', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -130,7 +145,7 @@ describe('MRF policy admin endpoints', () => {
 		const repository = createRepository();
 		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
 			gen: () => 'mrfcustom00000000000000000001',
-		} as any);
+		} as any, new MrfLuaPolicyService(), createModerationLogService() as any);
 
 		const result = await endpoint.exec({
 			name: 'Custom policy',
@@ -173,7 +188,7 @@ describe('MRF policy admin endpoints', () => {
 		const repository = createRepository();
 		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
 			gen: () => 'mrfcustom00000000000000000002',
-		} as any);
+		} as any, new MrfLuaPolicyService(), createModerationLogService() as any);
 
 		const result = await endpoint.exec({
 			name: 'Custom policy with globals',
@@ -199,7 +214,7 @@ describe('MRF policy admin endpoints', () => {
 			isBuiltin: false,
 			builtinPolicyId: null,
 		}));
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		const result = await endpoint.exec({
 			id: repository.current.id,
@@ -221,7 +236,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects source edits for built-in policies', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -234,7 +249,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects scope edits for built-in policies', async () => {
 		const repository = createRepository();
-		const endpoint = new UpdateMrfPolicyEndpoint(repository as any);
+		const endpoint = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), createModerationLogService() as any, createTimeService() as any);
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -250,7 +265,7 @@ describe('MRF policy admin endpoints', () => {
 
 	test('rejects deleting built-in policies', async () => {
 		const repository = createRepository();
-		const endpoint = new DeleteMrfPolicyEndpoint(repository as any);
+		const endpoint = new DeleteMrfPolicyEndpoint(repository as any, createModerationLogService() as any);
 
 		await assert.rejects(
 			() => endpoint.exec({
@@ -258,5 +273,56 @@ describe('MRF policy admin endpoints', () => {
 			}, {} as any, null),
 			(error: unknown) => error instanceof ApiError && error.code === 'CANNOT_DELETE_BUILTIN_MRF_POLICY',
 		);
+	});
+
+	test('rejects creating a policy whose source has a Lua syntax error', async () => {
+		const repository = createRepository();
+		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
+			gen: () => 'mrfcustom00000000000000000003',
+		} as any, new MrfLuaPolicyService(), createModerationLogService() as any);
+
+		await assert.rejects(
+			() => endpoint.exec({
+				name: 'Broken policy',
+				source: 'function filter(',
+			}, {} as any, null),
+			(error: unknown) => error instanceof ApiError && error.code === 'INVALID_MRF_POLICY_SOURCE',
+		);
+	});
+
+	test('rejects creating a policy without a filter function', async () => {
+		const repository = createRepository();
+		const endpoint = new CreateMrfPolicyEndpoint(repository as any, {
+			gen: () => 'mrfcustom00000000000000000004',
+		} as any, new MrfLuaPolicyService(), createModerationLogService() as any);
+
+		await assert.rejects(
+			() => endpoint.exec({
+				name: 'Filterless policy',
+				source: 'policy = {}',
+			}, {} as any, null),
+			(error: unknown) => error instanceof ApiError && error.code === 'INVALID_MRF_POLICY_SOURCE',
+		);
+	});
+
+	test('writes moderation log entries for create, update, and delete', async () => {
+		const repository = createRepository(createPolicy({
+			isBuiltin: false,
+			builtinPolicyId: null,
+		}));
+		const modlog = createModerationLogService();
+		const admin = { id: 'admin0000000000000000000001' } as any;
+
+		const update = new UpdateMrfPolicyEndpoint(repository as any, new MrfLuaPolicyService(), modlog as any, createTimeService() as any);
+		await update.exec({ id: repository.current.id, enabled: false }, admin, null);
+
+		const del = new DeleteMrfPolicyEndpoint(repository as any, modlog as any);
+		await del.exec({ id: repository.current.id }, admin, null);
+
+		assert.deepStrictEqual(modlog.entries.map(entry => entry.type), [
+			'updateMrfPolicy',
+			'deleteMrfPolicy',
+		]);
+		assert.equal(modlog.entries[0].info.policyId, repository.current.id);
 	});
 });

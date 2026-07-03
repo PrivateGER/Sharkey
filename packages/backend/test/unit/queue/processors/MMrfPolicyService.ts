@@ -5,6 +5,8 @@
 
 import * as assert from 'node:assert';
 import { MMrfAction, MMrfPolicyService } from '@/queue/processors/MMrfPolicy.js';
+import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { MemorySingleCache } from '@/misc/cache.js';
 import type { IActivity } from '@/core/activitypub/type.js';
 
 const logger = {
@@ -67,10 +69,22 @@ function createPolicyRow(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-function createService(policyRows: unknown[]) {
+function createCacheManagementService() {
+	return {
+		createMemorySingleCache: <T>(name: string, lifetime: number) =>
+			new MemorySingleCache<T>(name, {
+				timeService: { get now() { return Date.now(); } },
+			} as any, { lifetime }),
+	};
+}
+
+function createService(policyRows: unknown[], counters: { finds: number } = { finds: 0 }) {
 	return new MMrfPolicyService(
 		{
-			find: async () => policyRows,
+			find: async () => {
+				counters.finds++;
+				return policyRows;
+			},
 		} as any,
 		{
 			findOneBy: async () => null,
@@ -81,6 +95,8 @@ function createService(policyRows: unknown[]) {
 		{
 			getUserFromApId: async () => null,
 		} as any,
+		new MrfLuaPolicyService(),
+		createCacheManagementService() as any,
 	);
 }
 
@@ -161,5 +177,42 @@ describe('MMrfPolicyService', () => {
 
 		assert.equal(result.action, MMrfAction.RejectNote);
 		assert.match(result.reason ?? '', /explicit rejection/);
+	});
+
+	test('a poisoned rewrite fails only its own policy, not the chain', async () => {
+		const service = createService([
+			createPolicyRow({
+				id: 'poisoner',
+				source: `
+					function filter(ctx)
+						ctx.activity.evil = function() return 1 end
+						return mrf.rewrite(ctx.activity, "poisoned")
+					end
+				`,
+			}),
+			createPolicyRow({
+				id: 'rejector',
+				source: 'function filter(ctx) return mrf.reject("caught by second policy") end',
+			}),
+		]);
+
+		const result = await service.run(keywordActivity, logger as any, runtimeContext);
+
+		assert.equal(result.action, MMrfAction.RejectNote);
+		assert.match(result.reason ?? '', /caught by second policy/);
+	});
+
+	test('caches the enabled policy list between runs', async () => {
+		const counters = { finds: 0 };
+		const service = createService([
+			createPolicyRow({
+				source: 'function filter(ctx) return mrf.accept() end',
+			}),
+		], counters);
+
+		await service.run(keywordActivity, logger as any, runtimeContext);
+		await service.run(keywordActivity, logger as any, runtimeContext);
+
+		assert.equal(counters.finds, 1);
 	});
 });

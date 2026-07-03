@@ -10,6 +10,7 @@ import { IdService } from '@/core/IdService.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
 import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -24,6 +25,16 @@ export const meta = {
 			code: 'INVALID_MRF_POLICY_PARAMS',
 			id: '33231d77-34ed-4454-83a4-1f0d456acdf8',
 		},
+		invalidSource: {
+			message: 'Invalid MRF policy source.',
+			code: 'INVALID_MRF_POLICY_SOURCE',
+			id: 'c9727ba3-6c83-46ba-9d34-1cf5d3c0b4c8',
+		},
+	},
+
+	res: {
+		type: 'object',
+		ref: 'MrfPolicy',
 	},
 } as const;
 
@@ -34,9 +45,10 @@ export const paramDef = {
 		enabled: { type: 'boolean', default: true },
 		priority: { type: 'integer', default: 1000 },
 		source: { type: 'string', minLength: 1 },
-		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, default: 50 },
+		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, default: 50, description: 'Wall-clock budget per execution in milliseconds. Time spent awaiting mrf.lookup.* database calls counts against this budget.' },
 		scope: {
 			type: 'object',
+			description: 'Activity/object type filter. objectTypes only matches inline objects; activities whose object is a bare URI string (e.g. Announce, Like, Delete) never match a non-null objectTypes — use objectTypes: null to receive those.',
 			properties: {
 				activityTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
 				objectTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
@@ -51,20 +63,27 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	private readonly mrfLuaPolicyService = new MrfLuaPolicyService();
-
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
 		private readonly idService: IdService,
+		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+		private readonly moderationLogService: ModerationLogService,
 	) {
-		super(meta, paramDef, async (ps) => {
-			const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
-				id: 'new-policy',
-				name: ps.name,
-				source: ps.source,
-				timeoutMs: ps.timeoutMs,
-			});
+		super(meta, paramDef, async (ps, me) => {
+			let metadata;
+			try {
+				metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
+					id: 'new-policy',
+					name: ps.name,
+					source: ps.source,
+					timeoutMs: ps.timeoutMs,
+				});
+			} catch (error) {
+				throw new ApiError(meta.errors.invalidSource, {
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			}
 			const paramsSchema = metadata.paramsSchema;
 			let params;
 			try {
@@ -87,6 +106,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				builtinPolicyId: null,
 				paramsSchema,
 				params,
+			});
+
+			await this.moderationLogService.log(me, 'createMrfPolicy', {
+				policyId: policy.id,
+				policy,
 			});
 
 			return {

@@ -126,6 +126,9 @@ export const moderationLogTypes = [
 	'createAd',
 	'updateAd',
 	'deleteAd',
+	'createMrfPolicy',
+	'updateMrfPolicy',
+	'deleteMrfPolicy',
 	'createAvatarDecoration',
 	'updateAvatarDecoration',
 	'deleteAvatarDecoration',
@@ -382,6 +385,19 @@ export type ModerationLogPayloads = {
 	deleteAd: {
 		adId: string;
 		ad: any;
+	};
+	createMrfPolicy: {
+		policyId: string;
+		policy: any;
+	};
+	updateMrfPolicy: {
+		policyId: string;
+		before: any;
+		after: any;
+	};
+	deleteMrfPolicy: {
+		policyId: string;
+		policy: any;
 	};
 	createAvatarDecoration: {
 		avatarDecorationId: string;

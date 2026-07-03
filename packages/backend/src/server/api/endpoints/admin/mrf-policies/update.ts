@@ -7,9 +7,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
-import { DEFAULT_MRF_POLICY_SCOPE, normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
+import type { MiMrfPolicy } from '@/models/MrfPolicy.js';
+import { normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicyWarning } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -34,6 +38,16 @@ export const meta = {
 			code: 'INVALID_MRF_POLICY_PARAMS',
 			id: '5e19454b-3100-4354-9dfd-f2187ec1fe14',
 		},
+		invalidSource: {
+			message: 'Invalid MRF policy source.',
+			code: 'INVALID_MRF_POLICY_SOURCE',
+			id: '2f4bd3d7-2c86-4a0f-bd35-6d1f4f9b1b0a',
+		},
+	},
+
+	res: {
+		type: 'object',
+		ref: 'MrfPolicy',
 	},
 } as const;
 
@@ -45,9 +59,10 @@ export const paramDef = {
 		enabled: { type: 'boolean' },
 		priority: { type: 'integer' },
 		source: { type: 'string', minLength: 1 },
-		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000 },
+		timeoutMs: { type: 'integer', minimum: 1, maximum: 5000, description: 'Wall-clock budget per execution in milliseconds. Time spent awaiting mrf.lookup.* database calls counts against this budget.' },
 		scope: {
 			type: 'object',
+			description: 'Activity/object type filter. objectTypes only matches inline objects; activities whose object is a bare URI string (e.g. Announce, Like, Delete) never match a non-null objectTypes — use objectTypes: null to receive those.',
 			properties: {
 				activityTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
 				objectTypes: { type: 'array', nullable: true, items: { type: 'string', minLength: 1, maxLength: 128 }, maxItems: 64 },
@@ -61,13 +76,14 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	private readonly mrfLuaPolicyService = new MrfLuaPolicyService();
-
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
+		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+		private readonly moderationLogService: ModerationLogService,
+		private readonly timeService: TimeService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
 			const existing = await this.mrfPoliciesRepository.findOneBy({ id: ps.id });
 			if (existing == null) throw new ApiError(meta.errors.noSuchPolicy);
 			if (existing.isBuiltin && (
@@ -83,12 +99,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			let params = existing.params;
 			let warnings: MrfLuaPolicyWarning[] = [];
 			if (ps.source !== undefined) {
-				const metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
-					id: existing.id,
-					name: ps.name ?? existing.name,
-					source: ps.source,
-					timeoutMs: ps.timeoutMs ?? existing.timeoutMs,
-				});
+				let metadata;
+				try {
+					metadata = await this.mrfLuaPolicyService.extractPolicyMetadata({
+						id: existing.id,
+						name: ps.name ?? existing.name,
+						source: ps.source,
+						timeoutMs: ps.timeoutMs ?? existing.timeoutMs,
+					});
+				} catch (error) {
+					throw new ApiError(meta.errors.invalidSource, {
+						reason: error instanceof Error ? error.message : String(error),
+					});
+				}
 				paramsSchema = metadata.paramsSchema;
 				warnings = metadata.warnings;
 				params = this.mrfLuaPolicyService.filterCompatibleParams(paramsSchema, params);
@@ -109,14 +132,23 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...(ps.priority !== undefined ? { priority: ps.priority } : {}),
 				...(ps.source !== undefined ? { source: ps.source } : {}),
 				...(ps.timeoutMs !== undefined ? { timeoutMs: ps.timeoutMs } : {}),
-				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope ?? DEFAULT_MRF_POLICY_SCOPE) } : {}),
+				...(ps.scope !== undefined ? { scope: normalizeMrfPolicyScope(ps.scope) } : {}),
 				...(ps.source !== undefined ? { paramsSchema } : {}),
 				...(ps.source !== undefined || ps.params !== undefined ? { params } : {}),
-				updatedAt: new Date(),
-			};
-			await this.mrfPoliciesRepository.update(ps.id, updates as any);
+				updatedAt: this.timeService.date,
+			} satisfies Partial<MiMrfPolicy>;
+			// Cast at the TypeORM boundary only: QueryDeepPartialEntity's mapped type
+			// cannot absorb Record<string, unknown> jsonb columns (params/paramsSchema).
+			await this.mrfPoliciesRepository.update(ps.id, updates as QueryDeepPartialEntity<MiMrfPolicy>);
 
 			const policy = await this.mrfPoliciesRepository.findOneByOrFail({ id: ps.id });
+
+			await this.moderationLogService.log(me, 'updateMrfPolicy', {
+				policyId: policy.id,
+				before: existing,
+				after: policy,
+			});
+
 			return {
 				id: policy.id,
 				createdAt: policy.createdAt.toISOString(),

@@ -62,6 +62,7 @@ import {
 	packedRoleSchema,
 } from '@/models/json-schema/role.js';
 import { packedAdSchema } from '@/models/json-schema/ad.js';
+import { packedMrfPolicySchema } from '@/models/json-schema/mrf-policy.js';
 import { packedReversiGameDetailedSchema, packedReversiGameLiteSchema } from '@/models/json-schema/reversi-game.js';
 import {
 	packedMetaDetailedOnlySchema,
@@ -146,6 +147,7 @@ export const refs = {
 	ChatRoom: packedChatRoomSchema,
 	ChatRoomInvitation: packedChatRoomInvitationSchema,
 	ChatRoomMembership: packedChatRoomMembershipSchema,
+	MrfPolicy: packedMrfPolicySchema,
 };
 
 export type Packed<x extends keyof typeof refs> = SchemaType<typeof refs[x]>;

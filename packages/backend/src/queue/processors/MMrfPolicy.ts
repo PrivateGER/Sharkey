@@ -8,6 +8,7 @@ import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.
 import type { MrfLuaPolicy } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import { normalizeMrfPolicyScope } from '@/models/MrfPolicy.js';
 import type { MrfPolicyScope } from '@/models/MrfPolicy.js';
+import { CacheManagementService, ManagedMemorySingleCache } from '@/global/CacheManagementService.js';
 
 export enum MMrfAction {
 	Neutral,
@@ -39,7 +40,7 @@ type ScopedMrfLuaPolicy = MrfLuaPolicy & {
 
 @Injectable()
 export class MMrfPolicyService {
-	private mrfLuaPolicyService: MrfLuaPolicyService | null = null;
+	private readonly policiesCache: ManagedMemorySingleCache<ScopedMrfLuaPolicy[]>;
 
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
@@ -52,13 +53,19 @@ export class MMrfPolicyService {
 		private readonly notesRepository: NotesRepository,
 
 		private readonly apDbResolverService: ApDbResolverService,
+
+		private readonly mrfLuaPolicyService: MrfLuaPolicyService,
+
+		cacheManagementService: CacheManagementService,
 	) {
+		// 10s TTL: admin policy changes take effect within 10 seconds per worker.
+		this.policiesCache = cacheManagementService.createMemorySingleCache<ScopedMrfLuaPolicy[]>('mrfPolicies', 1000 * 10);
 	}
 
 	public async run(activity: IActivity, logger: Logger, context: MMrfRuntimeContext): Promise<MMrfResponse> {
 		let mmrfActivity = activity;
 		const policies = await this.getEnabledPolicies();
-		this.mrfLuaPolicyService?.retainPreparedPolicyEngines(policies.map(policy => policy.id));
+		this.mrfLuaPolicyService.retainPreparedPolicyEngines(policies.map(policy => policy.id));
 		let lookup: ReturnType<MMrfPolicyService['createLookupApi']> | undefined;
 
 		for (const policy of policies) {
@@ -68,7 +75,7 @@ export class MMrfPolicyService {
 
 			try {
 				lookup ??= this.createLookupApi();
-				const result = await this.getMrfLuaPolicyService().run(policy, {
+				const result = await this.mrfLuaPolicyService.run(policy, {
 					...context,
 					activity: mmrfActivity,
 				}, {
@@ -120,31 +127,28 @@ export class MMrfPolicyService {
 		return this.getTypeSet(object);
 	}
 
-	private getMrfLuaPolicyService(): MrfLuaPolicyService {
-		this.mrfLuaPolicyService ??= new MrfLuaPolicyService();
-		return this.mrfLuaPolicyService;
-	}
-
 	private async getEnabledPolicies(): Promise<ScopedMrfLuaPolicy[]> {
-		const policies = await this.mrfPoliciesRepository.find({
-			where: {
-				enabled: true,
-			},
-			order: {
-				priority: 'ASC',
-				id: 'ASC',
-			},
-		});
+		return await this.policiesCache.fetch(async () => {
+			const policies = await this.mrfPoliciesRepository.find({
+				where: {
+					enabled: true,
+				},
+				order: {
+					priority: 'ASC',
+					id: 'ASC',
+				},
+			});
 
-		return policies.map(policy => ({
-			id: policy.id,
-			name: policy.name,
-			source: policy.source,
-			timeoutMs: policy.timeoutMs,
-			scope: normalizeMrfPolicyScope(policy.scope),
-			paramsSchema: policy.paramsSchema,
-			params: policy.params,
-		}));
+			return policies.map(policy => ({
+				id: policy.id,
+				name: policy.name,
+				source: policy.source,
+				timeoutMs: policy.timeoutMs,
+				scope: normalizeMrfPolicyScope(policy.scope),
+				paramsSchema: policy.paramsSchema,
+				params: policy.params,
+			}));
+		});
 	}
 
 	private createLookupApi() {

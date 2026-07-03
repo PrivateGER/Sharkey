@@ -5,12 +5,18 @@
 
 import { createHash } from 'node:crypto';
 import { LuaFactory } from 'wasmoon';
+import type { OnApplicationShutdown } from '@nestjs/common';
 import type { IActivity } from '@/core/activitypub/type.js';
 
 export type MrfLuaPolicy = {
 	id: string;
 	name: string;
 	source: string;
+	/**
+	 * Wall-clock budget for each Lua execution. wasmoon checks this across coroutine
+	 * resumes, so time spent awaiting JS promises (mrf.lookup.* database calls)
+	 * counts against it. Policies using lookups need a generous budget.
+	 */
 	timeoutMs?: number;
 	paramsSchema?: MrfLuaParamsSchema;
 	params?: MrfLuaParams;
@@ -241,12 +247,48 @@ const SANDBOX_PRELUDE = `
 			return note
 		end
 		local public = "https://www.w3.org/ns/activitystreams#Public"
-		local to = note.to
-		local cc = note.cc
-		if type(to) == "string" and to == public then
-			note.to = cc
-			note.cc = public
+		local function to_list(value)
+			if type(value) == "table" then
+				return value
+			end
+			if mrf.is_nil(value) then
+				return {}
+			end
+			return { value }
 		end
+
+		local found = false
+		local kept_to = {}
+		for _, target in ipairs(to_list(note.to)) do
+			if target == public then
+				found = true
+			else
+				kept_to[#kept_to + 1] = target
+			end
+		end
+
+		if not found then
+			return note
+		end
+
+		local new_cc = {}
+		local has_public = false
+		for _, target in ipairs(to_list(note.cc)) do
+			if target == public then
+				has_public = true
+			end
+			new_cc[#new_cc + 1] = target
+		end
+		if not has_public then
+			new_cc[#new_cc + 1] = public
+		end
+
+		if #kept_to > 0 then
+			note.to = kept_to
+		else
+			note.to = nil
+		end
+		note.cc = new_cc
 		return note
 	end
 
@@ -335,7 +377,7 @@ type PreparedPolicyEnginePool = {
 	retired: boolean;
 };
 
-export class MrfLuaPolicyService {
+export class MrfLuaPolicyService implements OnApplicationShutdown {
 	private readonly luaFactory = new LuaFactory();
 	private readonly options: MrfLuaPolicyServiceOptions;
 	private readonly preparedEnginePools = new Map<string, PreparedPolicyEnginePool>();
@@ -374,18 +416,20 @@ export class MrfLuaPolicyService {
 			engine.uses += 1;
 			engine.lua.global.set('ctx', clonedContext);
 
-			const thread = engine.lua.global.newThread();
-			thread.loadString('return __mrf_policy_env.filter(ctx)', policy.name);
-			const returns = await thread.run(0, { timeout: timeoutMs });
+			const returns = await this.runThread(engine.lua, 'return __mrf_policy_env.filter(ctx)', policy.name, timeoutMs);
 			const decision = this.parseDecision(returns[0], clonedContext.activity);
-			const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
-			const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
-			const warnings = this.mergeWarnings([
-				...engine.loadWarnings,
-				...runtimeWarnings,
-			]);
-			reusable = true;
-			if (runtimeWarnings.length > 0) {
+			let warnings = this.mergeWarnings([...engine.loadWarnings]);
+			try {
+				const runtimeSnapshot = await this.capturePolicyGlobalSnapshot(engine.lua, timeoutMs);
+				const runtimeWarnings = this.createRuntimeWarnings(engine.loadSnapshot, runtimeSnapshot);
+				warnings = this.mergeWarnings([
+					...engine.loadWarnings,
+					...runtimeWarnings,
+				]);
+				reusable = runtimeWarnings.length === 0;
+			} catch {
+				// The decision is already computed; a snapshot failure must not discard it.
+				// Discard the engine instead, since we can no longer prove it is clean.
 				reusable = false;
 			}
 
@@ -432,6 +476,10 @@ export class MrfLuaPolicyService {
 			lua.global.set('__mrf_lookup_note_by_uri', async () => null);
 			await lua.doString(SANDBOX_PRELUDE);
 			const loadResult = await this.loadPolicySource(lua, policy.source, policy.name, timeoutMs);
+			const filterType = (await this.runThread(lua, 'return type(rawget(rawget(_G, "__mrf_policy_env"), "filter"))', 'mrf policy filter check', timeoutMs))[0];
+			if (filterType !== 'function') {
+				throw new Error('policy source must define a global filter(ctx) function');
+			}
 			const rawPolicy = await this.getPolicyEnvValue(lua, 'policy', timeoutMs);
 
 			if (!isRecord(rawPolicy) || rawPolicy.params == null) {
@@ -450,6 +498,12 @@ export class MrfLuaPolicyService {
 		} finally {
 			lua.global.close();
 		}
+	}
+
+	public onApplicationShutdown(): void {
+		// Retaining an empty set retires every pool and closes idle engines;
+		// borrowed engines are closed on release because their pool is retired.
+		this.retainPreparedPolicyEngines([]);
 	}
 
 	public retainPreparedPolicyEngines(policyIds: Iterable<string>): void {
@@ -517,10 +571,22 @@ export class MrfLuaPolicyService {
 		};
 	}
 
-	private async runString(lua: Awaited<ReturnType<LuaFactory['createEngine']>>, source: string, name: string, timeoutMs: number): Promise<void> {
+	private async runThread(lua: LuaEngine, source: string, name: string, timeoutMs: number): Promise<unknown[]> {
+		// lua_newthread pushes the thread onto the parent stack; it MUST be removed
+		// after use or the main state's stack overflows its allocation after ~50 runs
+		// and corrupts the wasm heap. Mirrors wasmoon's own callByteCode() guard.
 		const thread = lua.global.newThread();
-		thread.loadString(source, name);
-		await thread.run(0, { timeout: timeoutMs });
+		const threadIndex = lua.global.getTop();
+		try {
+			thread.loadString(source, name);
+			return await thread.run(0, { timeout: timeoutMs });
+		} finally {
+			lua.global.remove(threadIndex);
+		}
+	}
+
+	private async runString(lua: LuaEngine, source: string, name: string, timeoutMs: number): Promise<void> {
+		await this.runThread(lua, source, name, timeoutMs);
 	}
 
 	private async borrowPreparedPolicyEngine(policy: MrfLuaPolicy, timeoutMs: number): Promise<PreparedPolicyEngine> {
@@ -728,15 +794,12 @@ ${source}
 	}
 
 	private async getPolicyEnvValue(lua: LuaEngine, key: string, timeoutMs: number): Promise<unknown> {
-		const thread = lua.global.newThread();
-		thread.loadString(`return rawget(rawget(_G, "__mrf_policy_env"), ${JSON.stringify(key)})`, 'mrf policy metadata');
-		const returns = await thread.run(0, { timeout: timeoutMs });
+		const returns = await this.runThread(lua, `return rawget(rawget(_G, "__mrf_policy_env"), ${JSON.stringify(key)})`, 'mrf policy metadata', timeoutMs);
 		return returns[0];
 	}
 
 	private async capturePolicyGlobalSnapshot(lua: LuaEngine, timeoutMs: number): Promise<Map<string, string>> {
-		const thread = lua.global.newThread();
-		thread.loadString(`
+		const returns = await this.runThread(lua, `
 			local env = rawget(_G, "__mrf_policy_env")
 			local result = {}
 			if type(env) ~= "table" then
@@ -788,8 +851,7 @@ ${source}
 			end
 
 			return result
-		`, 'mrf policy globals snapshot');
-		const returns = await thread.run(0, { timeout: timeoutMs });
+		`, 'mrf policy globals snapshot', timeoutMs);
 		const entries = returns[0];
 		const snapshot = new Map<string, string>();
 		if (!Array.isArray(entries)) {
@@ -831,6 +893,13 @@ ${source}
 		return warnings;
 	}
 
+	/**
+	 * NOTE: the persistent-global warnings fingerprint only the policy environment
+	 * (depth <= 3, <= 64 entries per table). Chunk-level `local` upvalues captured by
+	 * filter() persist across pooled runs WITHOUT triggering a warning, as do
+	 * mutations deeper than the fingerprint depth. Treat warnings as a lint,
+	 * not an isolation guarantee.
+	 */
 	private createRuntimeWarnings(before: Map<string, string>, after: Map<string, string>): MrfLuaPolicyWarning[] {
 		const keys = new Set([
 			...before.keys(),
@@ -946,14 +1015,55 @@ ${source}
 				throw new Error('rewrite decision must include an activity');
 			}
 
+			const activity = this.normalizeLuaArrayShapes(value.activity, originalActivity) as unknown as IActivity;
+			this.assertJsonSafe(activity, 'activity');
 			return {
 				action: 'rewrite',
-				activity: this.normalizeLuaArrayShapes(value.activity, originalActivity) as unknown as IActivity,
+				activity,
 				...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
 			};
 		}
 
 		throw new Error(`unknown policy action: ${String(value.action)}`);
+	}
+
+	private assertJsonSafe(value: unknown, path: string, seen = new Set<object>()): void {
+		if (value === null) return;
+		switch (typeof value) {
+			case 'string':
+			case 'boolean':
+				return;
+			case 'number':
+				if (!Number.isFinite(value)) {
+					throw new Error(`rewrite activity contains a non-finite number at ${path}`);
+				}
+				return;
+			case 'object':
+				break;
+			default:
+				throw new Error(`rewrite activity contains a non-JSON value (${typeof value}) at ${path}`);
+		}
+
+		const obj = value as object;
+		if (seen.has(obj)) {
+			throw new Error(`rewrite activity contains a cyclic reference at ${path}`);
+		}
+		seen.add(obj);
+		if (Array.isArray(obj)) {
+			for (let i = 0; i < obj.length; i++) {
+				this.assertJsonSafe(obj[i], `${path}[${i}]`, seen);
+			}
+		} else {
+			const proto = Object.getPrototypeOf(obj);
+			if (proto !== Object.prototype && proto !== null) {
+				throw new Error(`rewrite activity contains a non-plain object at ${path}`);
+			}
+			for (const [key, item] of Object.entries(obj as Record<string, unknown>)) {
+				if (item === undefined) continue;
+				this.assertJsonSafe(item, `${path}.${key}`, seen);
+			}
+		}
+		seen.delete(obj);
 	}
 
 	private normalizeLuaArrayShapes(value: unknown, template: unknown): unknown {

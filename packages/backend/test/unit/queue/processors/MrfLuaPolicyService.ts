@@ -4,6 +4,7 @@
  */
 
 import * as assert from 'assert';
+import { jest } from '@jest/globals';
 import type { IActivity } from '@/core/activitypub/type.js';
 import { MrfLuaPolicyService } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
 import type { MrfLuaPolicy, MrfLuaPolicyServiceOptions } from '@/core/activitypub/mrf/MrfLuaPolicyService.js';
@@ -95,7 +96,7 @@ const builtinPolicyFixtures = [
 					return mrf.accept()
 				end
 
-				local local_prefix = "https://" .. ctx.localHost
+				local local_prefix = "https://" .. ctx.localHost .. "/"
 				local has_local_mention = false
 				for _, mention in ipairs(mentions) do
 					if type(mention.href) == "string" and string.sub(mention.href, 1, #local_prefix) == local_prefix then
@@ -994,6 +995,84 @@ describe('MrfLuaPolicyService', () => {
 		});
 	});
 
+	test('survives hundreds of pooled runs on a single engine', async () => {
+		const service = createService({
+			maxPreparedEnginesPerPolicy: 1,
+			maxPreparedEngineUses: 500,
+		});
+		const policy = {
+			id: 'longevity',
+			name: 'Longevity Policy',
+			source: `
+				function filter(ctx)
+					return mrf.accept("ok")
+				end
+			`,
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		for (let i = 0; i < 200; i++) {
+			const result = await service.run(policy, context);
+			assert.deepStrictEqual(result.decision, {
+				action: 'accept',
+				reason: 'ok',
+			});
+		}
+	});
+
+	test('keeps the decision when the post-run snapshot fails', async () => {
+		const service = createService();
+		const policy = {
+			id: 'snapshot-victim',
+			name: 'Snapshot Victim Policy',
+			source: `
+				function filter(ctx)
+					return mrf.reject("spam detected")
+				end
+			`,
+			// Pre-set the params schema so run() skips extractParamsSchema (which itself
+			// captures globals snapshots). Without this, the one-time snapshot rejection
+			// below would be consumed by extractParamsSchema instead of the post-run
+			// snapshot this test is exercising.
+			paramsSchema: {},
+		};
+		const context = {
+			activity: baseActivity,
+			actor: {
+				uri: 'https://remote.example/users/alice',
+				host: 'remote.example',
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		};
+
+		// First run creates and pools the engine (load-time snapshots happen here).
+		await service.run(policy, context);
+
+		// Second run reuses the pooled engine, so the next snapshot call is the post-run one.
+		const spy = jest.spyOn(service as any, 'capturePolicyGlobalSnapshot')
+			.mockRejectedValueOnce(new Error('snapshot boom'));
+		try {
+			const result = await service.run(policy, context);
+			assert.deepStrictEqual(result.decision, {
+				action: 'reject',
+				reason: 'spam detected',
+			});
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	describe('bundled policies', () => {
 		test('keyword policy rejects matching note content', async () => {
 			const service = createService();
@@ -1133,5 +1212,154 @@ describe('MrfLuaPolicyService', () => {
 				]);
 			}
 		});
+	});
+
+	test('rejects rewrite decisions that contain non-JSON values', async () => {
+		const service = createService();
+
+		await assert.rejects(
+			() => service.run({
+				id: 'poison-rewrite',
+				name: 'Poison Rewrite Policy',
+				source: `
+					function filter(ctx)
+						ctx.activity.evil = function() return 1 end
+						return mrf.rewrite(ctx.activity, "poisoned")
+					end
+				`,
+			}, {
+				activity: baseActivity,
+				actor: {
+					uri: 'https://remote.example/users/alice',
+					host: 'remote.example',
+				},
+				localHost: 'local.example',
+				signerHost: 'remote.example',
+				receivedAt: '2026-06-14T00:00:00.000Z',
+			}),
+			/non-JSON value/,
+		);
+	});
+
+	test('rejects policy sources that do not define a filter function', async () => {
+		const service = createService();
+
+		await assert.rejects(
+			() => service.extractPolicyMetadata({
+				id: 'no-filter',
+				name: 'No Filter Policy',
+				source: `
+					policy = {}
+					filter = "not a function"
+				`,
+			}),
+			/must define a global filter/,
+		);
+
+		await assert.rejects(
+			() => service.extractPolicyMetadata({
+				id: 'empty',
+				name: 'Empty Policy',
+				source: 'local x = 1',
+			}),
+			/must define a global filter/,
+		);
+	});
+
+	test('unlist moves Public from an array to and into cc', async () => {
+		const service = createService();
+		const result = await service.run({
+			id: 'unlist-array',
+			name: 'Unlist Array Policy',
+			source: `
+				function filter(ctx)
+					mrf.note.unlist(mrf.activity.note(ctx.activity))
+					return mrf.rewrite(ctx.activity, "unlisted")
+				end
+			`,
+		}, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					to: ['https://www.w3.org/ns/activitystreams#Public', 'https://remote.example/users/alice/followers'],
+					cc: [],
+				},
+			},
+			actor: { uri: 'https://remote.example/users/alice', host: 'remote.example' },
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'rewrite');
+		if (result.decision.action === 'rewrite') {
+			const note = result.decision.activity.object as { to: unknown; cc: unknown };
+			assert.deepStrictEqual(note.to, ['https://remote.example/users/alice/followers']);
+			assert.deepStrictEqual(note.cc, ['https://www.w3.org/ns/activitystreams#Public']);
+		}
+	});
+
+	test('unlist handles a bare-string Public to field', async () => {
+		const service = createService();
+		const result = await service.run({
+			id: 'unlist-string',
+			name: 'Unlist String Policy',
+			source: `
+				function filter(ctx)
+					mrf.note.unlist(mrf.activity.note(ctx.activity))
+					return mrf.rewrite(ctx.activity, "unlisted")
+				end
+			`,
+		}, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					to: 'https://www.w3.org/ns/activitystreams#Public',
+				},
+			},
+			actor: { uri: 'https://remote.example/users/alice', host: 'remote.example' },
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'rewrite');
+		if (result.decision.action === 'rewrite') {
+			const note = result.decision.activity.object as unknown as Record<string, unknown>;
+			assert.equal('to' in note, false);
+			assert.deepStrictEqual(note.cc, ['https://www.w3.org/ns/activitystreams#Public']);
+		}
+	});
+
+	test('new-user spam policy ignores lookalike local hosts', async () => {
+		const service = createService();
+		const newUserPolicy = builtinPolicyFixtures.find(policy => policy.id === 'new-user-spam');
+		assert.ok(newUserPolicy);
+
+		const result = await service.run(newUserPolicy, {
+			activity: {
+				...baseActivity,
+				object: {
+					...baseActivity.object,
+					inReplyTo: null,
+					tag: [
+						{ type: 'Mention', href: 'https://local.example.evil.com/users/alice' },
+					],
+				},
+			},
+			actor: {
+				uri: 'https://remote.example/users/spam',
+				host: 'remote.example',
+				followersCount: 0,
+				followingCount: 0,
+			},
+			localHost: 'local.example',
+			signerHost: 'remote.example',
+			receivedAt: '2026-06-14T00:00:00.000Z',
+		});
+
+		assert.equal(result.decision.action, 'accept');
 	});
 });

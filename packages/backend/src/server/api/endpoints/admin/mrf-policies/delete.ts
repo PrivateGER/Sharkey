@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import type { MrfPoliciesRepository } from '@/models/_.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -42,14 +43,20 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.mrfPoliciesRepository)
 		private readonly mrfPoliciesRepository: MrfPoliciesRepository,
+		private readonly moderationLogService: ModerationLogService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
 			const existing = await this.mrfPoliciesRepository.findOneBy({ id: ps.id });
 			if (existing == null) throw new ApiError(meta.errors.noSuchPolicy);
 			if (existing.isBuiltin) throw new ApiError(meta.errors.cannotDeleteBuiltinPolicy);
 
 			const result = await this.mrfPoliciesRepository.delete(ps.id);
 			if (result.affected === 0) throw new ApiError(meta.errors.noSuchPolicy);
+
+			await this.moderationLogService.log(me, 'deleteMrfPolicy', {
+				policyId: existing.id,
+				policy: existing,
+			});
 		});
 	}
 }

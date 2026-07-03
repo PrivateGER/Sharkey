@@ -13,6 +13,14 @@ export const meta = {
 	requireCredential: true,
 	requireAdmin: true,
 	kind: 'write:admin:federation',
+
+	res: {
+		type: 'array',
+		items: {
+			type: 'object',
+			ref: 'MrfPolicy',
+		},
+	},
 } as const;
 
 export const paramDef = {
