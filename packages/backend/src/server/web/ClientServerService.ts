@@ -579,6 +579,23 @@ export class ClientServerService {
 				},
 			});
 
+			// NOTE: we refuse to render the full details of a *remote* note
+			// in the HTML, because remote notes are not completely under
+			// the control of the instance. A malicious remote user could
+			// send a note with illegal content (or a note replying, or
+			// quoting, such a note), and then post this `/notes/*` route to
+			// (for example) Facebook, which will fetch the HTML and the
+			// attachments, notice the illegal content, and
+			// semi-automatically get the instance in trouble
+			//
+			// if/when we merge/reimplement Misskey's "require sign in to
+			// view any remote content" setting, we may revisit this
+			// decision
+			//
+			// note that if a *browser* fetches this, they'll fetch the
+			// whole frontend which will then fetch the actual note, so this
+			// restriction only applies to clients that use the OpenGraph
+			// properties and similar
 			if (!note || ['specified', 'followers'].includes(note.visibility) || note.userHost != null) {
 				return await renderBase(reply);
 			}
