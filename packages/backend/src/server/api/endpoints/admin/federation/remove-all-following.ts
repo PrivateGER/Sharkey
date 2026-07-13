@@ -36,7 +36,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.followingsRepository)
 		private followingsRepository: FollowingsRepository,
 
-		private queueService: QueueService,
+		private readonly queueService: QueueService,
 		private readonly moderationLogService: ModerationLogService,
 		private readonly cacheService: CacheService,
 	) {

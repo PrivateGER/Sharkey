@@ -6,7 +6,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { MoreThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { UsersRepository, DriveFilesRepository, MiDriveFile } from '@/models/_.js';
+import type { DriveFilesRepository, MiDriveFile } from '@/models/_.js';
+import { CacheService } from '@/core/CacheService.js';
 import type Logger from '@/logger.js';
 import { DriveService } from '@/core/DriveService.js';
 import { bindThis } from '@/decorators.js';
@@ -19,14 +20,12 @@ export class DeleteDriveFilesProcessorService {
 	private logger: Logger;
 
 	constructor(
-		@Inject(DI.usersRepository)
-		private usersRepository: UsersRepository,
-
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
-		private driveService: DriveService,
-		private queueLoggerService: QueueLoggerService,
+		private readonly cacheService: CacheService,
+		private readonly driveService: DriveService,
+		private readonly queueLoggerService: QueueLoggerService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('delete-drive-files');
 	}
@@ -35,8 +34,16 @@ export class DeleteDriveFilesProcessorService {
 	public async process(job: Bull.Job<DbDeleteDriveFilesJobData>): Promise<void> {
 		this.logger.info(`Deleting drive files of ${job.data.user.id} ...`);
 
-		const user = await this.usersRepository.findOneBy({ id: job.data.user.id });
+		const user = await this.cacheService.findUserById(job.data.user.id);
 		if (user == null) {
+			return;
+		}
+
+		const total = await this.driveFilesRepository.countBy({
+			userId: user.id,
+		});
+
+		if (total === 0) {
 			return;
 		}
 
@@ -66,10 +73,6 @@ export class DeleteDriveFilesProcessorService {
 				await this.driveService.deleteFileSync(file);
 				deletedCount++;
 			}
-
-			const total = await this.driveFilesRepository.countBy({
-				userId: user.id,
-			});
 
 			job.updateProgress(deletedCount / total);
 		}
