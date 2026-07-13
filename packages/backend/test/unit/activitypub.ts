@@ -26,6 +26,7 @@ import type {
 } from '@/models/_.js';
 import type { IActor, IApDocument, ICollection, IObject, IPost } from '@/core/activitypub/type.js';
 import { MiUser, type MiLocalUser, type MiRemoteUser } from '@/models/User.js';
+import type { MiDriveFile } from '@/models/DriveFile.js';
 import { MiUserKeypair } from '@/models/UserKeypair.js';
 import { MiNote } from '@/models/Note.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -870,6 +871,56 @@ describe('ActivityPub', () => {
 					const collection = await rendererService.renderRepliesCollectionPage(note.id, undefined);
 
 					expect(collection.orderedItems).toBeDefined();
+				});
+			});
+		});
+
+		describe('renderDocument', () => {
+			describe('properties', () => {
+				it('should expose width and height for documents', async () => {
+					const rendered = rendererService.renderDocument({
+						id: genAidx(Date.now()),
+						type: 'application/pdf',
+						url: 'https://example.com/files/test.pdf',
+						properties: { width: 210, height: 297 },
+						userHost: null,
+						isLink: false,
+					} as MiDriveFile);
+
+					assert.strictEqual(rendered.type, 'Document');
+					assert.strictEqual(rendered.mediaType, 'application/pdf');
+					assert.strictEqual(rendered.width, 210);
+					assert.strictEqual(rendered.height, 297);
+				});
+
+				it('should expose width and height for images', async () => {
+					const rendered = rendererService.renderImage({
+						id: genAidx(Date.now()),
+						type: 'image/webp',
+						url: 'https://example.com/files/test.webp',
+						properties: { width: 1024, height: 768 },
+						userHost: null,
+						isLink: false,
+					} as MiDriveFile);
+
+					assert.strictEqual(rendered.type, 'Image');
+					assert.strictEqual(rendered.mediaType, 'image/webp');
+					assert.strictEqual(rendered.width, 1024);
+					assert.strictEqual(rendered.height, 768);
+				});
+
+				it('should not expose width and height when missing', async () => {
+					const rendered = rendererService.renderDocument({
+						id: genAidx(Date.now()),
+						type: 'video/webm',
+						url: 'https://example.com/files/test.webm',
+						properties: { },
+						userHost: null,
+						isLink: false,
+					} as MiDriveFile);
+
+					assert.strictEqual(rendered.width, undefined);
+					assert.strictEqual(rendered.height, undefined);
 				});
 			});
 		});
