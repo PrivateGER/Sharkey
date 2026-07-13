@@ -63,7 +63,7 @@ export class DeleteDriveFilesProcessorService {
 			});
 
 			if (files.length === 0) {
-				job.updateProgress(100);
+				job.updateProgress(1);
 				break;
 			}
 

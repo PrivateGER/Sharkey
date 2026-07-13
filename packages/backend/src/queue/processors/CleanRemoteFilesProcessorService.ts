@@ -78,7 +78,7 @@ export class CleanRemoteFilesProcessorService {
 			const files = await thisBatchQuery.take(256).getMany();
 
 			if (files.length === 0) {
-				job.updateProgress(100);
+				job.updateProgress(1);
 				break;
 			}
 

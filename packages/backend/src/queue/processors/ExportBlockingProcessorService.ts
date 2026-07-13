@@ -76,7 +76,7 @@ export class ExportBlockingProcessorService {
 				});
 
 				if (blockings.length === 0) {
-					await job.updateProgress(100);
+					await job.updateProgress(1);
 					break;
 				}
 

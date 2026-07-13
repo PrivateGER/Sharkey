@@ -77,7 +77,7 @@ export class ExportMutingProcessorService {
 				});
 
 				if (mutes.length === 0) {
-					await job.updateProgress(100);
+					await job.updateProgress(1);
 					break;
 				}
 
