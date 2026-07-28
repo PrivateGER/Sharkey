@@ -17,6 +17,7 @@ import cobaltlogo from '/client-assets/cobalt.png';
 import excalidrawlogo from '/client-assets/excalidraw.svg';
 import pipedlogo from '/client-assets/piped.svg';
 import uptimekumalogo from '/client-assets/uptimekuma.svg';
+import fluxerlogo from '/client-assets/fluxer.png';
 import MkMention from '@/components/MkMention.vue';
 
 definePage(() => ({
@@ -43,8 +44,16 @@ definePage(() => ({
 					Your home in the fediverse. PlasmaTrap is more than just a Sharkey server – we offer many unique features and host various services for our community.
 				</p>
 
-				<!-- Discord link -->
-				<div class="discord-section">
+				<!-- Chat links -->
+				<div class="chat-section">
+					<a href="https://chat.plasmatrap.com/" target="_blank" class="fluxer-link">
+						<img :src="fluxerlogo" alt="Fluxer logo" class="fluxer-logo"/>
+						<div class="fluxer-text">
+							<span class="fluxer-title">Join our Fluxer <span class="fluxer-badge">New</span></span>
+							<span class="fluxer-subtitle">Chat with the community on our own instance</span>
+						</div>
+					</a>
+
 					<a href="https://discord.gg/2yFXBDAPAJ" target="_blank" class="discord-link">
 						<div class="discord-icon-container">
 							<svg width="24" height="18" viewBox="0 0 65 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -52,8 +61,8 @@ definePage(() => ({
 							</svg>
 						</div>
 						<div class="discord-text">
-							<span class="discord-title">Join our Discord</span>
-							<span class="discord-subtitle">Connect with the community</span>
+							<span class="discord-title">Discord <span class="legacy-badge">Legacy</span></span>
+							<span class="discord-subtitle">Our previous community chat</span>
 						</div>
 					</a>
 				</div>
@@ -225,35 +234,108 @@ definePage(() => ({
 </template>
 
 <style scoped lang="scss">
-.discord-section {
+.chat-section {
 	margin: 2rem 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
 }
 
-.discord-link {
+@keyframes fluxer-shimmer {
+	0% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+	100% { background-position: 0% 50%; }
+}
+
+.fluxer-link {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: 16px;
 	text-decoration: none;
 	color: var(--MI_THEME-fg);
-	padding: 16px 24px;
-	background: linear-gradient(135deg, color-mix(in srgb, #5865F2 12%, transparent), color-mix(in srgb, #7289DA 8%, transparent));
-	border: 1px solid color-mix(in srgb, #5865F2 25%, transparent);
+	padding: 18px 28px;
+	background: linear-gradient(135deg, color-mix(in srgb, #4641D9 14%, transparent), color-mix(in srgb, #6A66F0 10%, transparent), color-mix(in srgb, #4641D9 14%, transparent));
+	background-size: 200% 200%;
+	animation: fluxer-shimmer 6s ease infinite;
+	border: 1px solid color-mix(in srgb, #4641D9 35%, transparent);
 	border-radius: 16px;
 	backdrop-filter: blur(8px);
-	box-shadow: 0 4px 16px color-mix(in srgb, #5865F2 15%, transparent), 0 2px 8px color-mix(in srgb, #000 10%, transparent);
+	box-shadow: 0 4px 20px color-mix(in srgb, #4641D9 20%, transparent), 0 2px 8px color-mix(in srgb, #000 10%, transparent);
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
 	&:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 8px 24px color-mix(in srgb, #5865F2 25%, transparent), 0 4px 12px color-mix(in srgb, #000 15%, transparent);
+		transform: translateY(-2px) scale(1.01);
+		box-shadow: 0 8px 32px color-mix(in srgb, #4641D9 35%, transparent), 0 4px 12px color-mix(in srgb, #6A66F0 20%, transparent);
+	}
+}
+
+.fluxer-logo {
+	width: 48px;
+	height: 48px;
+	border-radius: 12px;
+	box-shadow: 0 2px 12px color-mix(in srgb, #4641D9 40%, transparent);
+}
+
+.fluxer-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	text-align: left;
+}
+
+.fluxer-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 700;
+	font-size: 1.15em;
+	letter-spacing: -0.02em;
+}
+
+.fluxer-badge {
+	padding: 2px 8px;
+	font-size: 0.6em;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #fff;
+	background: linear-gradient(135deg, #4641D9, #6A66F0);
+	border-radius: 999px;
+	box-shadow: 0 1px 6px color-mix(in srgb, #6A66F0 40%, transparent);
+}
+
+.fluxer-subtitle {
+	font-size: 0.85em;
+	opacity: 0.8;
+	font-weight: 400;
+}
+
+.discord-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	text-decoration: none;
+	color: var(--MI_THEME-fg);
+	padding: 10px 18px;
+	opacity: 0.7;
+	background: color-mix(in srgb, #5865F2 6%, transparent);
+	border: 1px solid color-mix(in srgb, #5865F2 15%, transparent);
+	border-radius: 12px;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+	&:hover {
+		opacity: 1;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 16px color-mix(in srgb, #5865F2 20%, transparent);
 	}
 }
 
 .discord-icon-container {
-	padding: 12px;
-	background: linear-gradient(135deg, #5865F2, #7289DA);
-	border-radius: 12px;
-	box-shadow: 0 2px 8px color-mix(in srgb, #5865F2 30%, transparent);
+	padding: 8px;
+	background: linear-gradient(135deg, color-mix(in srgb, #5865F2 70%, #888), color-mix(in srgb, #7289DA 70%, #888));
+	border-radius: 10px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -263,17 +345,34 @@ definePage(() => ({
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	text-align: left;
 }
 
 .discord-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	font-weight: 600;
-	font-size: 1.1em;
+	font-size: 0.95em;
 	letter-spacing: -0.02em;
 }
 
-.discord-subtitle {
-	font-size: 0.85em;
+.legacy-badge {
+	padding: 2px 8px;
+	font-size: 0.65em;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--MI_THEME-fg);
 	opacity: 0.8;
+	background: color-mix(in srgb, var(--MI_THEME-fg) 10%, transparent);
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-fg) 15%, transparent);
+	border-radius: 999px;
+}
+
+.discord-subtitle {
+	font-size: 0.8em;
+	opacity: 0.7;
 	font-weight: 400;
 }
 </style>
