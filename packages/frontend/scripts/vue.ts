@@ -3,8 +3,8 @@
  * Based on idea from https://github.com/vitejs/vite/discussions/8483#discussioncomment-6830634
  */
 
-import nodeFs from 'node:fs';
-import nodePath from 'node:path';
+import * as nodeFs from 'node:fs';
+import * as nodePath from 'node:path';
 import { execa, ExecaError } from 'execa';
 
 const [command, ...args] = process.argv.slice(2);

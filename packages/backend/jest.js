@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import child_process from 'node:child_process';
-import path from 'node:path';
-import url from 'node:url';
+import * as child_process from 'node:child_process';
+import * as path from 'node:path';
+import * as url from 'node:url';
 
 import semver from 'semver';
 

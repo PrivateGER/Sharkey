@@ -4,7 +4,8 @@
  */
 
 import cluster from 'node:cluster';
-import * as fs from 'node:fs';
+import * as nodeFS from 'node:fs/promises';
+import * as nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Inject, Injectable, type BeforeApplicationShutdown } from '@nestjs/common';
 import Fastify, { type FastifyInstance } from 'fastify';

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { URL } from 'node:url';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
