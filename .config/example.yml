@@ -111,6 +111,10 @@ address: '127.0.0.1'
 # socket: /path/to/sharkey.sock
 # chmodSocket: '777'
 
+# Network protocol to use.
+# Options: "http1", "http2"
+# protocol: 'http1'
+
 #   ┌──────────────────────────┐
 #───┘ PostgreSQL configuration └────────────────────────────────
 
