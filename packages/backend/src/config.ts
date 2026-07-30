@@ -439,7 +439,7 @@ export function loadConfig(logger?: Logger): Config {
 		setupPassword: config.setupPassword,
 		url: url.origin,
 		port: config.port ?? parseInt(process.env.PORT ?? '3000', 10),
-		address: config.address ?? '0.0.0.0',
+		address: config.address ?? '127.0.0.1',
 		socket: config.socket,
 		chmodSocket: config.chmodSocket,
 		disableHsts: config.disableHsts,

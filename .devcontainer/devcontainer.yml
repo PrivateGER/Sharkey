@@ -101,6 +101,15 @@ url: http://127.0.0.1:3000/
 # The port that your Sharkey server should listen on.
 port: 3000
 
+# Network address to listen on.
+# The default value listens to the local IPv4 loopback address, which is the most secure option and suitable for most typical deployments.
+# Do not change this without a firewall to prevent unauthorized access!
+#address: '127.0.0.1'
+
+# You can also use UNIX domain socket.
+# socket: /path/to/sharkey.sock
+# chmodSocket: '777'
+
 #   ┌──────────────────────────┐
 #───┘ PostgreSQL configuration └────────────────────────────────
 
