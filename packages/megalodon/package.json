@@ -38,7 +38,7 @@
 	},
 	"homepage": "https://github.com/h3poteto/megalodon#readme",
 	"dependencies": {
-		"axios": "1.13.6",
+		"axios": "catalog:",
 		"dayjs": "1.11.18",
 		"oauth": "0.10.2"
 	},
