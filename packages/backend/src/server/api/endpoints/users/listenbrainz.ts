@@ -303,7 +303,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				},
 			});
 		} else {
-			await this.listenBrainzCache.set(cacheKey, { d: undefined });
+			await this.listenBrainzMetadataCache.set(cacheKey, { d: undefined });
 		}
 	}
 }
