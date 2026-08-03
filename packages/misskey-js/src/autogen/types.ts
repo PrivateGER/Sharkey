@@ -9578,7 +9578,7 @@ export type paths = {
          * users/listenbrainz
          * @description Fetch what the user is listening to.
          *
-         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         *     **Credential required**: *No*
          */
         post: operations['users___listenbrainz'];
         delete?: never;
