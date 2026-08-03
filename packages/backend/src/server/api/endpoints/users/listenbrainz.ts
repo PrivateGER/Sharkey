@@ -181,7 +181,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					return cachedResponse;
 				}
 
-				const json = await this.httpRequestService.getJson<ListenbrainzMetadataResponse>(
+				const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
 					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
 					undefined,
 					headers,
