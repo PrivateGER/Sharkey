@@ -116,6 +116,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		cacheManagementService: CacheManagementService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			const canUseApiKey = !!me && (await this.roleService.getUserPolicies(me)).canFetchLBMetadata;
 			const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
 
 			const listenbrainzUsername = profile.listenbrainz;
@@ -131,7 +132,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const headers: Record<string, string> = {
 				'Accept': 'application/json',
 			};
-			if (this.serverSettings.listenbrainzAuthKey) {
+			if (this.serverSettings.listenbrainzAuthKey && canUseApiKey) {
 				headers['Authorization'] = `Token ${this.serverSettings.listenbrainzAuthKey}`;
 			}
 
@@ -184,8 +185,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					return cachedResponse;
 				}
 
-				const canFetchLBMetadata = !!me && (await this.roleService.getUserPolicies(me)).canFetchLBMetadata;
-				if (this.serverSettings.listenbrainzAuthKey && canFetchLBMetadata) {
+				if (this.serverSettings.listenbrainzAuthKey && canUseApiKey) {
 					// not cached, let's fetch it from listenbrainz.
 					const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
 						`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
