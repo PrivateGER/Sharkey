@@ -9578,7 +9578,7 @@ export type paths = {
          * users/listenbrainz
          * @description Fetch what the user is listening to.
          *
-         *     **Credential required**: *No*
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['users___listenbrainz'];
         delete?: never;
@@ -11460,6 +11460,7 @@ export type components = {
             canManageAvatarDecorations: boolean;
             canSearchNotes: boolean;
             canUseTranslator: boolean;
+            canFetchLBMetadata: boolean;
             canHideAds: boolean;
             driveCapacityMb: number;
             maxFileSizeMb: number;

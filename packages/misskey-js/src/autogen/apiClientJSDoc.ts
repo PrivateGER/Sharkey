@@ -4738,7 +4738,7 @@ declare module '../api.js' {
     /**
      * Fetch what the user is listening to.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'users/listenbrainz', P extends Endpoints[E]['req']>(
       endpoint: E,

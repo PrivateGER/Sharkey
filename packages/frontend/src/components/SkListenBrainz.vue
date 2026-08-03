@@ -78,9 +78,16 @@ watch(data, (newData, oldData) => {
 });
 
 onMounted(() => {
-	const fetchLB = async () => misskeyApi('users/listenbrainz', { userId: props.userId })
-		.then((res: ListenBrainzData) => data.value = res);
+	const fetchLB = async () => {
+		try {
+			misskeyApi('users/listenbrainz', { userId: props.userId })
+				.then((res: ListenBrainzData) => data.value = res);
+		} catch(err) {
+			console.error(`ListenBrainz failed for ${props.userId}: `, err);
+		}
+	}
 
+	
 	fetchLB();
 	intervalId = window.setInterval(fetchLB, 15000);
 });

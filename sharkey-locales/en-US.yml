@@ -258,6 +258,7 @@ _role:
     scheduleNoteMax: "Maximum number of scheduled notes"
     canTrend: "Can appear in trending notes / users"
     canViewFederation: "Can view federation stats and details of remote instances"
+    canFetchLBMetadata: "Can fetch improved ListenBrainz metadata"
   _condition:
     isLocked: "Private account"
     isExplorable: "Account is discoverable"

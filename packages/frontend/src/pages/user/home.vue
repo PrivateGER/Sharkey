@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
 								<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
 							</ul>
-							<ul v-if="$i" :class="$style.infoBadges">
+							<ul :class="$style.infoBadges">
 								<li v-if="user.listenbrainz" :class="$style.listenbrainz">
 									<XListenBrainz :key="user.id" :userId="user.id"/>
 								</li>

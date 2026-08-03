@@ -10,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
+import { RoleService } from '@/core/RoleService.js';
 import { bindThis } from '@/decorators.js';
 import { CacheManagementService, ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
@@ -49,7 +50,7 @@ type ListenBrainzMetadataResponse = {
 export const meta = {
 	tags: ['users'],
 
-	requireCredential: false, // thinking that having this be public may allow people to rate-limit our key.
+	requireCredential: false,
 
 	description: 'Fetch what the user is listening to.',
 
@@ -110,10 +111,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private httpRequestService: HttpRequestService,
 		private readonly cacheService: CacheService,
 		private readonly loggerService: ApiLoggerService,
+		private readonly roleService: RoleService,
 
 		cacheManagementService: CacheManagementService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
 			const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
 
 			const listenbrainzUsername = profile.listenbrainz;
@@ -175,39 +177,44 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					`https://listenbrainz.org/track/${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
 			}
 
-			if ((!response.coverArt || !response.musicbrainzUrl || !response.listenbrainzUrl) && this.serverSettings.listenbrainzAuthKey) {
+			if ((!response.coverArt || !response.musicbrainzUrl || !response.listenbrainzUrl)) {
+				// we don't have full metadata. check if there's anything cached.
 				const cachedResponse = await this.getCachedMetadata(response.artist, response.title);
 				if (cachedResponse !== null) {
 					return cachedResponse;
 				}
 
-				const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
-					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
-					undefined,
-					headers,
-					undefined,
-					10000,
-				).catch((err) => {
-					this.loggerService.logger.error(`ListenBrainz /metadata/lookup error: ${renderInlineError(err)}`);
-					throw new ApiError(meta.errors.listenbrainzError);
-				});
+				const canFetchLBMetadata = !!me && (await this.roleService.getUserPolicies(me)).canFetchLBMetadata;
+				if (this.serverSettings.listenbrainzAuthKey && canFetchLBMetadata) {
+					// not cached, let's fetch it from listenbrainz.
+					const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
+						`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
+						undefined,
+						headers,
+						undefined,
+						10000,
+					).catch((err) => {
+						this.loggerService.logger.error(`ListenBrainz /metadata/lookup error: ${renderInlineError(err)}`);
+						throw new ApiError(meta.errors.listenbrainzError);
+					});
 
-				if (!json.release_mbid || !json.recording_mbid) {
-					this.loggerService.logger.warn('listenbrainz /metadata/lookup: malformed json');
-					this.loggerService.logger.debug(`listenbrainz /metadata/lookup: ${JSON.stringify(json)}`);
-				}
-				if (json.release_mbid) {
-					response.coverArt ??= `https://coverartarchive.org/release/${encodeURIComponent(json.release_mbid)}/front-250`;
-				}
-				if (json.recording_mbid) {
-					response.listenbrainzUrl ??= `https://listenbrainz.org/track/${encodeURIComponent(json.recording_mbid)}`;
-					response.musicbrainzUrl ??= `https://musicbrainz.org/recording/${encodeURIComponent(json.recording_mbid)}`;
+					if (!json.release_mbid || !json.recording_mbid) {
+						this.loggerService.logger.warn('listenbrainz /metadata/lookup: malformed json');
+						this.loggerService.logger.debug(`listenbrainz /metadata/lookup: ${JSON.stringify(json)}`);
+					}
+					if (json.release_mbid) {
+						response.coverArt ??= `https://coverartarchive.org/release/${encodeURIComponent(json.release_mbid)}/front-250`;
+					}
+					if (json.recording_mbid) {
+						response.listenbrainzUrl ??= `https://listenbrainz.org/track/${encodeURIComponent(json.recording_mbid)}`;
+						response.musicbrainzUrl ??= `https://musicbrainz.org/recording/${encodeURIComponent(json.recording_mbid)}`;
+					}
+
+					await this.setCachedMetadata(response.artist, response.title, response);
 				}
 
-				await this.setCachedMetadata(response.artist, response.title, response);
+				await this.setCachedListenBrainz(listenbrainzUsername, response);
 			}
-
-			await this.setCachedListenBrainz(listenbrainzUsername, response);
 
 			return response;
 		});

@@ -7671,6 +7671,10 @@ export interface Locale extends ILocale {
              * Can view federation stats and details of remote instances
              */
             "canViewFederation": string;
+            /**
+             * Can fetch improved ListenBrainz metadata
+             */
+            "canFetchLBMetadata": string;
         };
         "_condition": {
             /**
