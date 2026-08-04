@@ -19,6 +19,8 @@ export default function sanitizeHtml(str: string | null): string | null {
 			...original.defaults.allowedSchemes,
 			'xmpp',
 			'matrix',
+			'gemini',
+			'gopher',
 		],
 	});
 }
