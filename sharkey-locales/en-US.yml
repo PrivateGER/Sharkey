@@ -318,7 +318,7 @@ _profile:
   updateBackground: "Update background"
   removeBackground: "Remove background"
   listenbrainz: "ListenBrainz username"
-  listeningTo: "Listening to..."
+  listeningTo: "Listening to…"
 _timelines:
   bubble: "Bubble"
 _pages:

@@ -80,14 +80,13 @@ watch(data, (newData, oldData) => {
 onMounted(() => {
 	const fetchLB = async () => {
 		try {
-			misskeyApi('users/listenbrainz', { userId: props.userId })
+			await misskeyApi('users/listenbrainz', { userId: props.userId })
 				.then((res: ListenBrainzData) => data.value = res);
-		} catch(err) {
+		} catch (err) {
 			console.error(`ListenBrainz failed for ${props.userId}: `, err);
 		}
-	}
+	};
 
-	
 	fetchLB();
 	intervalId = window.setInterval(fetchLB, 15000);
 });

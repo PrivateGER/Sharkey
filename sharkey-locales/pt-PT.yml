@@ -15,7 +15,7 @@ _serverSettings:
   aboutInstanceDescription: "Uma descrição maior que irá aparecer na página 'Informações da Instância', substituindo a descrição da instância. Aceita HTML."
 _profile:
   listenbrainz: "Nome de usuário ListenBrainz"
-  listeningTo: "Ouvindo..."
+  listeningTo: "Ouvindo…"
 listenbrainzIntegration: "Integração ListenBrainz"
 listenbrainzUserToken: "Token de Usuário ListenBrainz"
 listenbrainzUserTokenDescription: "Ter uma token de usuário permite ao Sharkey solicitar metadados de faixas diretamente, melhorando a confiabilidade de artes de capa e links."

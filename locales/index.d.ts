@@ -9779,7 +9779,7 @@ export interface Locale extends ILocale {
          */
         "listenbrainz": string;
         /**
-         * Listening to...
+         * Listening to…
          */
         "listeningTo": string;
     };
