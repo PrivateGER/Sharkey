@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template v-if="emoji" #header>:{{ emoji.name }}:</template>
-	<template v-else #header>New emoji</template>
+	<template v-else #header>{{ suggestion ? i18n.ts.suggestEmoji : i18n.ts.addEmoji }}</template>
 
 	<div style="display: flex; flex-direction: column; min-height: 100%;">
 		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px; flex-grow: 1;">
@@ -49,7 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-model="license" :mfmAutocomplete="true">
 					<template #label>{{ i18n.ts.license }}</template>
 				</MkInput>
-				<MkFolder>
+				<MkFolder v-if="!suggestion">
 					<template #label>{{ i18n.ts.rolesThatCanBeUsedThisEmojiAsReaction }}</template>
 					<template #suffix>{{ rolesThatCanBeUsedThisEmojiAsReaction.length === 0 ? i18n.ts.all : rolesThatCanBeUsedThisEmojiAsReaction.length }}</template>
 
@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 		<div :class="$style.footer">
-			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ti ti-check"></i> {{ props.emoji ? i18n.ts.update : i18n.ts.create }}</MkButton>
+			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ti ti-check"></i> {{ props.emoji ? i18n.ts.update : props.suggestion ? i18n.ts.suggestEmoji : i18n.ts.create }}</MkButton>
 		</div>
 	</div>
 </MkWindow>
@@ -96,10 +96,11 @@ import MkRolePreview from '@/components/MkRolePreview.vue';
 
 const props = defineProps<{
 	emoji?: Misskey.entities.EmojiDetailed,
+	suggestion?: boolean,
 }>();
 
 const emit = defineEmits<{
-	(ev: 'done', v: { deleted?: boolean; updated?: Misskey.entities.AdminEmojiUpdateRequest; created?: Misskey.entities.AdminEmojiUpdateRequest }): void,
+	(ev: 'done', v: { deleted?: boolean; updated?: Misskey.entities.AdminEmojiUpdateRequest; created?: Misskey.entities.AdminEmojiUpdateRequest; suggested?: Misskey.entities.EmojiSuggestion }): void,
 	(ev: 'closed'): void
 }>();
 
@@ -145,19 +146,36 @@ async function removeRole(role: Misskey.entities.RoleLite, ev: Event) {
 }
 
 async function done() {
-	const params = {
+	const baseParams = {
 		name: name.value,
 		category: category.value === '' ? null : category.value,
 		aliases: aliases.value.split(' ').filter(x => x !== ''),
 		license: license.value === '' ? null : license.value,
 		isSensitive: isSensitive.value,
 		localOnly: localOnly.value,
-		roleIdsThatCanBeUsedThisEmojiAsReaction: rolesThatCanBeUsedThisEmojiAsReaction.value.map(x => x.id),
 	};
 
-	if (file.value) {
-		params.fileId = file.value.id;
+	if (props.suggestion) {
+		if (!file.value) {
+			await os.alert({ type: 'error', text: i18n.ts.selectFile });
+			return;
+		}
+
+		const suggestionParams = {
+			...baseParams,
+			fileId: file.value.id,
+		};
+		const suggested = await os.apiWithDialog('emoji-suggestions/create', suggestionParams);
+		emit('done', { suggested });
+		windowEl.value?.close();
+		return;
 	}
+
+	const params = {
+		...baseParams,
+		roleIdsThatCanBeUsedThisEmojiAsReaction: rolesThatCanBeUsedThisEmojiAsReaction.value.map(x => x.id),
+		...(file.value ? { fileId: file.value.id } : {}),
+	};
 
 	if (props.emoji) {
 		await os.apiWithDialog('admin/emoji/update', {

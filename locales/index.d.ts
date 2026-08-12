@@ -12073,6 +12073,38 @@ export interface Locale extends ILocale {
      */
     "approvals": string;
     /**
+     * Emoji suggestions
+     */
+    "emojiSuggestions": string;
+    /**
+     * Suggest an emoji
+     */
+    "suggestEmoji": string;
+    /**
+     * Propose a custom emoji for this server. Your image remains in your Drive while moderators review it.
+     */
+    "emojiSuggestionDescription": string;
+    /**
+     * There are no pending emoji suggestions.
+     */
+    "emojiSuggestionNoPending": string;
+    /**
+     * Proposed by
+     */
+    "emojiSuggestionProposedBy": string;
+    /**
+     * Accept :{name}: and add it to this server?
+     */
+    "emojiSuggestionConfirmAccept": ParameterizedString<"name">;
+    /**
+     * Reject the suggestion for :{name}:? The image will remain in the proposer's Drive.
+     */
+    "emojiSuggestionConfirmReject": ParameterizedString<"name">;
+    /**
+     * Cancel your suggestion for :{name}:? The image will remain in your Drive.
+     */
+    "emojiSuggestionConfirmCancel": ParameterizedString<"name">;
+    /**
      * Open remote profile
      */
     "openRemoteProfile": string;

@@ -1,12 +1,14 @@
 import type { Endpoints as Gen } from './autogen/endpoint.js';
-import type { UserDetailed } from './autogen/models.js';
+import type { EmojiDetailed, UserDetailed } from './autogen/models.js';
 import type {
 	AdminRolesCreateRequest,
 	AdminRolesCreateResponse,
 	UsersShowRequest,
 	EmptyRequest,
+	EmptyResponse,
 } from './autogen/entities.js';
 import type {
+	EmojiSuggestion,
 	PartialRolePolicyOverride,
 	SigninFlowRequest,
 	SigninFlowResponse,
@@ -18,6 +20,26 @@ import type {
 	SignupRequest,
 	SignupResponse,
 } from './entities.js';
+
+type EmojiSuggestionCreateRequest = {
+	name: string;
+	fileId: string;
+	category?: string | null;
+	aliases?: string[];
+	license?: string | null;
+	isSensitive?: boolean;
+	localOnly?: boolean;
+};
+
+type EmojiSuggestionListRequest = {
+	limit?: number;
+	sinceId?: string;
+	untilId?: string;
+};
+
+type EmojiSuggestionActionRequest = {
+	suggestionId: string;
+};
 
 type Overwrite<T, U extends { [Key in keyof T]?: unknown }> = Omit<
 	T,
@@ -111,7 +133,31 @@ export type Endpoints = Overwrite<
 		'admin/roles/create': {
 			req: Overwrite<AdminRolesCreateRequest, { policies: PartialRolePolicyOverride }>;
 			res: AdminRolesCreateResponse;
-		}
+		},
+		'emoji-suggestions/create': {
+			req: EmojiSuggestionCreateRequest;
+			res: EmojiSuggestion;
+		},
+		'emoji-suggestions/list': {
+			req: EmojiSuggestionListRequest;
+			res: EmojiSuggestion[];
+		},
+		'emoji-suggestions/cancel': {
+			req: EmojiSuggestionActionRequest;
+			res: EmptyResponse;
+		},
+		'admin/emoji-suggestions/list': {
+			req: EmojiSuggestionListRequest;
+			res: EmojiSuggestion[];
+		},
+		'admin/emoji-suggestions/accept': {
+			req: EmojiSuggestionActionRequest;
+			res: EmojiDetailed;
+		},
+		'admin/emoji-suggestions/reject': {
+			req: EmojiSuggestionActionRequest;
+			res: EmptyResponse;
+		},
 	}
 >;
 

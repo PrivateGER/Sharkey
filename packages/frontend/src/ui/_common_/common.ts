@@ -32,6 +32,11 @@ function toolsMenuItems(): MenuItem[] {
 		to: '/custom-emojis-manager',
 		text: i18n.ts.manageCustomEmojis,
 		icon: 'ph-smiley ph-bold ph-lg',
+	} : undefined, $i ? {
+		type: 'link',
+		to: '/emoji-suggestions',
+		text: i18n.ts.emojiSuggestions,
+		icon: 'ph-smiley-sticker ph-bold ph-lg',
 	} : undefined, ($i && ($i.isAdmin || $i.policies.canManageAvatarDecorations)) ? {
 		type: 'link',
 		to: '/avatar-decorations',

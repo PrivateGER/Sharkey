@@ -377,6 +377,10 @@ export const ROUTE_DEF = [{
 	path: '/custom-emojis-manager',
 	component: page(() => import('@/pages/custom-emojis-manager.vue')),
 }, {
+	path: '/emoji-suggestions',
+	component: page(() => import('@/pages/emoji-suggestions.vue')),
+	loginRequired: true,
+}, {
 	path: '/avatar-decorations',
 	name: 'avatarDecorations',
 	component: page(() => import('@/pages/avatar-decorations.vue')),

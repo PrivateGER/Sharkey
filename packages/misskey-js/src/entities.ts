@@ -10,6 +10,7 @@ import type {
 	RolePolicies,
 	User,
 	UserDetailedNotMe,
+	UserLite,
 } from './autogen/models.js';
 import type { AuthenticationResponseJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/server';
 
@@ -327,6 +328,19 @@ export type EmojiUpdated = {
 
 export type EmojiDeleted = {
 	emojis: EmojiDetailed[]
+};
+
+export type EmojiSuggestion = {
+	id: ID;
+	createdAt: DateString;
+	name: string;
+	category: string | null;
+	aliases: string[];
+	license: string | null;
+	localOnly: boolean;
+	isSensitive: boolean;
+	url: string;
+	user: UserLite;
 };
 
 export type AnnouncementCreated = {
