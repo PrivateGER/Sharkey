@@ -20,7 +20,10 @@ import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { DriveService } from '@/core/DriveService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
+import { renderInlineError } from '@/misc/render-inline-error.js';
+import type Logger from '@/logger.js';
 
 export const MAX_PENDING_EMOJI_SUGGESTIONS = 20;
 
@@ -48,6 +51,8 @@ export type CreateEmojiSuggestionOptions = {
 
 @Injectable()
 export class EmojiSuggestionService {
+	private readonly logger: Logger;
+
 	constructor(
 		@Inject(DI.emojiSuggestionsRepository)
 		private readonly emojiSuggestionsRepository: EmojiSuggestionsRepository,
@@ -61,7 +66,9 @@ export class EmojiSuggestionService {
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly driveService: DriveService,
 		private readonly idService: IdService,
+		loggerService: LoggerService,
 	) {
+		this.logger = loggerService.getLogger('emoji-suggestion');
 	}
 
 	@bindThis
@@ -202,11 +209,15 @@ export class EmojiSuggestionService {
 
 				try {
 					await this.driveService.deleteFile(emojiFile, false, moderator);
-				} finally {
-					await restoreSuggestion();
+				} catch (cleanupError) {
+					this.logger.error(`Failed to delete the emoji file copy after acceptance failed: ${renderInlineError(cleanupError)}`);
 				}
-			} else {
+			}
+
+			try {
 				await restoreSuggestion();
+			} catch (restoreError) {
+				this.logger.error(`Failed to restore emoji suggestion ${suggestion.id} after acceptance failed: ${renderInlineError(restoreError)}`);
 			}
 
 			if (isDuplicateKeyValueError(error)) return { ok: false, reason: 'duplicateName' };

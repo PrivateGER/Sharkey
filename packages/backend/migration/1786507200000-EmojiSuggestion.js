@@ -13,7 +13,7 @@
  * @implements {MigrationInterface}
  */
 export class EmojiSuggestion1786507200000 {
-	name = 'EmojiSuggestion1786507200000'
+	name = 'EmojiSuggestion1786507200000';
 
 	/**
 	 * @param {QueryRunner} queryRunner

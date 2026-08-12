@@ -74,6 +74,9 @@ describe('EmojiSuggestionService', () => {
 			deleteFile: jest.fn(async () => undefined),
 			...overrides?.driveService,
 		};
+		const logger = {
+			error: jest.fn(),
+		};
 		const service = new EmojiSuggestionService(
 			suggestions as any,
 			drive as any,
@@ -81,9 +84,10 @@ describe('EmojiSuggestionService', () => {
 			customEmoji as any,
 			driveService as any,
 			{ gen: jest.fn(() => suggestion.id) } as any,
+			{ getLogger: jest.fn(() => logger) } as any,
 		);
 
-		return { service, suggestions, drive, emojis, customEmoji, driveService, emoji };
+		return { service, suggestions, drive, emojis, customEmoji, driveService, logger, emoji };
 	}
 
 	test('submission only accepts an image owned by the proposer', async () => {
@@ -217,6 +221,23 @@ describe('EmojiSuggestionService', () => {
 			localOnly: suggestion.localOnly,
 			isSensitive: suggestion.isSensitive,
 		});
+	});
+
+	test('cleanup failures do not mask a duplicate-name result', async () => {
+		const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
+		const duplicateError = new QueryFailedError('', [], driverError);
+		const deleteFailure = new Error('copy deletion failed');
+		const restoreFailure = new Error('suggestion restoration failed');
+		const { service, suggestions, driveService, logger } = createService({
+			suggestions: { insert: jest.fn(async () => { throw restoreFailure; }) },
+			customEmoji: { createEmoji: jest.fn(async () => { throw duplicateError; }) },
+			driveService: { deleteFile: jest.fn(async () => { throw deleteFailure; }) },
+		});
+
+		await expect(service.accept(suggestion.id, moderator as any)).resolves.toEqual({ ok: false, reason: 'duplicateName' });
+		expect(driveService.deleteFile).toHaveBeenCalledWith(emojiFile, false, moderator);
+		expect(suggestions.insert).toHaveBeenCalled();
+		expect(logger.error).toHaveBeenCalledTimes(2);
 	});
 
 	test('a post-insert hook failure is treated as an accepted suggestion', async () => {
