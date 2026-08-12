@@ -5,7 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<MkButton v-if="$i && ($i.isModerator || $i.policies.canManageCustomEmojis)" primary link to="/custom-emojis-manager">{{ i18n.ts.manageCustomEmojis }}</MkButton>
+	<div v-if="$i" class="_buttons">
+		<MkButton primary link to="/emoji-suggestions">{{ i18n.ts.suggestEmoji }}</MkButton>
+		<MkButton v-if="$i.isAdmin || $i.isModerator || $i.policies.canManageCustomEmojis" link to="/custom-emojis-manager">{{ i18n.ts.manageCustomEmojis }}</MkButton>
+	</div>
 
 	<div class="query">
 		<MkInput v-model="q" class="" :placeholder="i18n.ts.search" autocapitalize="off">

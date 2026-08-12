@@ -45,6 +45,7 @@ import {
 	packedEmojiDetailedSchema,
 	packedEmojiSimpleSchema,
 } from '@/models/json-schema/emoji.js';
+import { packedEmojiSuggestionSchema } from '@/models/json-schema/emoji-suggestion.js';
 import { packedFlashSchema } from '@/models/json-schema/flash.js';
 import { packedAnnouncementSchema } from '@/models/json-schema/announcement.js';
 import { packedSigninSchema } from '@/models/json-schema/signin.js';
@@ -119,6 +120,7 @@ export const refs = {
 	EmojiSimple: packedEmojiSimpleSchema,
 	EmojiDetailed: packedEmojiDetailedSchema,
 	EmojiDetailedAdmin: packedEmojiDetailedAdminSchema,
+	EmojiSuggestion: packedEmojiSuggestionSchema,
 	Flash: packedFlashSchema,
 	Signin: packedSigninSchema,
 	RoleCondFormulaLogics: packedRoleCondFormulaLogicsSchema,
