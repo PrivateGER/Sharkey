@@ -134,6 +134,7 @@ export const permissions = [
 	'read:admin:abuse-report:notification-recipient',
 	'write:admin:abuse-report:notification-recipient',
 	'write:admin:send-email',
+	'read:admin:antennas',
 	'read:admin:server-info',
 	'read:admin:show-moderation-log',
 	'read:admin:show-user',
