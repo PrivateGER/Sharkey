@@ -57,6 +57,9 @@ export * as 'admin/emoji/set-aliases-bulk' from './endpoints/admin/emoji/set-ali
 export * as 'admin/emoji/set-category-bulk' from './endpoints/admin/emoji/set-category-bulk.js';
 export * as 'admin/emoji/set-license-bulk' from './endpoints/admin/emoji/set-license-bulk.js';
 export * as 'admin/emoji/update' from './endpoints/admin/emoji/update.js';
+export * as 'admin/emoji-suggestions/accept' from './endpoints/admin/emoji-suggestions/accept.js';
+export * as 'admin/emoji-suggestions/list' from './endpoints/admin/emoji-suggestions/list.js';
+export * as 'admin/emoji-suggestions/reject' from './endpoints/admin/emoji-suggestions/reject.js';
 export * as 'admin/federation/delete-all-files' from './endpoints/admin/federation/delete-all-files.js';
 export * as 'admin/federation/refresh-remote-instance-metadata' from './endpoints/admin/federation/refresh-remote-instance-metadata.js';
 export * as 'admin/federation/remove-all-following' from './endpoints/admin/federation/remove-all-following.js';
@@ -465,4 +468,7 @@ export * as 'chat/history' from './endpoints/chat/history.js';
 export * as 'v2/admin/emoji/list' from './endpoints/v2/admin/emoji/list.js';
 export * as 'admin/antennas/global' from './endpoints/admin/antennas/global.js';
 export * as 'drive/files/generate-alt-text' from './endpoints/drive/files/generate-alt.js';
+export * as 'emoji-suggestions/cancel' from './endpoints/emoji-suggestions/cancel.js';
+export * as 'emoji-suggestions/create' from './endpoints/emoji-suggestions/create.js';
+export * as 'emoji-suggestions/list' from './endpoints/emoji-suggestions/list.js';
 export * as 'top-posts' from './endpoints/top-posts.js';

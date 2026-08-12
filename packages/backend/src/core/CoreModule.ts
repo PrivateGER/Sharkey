@@ -33,6 +33,7 @@ import { AchievementService } from './AchievementService.js';
 import { AvatarDecorationService } from './AvatarDecorationService.js';
 import { CaptchaService } from './CaptchaService.js';
 import { CustomEmojiService } from './CustomEmojiService.js';
+import { EmojiSuggestionService } from './EmojiSuggestionService.js';
 import { DeleteAccountService } from './DeleteAccountService.js';
 import { DownloadService } from './DownloadService.js';
 import { DriveService } from './DriveService.js';
@@ -115,6 +116,7 @@ import { ClipEntityService } from './entities/ClipEntityService.js';
 import { DriveFileEntityService } from './entities/DriveFileEntityService.js';
 import { DriveFolderEntityService } from './entities/DriveFolderEntityService.js';
 import { EmojiEntityService } from './entities/EmojiEntityService.js';
+import { EmojiSuggestionEntityService } from './entities/EmojiSuggestionEntityService.js';
 import { FollowingEntityService } from './entities/FollowingEntityService.js';
 import { FollowRequestEntityService } from './entities/FollowRequestEntityService.js';
 import { GalleryLikeEntityService } from './entities/GalleryLikeEntityService.js';
@@ -176,6 +178,7 @@ const $AchievementService: Provider = { provide: 'AchievementService', useExisti
 const $AvatarDecorationService: Provider = { provide: 'AvatarDecorationService', useExisting: AvatarDecorationService };
 const $CaptchaService: Provider = { provide: 'CaptchaService', useExisting: CaptchaService };
 const $CustomEmojiService: Provider = { provide: 'CustomEmojiService', useExisting: CustomEmojiService };
+const $EmojiSuggestionService: Provider = { provide: 'EmojiSuggestionService', useExisting: EmojiSuggestionService };
 const $DeleteAccountService: Provider = { provide: 'DeleteAccountService', useExisting: DeleteAccountService };
 const $DownloadService: Provider = { provide: 'DownloadService', useExisting: DownloadService };
 const $DriveService: Provider = { provide: 'DriveService', useExisting: DriveService };
@@ -270,6 +273,7 @@ const $ClipEntityService: Provider = { provide: 'ClipEntityService', useExisting
 const $DriveFileEntityService: Provider = { provide: 'DriveFileEntityService', useExisting: DriveFileEntityService };
 const $DriveFolderEntityService: Provider = { provide: 'DriveFolderEntityService', useExisting: DriveFolderEntityService };
 const $EmojiEntityService: Provider = { provide: 'EmojiEntityService', useExisting: EmojiEntityService };
+const $EmojiSuggestionEntityService: Provider = { provide: 'EmojiSuggestionEntityService', useExisting: EmojiSuggestionEntityService };
 const $FollowingEntityService: Provider = { provide: 'FollowingEntityService', useExisting: FollowingEntityService };
 const $FollowRequestEntityService: Provider = { provide: 'FollowRequestEntityService', useExisting: FollowRequestEntityService };
 const $GalleryLikeEntityService: Provider = { provide: 'GalleryLikeEntityService', useExisting: GalleryLikeEntityService };
@@ -344,6 +348,7 @@ const $Imports = [
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
+		EmojiSuggestionService,
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
@@ -435,6 +440,7 @@ const $Imports = [
 		DriveFileEntityService,
 		DriveFolderEntityService,
 		EmojiEntityService,
+		EmojiSuggestionEntityService,
 		FollowingEntityService,
 		FollowRequestEntityService,
 		GalleryLikeEntityService,
@@ -499,6 +505,7 @@ const $Imports = [
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,
+		$EmojiSuggestionService,
 		$DeleteAccountService,
 		$DownloadService,
 		$DriveService,
@@ -593,6 +600,7 @@ const $Imports = [
 		$DriveFileEntityService,
 		$DriveFolderEntityService,
 		$EmojiEntityService,
+		$EmojiSuggestionEntityService,
 		$FollowingEntityService,
 		$FollowRequestEntityService,
 		$GalleryLikeEntityService,
@@ -660,6 +668,7 @@ const $Imports = [
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
+		EmojiSuggestionService,
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
@@ -750,6 +759,7 @@ const $Imports = [
 		DriveFileEntityService,
 		DriveFolderEntityService,
 		EmojiEntityService,
+		EmojiSuggestionEntityService,
 		FollowingEntityService,
 		FollowRequestEntityService,
 		GalleryLikeEntityService,
@@ -814,6 +824,7 @@ const $Imports = [
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,
+		$EmojiSuggestionService,
 		$DeleteAccountService,
 		$DownloadService,
 		$DriveService,
@@ -906,6 +917,7 @@ const $Imports = [
 		$DriveFileEntityService,
 		$DriveFolderEntityService,
 		$EmojiEntityService,
+		$EmojiSuggestionEntityService,
 		$FollowingEntityService,
 		$FollowRequestEntityService,
 		$GalleryLikeEntityService,
