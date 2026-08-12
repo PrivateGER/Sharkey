@@ -8,6 +8,7 @@ process.env.NODE_ENV = 'test';
 import * as assert from 'assert';
 import {
 	api,
+	createAppToken,
 	failedApiCall,
 	post,
 	role,
@@ -134,6 +135,51 @@ describe('アンテナ', () => {
 		}
 	});
 
+	test('admin/antennas/global accepts a scoped API token', async () => {
+		const antenna = await successfulApiCall({
+			endpoint: 'antennas/create',
+			parameters: { ...defaultParam, useGlobalRelay: true },
+			user: alice,
+		});
+		const token = await createAppToken(root, ['read:admin:antennas']);
+
+		const response = await successfulApiCall({
+			endpoint: 'admin/antennas/global',
+			parameters: {},
+			user: { token },
+		});
+
+		assert.ok(response.some(globalAntenna => globalAntenna.id === antenna.id));
+	});
+
+	test('admin/antennas/global rejects an API token without its scope', async () => {
+		const token = await createAppToken(root, ['read:account']);
+
+		await failedApiCall({
+			endpoint: 'admin/antennas/global',
+			parameters: {},
+			user: { token },
+		}, {
+			status: 403,
+			code: 'PERMISSION_DENIED',
+			id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+		});
+	});
+
+	test('admin/antennas/global rejects a scoped non-admin API token', async () => {
+		const token = await createAppToken(alice, ['read:admin:antennas']);
+
+		await failedApiCall({
+			endpoint: 'admin/antennas/global',
+			parameters: {},
+			user: { token },
+		}, {
+			status: 403,
+			code: 'ROLE_PERMISSION_DENIED',
+			id: 'c3d38592-54c0-429d-be96-5636b0431a61',
+		});
+	});
+
 	//#region 作成(antennas/create)
 
 	test('が作成できること、キーが過不足なく入っていること。', async () => {
@@ -160,6 +206,7 @@ describe('アンテナ', () => {
 			withReplies: false,
 			excludeBots: false,
 			localOnly: false,
+			useGlobalRelay: false,
 			notify: false,
 		};
 		assert.deepStrictEqual(response, expected);
