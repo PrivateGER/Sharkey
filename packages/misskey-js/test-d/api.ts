@@ -1,4 +1,4 @@
-import { expectType } from 'tsd';
+import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 import * as Misskey from '../src/index.js';
 
 describe('API', () => {
@@ -41,5 +41,24 @@ describe('API', () => {
 
 		const res2 = await cli.request('users/show', { userIds: ['xxxxxxxx'] });
 		expectType<Misskey.entities.UserDetailed[]>(res2);
+	});
+
+	test('emoji suggestion requires exactly one source', () => {
+		expectAssignable<Misskey.entities.EmojiSuggestionsCreateRequest>({
+			name: 'blob_party',
+			fileId: 'file-id',
+		});
+		expectAssignable<Misskey.entities.EmojiSuggestionsCreateRequest>({
+			name: 'blob_party',
+			remoteEmojiId: 'remote-emoji-id',
+		});
+		expectNotAssignable<Misskey.entities.EmojiSuggestionsCreateRequest>({
+			name: 'blob_party',
+		});
+		expectNotAssignable<Misskey.entities.EmojiSuggestionsCreateRequest>({
+			name: 'blob_party',
+			fileId: 'file-id',
+			remoteEmojiId: 'remote-emoji-id',
+		});
 	});
 });

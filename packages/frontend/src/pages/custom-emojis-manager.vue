@@ -40,31 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkPagination>
 			</div>
 
-			<div v-else-if="tab === 'remote'" class="remote">
-				<FormSplit>
-					<MkInput v-model="queryRemote" :debounce="true" type="search" autocapitalize="off">
-						<template #prefix><i class="ti ti-search"></i></template>
-						<template #label>{{ i18n.ts.search }}</template>
-					</MkInput>
-					<MkInput v-model="host" :debounce="true">
-						<template #label>{{ i18n.ts.host }}</template>
-					</MkInput>
-				</FormSplit>
-				<MkPagination :pagination="remotePagination" :displayLimit="50">
-					<template #empty><span>{{ i18n.ts.noCustomEmojis }}</span></template>
-					<template #default="{items}">
-						<div class="ldhfsamy">
-							<div v-for="emoji in items" :key="emoji.id" class="emoji _panel _button" @click="remoteMenu(emoji, $event)">
-								<img :src="getProxiedImageUrl(emoji.url, 'emoji')" class="img" :alt="emoji.name"/>
-								<div class="body">
-									<div class="name _monospace">{{ emoji.name }}</div>
-									<div class="info">{{ emoji.host }}</div>
-								</div>
-							</div>
-						</div>
-					</template>
-				</MkPagination>
-			</div>
+			<MkRemoteEmojiBrowser v-else-if="tab === 'remote'" endpoint="admin/emoji/list-remote" @select="remoteMenu"/>
 		</div>
 	</div>
 </PageWithHeader>
@@ -76,12 +52,11 @@ import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkRemoteEmojiEditDialog from '@/components/MkRemoteEmojiEditDialog.vue';
+import MkRemoteEmojiBrowser from '@/components/MkRemoteEmojiBrowser.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
-import FormSplit from '@/components/form/split.vue';
 import { selectFile } from '@/utility/select-file.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { getProxiedImageUrl } from '@/utility/media-proxy.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 
@@ -89,8 +64,6 @@ const emojisPaginationComponent = useTemplateRef('emojisPaginationComponent');
 
 const tab = ref('local');
 const query = ref<string | null>(null);
-const queryRemote = ref<string | null>(null);
-const host = ref<string | null>(null);
 const selectMode = ref(false);
 const selectedEmojis = ref<string[]>([]);
 
@@ -105,20 +78,11 @@ const pagination = {
 	})),
 };
 
-const remotePagination = {
-	endpoint: 'admin/emoji/list-remote' as const,
-	limit: 30,
-	params: computed(() => ({
-		query: (queryRemote.value && queryRemote.value !== '') ? queryRemote.value : null,
-		host: (host.value && host.value !== '') ? host.value : null,
-	})),
-};
-
 const selectAll = () => {
 	if (selectedEmojis.value.length > 0) {
 		selectedEmojis.value = [];
 	} else {
-		selectedEmojis.value = Array.from(emojisPaginationComponent.value?.items.values(), item => item.id);
+		selectedEmojis.value = Array.from(emojisPaginationComponent.value?.items.values() ?? [], item => item.id);
 	}
 };
 
@@ -324,6 +288,7 @@ const headerActions = computed(() => [{
 }, {
 	icon: 'ti ti-dots',
 	handler: menu,
+	text: i18n.ts.more,
 }]);
 
 const headerTabs = computed(() => [{
@@ -394,52 +359,5 @@ definePage(() => ({
 		}
 	}
 
-	> .remote {
-		.empty {
-			margin: var(--MI-margin);
-		}
-
-		.ldhfsamy {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-			grid-gap: 12px;
-			margin: var(--MI-margin) 0;
-
-			> .emoji {
-				display: flex;
-				align-items: center;
-				padding: 12px;
-				text-align: left;
-
-				&:hover {
-					color: var(--MI_THEME-accent);
-				}
-
-				> .img {
-					width: 32px;
-					height: 32px;
-					object-fit: contain;
-				}
-
-				> .body {
-					padding: 0 0 0 8px;
-					white-space: nowrap;
-					overflow: hidden;
-
-					> .name {
-						text-overflow: ellipsis;
-						overflow: hidden;
-					}
-
-					> .info {
-						opacity: 0.5;
-						font-size: 90%;
-						text-overflow: ellipsis;
-						overflow: hidden;
-					}
-				}
-			}
-		}
-	}
 }
 </style>

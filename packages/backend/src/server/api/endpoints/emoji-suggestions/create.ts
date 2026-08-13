@@ -34,9 +34,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly emojiSuggestionEntityService: EmojiSuggestionEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			const source = ps.fileId != null
+				? { fileId: ps.fileId }
+				: { remoteEmojiId: ps.remoteEmojiId! };
 			const result = await this.emojiSuggestionService.create({
 				name: ps.name,
-				fileId: ps.fileId,
+				...source,
 				category: ps.category ?? null,
 				aliases: ps.aliases ?? [],
 				license: ps.license ?? null,

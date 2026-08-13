@@ -17,6 +17,20 @@ import type { AuthenticationResponseJSON, PublicKeyCredentialRequestOptionsJSON 
 export * from './autogen/entities.js';
 export * from './autogen/models.js';
 
+type EmojiSuggestionCreateMetadata = {
+	name: string;
+	category?: string | null;
+	aliases?: string[];
+	license?: string | null;
+	isSensitive?: boolean;
+	localOnly?: boolean;
+};
+
+export type EmojiSuggestionsCreateRequest = EmojiSuggestionCreateMetadata & (
+	| { fileId: string; remoteEmojiId?: never }
+	| { fileId?: never; remoteEmojiId: string }
+);
+
 export type ID = string;
 export type DateString = string;
 

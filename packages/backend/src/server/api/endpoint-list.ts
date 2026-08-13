@@ -463,6 +463,7 @@ export * as 'chat/history' from './endpoints/chat/history.js';
 export * as 'v2/admin/emoji/list' from './endpoints/v2/admin/emoji/list.js';
 export * as 'admin/antennas/global' from './endpoints/admin/antennas/global.js';
 export * as 'drive/files/generate-alt-text' from './endpoints/drive/files/generate-alt.js';
+export * as 'emoji/list-remote' from './endpoints/emoji/list-remote.js';
 export * as 'emoji-suggestions/cancel' from './endpoints/emoji-suggestions/cancel.js';
 export * as 'emoji-suggestions/create' from './endpoints/emoji-suggestions/create.js';
 export * as 'emoji-suggestions/list' from './endpoints/emoji-suggestions/list.js';
