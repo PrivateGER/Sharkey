@@ -250,6 +250,7 @@ export const paramDef = {
 				roleAssigned: notificationRecieveConfig,
 				chatRoomInvitationReceived: notificationRecieveConfig,
 				achievementEarned: notificationRecieveConfig,
+				emojiSuggestionAccepted: notificationRecieveConfig,
 				app: notificationRecieveConfig,
 				test: notificationRecieveConfig,
 			},

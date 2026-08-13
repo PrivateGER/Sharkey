@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div class="divider"></div>
 			<MkA v-if="$i.isAdmin || $i.isModerator" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" activeClass="active" to="/admin" :behavior="settingsWindowed ? 'window' : null">
 				<i class="ti ti-dashboard ti-fw"></i>
+				<span v-if="hasPendingEmojiSuggestions" class="indicator _blink"><i class="_indicatorCircle"></i></span>
 			</MkA>
 			<button v-click-anime class="item _button" @click="more">
 				<i class="ti ti-dots ti-fw"></i>
@@ -50,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
-import { navbarItemDef } from '@/navbar.js';
+import { hasPendingEmojiSuggestions, navbarItemDef } from '@/navbar.js';
 import MkButton from '@/components/MkButton.vue';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';

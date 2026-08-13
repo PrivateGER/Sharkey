@@ -14,6 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div class="_gaps_s">
 					<MkInfo v-if="thereIsUnresolvedAbuseReport" warn class="info">{{ i18n.ts.thereIsUnresolvedAbuseReportWarning }} <MkA to="/admin/abuses" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
+					<MkInfo v-if="hasPendingEmojiSuggestions" warn class="info">{{ i18n.ts.emojiSuggestionsPendingReview }} <MkA to="/emoji-suggestions" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
 					<MkInfo v-if="noMaintainerInformation" warn class="info">{{ i18n.ts.noMaintainerInformationWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
 					<MkInfo v-if="noInquiryUrl" warn class="info">{{ i18n.ts.noInquiryUrlWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
 					<MkInfo v-if="noBotProtection" warn class="info">{{ i18n.ts.noBotProtectionWarning }} <MkA to="/admin/security" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
@@ -46,6 +47,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { lookupUser, lookupUserByEmail, lookupFile } from '@/utility/admin-lookup.js';
 import { definePage, provideMetadataReceiver, provideReactiveMetadata } from '@/page.js';
 import { useRouter } from '@/router.js';
+import { hasPendingEmojiSuggestions } from '@/navbar.js';
 
 const isEmpty = (x: string | null) => x == null || x === '';
 

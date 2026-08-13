@@ -12,7 +12,7 @@ import type {
 	ChatRoom,
 } from './autogen/models.js';
 
-export const notificationTypes = ['note', 'follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'pollVote', 'pollEnded', 'receiveFollowRequest', 'followRequestAccepted', 'groupInvited', 'app', 'roleAssigned', 'chatRoomInvitationReceived', 'achievementEarned', 'edited', 'scheduledNoteFailed', 'scheduledNotePosted'] as const;
+export const notificationTypes = ['note', 'follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'pollVote', 'pollEnded', 'receiveFollowRequest', 'followRequestAccepted', 'groupInvited', 'app', 'roleAssigned', 'chatRoomInvitationReceived', 'achievementEarned', 'emojiSuggestionAccepted', 'edited', 'scheduledNoteFailed', 'scheduledNotePosted'] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
 

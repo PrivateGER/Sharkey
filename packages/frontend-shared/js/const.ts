@@ -131,6 +131,7 @@ export const notificationTypes = [
 	'roleAssigned',
 	'chatRoomInvitationReceived',
 	'achievementEarned',
+	'emojiSuggestionAccepted',
 	'exportCompleted',
 	'importCompleted',
 	'login',

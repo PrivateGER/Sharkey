@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { computed, defineAsyncComponent, reactive } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref } from 'vue';
 import { ui } from '@@/js/config.js';
 import { clearCache } from './utility/clear-cache.js';
 import { instance } from './instance.js';
@@ -14,6 +14,35 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { useStream } from '@/stream.js';
+
+export const hasPendingEmojiSuggestions = ref(false);
+
+let emojiSuggestionQueueRequest = 0;
+
+export async function refreshPendingEmojiSuggestions(): Promise<void> {
+	const request = ++emojiSuggestionQueueRequest;
+	try {
+		const suggestions = await misskeyApi('admin/emoji-suggestions/list', { limit: 1 });
+		if (request === emojiSuggestionQueueRequest) {
+			hasPendingEmojiSuggestions.value = suggestions.length > 0;
+		}
+	} catch {
+		// An unavailable status check must not break the global navigation.
+	}
+}
+
+if ($i != null && ($i.isAdmin || $i.isModerator)) {
+	const adminConnection = useStream().useChannel('admin');
+	adminConnection.on('emojiSuggestionQueueChanged', () => {
+		void refreshPendingEmojiSuggestions();
+	});
+	void refreshPendingEmojiSuggestions();
+	window.addEventListener('focus', () => {
+		void refreshPendingEmojiSuggestions();
+	}, { passive: true });
+}
 
 export const navbarItemDef = reactive({
 	notifications: {

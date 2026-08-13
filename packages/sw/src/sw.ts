@@ -140,6 +140,9 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 						break;
 					default:
 						switch (data.body.type) {
+							case 'emojiSuggestionAccepted':
+								client = await swos.openClient('push', '/about#emojis', loginId);
+								break;
 							case 'receiveFollowRequest':
 								client = await swos.openClient('push', '/my/follow-requests', loginId);
 								break;

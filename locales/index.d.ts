@@ -10428,6 +10428,10 @@ export interface Locale extends ILocale {
              */
             "edited": string;
             /**
+             * Accepted emoji suggestions
+             */
+            "emojiSuggestionAccepted": string;
+            /**
              * Posting scheduled note failed
              */
             "scheduledNoteFailed": string;
@@ -10482,6 +10486,14 @@ export interface Locale extends ILocale {
          * Shared access login
          */
         "sharedAccessLogin": string;
+        /**
+         * Emoji suggestion accepted
+         */
+        "emojiSuggestionAccepted": string;
+        /**
+         * :{name}: was added to this server.
+         */
+        "emojiSuggestionAcceptedDescription": ParameterizedString<"name">;
     };
     "_deck": {
         /**
@@ -12088,6 +12100,10 @@ export interface Locale extends ILocale {
      * There are no pending emoji suggestions.
      */
     "emojiSuggestionNoPending": string;
+    /**
+     * Emoji suggestions are waiting for review.
+     */
+    "emojiSuggestionsPendingReview": string;
     /**
      * Proposed by
      */

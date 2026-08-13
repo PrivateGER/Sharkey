@@ -41,6 +41,7 @@ export type GalleryPost = components['schemas']['GalleryPost'];
 export type EmojiSimple = components['schemas']['EmojiSimple'];
 export type EmojiDetailed = components['schemas']['EmojiDetailed'];
 export type EmojiDetailedAdmin = components['schemas']['EmojiDetailedAdmin'];
+export type EmojiSuggestion = components['schemas']['EmojiSuggestion'];
 export type Flash = components['schemas']['Flash'];
 export type Signin = components['schemas']['Signin'];
 export type RoleCondFormulaLogics = components['schemas']['RoleCondFormulaLogics'];

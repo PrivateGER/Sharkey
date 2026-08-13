@@ -29,6 +29,7 @@ import type {
 	AdminAnnouncementsListRequest,
 	AdminAnnouncementsListResponse,
 	AdminAnnouncementsUpdateRequest,
+	AdminAntennasGlobalResponse,
 	AdminApproveUserRequest,
 	AdminAvatarDecorationsCreateRequest,
 	AdminAvatarDecorationsCreateResponse,
@@ -49,6 +50,11 @@ import type {
 	AdminDriveFilesResponse,
 	AdminDriveShowFileRequest,
 	AdminDriveShowFileResponse,
+	AdminEmojiSuggestionsAcceptRequest,
+	AdminEmojiSuggestionsAcceptResponse,
+	AdminEmojiSuggestionsListRequest,
+	AdminEmojiSuggestionsListResponse,
+	AdminEmojiSuggestionsRejectRequest,
 	AdminEmojiAddRequest,
 	AdminEmojiAddResponse,
 	AdminEmojiAddAliasesBulkRequest,
@@ -305,6 +311,8 @@ import type {
 	DriveFilesFindResponse,
 	DriveFilesFindByHashRequest,
 	DriveFilesFindByHashResponse,
+	DriveFilesGenerateAltTextRequest,
+	DriveFilesGenerateAltTextResponse,
 	DriveFilesShowRequest,
 	DriveFilesShowResponse,
 	DriveFilesUpdateRequest,
@@ -327,6 +335,11 @@ import type {
 	EmailAddressAvailableResponse,
 	EmojiRequest,
 	EmojiResponse,
+	EmojiSuggestionsCancelRequest,
+	EmojiSuggestionsCreateRequest,
+	EmojiSuggestionsCreateResponse,
+	EmojiSuggestionsListRequest,
+	EmojiSuggestionsListResponse,
 	EmojisResponse,
 	EndpointRequest,
 	EndpointResponse,
@@ -619,6 +632,8 @@ import type {
 	SwUpdateRegistrationResponse,
 	TestRequest,
 	TestResponse,
+	TopPostsRequest,
+	TopPostsResponse,
 	UsernameAvailableRequest,
 	UsernameAvailableResponse,
 	UsersRequest,
@@ -697,6 +712,7 @@ export type Endpoints = {
 	'admin/announcements/delete': { req: AdminAnnouncementsDeleteRequest; res: EmptyResponse };
 	'admin/announcements/list': { req: AdminAnnouncementsListRequest; res: AdminAnnouncementsListResponse };
 	'admin/announcements/update': { req: AdminAnnouncementsUpdateRequest; res: EmptyResponse };
+	'admin/antennas/global': { req: EmptyRequest; res: AdminAntennasGlobalResponse };
 	'admin/approve-user': { req: AdminApproveUserRequest; res: EmptyResponse };
 	'admin/avatar-decorations/create': { req: AdminAvatarDecorationsCreateRequest; res: AdminAvatarDecorationsCreateResponse };
 	'admin/avatar-decorations/delete': { req: AdminAvatarDecorationsDeleteRequest; res: EmptyResponse };
@@ -714,6 +730,9 @@ export type Endpoints = {
 	'admin/drive/cleanup': { req: EmptyRequest; res: EmptyResponse };
 	'admin/drive/files': { req: AdminDriveFilesRequest; res: AdminDriveFilesResponse };
 	'admin/drive/show-file': { req: AdminDriveShowFileRequest; res: AdminDriveShowFileResponse };
+	'admin/emoji-suggestions/accept': { req: AdminEmojiSuggestionsAcceptRequest; res: AdminEmojiSuggestionsAcceptResponse };
+	'admin/emoji-suggestions/list': { req: AdminEmojiSuggestionsListRequest; res: AdminEmojiSuggestionsListResponse };
+	'admin/emoji-suggestions/reject': { req: AdminEmojiSuggestionsRejectRequest; res: EmptyResponse };
 	'admin/emoji/add': { req: AdminEmojiAddRequest; res: AdminEmojiAddResponse };
 	'admin/emoji/add-aliases-bulk': { req: AdminEmojiAddAliasesBulkRequest; res: EmptyResponse };
 	'admin/emoji/copy': { req: AdminEmojiCopyRequest; res: AdminEmojiCopyResponse };
@@ -883,6 +902,7 @@ export type Endpoints = {
 	'drive/files/delete': { req: DriveFilesDeleteRequest; res: EmptyResponse };
 	'drive/files/find': { req: DriveFilesFindRequest; res: DriveFilesFindResponse };
 	'drive/files/find-by-hash': { req: DriveFilesFindByHashRequest; res: DriveFilesFindByHashResponse };
+	'drive/files/generate-alt-text': { req: DriveFilesGenerateAltTextRequest; res: DriveFilesGenerateAltTextResponse };
 	'drive/files/show': { req: DriveFilesShowRequest; res: DriveFilesShowResponse };
 	'drive/files/update': { req: DriveFilesUpdateRequest; res: DriveFilesUpdateResponse };
 	'drive/files/upload-from-url': { req: DriveFilesUploadFromUrlRequest; res: EmptyResponse };
@@ -895,6 +915,9 @@ export type Endpoints = {
 	'drive/stream': { req: DriveStreamRequest; res: DriveStreamResponse };
 	'email-address/available': { req: EmailAddressAvailableRequest; res: EmailAddressAvailableResponse };
 	'emoji': { req: EmojiRequest; res: EmojiResponse };
+	'emoji-suggestions/cancel': { req: EmojiSuggestionsCancelRequest; res: EmptyResponse };
+	'emoji-suggestions/create': { req: EmojiSuggestionsCreateRequest; res: EmojiSuggestionsCreateResponse };
+	'emoji-suggestions/list': { req: EmojiSuggestionsListRequest; res: EmojiSuggestionsListResponse };
 	'emojis': { req: EmptyRequest; res: EmojisResponse };
 	'endpoint': { req: EndpointRequest; res: EndpointResponse };
 	'endpoints': { req: EmptyRequest; res: EndpointsResponse };
@@ -1095,6 +1118,7 @@ export type Endpoints = {
 	'sw/unregister': { req: SwUnregisterRequest; res: EmptyResponse };
 	'sw/update-registration': { req: SwUpdateRegistrationRequest; res: SwUpdateRegistrationResponse };
 	'test': { req: TestRequest; res: TestResponse };
+	'top-posts': { req: TopPostsRequest; res: TopPostsResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };
 	'users': { req: UsersRequest; res: UsersResponse };
 	'users/achievements': { req: UsersAchievementsRequest; res: UsersAchievementsResponse };

@@ -154,6 +154,7 @@ export interface AdminEventTypes {
 		reporterId: MiUser['id'],
 		comment: string;
 	};
+	emojiSuggestionQueueChanged: EmptyObject;
 }
 
 export interface ChatEventTypes {

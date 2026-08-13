@@ -18,6 +18,7 @@
  * chatRoomInvitationReceived - チャットルームに招待された
  * achievementEarned - 実績を獲得
  * exportCompleted - エクスポートが完了
+ * emojiSuggestionAccepted - 絵文字の提案が承認された
  * login - ログイン
  * createToken - トークン作成
  * app - アプリ通知
@@ -38,6 +39,7 @@ export const notificationTypes = [
 	'roleAssigned',
 	'chatRoomInvitationReceived',
 	'achievementEarned',
+	'emojiSuggestionAccepted',
 	'exportCompleted',
 	'importCompleted',
 	'login',
