@@ -6,7 +6,7 @@
 process.env.NODE_ENV = 'test';
 
 import { jest } from '@jest/globals';
-import { IsNull, QueryFailedError } from 'typeorm';
+import { QueryFailedError } from 'typeorm';
 import { EmojiSuggestionService } from '@/core/EmojiSuggestionService.js';
 import type { MiUser } from '@/models/_.js';
 
@@ -35,6 +35,7 @@ describe('EmojiSuggestionService', () => {
 		name: 'party_blob',
 		host: 'remote.example',
 		originalUrl: 'https://remote.example/emoji.png',
+		type: 'image/png',
 		isSensitive: true,
 	};
 	const suggestion = {
@@ -42,6 +43,9 @@ describe('EmojiSuggestionService', () => {
 		userId: user.id,
 		fileId: file.id,
 		file,
+		remoteEmojiId: null,
+		remoteEmojiUrl: null,
+		remoteEmojiHost: null,
 		name: 'party_blob',
 		category: 'Blobs',
 		aliases: ['party'],
@@ -49,9 +53,19 @@ describe('EmojiSuggestionService', () => {
 		localOnly: false,
 		isSensitive: false,
 	};
+	const remoteSuggestion = {
+		...suggestion,
+		fileId: null,
+		file: null,
+		remoteEmojiId: remoteEmoji.id,
+		remoteEmojiUrl: remoteEmoji.originalUrl,
+		remoteEmojiHost: remoteEmoji.host,
+	};
 
 	function createService(overrides?: {
+		initialSuggestion?: Record<string, unknown>;
 		suggestions?: Record<string, unknown>;
+		transactionalSuggestions?: Record<string, unknown>;
 		drive?: Record<string, unknown>;
 		emojis?: Record<string, unknown>;
 		customEmoji?: Record<string, unknown>;
@@ -59,21 +73,60 @@ describe('EmojiSuggestionService', () => {
 		notificationService?: Record<string, unknown>;
 		roleService?: Record<string, unknown>;
 		globalEventService?: Record<string, unknown>;
+		utilityService?: Record<string, unknown>;
+		idValues?: string[];
 	}) {
-		const suggestions = {
+		let storedSuggestion: Record<string, unknown> | null = {
+			...suggestion,
+			...overrides?.initialSuggestion,
+		};
+		let insertedSuggestion: Record<string, unknown> | null = null;
+		const matches = (criteria: Record<string, unknown> | string): boolean => {
+			if (storedSuggestion == null) return false;
+			if (typeof criteria === 'string') return storedSuggestion.id === criteria;
+			return Object.entries(criteria).every(([key, value]) => storedSuggestion![key] === value);
+		};
+		const transactionalSuggestions = {
 			countBy: jest.fn(async () => 0),
 			exists: jest.fn(async () => false),
-			insertOne: jest.fn(async () => ({ ...suggestion, user })),
-			insert: jest.fn(async () => ({ identifiers: [{ id: suggestion.id }] })),
-			findOne: jest.fn(async () => suggestion),
-			delete: jest.fn(async () => ({ affected: 1 })),
+			insert: jest.fn(async (data: Record<string, unknown>) => {
+				insertedSuggestion = {
+					...suggestion,
+					...data,
+					file: data.fileId == null ? null : file,
+					user,
+				};
+				storedSuggestion = insertedSuggestion;
+				return { identifiers: [{ id: data.id }] };
+			}),
+			...overrides?.transactionalSuggestions,
+		};
+		const manager = {
+			query: jest.fn(async () => undefined),
+			getRepository: jest.fn(() => transactionalSuggestions),
+		};
+		const db = {
+			transaction: jest.fn(async (callback: (transactionManager: typeof manager) => Promise<unknown>) => await callback(manager)),
+		};
+		const suggestions = {
+			findOneOrFail: jest.fn(async () => insertedSuggestion ?? storedSuggestion),
+			findOne: jest.fn(async () => storedSuggestion),
+			insert: jest.fn(async (data: Record<string, unknown>) => {
+				storedSuggestion = { ...suggestion, ...data };
+				return { identifiers: [{ id: data.id }] };
+			}),
+			delete: jest.fn(async (criteria: Record<string, unknown> | string) => {
+				if (!matches(criteria)) return { affected: 0 };
+				storedSuggestion = null;
+				return { affected: 1 };
+			}),
 			...overrides?.suggestions,
 		};
 		const drive = {
 			findOneBy: jest.fn(async () => file),
 			...overrides?.drive,
 		};
-		const emoji = { id: '9abc000005', name: suggestion.name, originalUrl: emojiFile.url };
+		const emoji = { id: '9abc000009', name: suggestion.name, originalUrl: emojiFile.url };
 		const emojis = {
 			findOneBy: jest.fn(async () => null),
 			...overrides?.emojis,
@@ -88,9 +141,7 @@ describe('EmojiSuggestionService', () => {
 		};
 		const driveService = {
 			uploadFromUrl: jest.fn(async () => emojiFile),
-			uploadFromUrlWithResult: jest.fn(async () => ({ file: emojiFile, isNew: true })),
 			deleteFile: jest.fn(async () => undefined),
-			deleteFileSync: jest.fn(async () => undefined),
 			...overrides?.driveService,
 		};
 		const notificationService = {
@@ -105,12 +156,39 @@ describe('EmojiSuggestionService', () => {
 			publishAdminStream: jest.fn(async () => undefined),
 			...overrides?.globalEventService,
 		};
+		const utilityService = {
+			isBlockedHost: jest.fn(() => false),
+			...overrides?.utilityService,
+		};
 		const logger = {
 			error: jest.fn(),
 		};
-		// Each test double implements only the dependency methods exercised by this unit.
+		const generatedIds = [...(overrides?.idValues ?? ['9abc000009'])];
+		const idService = {
+			gen: jest.fn(() => generatedIds.shift() ?? '9abc000009'),
+		};
 		const dependencies = [
 			suggestions,
+			drive,
+			emojis,
+			db,
+			customEmoji,
+			driveService,
+			notificationService,
+			roleService,
+			globalEventService,
+			utilityService,
+			idService,
+			{ getLogger: jest.fn(() => logger) },
+		] as unknown as ConstructorParameters<typeof EmojiSuggestionService>;
+		const service = new EmojiSuggestionService(...dependencies);
+
+		return {
+			service,
+			suggestions,
+			transactionalSuggestions,
+			manager,
+			db,
 			drive,
 			emojis,
 			customEmoji,
@@ -118,16 +196,16 @@ describe('EmojiSuggestionService', () => {
 			notificationService,
 			roleService,
 			globalEventService,
-			{ gen: jest.fn(() => suggestion.id) },
-			{ getLogger: jest.fn(() => logger) },
-		] as unknown as ConstructorParameters<typeof EmojiSuggestionService>;
-		const service = new EmojiSuggestionService(...dependencies);
-
-		return { service, suggestions, drive, emojis, customEmoji, driveService, notificationService, roleService, globalEventService, logger, emoji };
+			utilityService,
+			idService,
+			logger,
+			emoji,
+			getStoredSuggestion: () => storedSuggestion,
+		};
 	}
 
 	test('submission only accepts an image owned by the proposer', async () => {
-		const { service, suggestions, drive } = createService({
+		const { service, drive, transactionalSuggestions } = createService({
 			drive: { findOneBy: jest.fn(async () => null) },
 		});
 
@@ -142,18 +220,12 @@ describe('EmojiSuggestionService', () => {
 		}, proposer)).resolves.toEqual({ ok: false, reason: 'noSuchFile' });
 
 		expect(drive.findOneBy).toHaveBeenCalledWith({ id: file.id, userId: user.id });
-		expect(suggestions.insertOne).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
 	});
 
-	test('submission can copy a cached remote emoji into the proposer Drive', async () => {
-		const remoteFile = {
-			...file,
-			id: '9abc000009',
-			url: 'https://example.test/copied-remote.png',
-			isSensitive: true,
-		};
-		const { service, driveService, suggestions } = createService({
-			driveService: { uploadFromUrlWithResult: jest.fn(async () => ({ file: remoteFile, isNew: true })) },
+	test('submission records a cached remote emoji transactionally without downloading it', async () => {
+		const { service, db, manager, transactionalSuggestions, driveService } = createService({
+			idValues: [suggestion.id],
 		});
 
 		await expect(service.create({
@@ -164,24 +236,64 @@ describe('EmojiSuggestionService', () => {
 			license: suggestion.license,
 			localOnly: false,
 			isSensitive: true,
-		}, proposer)).resolves.toEqual({ ok: true, value: { ...suggestion, user } });
-
-		expect(driveService.uploadFromUrlWithResult).toHaveBeenCalledWith({
-			url: remoteEmoji.originalUrl,
-			user: proposer,
-			sensitive: true,
+		}, proposer)).resolves.toEqual({
+			ok: true,
+			value: {
+				...remoteSuggestion,
+				isSensitive: true,
+				user,
+			},
 		});
-		expect(suggestions.insertOne).toHaveBeenCalledWith(
-			expect.objectContaining({ userId: user.id, fileId: remoteFile.id }),
-			expect.anything(),
+
+		expect(db.transaction).toHaveBeenCalledTimes(1);
+		expect(manager.query).toHaveBeenCalledWith(
+			'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+			[`emoji-suggestion:${user.id}`],
 		);
+		expect(manager.getRepository).toHaveBeenCalledTimes(1);
+		expect(transactionalSuggestions.insert).toHaveBeenCalledWith({
+			id: suggestion.id,
+			userId: user.id,
+			fileId: null,
+			remoteEmojiId: remoteEmoji.id,
+			remoteEmojiUrl: remoteEmoji.originalUrl,
+			remoteEmojiHost: remoteEmoji.host,
+			name: suggestion.name,
+			category: suggestion.category,
+			aliases: suggestion.aliases,
+			license: suggestion.license,
+			localOnly: false,
+			isSensitive: true,
+		});
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
 	});
 
-	test('a rejected remote image removes its newly created Drive copy', async () => {
-		const unsupportedFile = { ...emojiFile, type: 'application/octet-stream' };
-		const { service, driveService, suggestions } = createService({
-			driveService: {
-				uploadFromUrlWithResult: jest.fn(async () => ({ file: unsupportedFile, isNew: true })),
+	test('submission rejects remote emojis from blocked instances', async () => {
+		const { service, driveService, transactionalSuggestions, utilityService } = createService({
+			utilityService: { isBlockedHost: jest.fn(() => true) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'noSuchRemoteEmoji' });
+
+		expect(utilityService.isBlockedHost).toHaveBeenCalledWith(remoteEmoji.host);
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
+	});
+
+	test('submission rejects a cached remote non-image without downloading it', async () => {
+		const { service, driveService, transactionalSuggestions } = createService({
+			customEmoji: {
+				emojisByIdCache: {
+					fetchMaybe: jest.fn(async () => ({ ...remoteEmoji, type: 'application/octet-stream' })),
+				},
 			},
 		});
 
@@ -195,36 +307,57 @@ describe('EmojiSuggestionService', () => {
 			isSensitive: false,
 		}, proposer)).resolves.toEqual({ ok: false, reason: 'unsupportedFileType' });
 
-		expect(driveService.deleteFileSync).toHaveBeenCalledWith(unsupportedFile);
-		expect(suggestions.insertOne).not.toHaveBeenCalled();
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
 	});
 
-	test('a rejected remote image preserves a deduplicated Drive file', async () => {
-		const unsupportedFile = { ...emojiFile, type: 'application/octet-stream' };
-		const { service, driveService } = createService({
-			driveService: {
-				uploadFromUrlWithResult: jest.fn(async () => ({ file: unsupportedFile, isNew: false })),
-			},
+	test('submission enforces the pending cap inside the transaction', async () => {
+		const { service, transactionalSuggestions, globalEventService } = createService({
+			transactionalSuggestions: { countBy: jest.fn(async () => 20) },
 		});
 
 		await expect(service.create({
 			name: suggestion.name,
-			remoteEmojiId: remoteEmoji.id,
+			fileId: file.id,
 			category: null,
 			aliases: [],
 			license: null,
 			localOnly: false,
 			isSensitive: false,
-		}, proposer)).resolves.toEqual({ ok: false, reason: 'unsupportedFileType' });
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'tooManyPendingSuggestions' });
 
-		expect(driveService.deleteFileSync).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.countBy).toHaveBeenCalledWith({ userId: user.id });
+		expect(transactionalSuggestions.exists).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
+		expect(globalEventService.publishAdminStream).not.toHaveBeenCalled();
 	});
 
-	test('a simultaneous remote duplicate removes its new Drive copy', async () => {
+	test('submission detects an existing duplicate inside the transaction', async () => {
+		const { service, transactionalSuggestions } = createService({
+			transactionalSuggestions: { exists: jest.fn(async () => true) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			fileId: file.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'duplicateSuggestion' });
+
+		expect(transactionalSuggestions.exists).toHaveBeenCalledWith({
+			where: [{ name: suggestion.name }, { fileId: file.id }],
+		});
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
+	});
+
+	test('a simultaneous remote duplicate returns a domain error without downloading', async () => {
 		const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
 		const duplicateError = new QueryFailedError('', [], driverError);
 		const { service, driveService } = createService({
-			suggestions: { insertOne: jest.fn(async () => { throw duplicateError; }) },
+			transactionalSuggestions: { insert: jest.fn(async () => { throw duplicateError; }) },
 		});
 
 		await expect(service.create({
@@ -237,13 +370,31 @@ describe('EmojiSuggestionService', () => {
 			isSensitive: false,
 		}, proposer)).resolves.toEqual({ ok: false, reason: 'duplicateSuggestion' });
 
-		expect(driveService.deleteFileSync).toHaveBeenCalledWith(emojiFile);
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
 	});
 
-	test('a remote suggestion insert failure removes its new Drive copy', async () => {
+	test('a simultaneous local duplicate returns a domain error', async () => {
+		const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
+		const duplicateError = new QueryFailedError('', [], driverError);
+		const { service } = createService({
+			transactionalSuggestions: { insert: jest.fn(async () => { throw duplicateError; }) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			fileId: file.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'duplicateSuggestion' });
+	});
+
+	test('a remote suggestion insert failure does not download the source', async () => {
 		const failure = new Error('insert failed');
 		const { service, driveService } = createService({
-			suggestions: { insertOne: jest.fn(async () => { throw failure; }) },
+			transactionalSuggestions: { insert: jest.fn(async () => { throw failure; }) },
 		});
 
 		await expect(service.create({
@@ -256,11 +407,11 @@ describe('EmojiSuggestionService', () => {
 			isSensitive: false,
 		}, proposer)).rejects.toBe(failure);
 
-		expect(driveService.deleteFileSync).toHaveBeenCalledWith(emojiFile);
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
 	});
 
 	test('submission rejects local emojis as remote sources without copying them', async () => {
-		const { service, driveService, suggestions } = createService({
+		const { service, driveService, transactionalSuggestions } = createService({
 			customEmoji: {
 				emojisByIdCache: {
 					fetchMaybe: jest.fn(async () => ({ ...remoteEmoji, host: null })),
@@ -278,13 +429,14 @@ describe('EmojiSuggestionService', () => {
 			isSensitive: false,
 		}, proposer)).resolves.toEqual({ ok: false, reason: 'noSuchRemoteEmoji' });
 
-		expect(driveService.uploadFromUrlWithResult).not.toHaveBeenCalled();
-		expect(suggestions.insertOne).not.toHaveBeenCalled();
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
+		expect(transactionalSuggestions.insert).not.toHaveBeenCalled();
 	});
 
 	test('submission publishes a queue change to every active emoji reviewer', async () => {
 		const adminId = '9abc000007';
 		const { service, notificationService, roleService, globalEventService } = createService({
+			idValues: [suggestion.id],
 			roleService: { getModeratorIds: jest.fn(async () => [moderator.id, adminId]) },
 		});
 
@@ -312,6 +464,7 @@ describe('EmojiSuggestionService', () => {
 	test('a reviewer lookup failure does not discard a submitted suggestion', async () => {
 		const failure = new Error('role lookup failed');
 		const { service, logger, notificationService, globalEventService } = createService({
+			idValues: [suggestion.id],
 			roleService: { getModeratorIds: jest.fn(async () => { throw failure; }) },
 		});
 
@@ -323,7 +476,10 @@ describe('EmojiSuggestionService', () => {
 			license: null,
 			localOnly: false,
 			isSensitive: false,
-		}, proposer)).resolves.toEqual({ ok: true, value: { ...suggestion, user } });
+		}, proposer)).resolves.toEqual({
+			ok: true,
+			value: expect.objectContaining({ id: suggestion.id, user }),
+		});
 
 		expect(notificationService.createNotification).not.toHaveBeenCalled();
 		expect(globalEventService.publishAdminStream).not.toHaveBeenCalled();
@@ -332,34 +488,12 @@ describe('EmojiSuggestionService', () => {
 		);
 	});
 
-	test('a simultaneous duplicate submission returns a domain error', async () => {
-		const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
-		const duplicateError = new QueryFailedError('', [], driverError);
-		const { service } = createService({
-			suggestions: { insertOne: jest.fn(async () => { throw duplicateError; }) },
-		});
-
-		await expect(service.create({
-			name: suggestion.name,
-			fileId: file.id,
-			category: null,
-			aliases: [],
-			license: null,
-			localOnly: false,
-			isSensitive: false,
-		}, proposer)).resolves.toEqual({ ok: false, reason: 'duplicateSuggestion' });
-	});
-
 	test('acceptance consumes the suggestion and creates the emoji from a dedicated file', async () => {
 		const { service, suggestions, drive, customEmoji, driveService, notificationService, globalEventService, emoji } = createService();
 
 		await expect(service.accept(suggestion.id, reviewer)).resolves.toEqual({ ok: true, value: emoji });
 
-		expect(suggestions.delete).toHaveBeenCalledWith({
-			id: suggestion.id,
-			userId: user.id,
-			fileId: file.id,
-		});
+		expect(suggestions.delete).toHaveBeenCalledWith({ id: suggestion.id });
 		expect(driveService.uploadFromUrl).toHaveBeenCalledWith({
 			url: file.url,
 			user: null,
@@ -382,22 +516,63 @@ describe('EmojiSuggestionService', () => {
 		});
 		expect(globalEventService.publishAdminStream).toHaveBeenCalledWith(moderator.id, 'emojiSuggestionQueueChanged', {});
 		expect(drive.findOneBy).not.toHaveBeenCalled();
-		expect(suggestions.insert).not.toHaveBeenCalled();
+	});
+
+	test('acceptance downloads a remote suggestion only after it is consumed', async () => {
+		const acceptance = createService({
+			initialSuggestion: remoteSuggestion,
+		});
+		acceptance.driveService.uploadFromUrl.mockImplementation(async () => {
+			expect(acceptance.getStoredSuggestion()).toBeNull();
+			return emojiFile;
+		});
+
+		await expect(acceptance.service.accept(remoteSuggestion.id, reviewer)).resolves.toEqual({
+			ok: true,
+			value: acceptance.emoji,
+		});
+
+		expect(acceptance.suggestions.delete).toHaveBeenCalledWith({ id: remoteSuggestion.id });
+		expect(acceptance.driveService.uploadFromUrl).toHaveBeenCalledWith({
+			url: remoteEmoji.originalUrl,
+			user: null,
+			force: true,
+		});
+		expect(acceptance.customEmoji.createEmoji).toHaveBeenCalled();
+	});
+
+	test('acceptance restores a remote suggestion if its instance becomes blocked', async () => {
+		const { service, suggestions, driveService, getStoredSuggestion } = createService({
+			initialSuggestion: remoteSuggestion,
+			utilityService: { isBlockedHost: jest.fn(() => true) },
+		});
+
+		await expect(service.accept(remoteSuggestion.id, reviewer)).resolves.toEqual({
+			ok: false,
+			reason: 'noSuchRemoteEmoji',
+		});
+
+		expect(suggestions.insert).toHaveBeenCalledWith(expect.objectContaining({
+			id: remoteSuggestion.id,
+			remoteEmojiId: remoteEmoji.id,
+			remoteEmojiUrl: remoteEmoji.originalUrl,
+			remoteEmojiHost: remoteEmoji.host,
+		}));
+		expect(getStoredSuggestion()).toEqual(expect.objectContaining({ id: remoteSuggestion.id }));
+		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
 	});
 
 	test('a lost suggestion claim cannot create a second emoji', async () => {
-		const { service, customEmoji, suggestions, driveService } = createService({
+		const { service, customEmoji, driveService } = createService({
 			suggestions: { delete: jest.fn(async () => ({ affected: 0 })) },
 		});
 
 		await expect(service.accept(suggestion.id, reviewer)).resolves.toEqual({ ok: false, reason: 'noSuchSuggestion' });
 		expect(customEmoji.createEmoji).not.toHaveBeenCalled();
 		expect(driveService.uploadFromUrl).not.toHaveBeenCalled();
-		expect(suggestions.insert).not.toHaveBeenCalled();
 	});
 
-	test('cancellation cannot succeed after acceptance has consumed the suggestion', async () => {
-		let pending = true;
+	test('cancellation cannot succeed after acceptance consumes the suggestion', async () => {
 		let releaseCopy!: () => void;
 		let markCopyStarted!: () => void;
 		const copyStarted = new Promise<void>(resolve => {
@@ -407,13 +582,6 @@ describe('EmojiSuggestionService', () => {
 			releaseCopy = () => resolve(emojiFile);
 		});
 		const { service } = createService({
-			suggestions: {
-				delete: jest.fn(async () => {
-					if (!pending) return { affected: 0 };
-					pending = false;
-					return { affected: 1 };
-				}),
-			},
 			driveService: {
 				uploadFromUrl: jest.fn(async () => {
 					markCopyStarted();
@@ -426,37 +594,35 @@ describe('EmojiSuggestionService', () => {
 		await copyStarted;
 		await expect(service.cancel(suggestion.id, proposer)).resolves.toBe(false);
 		releaseCopy();
-		await expect(accepting).resolves.toEqual({ ok: true, value: expect.objectContaining({ id: '9abc000005' }) });
+		await expect(accepting).resolves.toEqual({ ok: true, value: expect.objectContaining({ id: '9abc000009' }) });
 	});
 
 	test('cancellation and rejection publish queue changes only after removal', async () => {
-		const { service, globalEventService } = createService();
+		const cancelled = createService();
+		const rejected = createService();
 
-		await expect(service.cancel(suggestion.id, proposer)).resolves.toBe(true);
-		await expect(service.reject(suggestion.id)).resolves.toBe(true);
+		await expect(cancelled.service.cancel(suggestion.id, proposer)).resolves.toBe(true);
+		await expect(rejected.service.reject(suggestion.id)).resolves.toBe(true);
 
-		expect(globalEventService.publishAdminStream).toHaveBeenCalledTimes(2);
+		expect(cancelled.globalEventService.publishAdminStream).toHaveBeenCalledTimes(1);
+		expect(rejected.globalEventService.publishAdminStream).toHaveBeenCalledTimes(1);
 	});
 
 	test('a failed emoji creation deletes its copy and restores the suggestion', async () => {
 		const failure = new Error('creation failed');
-		const { service, suggestions, driveService, notificationService } = createService({
+		const { service, suggestions, driveService, notificationService, getStoredSuggestion } = createService({
 			customEmoji: { createEmoji: jest.fn(async () => { throw failure; }) },
 		});
 
 		await expect(service.accept(suggestion.id, reviewer)).rejects.toBe(failure);
+
 		expect(driveService.deleteFile).toHaveBeenCalledWith(emojiFile, false, moderator);
-		expect(suggestions.insert).toHaveBeenCalledWith({
+		expect(suggestions.insert).toHaveBeenCalledWith(expect.objectContaining({
 			id: suggestion.id,
-			userId: user.id,
 			fileId: file.id,
-			name: suggestion.name,
-			category: suggestion.category,
-			aliases: suggestion.aliases,
-			license: suggestion.license,
-			localOnly: suggestion.localOnly,
-			isSensitive: suggestion.isSensitive,
-		});
+			remoteEmojiId: null,
+		}));
+		expect(getStoredSuggestion()).toEqual(expect.objectContaining({ id: suggestion.id }));
 		expect(notificationService.createNotification).not.toHaveBeenCalled();
 	});
 
@@ -479,8 +645,8 @@ describe('EmojiSuggestionService', () => {
 
 	test('a post-insert hook failure is treated as an accepted suggestion', async () => {
 		const failure = new Error('broadcast failed');
-		const insertedEmoji = { id: '9abc000005', name: suggestion.name, originalUrl: emojiFile.url };
-		const { service, suggestions, emojis, driveService, notificationService } = createService({
+		const insertedEmoji = { id: '9abc000009', name: suggestion.name, originalUrl: emojiFile.url };
+		const { service, emojis, driveService, notificationService } = createService({
 			emojis: { findOneBy: jest.fn(async () => insertedEmoji) },
 			customEmoji: { createEmoji: jest.fn(async () => { throw failure; }) },
 		});
@@ -488,11 +654,10 @@ describe('EmojiSuggestionService', () => {
 		await expect(service.accept(suggestion.id, reviewer)).resolves.toEqual({ ok: true, value: insertedEmoji });
 		expect(emojis.findOneBy).toHaveBeenCalledWith({
 			name: suggestion.name,
-			host: IsNull(),
+			host: expect.anything(),
 			originalUrl: emojiFile.url,
 		});
 		expect(driveService.deleteFile).not.toHaveBeenCalled();
-		expect(suggestions.insert).not.toHaveBeenCalled();
 		expect(notificationService.createNotification).toHaveBeenCalledWith(user.id, 'emojiSuggestionAccepted', {
 			emojiName: suggestion.name,
 		});

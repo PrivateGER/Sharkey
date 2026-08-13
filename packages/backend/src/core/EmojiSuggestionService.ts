@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { IsNull } from 'typeorm';
+import { IsNull, type DataSource } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type {
 	DriveFilesRepository,
@@ -15,6 +15,7 @@ import type {
 	MiEmojiSuggestion,
 	MiUser,
 } from '@/models/_.js';
+import { MiEmojiSuggestion as EmojiSuggestion } from '@/models/EmojiSuggestion.js';
 import { FILE_TYPE_IMAGE } from '@/const.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
@@ -24,6 +25,7 @@ import { NotificationService } from '@/core/NotificationService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import type Logger from '@/logger.js';
@@ -70,12 +72,15 @@ export class EmojiSuggestionService {
 
 		@Inject(DI.emojisRepository)
 		private readonly emojisRepository: EmojisRepository,
+		@Inject(DI.db)
+		private readonly db: DataSource,
 
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly driveService: DriveService,
 		private readonly notificationService: NotificationService,
 		private readonly roleService: RoleService,
 		private readonly globalEventService: GlobalEventService,
+		private readonly utilityService: UtilityService,
 		private readonly idService: IdService,
 		loggerService: LoggerService,
 	) {
@@ -89,15 +94,7 @@ export class EmojiSuggestionService {
 	): Promise<EmojiSuggestionResult<MiEmojiSuggestion>> {
 		const name = options.name.normalize('NFC');
 		let file: MiDriveFile | null = null;
-		let remoteSource: { url: string; isSensitive: boolean } | null = null;
-		let remoteFileIsNew = false;
-
-		const cleanupRemoteFile = async () => {
-			if (!remoteFileIsNew || file == null) return;
-
-			await this.driveService.deleteFileSync(file);
-			remoteFileIsNew = false;
-		};
+		let remoteSource: { id: string; url: string; host: string } | null = null;
 
 		if (options.fileId != null) {
 			file = await this.driveFilesRepository.findOneBy({
@@ -105,92 +102,91 @@ export class EmojiSuggestionService {
 				userId: user.id,
 			});
 			if (file == null) return { ok: false, reason: 'noSuchFile' };
+			if (!FILE_TYPE_IMAGE.includes(file.type)) return { ok: false, reason: 'unsupportedFileType' };
 		} else {
 			const emoji = await this.customEmojiService.emojisByIdCache.fetchMaybe(options.remoteEmojiId);
-			if (emoji == null || emoji.host == null) return { ok: false, reason: 'noSuchRemoteEmoji' };
+			if (
+				emoji == null ||
+				emoji.host == null ||
+				this.utilityService.isBlockedHost(emoji.host)
+			) {
+				return { ok: false, reason: 'noSuchRemoteEmoji' };
+			}
+			if (emoji.type != null && !FILE_TYPE_IMAGE.includes(emoji.type)) {
+				return { ok: false, reason: 'unsupportedFileType' };
+			}
 			remoteSource = {
+				id: emoji.id,
 				url: emoji.originalUrl,
-				isSensitive: emoji.isSensitive,
+				host: emoji.host,
 			};
 		}
 
-		const [isDuplicateName, pendingCount, duplicateSuggestion] = await Promise.all([
-			this.customEmojiService.checkDuplicate(name),
-			this.emojiSuggestionsRepository.countBy({ userId: user.id }),
-			this.emojiSuggestionsRepository.exists({
-				where: file == null ? { name } : [
-					{ name },
-					{ fileId: file.id },
-				],
-			}),
-		]);
-		if (isDuplicateName) return { ok: false, reason: 'duplicateName' };
-		if (pendingCount >= MAX_PENDING_EMOJI_SUGGESTIONS) return { ok: false, reason: 'tooManyPendingSuggestions' };
-		if (duplicateSuggestion) return { ok: false, reason: 'duplicateSuggestion' };
-
-		if (remoteSource != null) {
-			const upload = await this.driveService.uploadFromUrlWithResult({
-				url: remoteSource.url,
-				user,
-				sensitive: remoteSource.isSensitive,
-			});
-			file = upload.file;
-			remoteFileIsNew = upload.isNew;
+		if (await this.customEmojiService.checkDuplicate(name)) {
+			return { ok: false, reason: 'duplicateName' };
 		}
 
-		if (file == null) return { ok: false, reason: 'noSuchFile' };
-		let duplicateFile: boolean;
+		const suggestionId = this.idService.gen();
+		let rejection: EmojiSuggestionError | null = null;
 		try {
-			duplicateFile = await this.emojiSuggestionsRepository.exists({ where: { fileId: file.id } });
-		} catch (error) {
-			try {
-				await cleanupRemoteFile();
-			} catch (cleanupError) {
-				throw new AggregateError([error, cleanupError]);
-			}
-			throw error;
-		}
+			await this.db.transaction(async manager => {
+				// The lock makes the per-user cap exact without holding a transaction
+				// during remote I/O; remote suggestions are not fetched on submission.
+				await manager.query(
+					'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+					[`emoji-suggestion:${user.id}`],
+				);
+				const repository = manager.getRepository(EmojiSuggestion);
+				const pendingCount = await repository.countBy({ userId: user.id });
+				if (pendingCount >= MAX_PENDING_EMOJI_SUGGESTIONS) {
+					rejection = 'tooManyPendingSuggestions';
+					return;
+				}
 
-		if (duplicateFile) {
-			await cleanupRemoteFile();
-			return { ok: false, reason: 'duplicateSuggestion' };
-		}
-		if (!FILE_TYPE_IMAGE.includes(file.type)) {
-			await cleanupRemoteFile();
-			return { ok: false, reason: 'unsupportedFileType' };
-		}
+				const duplicateSuggestion = await repository.exists({
+					where: file != null ? [
+						{ name },
+						{ fileId: file.id },
+					] : [
+						{ name },
+						{ remoteEmojiId: remoteSource!.id },
+					],
+				});
+				if (duplicateSuggestion) {
+					rejection = 'duplicateSuggestion';
+					return;
+				}
 
-		let suggestion: MiEmojiSuggestion;
-		try {
-			suggestion = await this.emojiSuggestionsRepository.insertOne({
-				id: this.idService.gen(),
-				userId: user.id,
-				fileId: file.id,
-				name,
-				category: options.category?.normalize('NFC') ?? null,
-				aliases: options.aliases.map(alias => alias.normalize('NFC')),
-				license: options.license,
-				localOnly: options.localOnly,
-				isSensitive: options.isSensitive,
-			}, {
-				relations: {
-					file: true,
-					user: true,
-				},
+				await repository.insert({
+					id: suggestionId,
+					userId: user.id,
+					fileId: file?.id ?? null,
+					remoteEmojiId: remoteSource?.id ?? null,
+					remoteEmojiUrl: remoteSource?.url ?? null,
+					remoteEmojiHost: remoteSource?.host ?? null,
+					name,
+					category: options.category?.normalize('NFC') ?? null,
+					aliases: options.aliases.map(alias => alias.normalize('NFC')),
+					license: options.license,
+					localOnly: options.localOnly,
+					isSensitive: options.isSensitive,
+				});
 			});
 		} catch (error) {
-			try {
-				await cleanupRemoteFile();
-			} catch (cleanupError) {
-				throw new AggregateError([error, cleanupError]);
-			}
-
-			// The preflight check gives a useful early response, while the unique
-			// constraints close the race between simultaneous submissions.
+			// The transaction checks give useful responses, while the unique
+			// constraints close races with submissions by other users.
 			if (isDuplicateKeyValueError(error)) return { ok: false, reason: 'duplicateSuggestion' };
 			throw error;
 		}
+		if (rejection != null) return { ok: false, reason: rejection };
 
+		const suggestion = await this.emojiSuggestionsRepository.findOneOrFail({
+			where: { id: suggestionId },
+			relations: {
+				file: true,
+				user: true,
+			},
+		});
 		await this.publishQueueChanged();
 
 		return { ok: true, value: suggestion };
@@ -215,20 +211,19 @@ export class EmojiSuggestionService {
 			return { ok: true, value: emoji };
 		};
 
-		// Consume the suggestion before doing any work. This makes acceptance,
+		// Consume the suggestion before doing any work. This keeps acceptance,
 		// cancellation, rejection, and another acceptance mutually exclusive.
-		const claimed = await this.emojiSuggestionsRepository.delete({
-			id: suggestion.id,
-			userId: suggestion.userId,
-			fileId: suggestion.fileId,
-		});
+		const claimed = await this.emojiSuggestionsRepository.delete({ id: suggestion.id });
 		if (claimed.affected !== 1) return { ok: false, reason: 'noSuchSuggestion' };
 
-		const restoreSuggestion = async () => {
+		const restoreSuggestion = async (): Promise<void> => {
 			await this.emojiSuggestionsRepository.insert({
 				id: suggestion.id,
 				userId: suggestion.userId,
 				fileId: suggestion.fileId,
+				remoteEmojiId: suggestion.remoteEmojiId,
+				remoteEmojiUrl: suggestion.remoteEmojiUrl,
+				remoteEmojiHost: suggestion.remoteEmojiHost,
 				name: suggestion.name,
 				category: suggestion.category,
 				aliases: suggestion.aliases,
@@ -237,6 +232,20 @@ export class EmojiSuggestionService {
 				isSensitive: suggestion.isSensitive,
 			});
 		};
+
+		if (
+			suggestion.remoteEmojiHost != null &&
+			this.utilityService.isBlockedHost(suggestion.remoteEmojiHost)
+		) {
+			await restoreSuggestion();
+			return { ok: false, reason: 'noSuchRemoteEmoji' };
+		}
+
+		const sourceUrl = suggestion.file?.url ?? suggestion.remoteEmojiUrl;
+		if (sourceUrl == null) {
+			await restoreSuggestion();
+			return { ok: false, reason: 'noSuchSuggestion' };
+		}
 
 		let isDuplicate: boolean;
 		try {
@@ -252,14 +261,21 @@ export class EmojiSuggestionService {
 
 		let emojiFile: MiDriveFile | undefined;
 		try {
-			// A suggestion may reference an avatar, banner, page image, or other
-			// shared Drive row. Give the emoji its own system-owned copy so its
-			// lifecycle cannot mutate or delete the proposer's original file.
+			// Give the emoji its own system-owned file. Local suggestions may
+			// reference shared Drive rows; remote suggestions are fetched only
+			// after a moderator accepts them.
 			emojiFile = await this.driveService.uploadFromUrl({
-				url: suggestion.file.url,
+				url: sourceUrl,
 				user: null,
 				force: true,
 			});
+
+			if (!FILE_TYPE_IMAGE.includes(emojiFile.type)) {
+				await this.driveService.deleteFile(emojiFile, false, moderator);
+				emojiFile = undefined;
+				await restoreSuggestion();
+				return { ok: false, reason: 'unsupportedFileType' };
+			}
 
 			const emoji = await this.customEmojiService.createEmoji({
 				originalUrl: emojiFile.url,

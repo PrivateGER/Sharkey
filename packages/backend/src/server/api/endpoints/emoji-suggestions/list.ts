@@ -34,7 +34,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				ps.sinceId,
 				ps.untilId,
 			)
-				.innerJoinAndSelect('suggestion.file', 'file')
+				.leftJoinAndSelect('suggestion.file', 'file')
 				.innerJoinAndSelect('suggestion.user', 'user')
 				.andWhere('suggestion.userId = :userId', { userId: me.id });
 

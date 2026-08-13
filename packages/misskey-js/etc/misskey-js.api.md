@@ -125,6 +125,9 @@ type AdminAnnouncementsListResponse = operations['admin___announcements___list']
 type AdminAnnouncementsUpdateRequest = operations['admin___announcements___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminAntennasGlobalResponse = operations['admin___antennas___global']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminApproveUserRequest = operations['admin___approve-user']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -231,6 +234,21 @@ type AdminEmojiSetCategoryBulkRequest = operations['admin___emoji___set-category
 
 // @public (undocumented)
 type AdminEmojiSetLicenseBulkRequest = operations['admin___emoji___set-license-bulk']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminEmojiSuggestionsAcceptRequest = operations['admin___emoji-suggestions___accept']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminEmojiSuggestionsAcceptResponse = operations['admin___emoji-suggestions___accept']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminEmojiSuggestionsListRequest = operations['admin___emoji-suggestions___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminEmojiSuggestionsListResponse = operations['admin___emoji-suggestions___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminEmojiSuggestionsRejectRequest = operations['admin___emoji-suggestions___reject']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type AdminEmojiUpdateRequest = operations['admin___emoji___update']['requestBody']['content']['application/json'];
@@ -894,6 +912,7 @@ export type Channels = {
                 reporterId: string;
                 comment: string;
             };
+            emojiSuggestionQueueChanged: Record<string, never>;
         };
         receives: null;
     };
@@ -1345,6 +1364,12 @@ type DriveFilesFindRequest = operations['drive___files___find']['requestBody']['
 type DriveFilesFindResponse = operations['drive___files___find']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type DriveFilesGenerateAltTextRequest = operations['drive___files___generate-alt-text']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type DriveFilesGenerateAltTextResponse = operations['drive___files___generate-alt-text']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type DriveFilesRequest = operations['drive___files']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1433,6 +1458,12 @@ type EmojiDetailed = components['schemas']['EmojiDetailed'];
 type EmojiDetailedAdmin = components['schemas']['EmojiDetailedAdmin'];
 
 // @public (undocumented)
+type EmojiListRemoteRequest = operations['emoji___list-remote']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type EmojiListRemoteResponse = operations['emoji___list-remote']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type EmojiRequest = operations['emoji']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1443,6 +1474,32 @@ type EmojiSimple = components['schemas']['EmojiSimple'];
 
 // @public (undocumented)
 type EmojisResponse = operations['emojis']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type EmojiSuggestion = components['schemas']['EmojiSuggestion'];
+
+// @public (undocumented)
+type EmojiSuggestionsCancelRequest = operations['emoji-suggestions___cancel']['requestBody']['content']['application/json'];
+
+// Warning: (ae-forgotten-export) The symbol "EmojiSuggestionCreateMetadata" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+type EmojiSuggestionsCreateRequest_2 = EmojiSuggestionCreateMetadata & ({
+    fileId: string;
+    remoteEmojiId?: never;
+} | {
+    fileId?: never;
+    remoteEmojiId: string;
+});
+
+// @public (undocumented)
+type EmojiSuggestionsCreateResponse = operations['emoji-suggestions___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type EmojiSuggestionsListRequest = operations['emoji-suggestions___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type EmojiSuggestionsListResponse = operations['emoji-suggestions___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type EmojiUpdated = {
@@ -1516,6 +1573,10 @@ export type Endpoints = Overwrite<Endpoints_2, {
         }>;
         res: AdminRolesCreateResponse;
     };
+    'emoji-suggestions/create': {
+        req: EmojiSuggestionsCreateRequest_2;
+        res: Endpoints_2['emoji-suggestions/create']['res'];
+    };
 }>;
 
 // @public (undocumented)
@@ -1523,6 +1584,7 @@ type EndpointsResponse = operations['endpoints']['responses']['200']['content'][
 
 declare namespace entities {
     export {
+        EmojiSuggestionsCreateRequest_2 as EmojiSuggestionsCreateRequest,
         ID,
         DateString,
         PureRenote,
@@ -1578,6 +1640,7 @@ declare namespace entities {
         AdminAnnouncementsListRequest,
         AdminAnnouncementsListResponse,
         AdminAnnouncementsUpdateRequest,
+        AdminAntennasGlobalResponse,
         AdminApproveUserRequest,
         AdminAvatarDecorationsCreateRequest,
         AdminAvatarDecorationsCreateResponse,
@@ -1598,6 +1661,11 @@ declare namespace entities {
         AdminDriveFilesResponse,
         AdminDriveShowFileRequest,
         AdminDriveShowFileResponse,
+        AdminEmojiSuggestionsAcceptRequest,
+        AdminEmojiSuggestionsAcceptResponse,
+        AdminEmojiSuggestionsListRequest,
+        AdminEmojiSuggestionsListResponse,
+        AdminEmojiSuggestionsRejectRequest,
         AdminEmojiAddRequest,
         AdminEmojiAddResponse,
         AdminEmojiAddAliasesBulkRequest,
@@ -1854,6 +1922,8 @@ declare namespace entities {
         DriveFilesFindResponse,
         DriveFilesFindByHashRequest,
         DriveFilesFindByHashResponse,
+        DriveFilesGenerateAltTextRequest,
+        DriveFilesGenerateAltTextResponse,
         DriveFilesShowRequest,
         DriveFilesShowResponse,
         DriveFilesUpdateRequest,
@@ -1876,6 +1946,12 @@ declare namespace entities {
         EmailAddressAvailableResponse,
         EmojiRequest,
         EmojiResponse,
+        EmojiSuggestionsCancelRequest,
+        EmojiSuggestionsCreateResponse,
+        EmojiSuggestionsListRequest,
+        EmojiSuggestionsListResponse,
+        EmojiListRemoteRequest,
+        EmojiListRemoteResponse,
         EmojisResponse,
         EndpointRequest,
         EndpointResponse,
@@ -2168,6 +2244,8 @@ declare namespace entities {
         SwUpdateRegistrationResponse,
         TestRequest,
         TestResponse,
+        TopPostsRequest,
+        TopPostsResponse,
         UsernameAvailableRequest,
         UsernameAvailableResponse,
         UsersRequest,
@@ -2268,6 +2346,7 @@ declare namespace entities {
         EmojiSimple,
         EmojiDetailed,
         EmojiDetailedAdmin,
+        EmojiSuggestion,
         Flash,
         Signin,
         RoleCondFormulaLogics,
@@ -3467,7 +3546,7 @@ type Notification = components['schemas']['Notification'];
 type NotificationsCreateRequest = operations['notifications___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
-export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollVote", "pollEnded", "receiveFollowRequest", "followRequestAccepted", "groupInvited", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "edited", "scheduledNoteFailed", "scheduledNotePosted"];
+export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollVote", "pollEnded", "receiveFollowRequest", "followRequestAccepted", "groupInvited", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "emojiSuggestionAccepted", "edited", "scheduledNoteFailed", "scheduledNotePosted"];
 
 // @public (undocumented)
 export function nyaize(text: string): string;
@@ -3530,7 +3609,7 @@ type PartialRolePolicyOverride = Partial<{
 }>;
 
 // @public (undocumented)
-export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "read:admin:abuse-report:notification-recipient", "write:admin:abuse-report:notification-recipient", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:cw-note", "write:admin:cw-instance", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:restart-migration", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
+export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notes-schedule", "write:notes-schedule", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "read:admin:abuse-report:notification-recipient", "write:admin:abuse-report:notification-recipient", "write:admin:send-email", "read:admin:antennas", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:approve-user", "write:admin:decline-user", "write:admin:nsfw-user", "write:admin:unnsfw-user", "write:admin:cw-user", "write:admin:cw-note", "write:admin:cw-instance", "write:admin:silence-user", "write:admin:unsilence-user", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:reject-quotes", "write:admin:restart-migration", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
 
 // @public (undocumented)
 type PingResponse = operations['ping']['responses']['200']['content']['application/json'];
@@ -3884,6 +3963,12 @@ type TestRequest = operations['test']['requestBody']['content']['application/jso
 type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type TopPostsRequest = operations['top-posts']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TopPostsResponse = operations['top-posts']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 function toString(acct: Acct, lower?: boolean): string;
 
 // @public (undocumented)
@@ -4080,9 +4165,9 @@ type V2AdminEmojiListResponse = operations['v2___admin___emoji___list']['respons
 
 // Warnings were encountered during analysis:
 //
-// built/entities.d.ts:32:5 - (ae-forgotten-export) The symbol "ModerationLogPayloads" needs to be exported by the entry point index.d.ts
-// built/streaming.types.d.ts:217:13 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// built/streaming.types.d.ts:231:13 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// built/entities.d.ts:47:5 - (ae-forgotten-export) The symbol "ModerationLogPayloads" needs to be exported by the entry point index.d.ts
+// built/streaming.types.d.ts:218:13 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// built/streaming.types.d.ts:232:13 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

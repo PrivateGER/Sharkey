@@ -24,14 +24,31 @@ export class MiEmojiSuggestion {
 	public user: MiUser;
 
 	@Index('IDX_emoji_suggestion_file', { unique: true })
-	@Column(id())
-	public fileId: MiDriveFile['id'];
+	@Column({ ...id(), nullable: true })
+	public fileId: MiDriveFile['id'] | null;
 
 	@ManyToOne(() => MiDriveFile, {
 		onDelete: 'CASCADE',
+		nullable: true,
 	})
 	@JoinColumn()
-	public file: MiDriveFile;
+	public file: MiDriveFile | null;
+
+	@Index('IDX_emoji_suggestion_remote_emoji', { unique: true })
+	@Column({ ...id(), nullable: true })
+	public remoteEmojiId: string | null;
+
+	@Column('varchar', {
+		length: 512,
+		nullable: true,
+	})
+	public remoteEmojiUrl: string | null;
+
+	@Column('varchar', {
+		length: 128,
+		nullable: true,
+	})
+	public remoteEmojiHost: string | null;
 
 	@Index('IDX_emoji_suggestion_name', { unique: true })
 	@Column('varchar', {
