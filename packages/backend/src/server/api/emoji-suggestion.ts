@@ -16,6 +16,11 @@ export const emojiSuggestionErrors = {
 		code: 'UNSUPPORTED_FILE_TYPE',
 		id: '63a9ff92-f992-4bc9-9d43-9fe1ea0ea3ec',
 	},
+	noSuchRemoteEmoji: {
+		message: 'No such remote emoji.',
+		code: 'NO_SUCH_REMOTE_EMOJI',
+		id: '413b2a5e-c6f5-47cf-b7ad-bb18d5eec9e9',
+	},
 	duplicateName: {
 		message: 'An emoji with this name already exists.',
 		code: 'DUPLICATE_NAME',
@@ -47,6 +52,7 @@ export const emojiSuggestionParamDef = {
 	properties: {
 		name: { type: 'string', maxLength: 128, pattern: '^[\\p{Letter}\\p{Number}\\p{Mark}_+-]+$' },
 		fileId: { type: 'string', format: 'misskey:id' },
+		remoteEmojiId: { type: 'string', format: 'misskey:id' },
 		category: { type: 'string', nullable: true, maxLength: 128 },
 		aliases: {
 			type: 'array',
@@ -57,7 +63,11 @@ export const emojiSuggestionParamDef = {
 		isSensitive: { type: 'boolean' },
 		localOnly: { type: 'boolean' },
 	},
-	required: ['name', 'fileId'],
+	required: ['name'],
+	oneOf: [
+		{ required: ['fileId'] },
+		{ required: ['remoteEmojiId'] },
+	],
 } as const;
 
 export const emojiSuggestionListParamDef = {

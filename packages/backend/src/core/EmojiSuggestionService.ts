@@ -34,6 +34,7 @@ export type EmojiSuggestionError =
 	| 'duplicateName'
 	| 'duplicateSuggestion'
 	| 'noSuchFile'
+	| 'noSuchRemoteEmoji'
 	| 'noSuchSuggestion'
 	| 'tooManyPendingSuggestions'
 	| 'unsupportedFileType';
@@ -42,15 +43,19 @@ export type EmojiSuggestionResult<T> =
 	| { ok: true, value: T }
 	| { ok: false, reason: EmojiSuggestionError };
 
-export type CreateEmojiSuggestionOptions = {
+type CreateEmojiSuggestionBaseOptions = {
 	name: string;
-	fileId: string;
 	category: string | null;
 	aliases: string[];
 	license: string | null;
 	localOnly: boolean;
 	isSensitive: boolean;
 };
+
+export type CreateEmojiSuggestionOptions = CreateEmojiSuggestionBaseOptions & (
+	| { fileId: string; remoteEmojiId?: never }
+	| { fileId?: never; remoteEmojiId: string }
+);
 
 @Injectable()
 export class EmojiSuggestionService {
@@ -83,25 +88,77 @@ export class EmojiSuggestionService {
 		user: MiUser,
 	): Promise<EmojiSuggestionResult<MiEmojiSuggestion>> {
 		const name = options.name.normalize('NFC');
-		const file = await this.driveFilesRepository.findOneBy({
-			id: options.fileId,
-			userId: user.id,
-		});
-		if (file == null) return { ok: false, reason: 'noSuchFile' };
-		if (!FILE_TYPE_IMAGE.includes(file.type)) return { ok: false, reason: 'unsupportedFileType' };
-		if (await this.customEmojiService.checkDuplicate(name)) return { ok: false, reason: 'duplicateName' };
+		let file: MiDriveFile | null = null;
+		let remoteSource: { url: string; isSensitive: boolean } | null = null;
+		let remoteFileIsNew = false;
 
-		const [pendingCount, duplicateSuggestion] = await Promise.all([
+		const cleanupRemoteFile = async () => {
+			if (!remoteFileIsNew || file == null) return;
+
+			await this.driveService.deleteFileSync(file);
+			remoteFileIsNew = false;
+		};
+
+		if (options.fileId != null) {
+			file = await this.driveFilesRepository.findOneBy({
+				id: options.fileId,
+				userId: user.id,
+			});
+			if (file == null) return { ok: false, reason: 'noSuchFile' };
+		} else {
+			const emoji = await this.customEmojiService.emojisByIdCache.fetchMaybe(options.remoteEmojiId);
+			if (emoji == null || emoji.host == null) return { ok: false, reason: 'noSuchRemoteEmoji' };
+			remoteSource = {
+				url: emoji.originalUrl,
+				isSensitive: emoji.isSensitive,
+			};
+		}
+
+		const [isDuplicateName, pendingCount, duplicateSuggestion] = await Promise.all([
+			this.customEmojiService.checkDuplicate(name),
 			this.emojiSuggestionsRepository.countBy({ userId: user.id }),
 			this.emojiSuggestionsRepository.exists({
-				where: [
-					{ userId: user.id, name },
+				where: file == null ? { name } : [
+					{ name },
 					{ fileId: file.id },
 				],
 			}),
 		]);
+		if (isDuplicateName) return { ok: false, reason: 'duplicateName' };
 		if (pendingCount >= MAX_PENDING_EMOJI_SUGGESTIONS) return { ok: false, reason: 'tooManyPendingSuggestions' };
 		if (duplicateSuggestion) return { ok: false, reason: 'duplicateSuggestion' };
+
+		if (remoteSource != null) {
+			const upload = await this.driveService.uploadFromUrlWithResult({
+				url: remoteSource.url,
+				user,
+				sensitive: remoteSource.isSensitive,
+			});
+			file = upload.file;
+			remoteFileIsNew = upload.isNew;
+		}
+
+		if (file == null) return { ok: false, reason: 'noSuchFile' };
+		let duplicateFile: boolean;
+		try {
+			duplicateFile = await this.emojiSuggestionsRepository.exists({ where: { fileId: file.id } });
+		} catch (error) {
+			try {
+				await cleanupRemoteFile();
+			} catch (cleanupError) {
+				throw new AggregateError([error, cleanupError]);
+			}
+			throw error;
+		}
+
+		if (duplicateFile) {
+			await cleanupRemoteFile();
+			return { ok: false, reason: 'duplicateSuggestion' };
+		}
+		if (!FILE_TYPE_IMAGE.includes(file.type)) {
+			await cleanupRemoteFile();
+			return { ok: false, reason: 'unsupportedFileType' };
+		}
 
 		let suggestion: MiEmojiSuggestion;
 		try {
@@ -122,6 +179,12 @@ export class EmojiSuggestionService {
 				},
 			});
 		} catch (error) {
+			try {
+				await cleanupRemoteFile();
+			} catch (cleanupError) {
+				throw new AggregateError([error, cleanupError]);
+			}
+
 			// The preflight check gives a useful early response, while the unique
 			// constraints close the race between simultaneous submissions.
 			if (isDuplicateKeyValueError(error)) return { ok: false, reason: 'duplicateSuggestion' };

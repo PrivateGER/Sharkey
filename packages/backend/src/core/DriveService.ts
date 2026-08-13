@@ -92,6 +92,11 @@ type UploadFromUrlArgs = {
 	isForImport?: boolean;
 };
 
+type AddFileResult = {
+	file: MiDriveFile;
+	isNew: boolean;
+};
+
 @Injectable()
 export class DriveService {
 	public static NoSuchFolderError = class extends Error {};
@@ -492,7 +497,11 @@ export class DriveService {
 	 *
 	 */
 	@bindThis
-	public async addFile({
+	public async addFile(args: AddFileArgs): Promise<MiDriveFile> {
+		return (await this.addFileWithResult(args)).file;
+	}
+
+	private async addFileWithResult({
 		user,
 		path,
 		name = null,
@@ -506,7 +515,7 @@ export class DriveService {
 		requestIp = null,
 		requestHeaders = null,
 		ext = null,
-	}: AddFileArgs): Promise<MiDriveFile> {
+	}: AddFileArgs): Promise<AddFileResult> {
 		const userRoleNSFW = user && (await this.roleService.getUserPolicies(user.id)).alwaysMarkNsfw;
 		const info = await this.fileInfoService.getFileInfo(path);
 
@@ -535,7 +544,7 @@ export class DriveService {
 					await this.driveFilesRepository.update({ id: matched.id }, { isSensitive: true });
 					matched.isSensitive = true;
 				}
-				return matched;
+				return { file: matched, isNew: false };
 			}
 		}
 
@@ -645,6 +654,8 @@ export class DriveService {
 			file.uri = uri;
 		}
 
+		let isNew = true;
+
 		if (isLink) {
 			try {
 				file.size = 0;
@@ -657,6 +668,7 @@ export class DriveService {
 			} catch (err) {
 			// duplicate key error (when already registered)
 				if (isDuplicateKeyValueError(err)) {
+					isNew = false;
 					this.registerLogger.debug(`already registered ${file.uri}`);
 
 					file = await this.driveFilesRepository.findOneBy({
@@ -692,7 +704,7 @@ export class DriveService {
 			}
 		}
 
-		return file;
+		return { file, isNew };
 	}
 
 	@bindThis
@@ -875,7 +887,12 @@ export class DriveService {
 	}
 
 	@bindThis
-	public async uploadFromUrl({
+	public async uploadFromUrl(args: UploadFromUrlArgs): Promise<MiDriveFile> {
+		return (await this.uploadFromUrlWithResult(args)).file;
+	}
+
+	@bindThis
+	public async uploadFromUrlWithResult({
 		url,
 		user,
 		folderId = null,
@@ -887,7 +904,7 @@ export class DriveService {
 		requestIp = null,
 		requestHeaders = null,
 		isForImport = false,
-	}: UploadFromUrlArgs): Promise<MiDriveFile> {
+	}: UploadFromUrlArgs): Promise<AddFileResult> {
 		// Create temp file
 		const [path, cleanup] = await createTemp();
 
@@ -904,9 +921,9 @@ export class DriveService {
 				comment = null;
 			}
 
-			const driveFile = await this.addFile({ user, path, name, comment, folderId, force, isLink, url, uri, sensitive, requestIp, requestHeaders });
-			this.downloaderLogger.debug(`Upload succeeded: created file ${driveFile.id}`);
-			return driveFile!;
+			const result = await this.addFileWithResult({ user, path, name, comment, folderId, force, isLink, url, uri, sensitive, requestIp, requestHeaders });
+			this.downloaderLogger.debug(`Upload succeeded: created file ${result.file.id}`);
+			return result;
 		} catch (err) {
 			this.downloaderLogger.error(`Failed to create drive file from ${url}: ${renderInlineError(err)}`);
 			throw err;

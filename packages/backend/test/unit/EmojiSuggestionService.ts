@@ -30,6 +30,13 @@ describe('EmojiSuggestionService', () => {
 		url: 'https://example.test/emoji-original.png',
 		webpublicUrl: 'https://example.test/emoji-public.webp',
 	};
+	const remoteEmoji = {
+		id: '9abc000008',
+		name: 'party_blob',
+		host: 'remote.example',
+		originalUrl: 'https://remote.example/emoji.png',
+		isSensitive: true,
+	};
 	const suggestion = {
 		id: '9abc000004',
 		userId: user.id,
@@ -74,11 +81,16 @@ describe('EmojiSuggestionService', () => {
 		const customEmoji = {
 			checkDuplicate: jest.fn(async () => false),
 			createEmoji: jest.fn(async () => emoji),
+			emojisByIdCache: {
+				fetchMaybe: jest.fn(async () => remoteEmoji),
+			},
 			...overrides?.customEmoji,
 		};
 		const driveService = {
 			uploadFromUrl: jest.fn(async () => emojiFile),
+			uploadFromUrlWithResult: jest.fn(async () => ({ file: emojiFile, isNew: true })),
 			deleteFile: jest.fn(async () => undefined),
+			deleteFileSync: jest.fn(async () => undefined),
 			...overrides?.driveService,
 		};
 		const notificationService = {
@@ -130,6 +142,143 @@ describe('EmojiSuggestionService', () => {
 		}, proposer)).resolves.toEqual({ ok: false, reason: 'noSuchFile' });
 
 		expect(drive.findOneBy).toHaveBeenCalledWith({ id: file.id, userId: user.id });
+		expect(suggestions.insertOne).not.toHaveBeenCalled();
+	});
+
+	test('submission can copy a cached remote emoji into the proposer Drive', async () => {
+		const remoteFile = {
+			...file,
+			id: '9abc000009',
+			url: 'https://example.test/copied-remote.png',
+			isSensitive: true,
+		};
+		const { service, driveService, suggestions } = createService({
+			driveService: { uploadFromUrlWithResult: jest.fn(async () => ({ file: remoteFile, isNew: true })) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: suggestion.category,
+			aliases: suggestion.aliases,
+			license: suggestion.license,
+			localOnly: false,
+			isSensitive: true,
+		}, proposer)).resolves.toEqual({ ok: true, value: { ...suggestion, user } });
+
+		expect(driveService.uploadFromUrlWithResult).toHaveBeenCalledWith({
+			url: remoteEmoji.originalUrl,
+			user: proposer,
+			sensitive: true,
+		});
+		expect(suggestions.insertOne).toHaveBeenCalledWith(
+			expect.objectContaining({ userId: user.id, fileId: remoteFile.id }),
+			expect.anything(),
+		);
+	});
+
+	test('a rejected remote image removes its newly created Drive copy', async () => {
+		const unsupportedFile = { ...emojiFile, type: 'application/octet-stream' };
+		const { service, driveService, suggestions } = createService({
+			driveService: {
+				uploadFromUrlWithResult: jest.fn(async () => ({ file: unsupportedFile, isNew: true })),
+			},
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'unsupportedFileType' });
+
+		expect(driveService.deleteFileSync).toHaveBeenCalledWith(unsupportedFile);
+		expect(suggestions.insertOne).not.toHaveBeenCalled();
+	});
+
+	test('a rejected remote image preserves a deduplicated Drive file', async () => {
+		const unsupportedFile = { ...emojiFile, type: 'application/octet-stream' };
+		const { service, driveService } = createService({
+			driveService: {
+				uploadFromUrlWithResult: jest.fn(async () => ({ file: unsupportedFile, isNew: false })),
+			},
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'unsupportedFileType' });
+
+		expect(driveService.deleteFileSync).not.toHaveBeenCalled();
+	});
+
+	test('a simultaneous remote duplicate removes its new Drive copy', async () => {
+		const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
+		const duplicateError = new QueryFailedError('', [], driverError);
+		const { service, driveService } = createService({
+			suggestions: { insertOne: jest.fn(async () => { throw duplicateError; }) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'duplicateSuggestion' });
+
+		expect(driveService.deleteFileSync).toHaveBeenCalledWith(emojiFile);
+	});
+
+	test('a remote suggestion insert failure removes its new Drive copy', async () => {
+		const failure = new Error('insert failed');
+		const { service, driveService } = createService({
+			suggestions: { insertOne: jest.fn(async () => { throw failure; }) },
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).rejects.toBe(failure);
+
+		expect(driveService.deleteFileSync).toHaveBeenCalledWith(emojiFile);
+	});
+
+	test('submission rejects local emojis as remote sources without copying them', async () => {
+		const { service, driveService, suggestions } = createService({
+			customEmoji: {
+				emojisByIdCache: {
+					fetchMaybe: jest.fn(async () => ({ ...remoteEmoji, host: null })),
+				},
+			},
+		});
+
+		await expect(service.create({
+			name: suggestion.name,
+			remoteEmojiId: remoteEmoji.id,
+			category: null,
+			aliases: [],
+			license: null,
+			localOnly: false,
+			isSensitive: false,
+		}, proposer)).resolves.toEqual({ ok: false, reason: 'noSuchRemoteEmoji' });
+
+		expect(driveService.uploadFromUrlWithResult).not.toHaveBeenCalled();
 		expect(suggestions.insertOne).not.toHaveBeenCalled();
 	});
 

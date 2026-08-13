@@ -9,6 +9,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_m">
 			<MkInfo>{{ i18n.ts.emojiSuggestionDescription }}</MkInfo>
 
+			<MkFolder v-if="!canManageCustomEmojis">
+				<template #icon><i class="ti ti-world-search"></i></template>
+				<template #label>{{ i18n.ts.browseRemoteEmojis }}</template>
+				<template #caption>{{ i18n.ts.browseRemoteEmojisDescription }}</template>
+				<div class="_gaps">
+					<MkInfo>{{ i18n.ts.remoteEmojiSuggestionDescription }}</MkInfo>
+					<MkRemoteEmojiBrowser @select="emoji => addSuggestion(emoji)"/>
+				</div>
+			</MkFolder>
+
 			<MkPagination ref="paginationComponent" :pagination="pagination" :displayLimit="50">
 				<template #empty><MkResult type="empty" :text="i18n.ts.emojiSuggestionNoPending"/></template>
 				<template #default="{ items }">
@@ -56,6 +66,8 @@ import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkPagination, { type Paging } from '@/components/MkPagination.vue';
+import MkFolder from '@/components/MkFolder.vue';
+import MkRemoteEmojiBrowser from '@/components/MkRemoteEmojiBrowser.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
@@ -63,15 +75,17 @@ import { definePage } from '@/page.js';
 
 const paginationComponent = useTemplateRef<InstanceType<typeof MkPagination>>('paginationComponent');
 const isModerator = $i?.isModerator === true || $i?.isAdmin === true;
+const canManageCustomEmojis = isModerator || $i?.policies.canManageCustomEmojis === true;
 
 const pagination = {
 	endpoint: isModerator ? 'admin/emoji-suggestions/list' : 'emoji-suggestions/list',
 	limit: 20,
 } satisfies Paging<'admin/emoji-suggestions/list' | 'emoji-suggestions/list'>;
 
-function addSuggestion() {
+function addSuggestion(remoteEmoji?: Misskey.entities.EmojiDetailed) {
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/pages/emoji-edit-dialog.vue')), {
 		suggestion: true,
+		remoteEmoji,
 	}, {
 		done: result => {
 			if (result.suggested) paginationComponent.value?.prepend(result.suggested);
@@ -117,7 +131,7 @@ const headerActions = computed(() => [{
 	asFullButton: true,
 	icon: 'ti ti-plus',
 	text: i18n.ts.suggestEmoji,
-	handler: addSuggestion,
+	handler: () => addSuggestion(),
 }]);
 
 definePage(() => ({

@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-model="name" autocapitalize="off">
 					<template #label>{{ i18n.ts.name }}</template>
 				</MkInput>
-				<MkInput v-model="category" :datalist="customEmojiCategories">
+				<MkInput v-model="category" :datalist="emojiCategoryDatalist">
 					<template #label>{{ i18n.ts.category }}</template>
 				</MkInput>
 				<MkInput v-model="aliases" autocapitalize="off">
@@ -94,8 +94,11 @@ import MkSwitch from '@/components/MkSwitch.vue';
 import { selectFile } from '@/utility/select-file.js';
 import MkRolePreview from '@/components/MkRolePreview.vue';
 
+const emojiCategoryDatalist = computed(() => customEmojiCategories.value.filter(category => category != null));
+
 const props = defineProps<{
 	emoji?: Misskey.entities.EmojiDetailed,
+	remoteEmoji?: Misskey.entities.EmojiDetailed,
 	suggestion?: boolean,
 }>();
 
@@ -105,12 +108,13 @@ const emit = defineEmits<{
 }>();
 
 const windowEl = ref<InstanceType<typeof MkWindow> | null>(null);
-const name = ref<string>(props.emoji ? props.emoji.name : '');
-const category = ref<string>(props.emoji?.category ? props.emoji.category : '');
-const aliases = ref<string>(props.emoji ? props.emoji.aliases.join(' ') : '');
-const license = ref<string>(props.emoji?.license ? props.emoji.license : '');
-const isSensitive = ref(props.emoji ? props.emoji.isSensitive : false);
-const localOnly = ref(props.emoji ? props.emoji.localOnly : false);
+const sourceEmoji = props.emoji ?? props.remoteEmoji;
+const name = ref(sourceEmoji?.name ?? '');
+const category = ref(sourceEmoji?.category ?? '');
+const aliases = ref(sourceEmoji?.aliases.join(' ') ?? '');
+const license = ref(sourceEmoji?.license ?? '');
+const isSensitive = ref(sourceEmoji?.isSensitive ?? false);
+const localOnly = ref(sourceEmoji?.localOnly ?? false);
 const roleIdsThatCanBeUsedThisEmojiAsReaction = ref(props.emoji ? props.emoji.roleIdsThatCanBeUsedThisEmojiAsReaction : []);
 const rolesThatCanBeUsedThisEmojiAsReaction = ref<Misskey.entities.Role[]>([]);
 const file = ref<Misskey.entities.DriveFile>();
@@ -119,7 +123,7 @@ watch(roleIdsThatCanBeUsedThisEmojiAsReaction, async () => {
 	rolesThatCanBeUsedThisEmojiAsReaction.value = (await Promise.all(roleIdsThatCanBeUsedThisEmojiAsReaction.value.map((id) => misskeyApi('admin/roles/show', { roleId: id }).catch(() => null)))).filter(x => x != null);
 }, { immediate: true });
 
-const imgUrl = computed(() => file.value ? file.value.url : props.emoji ? props.emoji.url : null);
+const imgUrl = computed(() => file.value ? file.value.url : sourceEmoji?.url ?? null);
 
 async function changeImage(ev: Event) {
 	file.value = await selectFile(ev.currentTarget ?? ev.target, null);
@@ -156,16 +160,17 @@ async function done() {
 	};
 
 	if (props.suggestion) {
-		if (!file.value) {
+		if (!file.value && !props.remoteEmoji) {
 			await os.alert({ type: 'error', text: i18n.ts.selectFile });
 			return;
 		}
 
 		const suggestionParams = {
 			...baseParams,
-			fileId: file.value.id,
 		};
-		const suggested = await os.apiWithDialog('emoji-suggestions/create', suggestionParams);
+		const suggested = file.value
+			? await os.apiWithDialog('emoji-suggestions/create', { ...suggestionParams, fileId: file.value.id })
+			: await os.apiWithDialog('emoji-suggestions/create', { ...suggestionParams, remoteEmojiId: props.remoteEmoji!.id });
 		emit('done', { suggested });
 		windowEl.value?.close();
 		return;

@@ -9,6 +9,7 @@ import type {
 } from './autogen/entities.js';
 import type {
 	EmojiSuggestion,
+	EmojiSuggestionsCreateRequest,
 	PartialRolePolicyOverride,
 	SigninFlowRequest,
 	SigninFlowResponse,
@@ -20,16 +21,6 @@ import type {
 	SignupRequest,
 	SignupResponse,
 } from './entities.js';
-
-type EmojiSuggestionCreateRequest = {
-	name: string;
-	fileId: string;
-	category?: string | null;
-	aliases?: string[];
-	license?: string | null;
-	isSensitive?: boolean;
-	localOnly?: boolean;
-};
 
 type EmojiSuggestionListRequest = {
 	limit?: number;
@@ -135,7 +126,7 @@ export type Endpoints = Overwrite<
 			res: AdminRolesCreateResponse;
 		},
 		'emoji-suggestions/create': {
-			req: EmojiSuggestionCreateRequest;
+			req: EmojiSuggestionsCreateRequest;
 			res: EmojiSuggestion;
 		},
 		'emoji-suggestions/list': {

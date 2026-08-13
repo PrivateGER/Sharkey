@@ -12097,6 +12097,18 @@ export interface Locale extends ILocale {
      */
     "emojiSuggestionDescription": string;
     /**
+     * Browse remote emojis
+     */
+    "browseRemoteEmojis": string;
+    /**
+     * Search emojis cached from other servers.
+     */
+    "browseRemoteEmojisDescription": string;
+    /**
+     * Select an emoji to propose it for this server. A copy will be added to your Drive for moderators to review.
+     */
+    "remoteEmojiSuggestionDescription": string;
+    /**
      * There are no pending emoji suggestions.
      */
     "emojiSuggestionNoPending": string;

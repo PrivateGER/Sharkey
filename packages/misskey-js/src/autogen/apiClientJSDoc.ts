@@ -1,5 +1,5 @@
 import type { SwitchCaseResponseType } from '../api.js';
-import type { Endpoints } from './endpoint.js';
+import type { Endpoints } from '../api.types.js';
 
 declare module '../api.js' {
   export interface APIClient {
@@ -2466,6 +2466,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:drive*
      */
     request<E extends 'emoji-suggestions/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'emoji/list-remote', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

@@ -340,6 +340,8 @@ import type {
 	EmojiSuggestionsCreateResponse,
 	EmojiSuggestionsListRequest,
 	EmojiSuggestionsListResponse,
+	EmojiListRemoteRequest,
+	EmojiListRemoteResponse,
 	EmojisResponse,
 	EndpointRequest,
 	EndpointResponse,
@@ -918,6 +920,7 @@ export type Endpoints = {
 	'emoji-suggestions/cancel': { req: EmojiSuggestionsCancelRequest; res: EmptyResponse };
 	'emoji-suggestions/create': { req: EmojiSuggestionsCreateRequest; res: EmojiSuggestionsCreateResponse };
 	'emoji-suggestions/list': { req: EmojiSuggestionsListRequest; res: EmojiSuggestionsListResponse };
+	'emoji/list-remote': { req: EmojiListRemoteRequest; res: EmojiListRemoteResponse };
 	'emojis': { req: EmptyRequest; res: EmojisResponse };
 	'endpoint': { req: EndpointRequest; res: EndpointResponse };
 	'endpoints': { req: EmptyRequest; res: EndpointsResponse };
