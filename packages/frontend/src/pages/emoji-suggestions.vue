@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_m">
 			<MkInfo>{{ i18n.ts.emojiSuggestionDescription }}</MkInfo>
 
-			<MkFolder v-if="!canManageCustomEmojis">
+			<MkFolder>
 				<template #icon><i class="ti ti-world-search"></i></template>
 				<template #label>{{ i18n.ts.browseRemoteEmojis }}</template>
 				<template #caption>{{ i18n.ts.browseRemoteEmojisDescription }}</template>
@@ -75,7 +75,6 @@ import { definePage } from '@/page.js';
 
 const paginationComponent = useTemplateRef<InstanceType<typeof MkPagination>>('paginationComponent');
 const isModerator = $i?.isModerator === true || $i?.isAdmin === true;
-const canManageCustomEmojis = isModerator || $i?.policies.canManageCustomEmojis === true;
 
 const pagination = {
 	endpoint: isModerator ? 'admin/emoji-suggestions/list' : 'emoji-suggestions/list',
