@@ -211,6 +211,13 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						tag: `achievement:${data.body.achievement}`,
 					}];
 
+				case 'emojiSuggestionAccepted':
+					return [i18n.ts._notification.emojiSuggestionAccepted, {
+						body: i18n.tsx._notification.emojiSuggestionAcceptedDescription({ name: data.body.emojiName }),
+						badge: iconUrl('circle-check'),
+						data,
+					}];
+
 				case 'login':
 					return [i18n.ts._notification.login, {
 						badge: iconUrl('login-2'),

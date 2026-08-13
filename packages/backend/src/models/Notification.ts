@@ -87,6 +87,11 @@ export type MiNotification = {
 	createdAt: string;
 	achievement: string;
 } | {
+	type: 'emojiSuggestionAccepted';
+	id: string;
+	createdAt: string;
+	emojiName: string;
+} | {
 	type: 'exportCompleted';
 	id: string;
 	createdAt: string;

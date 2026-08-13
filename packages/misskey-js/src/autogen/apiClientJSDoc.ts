@@ -198,6 +198,18 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:admin:antennas*
+     */
+    request<E extends 'admin/antennas/global', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params?: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *Yes* / **Permission**: *write:admin:approve-user*
      */
     request<E extends 'admin/approve-user', P extends Endpoints[E]['req']>(
@@ -385,6 +397,39 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:emoji*
+     */
+    request<E extends 'admin/emoji-suggestions/accept', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:admin:emoji*
+     */
+    request<E extends 'admin/emoji-suggestions/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:emoji*
+     */
+    request<E extends 'admin/emoji-suggestions/reject', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *Yes* / **Permission**: *write:admin:emoji*
      */
     request<E extends 'admin/emoji/add', P extends Endpoints[E]['req']>(
@@ -2251,6 +2296,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Generate alt text for a drive file.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:drive*
+     */
+    request<E extends 'drive/files/generate-alt-text', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Show the properties of a drive file.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:drive*
@@ -2385,6 +2441,39 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *write:drive*
+     */
+    request<E extends 'emoji-suggestions/cancel', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:drive*
+     */
+    request<E extends 'emoji-suggestions/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:drive*
+     */
+    request<E extends 'emoji-suggestions/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *No*
      */
     request<E extends 'emojis', P extends Endpoints[E]['req']>(
@@ -4630,6 +4719,17 @@ declare module '../api.js' {
      * 
      * **Credential required**: *No*
      */
+    request<E extends 'top-posts', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *No*
+     */
     request<E extends 'username/available', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
@@ -4892,7 +4992,7 @@ declare module '../api.js' {
     /**
      * Show all reactions this user made.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *No* / **Permission**: *read:account*
      */
     request<E extends 'users/reactions', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -4936,7 +5036,7 @@ declare module '../api.js' {
     /**
      * Search for users.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *No* / **Permission**: *read:account*
      */
     request<E extends 'users/search', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -4947,7 +5047,7 @@ declare module '../api.js' {
     /**
      * Search for a user by username and/or host.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *No* / **Permission**: *read:account*
      */
     request<E extends 'users/search-by-username-and-host', P extends Endpoints[E]['req']>(
       endpoint: E,
@@ -4958,7 +5058,7 @@ declare module '../api.js' {
     /**
      * Show the properties of a user.
      * 
-     * **Credential required**: *No*
+     * **Credential required**: *No* / **Permission**: *read:account*
      */
     request<E extends 'users/show', P extends Endpoints[E]['req']>(
       endpoint: E,

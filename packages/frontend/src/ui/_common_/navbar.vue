@@ -38,6 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.divider"></div>
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.noDelay.right="i18n.ts.controlPanel" :class="$style.item" :activeClass="$style.active" to="/admin">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="viewTransitionName: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
+				<span v-if="hasPendingEmojiSuggestions" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</MkA>
 			<MkA :class="$style.item" :activeClass="$style.active" to="/services">
 				<i :class="$style.itemIcon" class="ti ti-world ti-fw"></i><span :class="$style.itemText">PlasmaTrap Info</span>
@@ -98,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
-import { navbarItemDef } from '@/navbar.js';
+import { hasPendingEmojiSuggestions, navbarItemDef } from '@/navbar.js';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';

@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.root">
 	<div :class="$style.head">
 		<MkAvatar v-if="['pollEnded', 'note', 'edited', 'scheduledNotePosted'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
-		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'exportCompleted', 'importCompleted', 'login', 'createToken', 'scheduledNoteFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
+		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'emojiSuggestionAccepted', 'exportCompleted', 'importCompleted', 'login', 'createToken', 'scheduledNoteFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
 		<div v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'" :class="[$style.icon, $style.icon_reactionGroupHeart]"><i class="ph-smiley ph-bold ph-lg" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ph-smiley ph-bold ph-lg" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'renote:grouped'" :class="[$style.icon, $style.icon_renoteGroup]"><i class="ti ti-repeat" style="line-height: 1;"></i></div>
@@ -30,6 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_login]: ['sharedAccessGranted', 'sharedAccessRevoked', 'sharedAccessLogin'].includes(notification.type),
 				[$style.t_createToken]: notification.type === 'createToken',
 				[$style.t_chatRoomInvitationReceived]: notification.type === 'chatRoomInvitationReceived',
+				[$style.t_emojiSuggestion]: notification.type === 'emojiSuggestionAccepted',
 				[$style.t_roleAssigned]: notification.type === 'roleAssigned' && notification.role.iconUrl == null,
 				[$style.t_pollEnded]: notification.type === 'edited',
 				[$style.t_roleAssigned]: notification.type === 'scheduledNoteFailed',
@@ -46,6 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'quote'" class="ti ti-quote"></i>
 			<i v-else-if="notification.type === 'pollEnded'" class="ti ti-chart-arrows"></i>
 			<i v-else-if="notification.type === 'achievementEarned'" class="ti ti-medal"></i>
+			<i v-else-if="notification.type === 'emojiSuggestionAccepted'" class="ph-smiley-sticker ph-bold ph-lg"></i>
 			<i v-else-if="notification.type === 'exportCompleted'" class="ti ti-archive"></i>
 			<i v-else-if="notification.type === 'importCompleted'" class="ti ti-archive"></i>
 			<i v-else-if="notification.type === 'login'" class="ti ti-login-2"></i>
@@ -78,6 +80,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'roleAssigned'">{{ i18n.ts._notification.roleAssigned }}</span>
 			<span v-else-if="notification.type === 'chatRoomInvitationReceived'">{{ i18n.ts._notification.chatRoomInvitationReceived }}</span>
 			<span v-else-if="notification.type === 'achievementEarned'">{{ i18n.ts._notification.achievementEarned }}</span>
+			<span v-else-if="notification.type === 'emojiSuggestionAccepted'">{{ i18n.ts._notification.emojiSuggestionAccepted }}</span>
 			<span v-else-if="notification.type === 'login'">{{ i18n.ts._notification.login }}</span>
 			<span v-else-if="notification.type === 'createToken'">{{ i18n.ts._notification.createToken }}</span>
 			<span v-else-if="notification.type === 'test'">{{ i18n.ts._notification.testNotification }}</span>
@@ -132,6 +135,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<MkA v-else-if="notification.type === 'achievementEarned'" :class="$style.text" to="/my/achievements">
 				{{ i18n.ts._achievements._types['_' + notification.achievement].title }}
+			</MkA>
+			<MkA v-else-if="notification.type === 'emojiSuggestionAccepted'" :class="$style.text" to="/about#emojis">
+				{{ i18n.tsx._notification.emojiSuggestionAcceptedDescription({ name: notification.emojiName }) }}
 			</MkA>
 			<MkA v-else-if="notification.type === 'exportCompleted' || (notification.type === 'importCompleted' && notification.fileId)" :class="$style.text" :to="`/my/drive/file/${notification.fileId}`">
 				{{ i18n.ts.showFile }}
@@ -420,6 +426,11 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 
 .t_achievementEarned {
 	background: var(--eventAchievement);
+	pointer-events: none;
+}
+
+.t_emojiSuggestion {
+	background: var(--eventOther);
 	pointer-events: none;
 }
 

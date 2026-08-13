@@ -20,6 +20,9 @@ import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { DriveService } from '@/core/DriveService.js';
+import { NotificationService } from '@/core/NotificationService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
@@ -65,6 +68,9 @@ export class EmojiSuggestionService {
 
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly driveService: DriveService,
+		private readonly notificationService: NotificationService,
+		private readonly roleService: RoleService,
+		private readonly globalEventService: GlobalEventService,
 		private readonly idService: IdService,
 		loggerService: LoggerService,
 	) {
@@ -122,6 +128,8 @@ export class EmojiSuggestionService {
 			throw error;
 		}
 
+		await this.publishQueueChanged();
+
 		return { ok: true, value: suggestion };
 	}
 
@@ -135,6 +143,14 @@ export class EmojiSuggestionService {
 			relations: { file: true },
 		});
 		if (suggestion == null) return { ok: false, reason: 'noSuchSuggestion' };
+
+		const acceptedResult = async (emoji: MiEmoji): Promise<EmojiSuggestionResult<MiEmoji>> => {
+			this.notificationService.createNotification(suggestion.userId, 'emojiSuggestionAccepted', {
+				emojiName: suggestion.name,
+			});
+			await this.publishQueueChanged();
+			return { ok: true, value: emoji };
+		};
 
 		// Consume the suggestion before doing any work. This makes acceptance,
 		// cancellation, rejection, and another acceptance mutually exclusive.
@@ -195,7 +211,7 @@ export class EmojiSuggestionService {
 				roleIdsThatCanBeUsedThisEmojiAsReaction: [],
 			}, { moderator });
 
-			return { ok: true, value: emoji };
+			return await acceptedResult(emoji);
 		} catch (error) {
 			if (emojiFile != null) {
 				// createEmoji inserts before publishing and moderation logging. If a
@@ -205,7 +221,7 @@ export class EmojiSuggestionService {
 					host: IsNull(),
 					originalUrl: emojiFile.url,
 				});
-				if (insertedEmoji != null) return { ok: true, value: insertedEmoji };
+				if (insertedEmoji != null) return await acceptedResult(insertedEmoji);
 
 				try {
 					await this.driveService.deleteFile(emojiFile, false, moderator);
@@ -231,12 +247,29 @@ export class EmojiSuggestionService {
 			id: suggestionId,
 			userId: user.id,
 		});
+		if (result.affected === 1) await this.publishQueueChanged();
 		return result.affected === 1;
 	}
 
 	@bindThis
 	public async reject(suggestionId: string): Promise<boolean> {
 		const result = await this.emojiSuggestionsRepository.delete(suggestionId);
+		if (result.affected === 1) await this.publishQueueChanged();
 		return result.affected === 1;
+	}
+
+	private async publishQueueChanged(): Promise<void> {
+		try {
+			const reviewerIds = await this.roleService.getModeratorIds({
+				includeAdmins: true,
+				includeRoot: true,
+				excludeExpire: true,
+			});
+			await Promise.all(reviewerIds.map(reviewerId =>
+				this.globalEventService.publishAdminStream(reviewerId, 'emojiSuggestionQueueChanged', {}),
+			));
+		} catch (error) {
+			this.logger.error(`Failed to publish emoji suggestion queue update: ${renderInlineError(error)}`);
+		}
 	}
 }

@@ -216,6 +216,7 @@ export type Channels = {
 				reporterId: string;
 				comment: string;
 			}
+			emojiSuggestionQueueChanged: Record<string, never>;
 		};
 		receives: null;
 	};
