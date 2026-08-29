@@ -42,6 +42,7 @@ import { IdService } from './IdService.js';
 import { ImageProcessingService } from './ImageProcessingService.js';
 import { SystemAccountService } from './SystemAccountService.js';
 import { InternalStorageService } from './InternalStorageService.js';
+import { ListenBrainzService } from './ListenBrainzService.js';
 import { MetaService } from './MetaService.js';
 import { MfmService } from './MfmService.js';
 import { ModerationLogService } from './ModerationLogService.js';
@@ -186,6 +187,7 @@ const $HttpRequestService: Provider = { provide: 'HttpRequestService', useExisti
 const $IdService: Provider = { provide: 'IdService', useExisting: IdService };
 const $ImageProcessingService: Provider = { provide: 'ImageProcessingService', useExisting: ImageProcessingService };
 const $InternalStorageService: Provider = { provide: 'InternalStorageService', useExisting: InternalStorageService };
+const $ListenBrainzService: Provider = { provide: 'ListenBrainzService', useExisting: ListenBrainzService };
 const $MetaService: Provider = { provide: 'MetaService', useExisting: MetaService };
 const $MfmService: Provider = { provide: 'MfmService', useExisting: MfmService };
 const $ModerationLogService: Provider = { provide: 'ModerationLogService', useExisting: ModerationLogService };
@@ -345,6 +347,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		IdService,
 		ImageProcessingService,
 		InternalStorageService,
+		ListenBrainzService,
 		MetaService,
 		MfmService,
 		ModerationLogService,
@@ -499,6 +502,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$IdService,
 		$ImageProcessingService,
 		$InternalStorageService,
+		$ListenBrainzService,
 		$MetaService,
 		$MfmService,
 		$ModerationLogService,
@@ -654,6 +658,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		IdService,
 		ImageProcessingService,
 		InternalStorageService,
+		ListenBrainzService,
 		MetaService,
 		MfmService,
 		ModerationLogService,
@@ -807,6 +812,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$IdService,
 		$ImageProcessingService,
 		$InternalStorageService,
+		$ListenBrainzService,
 		$MetaService,
 		$MfmService,
 		$ModerationLogService,
