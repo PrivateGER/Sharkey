@@ -16,7 +16,7 @@ import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { $i } from '@/i.js';
 import { signout } from '@/signout.js';
-import * as os from '@/os';
+import * as os from '@/os.js';
 
 type AccountWithToken = Misskey.entities.MeDetailed & { token: string };
 
@@ -330,7 +330,15 @@ export async function openAccountMenu(opts: {
 			type: 'button' as const,
 			icon: 'ph-power ph-bold ph-lg',
 			text: i18n.ts.logout,
-			action: () => { signout(); },
+			action: async () => {
+				const { canceled } = await os.confirm({
+					type: 'warning',
+					title: i18n.ts.logoutConfirm,
+					text: i18n.ts.logoutWillClearClientData,
+				});
+				if (canceled) return;
+				signout();
+			},
 		});
 	} else {
 		if (opts.includeCurrentAccount) {
