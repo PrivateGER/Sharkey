@@ -99,15 +99,15 @@ export class ListenBrainzService {
 		// /1/user/{user}/playing-now returns an array, but it only has a single item even if you are listening from multiple
 		// devices. this happens because the schema is shared between /listens, which returns multiple tracks.
 
-		const playingNow = json.payload?.listens?.[0];
-		if (!json.payload?.listens?.length || !playingNow?.track_metadata?.track_name || !playingNow.track_metadata.artist_name) {
+		const playingNowMetadata = json.payload?.listens?.[0]?.track_metadata;
+		if (!(playingNowMetadata && playingNowMetadata.track_name && playingNowMetadata.artist_name)) {
 			await this.setCachedListenBrainz(listenbrainzUsername, undefined);
 			return undefined;
 		}
 
 		const response: ListenBrainzResponse = {
-			title: playingNow.track_metadata.track_name,
-			artist: playingNow.track_metadata.artist_name,
+			title: playingNowMetadata.track_name,
+			artist: playingNowMetadata.artist_name,
 			coverArt: undefined,
 			listenbrainzUrl: undefined,
 			musicbrainzUrl: undefined,
@@ -115,16 +115,16 @@ export class ListenBrainzService {
 
 		// also, additional_info MAY contain release_mbid and/or recording_mbid, which are more accurate than the lookup data.
 
-		if (playingNow.track_metadata.additional_info?.release_mbid) {
+		if (playingNowMetadata.additional_info?.release_mbid) {
 			response.coverArt =
-				`https://coverartarchive.org/release/${encodeURIComponent(playingNow.track_metadata.additional_info.release_mbid)}/front-250`;
+				`https://coverartarchive.org/release/${encodeURIComponent(playingNowMetadata.additional_info.release_mbid)}/front-250`;
 		}
 
-		if (playingNow.track_metadata.additional_info?.recording_mbid) {
+		if (playingNowMetadata.additional_info?.recording_mbid) {
 			response.musicbrainzUrl =
-				`https://musicbrainz.org/recording/${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
+				`https://musicbrainz.org/recording/${encodeURIComponent(playingNowMetadata.additional_info.recording_mbid)}`;
 			response.listenbrainzUrl =
-				`https://listenbrainz.org/track/${encodeURIComponent(playingNow.track_metadata.additional_info.recording_mbid)}`;
+				`https://listenbrainz.org/track/${encodeURIComponent(playingNowMetadata.additional_info.recording_mbid)}`;
 		}
 
 		if ((!response.coverArt || !response.musicbrainzUrl || !response.listenbrainzUrl)) {
@@ -137,7 +137,7 @@ export class ListenBrainzService {
 			if (this.serverSettings.listenbrainzAuthKey && canUseApiKey) {
 				// not cached, let's fetch it from listenbrainz.
 				const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
-					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNow.track_metadata.artist_name}&recording_name=${playingNow.track_metadata.track_name}`,
+					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNowMetadata.artist_name}&recording_name=${playingNowMetadata.track_name}`,
 					undefined,
 					headers,
 					undefined,
