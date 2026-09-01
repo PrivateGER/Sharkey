@@ -10,7 +10,7 @@ import { prepEnv } from '../src/boot/prepEnv.js';
  * Applies the Sharkey environment details into the test environment.
  * https://jestjs.io/docs/configuration#globalsetup-string
  */
-export default function setup() {
+export default async function setup() {
 	// Make sure tests run in the Sharkey environment.
-	prepEnv();
+	await prepEnv();
 }
