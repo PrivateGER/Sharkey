@@ -53,6 +53,7 @@ export type RolePolicies = {
 	canManageAvatarDecorations: boolean;
 	canSearchNotes: boolean;
 	canUseTranslator: boolean;
+	canFetchLBMetadata: boolean;
 	canHideAds: boolean;
 	driveCapacityMb: number;
 	maxFileSizeMb: number;
@@ -94,6 +95,7 @@ export const DEFAULT_POLICIES: RolePolicies = {
 	canManageAvatarDecorations: false,
 	canSearchNotes: false,
 	canUseTranslator: false,
+	canFetchLBMetadata: false, 
 	canHideAds: false,
 	driveCapacityMb: 100,
 	maxFileSizeMb: 25,
@@ -141,6 +143,7 @@ const DefaultPoliciesSchema: JSONSchemaType<RolePolicies> = {
 		canManageAvatarDecorations: { type: 'boolean' },
 		canSearchNotes: { type: 'boolean' },
 		canUseTranslator: { type: 'boolean' },
+		canFetchLBMetadata: { type: 'boolean' },
 		canHideAds: { type: 'boolean' },
 
 		// these can be less than 1 MB
@@ -622,6 +625,7 @@ export class RoleService implements OnApplicationShutdown, OnModuleInit {
 			canManageAvatarDecorations: calc('canManageAvatarDecorations', vs => vs.some(v => v === true)),
 			canSearchNotes: calc('canSearchNotes', vs => vs.some(v => v === true)),
 			canUseTranslator: calc('canUseTranslator', vs => vs.some(v => v === true)),
+			canFetchLBMetadata: calc('canFetchLBMetadata', vs => vs.some(v => v === true)),
 			canHideAds: calc('canHideAds', vs => vs.some(v => v === true)),
 			driveCapacityMb: calc('driveCapacityMb', vs => Math.max(...vs)),
 			maxFileSizeMb: calc('maxFileSizeMb', vs => Math.max(...vs)),

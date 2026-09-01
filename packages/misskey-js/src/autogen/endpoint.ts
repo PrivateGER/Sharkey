@@ -639,6 +639,8 @@ import type {
 	UsersGalleryPostsResponse,
 	UsersGetFrequentlyRepliedUsersRequest,
 	UsersGetFrequentlyRepliedUsersResponse,
+	UsersListenbrainzRequest,
+	UsersListenbrainzResponse,
 	UsersListsCreateRequest,
 	UsersListsCreateResponse,
 	UsersListsCreateFromPublicRequest,
@@ -1105,6 +1107,7 @@ export type Endpoints = {
 	'users/following': { req: UsersFollowingRequest; res: UsersFollowingResponse };
 	'users/gallery/posts': { req: UsersGalleryPostsRequest; res: UsersGalleryPostsResponse };
 	'users/get-frequently-replied-users': { req: UsersGetFrequentlyRepliedUsersRequest; res: UsersGetFrequentlyRepliedUsersResponse };
+	'users/listenbrainz': { req: UsersListenbrainzRequest; res: UsersListenbrainzResponse };
 	'users/lists/create': { req: UsersListsCreateRequest; res: UsersListsCreateResponse };
 	'users/lists/create-from-public': { req: UsersListsCreateFromPublicRequest; res: UsersListsCreateFromPublicResponse };
 	'users/lists/delete': { req: UsersListsDeleteRequest; res: EmptyResponse };

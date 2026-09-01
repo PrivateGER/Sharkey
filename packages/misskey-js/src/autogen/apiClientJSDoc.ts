@@ -4736,6 +4736,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Fetch what the user is listening to.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'users/listenbrainz', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Create a new list of users.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
