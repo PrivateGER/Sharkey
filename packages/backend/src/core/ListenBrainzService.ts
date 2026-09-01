@@ -220,6 +220,9 @@ export class ListenBrainzService {
 	private async setCachedListenBrainz(username: string, data: ListenBrainzResponse | undefined): Promise<void> {
 		const cacheKey = username;
 
+		// we store with short keys to save memory, and with an extra d:{} to make 
+		// it easier to store "we explicitly cached that there's nothing here".
+		
 		if (data) {
 			await this.listenBrainzCache.set(cacheKey, {
 				d: {
