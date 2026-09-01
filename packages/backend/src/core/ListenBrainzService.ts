@@ -38,6 +38,8 @@ type ListenBrainzMetadataResponse = {
 	recording_mbid?: string,
 };
 
+const LB_TIMEOUT = 10000;
+
 @Injectable()
 export class ListenBrainzService {
 	private readonly logger: Logger;
@@ -90,7 +92,7 @@ export class ListenBrainzService {
 			undefined,
 			headers,
 			undefined,
-			10000,
+			LB_TIMEOUT,
 		).catch((err) => {
 			this.logger.error(`ListenBrainz /playing-now error: ${renderInlineError(err)}`);
 			throw new IdentifiableError('0a571121-d49d-4866-bb5b-b1656ee649b8', 'Error while fetching ListenBrainz data. Contact an instance administrator.');
@@ -141,7 +143,7 @@ export class ListenBrainzService {
 					undefined,
 					headers,
 					undefined,
-					10000,
+					LB_TIMEOUT,
 				).catch((err) => {
 					this.logger.error(`ListenBrainz /metadata/lookup error: ${renderInlineError(err)}`);
 					throw new IdentifiableError('0a571121-d49d-4866-bb5b-b1656ee649b8', 'Error while fetching ListenBrainz data. Contact an instance administrator.');
