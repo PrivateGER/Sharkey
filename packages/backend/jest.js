@@ -10,9 +10,10 @@ const __dirname = path.dirname(__filename);
 
 const args = [];
 args.push(...[
-	...semver.satisfies(process.version, '^20.17.0 || ^22.0.0') ? ['--no-experimental-require-module'] : [],
+	'--experimental-require-module',
 	'--experimental-vm-modules',
 	'--experimental-import-meta-resolve',
+	...semver.satisfies(process.version, '>=26.0.0') ? ['--no-experimental-webstorage'] : [],
 	path.join(__dirname, 'node_modules/jest/bin/jest.js'),
 	...process.argv.slice(2),
 ]);

@@ -4,7 +4,7 @@
  */
 
 // Need to reference the built file
-import { prepEnv } from '../built/boot/prepEnv.js';
+import { prepEnv } from '../src/boot/prepEnv.js';
 
 /**
  * Applies the Sharkey environment details into the test environment.

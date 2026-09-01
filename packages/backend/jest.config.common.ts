@@ -3,6 +3,8 @@
 * https://jestjs.io/docs/en/configuration.html
 */
 
+import type { Config } from 'jest';
+
 export default {
 	// All imported modules in your tests should be mocked automatically
 	// automock: false,
@@ -23,7 +25,7 @@ export default {
 	collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts'],
 
 	// The directory where Jest should output its coverage files
-	coverageDirectory: "coverage",
+	coverageDirectory: 'coverage',
 
 	// An array of regexp pattern strings used to skip coverage collection
 	// coveragePathIgnorePatterns: [
@@ -31,7 +33,7 @@ export default {
 	// ],
 
 	// Indicates which provider should be used to instrument code for coverage
-	coverageProvider: "v8",
+	coverageProvider: 'v8',
 
 	// A list of reporter names that Jest uses when writing coverage reports
 	// coverageReporters: [
@@ -60,8 +62,8 @@ export default {
 	// globalTeardown: undefined,
 
 	// A set of global variables that need to be available in all test environments
-	globals: {
-	},
+	// globals: {
+	// },
 
 	// The maximum amount of workers used to run your tests. Can be specified as % or a number. E.g. maxWorkers: 10% will use 10% of your CPU amount + 1 as the maximum worker number. maxWorkers: 2 will use a maximum of 2 workers.
 	// maxWorkers: "50%",
@@ -81,17 +83,21 @@ export default {
 	//   "node"
 	// ],
 
-	// A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
+	// // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
+	// moduleNameMapper: {
+	// 	// Do not resolve .wasm.js to .wasm by the rule below
+	// 	'^(.+)\\.wasm\\.js$': '$1.wasm.js',
+	// 	// SWC converts @/foo/bar.js to `../../src/foo/bar.js`, and then this rule
+	// 	// converts it again to `../../src/foo/bar` which then can be resolved to
+	// 	// `.ts` files.
+	// 	// See https://github.com/swc-project/jest/issues/64#issuecomment-1029753225
+	// 	// TODO: Use `--allowImportingTsExtensions` on TypeScript 5.0 so that we can
+	// 	// directly import `.ts` files without this hack.
+	// 	'^(\\.{1,2}[\\/\\\\].*)\\.js$': '$1',
+	// },
 	moduleNameMapper: {
-		// Do not resolve .wasm.js to .wasm by the rule below
-		'^(.+)\\.wasm\\.js$': '$1.wasm.js',
-		// SWC converts @/foo/bar.js to `../../src/foo/bar.js`, and then this rule
-		// converts it again to `../../src/foo/bar` which then can be resolved to
-		// `.ts` files.
-		// See https://github.com/swc-project/jest/issues/64#issuecomment-1029753225
-		// TODO: Use `--allowImportingTsExtensions` on TypeScript 5.0 so that we can
-		// directly import `.ts` files without this hack.
-		'^(\\.{1,2}[\\/\\\\].*)\\.js$': '$1',
+		'^@/(.+)\\.\\w+$': '<rootDir>/src/$1.ts',
+		'^(\\.\\.?[\\/\\\\].+)\\.js$': '$1',
 	},
 
 	// An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -150,7 +156,7 @@ export default {
 	// snapshotSerializers: [],
 
 	// The test environment that will be used for testing
-	testEnvironment: "node",
+	testEnvironment: 'node',
 
 	// Options that will be passed to the testEnvironment
 	// testEnvironmentOptions: {},
@@ -183,7 +189,7 @@ export default {
 
 	// A map from regular expressions to paths to transformers
 	transform: {
-		"^.+\\.(t|j)sx?$": ["@swc/jest"],
+		'^.+\\.ts$': '@swc/jest',
 	},
 
 	// An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
@@ -216,4 +222,4 @@ export default {
 	workerIdleMemoryLimit: '1GiB', // Limit the worker to 1GB (GitHub Workflows dies at 2GB)
 
 	maxConcurrency: 32,
-};
+} satisfies Config;
