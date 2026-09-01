@@ -62,8 +62,8 @@ export default {
 	// globalTeardown: undefined,
 
 	// A set of global variables that need to be available in all test environments
-	// globals: {
-	// },
+	globals: {
+	},
 
 	// The maximum amount of workers used to run your tests. Can be specified as % or a number. E.g. maxWorkers: 10% will use 10% of your CPU amount + 1 as the maximum worker number. maxWorkers: 2 will use a maximum of 2 workers.
 	// maxWorkers: "50%",
@@ -83,21 +83,17 @@ export default {
 	//   "node"
 	// ],
 
-	// // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-	// moduleNameMapper: {
-	// 	// Do not resolve .wasm.js to .wasm by the rule below
-	// 	'^(.+)\\.wasm\\.js$': '$1.wasm.js',
-	// 	// SWC converts @/foo/bar.js to `../../src/foo/bar.js`, and then this rule
-	// 	// converts it again to `../../src/foo/bar` which then can be resolved to
-	// 	// `.ts` files.
-	// 	// See https://github.com/swc-project/jest/issues/64#issuecomment-1029753225
-	// 	// TODO: Use `--allowImportingTsExtensions` on TypeScript 5.0 so that we can
-	// 	// directly import `.ts` files without this hack.
-	// 	'^(\\.{1,2}[\\/\\\\].*)\\.js$': '$1',
-	// },
+	// A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
 	moduleNameMapper: {
-		'^@/(.+)\\.\\w+$': '<rootDir>/src/$1.ts',
-		'^(\\.\\.?[\\/\\\\].+)\\.js$': '$1',
+		// Do not resolve .wasm.js to .wasm by the rule below
+		'^(.+)\\.wasm\\.js$': '$1.wasm.js',
+		// SWC converts @/foo/bar.js to `../../src/foo/bar.js`, and then this rule
+		// converts it again to `../../src/foo/bar` which then can be resolved to
+		// `.ts` files.
+		// See https://github.com/swc-project/jest/issues/64#issuecomment-1029753225
+		// TODO: Use `--allowImportingTsExtensions` on TypeScript 5.0 so that we can
+		// directly import `.ts` files without this hack.
+		'^(\\.{1,2}[\\/\\\\].*)\\.js$': '$1',
 	},
 
 	// An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -189,7 +185,7 @@ export default {
 
 	// A map from regular expressions to paths to transformers
 	transform: {
-		'^.+\\.ts$': '@swc/jest',
+		'^.+\\.(t|j)sx?$': '@swc/jest',
 	},
 
 	// An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
