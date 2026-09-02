@@ -110,12 +110,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				default: query.orderBy('instance.id', 'DESC'); break;
 			}
 
-			if (me == null) {
-				delete ps.blocked;
-				delete ps.suspended;
-				delete ps.silenced;
+			// convert old `nsfw` query into newer `mandatoryCW` query
+			if (typeof ps.nsfw === 'boolean') {
+				if (typeof ps.mandatoryCW !== 'boolean') {
+					ps.mandatoryCW = ps.nsfw;
+				}
 				delete ps.nsfw;
-				delete ps.mandatoryCW;
+			}
+
+			if (me == null) {
+				ps.blocked = false;
+				ps.suspended = false;
+				ps.silenced = false;
+				ps.mandatoryCW = false;
 			}
 
 			const policies = await this.roleService.getUserPolicies(me);
@@ -141,17 +148,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (typeof ps.suspended === 'boolean') {
 				if (ps.suspended) {
-					query.andWhere('instance.suspensionState != \'none\'');
+					query.andWhere('instance.suspensionState == \'manuallySuspended\'');
 				} else {
-					query.andWhere('instance.suspensionState = \'none\'');
-				}
-			}
-
-			if (typeof ps.nsfw === 'boolean') {
-				if (ps.nsfw) {
-					query.andWhere('instance.mandatoryCW = TRUE');
-				} else {
-					query.andWhere('instance.mandatoryCW = FALSE');
+					query.andWhere('instance.suspensionState != \'manuallySuspended\'');
 				}
 			}
 
