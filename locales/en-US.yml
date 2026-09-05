@@ -1934,7 +1934,7 @@ _role:
     noteEachClipsMax: "Maximum number of notes within a clip"
     userListMax: "Maximum number of user lists"
     userEachUserListsMax: "Maximum number of users within a user list"
-    rateLimitFactor: "Rate limit restrictiveness"
+    rateLimitFactor: "Rate limit strictness"
     descriptionOfRateLimitFactor: "A lower value means less restrictive rate limits, a higher one more restrictive rate limits. "
     canHideAds: "Can hide ads"
     canSearchNotes: "Usage of note search"
