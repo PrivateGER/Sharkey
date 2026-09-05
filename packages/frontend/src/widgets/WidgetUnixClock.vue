@@ -48,7 +48,7 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 	emit,
 );
 
-let intervalId;
+let intervalId: number | null = null;
 const ss = ref('');
 const showColon = ref(false);
 let prevSec: string | null = null;
