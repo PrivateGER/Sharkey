@@ -40,14 +40,6 @@ export const meta = {
 		},
 	},
 
-	errors: {
-		noSuchUser: {
-			message: 'No such user.',
-			code: 'NO_SUCH_USER',
-			id: 'e6965129-7b2a-40a4-bae2-cd84cd434822',
-		},
-	},
-
 	// 2 calls per second
 	limit: {
 		duration: 1000,
@@ -79,16 +71,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private getterService: GetterService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			// Lookup user
-			const user = await this.getterService.getUser(ps.userId).catch(err => {
-				if (err.id === '15348ddd-432d-49c2-8a5a-8069753becff') throw new ApiError(meta.errors.noSuchUser);
-				throw err;
-			});
+			if (!me) return [];
+
+			// we intentionally ignore ps.userId: it's there for
+			// compatibility, but this endpoint is not used by our frontend,
+			// and users have no business asking who other people reply to
 
 			// Fetch recent notes
 			const recentNotes = await this.notesRepository.find({
 				where: {
-					userId: user.id,
+					userId: me.id,
 					replyId: Not(IsNull()),
 				},
 				order: {
