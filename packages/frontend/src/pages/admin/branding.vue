@@ -80,12 +80,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.themeColor }}</template>
 				</MkColorInput>
 
-				<MkTextarea v-model="defaultLightTheme">
+				<MkTextarea v-model="defaultLightTheme" :spellcheck="false">
 					<template #label>{{ i18n.ts.instanceDefaultLightTheme }}</template>
 					<template #caption>{{ i18n.ts.instanceDefaultThemeDescription }}</template>
 				</MkTextarea>
 
-				<MkTextarea v-model="defaultDarkTheme">
+				<MkTextarea v-model="defaultDarkTheme" :spellcheck="false">
 					<template #label>{{ i18n.ts.instanceDefaultDarkTheme }}</template>
 					<template #caption>{{ i18n.ts.instanceDefaultThemeDescription }}</template>
 				</MkTextarea>
@@ -100,7 +100,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.feedbackUrl }}</template>
 				</MkInput>
 
-				<MkTextarea v-model="manifestJsonOverride">
+				<MkTextarea v-model="manifestJsonOverride" :spellcheck="false">
 					<template #label>{{ i18n.ts._serverSettings.manifestJsonOverride }}</template>
 				</MkTextarea>
 			</div>
