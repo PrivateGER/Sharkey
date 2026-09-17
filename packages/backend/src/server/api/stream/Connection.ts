@@ -547,6 +547,16 @@ export class Connection extends SkEventSource<ConnectionEvents> {
 			}
 		}
 
+		if (payload.type === 'pollVoted') {
+			// clients use the `userId` to know if the logged-in user has
+			// voted on this poll; if the vote comes from someone else,
+			// clients have no business knowing who that is: let's provide a
+			// fake user id in that case
+			if (payload.body.body.userId !== this.user?.id) {
+				payload.body.body.userId = 'xxxxx';
+			}
+		}
+
 		// Checks ok; send message to client.
 		const mappedPayload = {
 			type: payload.type,
