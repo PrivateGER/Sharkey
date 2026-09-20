@@ -149,7 +149,7 @@ const headerActions = computed(() => [{
 	handler: addUser,
 }, {
 	asFullButton: true,
-	icon: 'ti ti-search',
+	icon: 'ti ti-world-search',
 	text: i18n.ts.lookup,
 	handler: lookupUser,
 }]);
