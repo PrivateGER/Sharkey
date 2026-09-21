@@ -1935,7 +1935,7 @@ _role:
     userListMax: "Maximum number of user lists"
     userEachUserListsMax: "Maximum number of users within a user list"
     rateLimitFactor: "Rate limit strictness"
-    descriptionOfRateLimitFactor: "A lower value means less restrictive rate limits, a higher one more restrictive rate limits. "
+    descriptionOfRateLimitFactor: "A lower value means less restrictive rate limits, while a higher one means more restrictive rate limits."
     canHideAds: "Can hide ads"
     canSearchNotes: "Usage of note search"
     canUseTranslator: "Translator usage"
