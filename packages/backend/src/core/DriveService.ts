@@ -894,6 +894,12 @@ export class DriveService {
 				comment = null;
 			}
 
+			// even if we have enableIpLogging, we should not save the api
+			// token to the database...
+			if (requestHeaders) {
+				delete requestHeaders.authorization;
+			}
+
 			const driveFile = await this.addFile({ user, path, name, comment, folderId, force, isLink, url, uri, sensitive, requestIp, requestHeaders });
 			this.downloaderLogger.debug(`Upload succeeded: created file ${driveFile.id}`);
 			return driveFile!;
