@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { validate as validateUUID } from 'uuid';
 import { Inject, Injectable } from '@nestjs/common';
 import { IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
@@ -122,7 +123,7 @@ export class SigninWithPasskeyApiService {
 
 		const context = body.context;
 		// context is always generated server-side by randomUUID(), so reject anything that is not a UUID
-		if (!context || typeof context !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(context)) {
+		if (!context || typeof context !== 'string' || !validateUUID(context)) {
 			// If try Authentication without valid context
 			return error(400, {
 				id: '1658cc2e-4495-461f-aee4-d403cdf073c1',
