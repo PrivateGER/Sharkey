@@ -119,6 +119,7 @@ db:
   # Note: if using a UNIX socket, then this should be the absolute path to PostgreSQL's socket *directory* - not the actual socket itself!
   #   The PG client library insists on constructing the socket filename manually, and will crash if you attempt to specify the full path directly.
   #   If multiple PG servers exist on the same machine, then the "port" option will be used to map the correct socket filename.
+  #   See also: https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-UNIX-SOCKET-DIRECTORIES
   host: localhost
   port: 5432
 
