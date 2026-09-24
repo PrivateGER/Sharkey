@@ -10,6 +10,8 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
+import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
+import { trackPromise } from '@/misc/promise-tracker.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -42,6 +44,11 @@ export const paramDef = {
 		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
 		showQuotes: { type: 'boolean', default: true },
+		autoBackfill: {
+			type: 'boolean',
+			default: false,
+			description: 'Also fetch newer replies of a remote note from its origin server in the background, if the server allows it and the thread is due. Newly imported replies are announced on the note\'s stream. Only honored for signed-in users.',
+		},
 	},
 	required: ['noteId'],
 } as const;
@@ -54,8 +61,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
+		private readonly replyBackfillService: ReplyBackfillService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			if (ps.autoBackfill && me != null) {
+				trackPromise(this.replyBackfillService.requestAutomatic(ps.noteId, me));
+			}
+
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), ps.sinceId, ps.untilId)
 				.andWhere(new Brackets(qb => {
 					qb.orWhere('note.replyId = :noteId');

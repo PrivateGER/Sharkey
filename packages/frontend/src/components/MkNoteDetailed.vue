@@ -173,7 +173,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :disabled="translating || !!translation" @click.stop="translate()">
 				<i class="ti ti-language-hiragana"></i>
 			</button>
-			<button v-if="isRemoteNote" ref="backfillButton" :class="$style.noteFooterButton" class="_button" @mousedown="backfill()">
+			<button v-if="canBackfillReplies" :class="$style.noteFooterButton" class="_button" :title="i18n.ts.fetchRemoteReplies" @click.stop="backfill()">
 				<i class="ph-lg ph-bold ph-cloud-arrow-down"></i>
 			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="showMenu()">
@@ -302,7 +302,6 @@ const emit = defineEmits<{
 const inChannel = inject('inChannel', null);
 
 const note = ref(deepClone(props.note));
-const isRemoteNote = computed(() => note.value.user.host !== null);
 
 const isRenote = Misskey.note.isPureRenote(note.value);
 
@@ -317,6 +316,7 @@ const menuVersionsButton = useTemplateRef('menuVersionsButton');
 const quoteButton = useTemplateRef('quoteButton');
 const likeButton = useTemplateRef('likeButton');
 const appearNote = computed(() => getAppearNote(note.value));
+const canBackfillReplies = computed(() => appearNote.value.user.host != null && ['public', 'home'].includes(appearNote.value.visibility));
 const galleryEl = useTemplateRef('galleryEl');
 const isMyRenote = $i && ($i.id === note.value.userId);
 const showContent = ref(prefer.s.uncollapseCW);
@@ -409,6 +409,8 @@ const reactionsPagination = computed<Paging>(() => ({
 }));
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
+	// A reply can be announced more than once, e.g. when a backfill races an inbox delivery.
+	if (replies.value.some(reply => reply.id === replyNote.id)) return;
 	replies.value.unshift(replyNote);
 	appearNote.value.repliesCount += 1;
 }
@@ -550,37 +552,15 @@ function renote(visibility: Visibility, localOnly: boolean = false) {
 	}
 }
 
-async function backfill() {
+function backfill() {
 	if (!$i) {
-		pleaseLogin(undefined, pleaseLoginContext.value);
+		pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 		return;
 	}
-	if ($i) {
-		os.toast("Backfilling post. **This may take a few seconds to complete.**", true);
-		let token = $i.token;
-		let noteURL = note.value.url || note.value.uri;
-		let res = await fetch('https://backfiller.plasmatrap.com/fetch_replies', {
-			method: 'POST',
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				token: token,
-				post_url: noteURL,
-			}),
-		});
 
-		if (res.ok) {
-			let parsed = await res.json();
-			if (parsed.message === 'Debounced') {
-				os.toast('This post is on backfilling cooldown.');
-			} else {
-				os.toast('Backfilled successfully.');
-			}
-		} else {
-			os.toast('Failed to backfill post. Remote instance may be incompatible.');
-		}
-	}
+	os.apiWithDialog('notes/replies/backfill', { noteId: appearNote.value.id }).then(() => {
+		os.toast(i18n.ts.fetchingRemoteReplies);
+	});
 }
 
 function quote() {
@@ -815,6 +795,7 @@ function loadReplies() {
 		noteId: appearNote.value.id,
 		limit: 30,
 		showQuotes: false,
+		autoBackfill: canBackfillReplies.value,
 	}).then(res => {
 		replies.value = res;
 	});

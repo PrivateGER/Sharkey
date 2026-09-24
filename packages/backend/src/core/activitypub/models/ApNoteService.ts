@@ -36,6 +36,7 @@ import { trackPromise } from '@/misc/promise-tracker.js';
 import { CustomEmojiService, encodeEmojiKey, isValidEmojiName } from '@/core/CustomEmojiService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { CacheService } from '@/core/CacheService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { getOneApId, getApId, isPost, isEmoji, getApType, isApObject, isDocument, isLink, getNullableApId } from '../type.js';
 import { ApLoggerService } from '../ApLoggerService.js';
 import { ApMfmService } from '../ApMfmService.js';
@@ -48,7 +49,7 @@ import { ApMentionService } from './ApMentionService.js';
 import { ApQuestionService } from './ApQuestionService.js';
 import { ApImageService } from './ApImageService.js';
 import type { ApPersonService } from './ApPersonService.js';
-import type { Resolver } from '../ApResolverService.js';
+import type { FetchBudget, Resolver } from '../ApResolverService.js';
 import type { IObject, IPost, IApEmoji, IApDocument } from '../type.js';
 
 @Injectable()
@@ -96,6 +97,7 @@ export class ApNoteService implements OnModuleInit {
 		private readonly customEmojiService: CustomEmojiService,
 		private readonly timeService: TimeService,
 		private readonly cacheService: CacheService,
+		private readonly globalEventService: GlobalEventService,
 	) {
 		this.logger = this.apLoggerService.logger;
 	}
@@ -576,6 +578,105 @@ export class ApNoteService implements OnModuleInit {
 		} finally {
 			await unlock();
 		}
+	}
+
+	/**
+	 * Imports the replies of a remote note by walking its `replies` collection, then the collections of those replies (breadth-first).
+	 * Replies that are already known are traversed but not re-imported.
+	 * @param rootUri AP ID of the note whose thread should be backfilled
+	 * @param opts.maxReplies Maximum number of replies to process, including already-known ones
+	 * @param opts.maxFetches Maximum number of ActivityPub objects to resolve, shared by traversal and by importing replies with their dependencies.
+	 * Side requests made while importing (media downloads, profile link verification, queued jobs) are not counted.
+	 * @returns Number of newly imported replies
+	 */
+	@bindThis
+	public async backfillReplies(rootUri: string, opts: { maxReplies?: number, maxFetches?: number } = {}): Promise<number> {
+		const maxReplies = opts.maxReplies ?? 100;
+		const fetchBudget: FetchBudget = { remaining: opts.maxFetches ?? 500 };
+		const resolver = this.apResolverService.createResolver({ recursionLimit: fetchBudget.remaining, fetchBudget });
+
+		const root = await resolver.resolve(rootUri);
+		if (!isPost(root)) {
+			throw new UnrecoverableError(`failed to backfill replies of ${rootUri}: invalid object type ${getApType(root) ?? 'undefined'}`);
+		}
+
+		const seen = new Set<string>([getApId(root)]);
+		const pending: IPost[] = [root];
+		let processed = 0;
+		let imported = 0;
+
+		for (let parent = pending.shift(); parent != null && processed < maxReplies; parent = pending.shift()) {
+			if (parent.replies == null) continue;
+			if (fetchBudget.remaining <= 0) break;
+
+			const parentUri = getApId(parent);
+			let items: IObject[];
+			try {
+				items = await resolver.resolveCollectionItems(parent.replies, false, parentUri, maxReplies - processed, 2);
+			} catch (err) {
+				if (parent === root) throw err;
+				this.logger.warn(`Skipping replies of ${parentUri} during backfill of ${rootUri}: ${renderInlineError(err)}`);
+				continue;
+			}
+
+			const replies: { uri: string, object: IPost }[] = [];
+			for (const item of items) {
+				if (processed + replies.length >= maxReplies) break;
+
+				const itemUri = getNullableApId(item);
+				if (itemUri == null || seen.has(itemUri) || !isPost(item)) continue;
+
+				// The collection is controlled by the parent's server and may list arbitrary notes.
+				// Items were resolved from their own origin (or share the collection's authority), so their inReplyTo is trustworthy.
+				if (getNullableApId(item.inReplyTo) !== parentUri) continue;
+
+				seen.add(itemUri);
+				replies.push({ uri: itemUri, object: item });
+			}
+			processed += replies.length;
+
+			// Check existence for all siblings up front: importing one reply may import another as its quote.
+			// fetchNote also recognizes this server's own notes, which the remote collection may list by local URL.
+			const known = await Promise.all(replies.map(reply => this.fetchNote(reply.uri)));
+
+			for (const [index, reply] of replies.entries()) {
+				if (fetchBudget.remaining <= 0) break;
+
+				// Import with a fresh resolver: the traversal resolver's history already holds every listed reply,
+				// so resolving a sibling reply as a quote through it would be rejected as recursion.
+				// The import is charged to the budget afterwards rather than capped by it, because running out midway
+				// would save the note with permanently missing quotes or mentions. The resolver's recursion limit bounds how far one import can overshoot.
+				const importResolver = this.apResolverService.createResolver();
+				const fetchesBefore = importResolver.getHistory().length;
+				try {
+					const note = await this.resolveNote(reply.object, { resolver: importResolver, sentFrom: reply.uri });
+					if (note == null) continue;
+
+					if (known[index] == null) {
+						imported++;
+						// Backfilled notes are created silently, so open threads would otherwise not learn about them.
+						if (note.replyId != null && note.replyUserId != null) {
+							await this.globalEventService.publishNoteStream(note.replyId, 'replied', {
+								id: note.replyId,
+								userId: note.replyUserId,
+								body: {
+									id: note.id,
+									userId: note.userId,
+								},
+							});
+						}
+					}
+
+					pending.push(reply.object);
+				} catch (err) {
+					this.logger.warn(`Failed to import reply ${reply.uri} during backfill of ${rootUri}: ${renderInlineError(err)}`);
+				} finally {
+					fetchBudget.remaining -= importResolver.getHistory().length - fetchesBefore;
+				}
+			}
+		}
+
+		return imported;
 	}
 
 	@bindThis

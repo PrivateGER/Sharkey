@@ -29,9 +29,8 @@ import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
 import { fromTuple } from '@/misc/from-tuple.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { bindThis } from '@/decorators.js';
-import { Resolver } from '@/core/activitypub/ApResolverService.js';
+import { Resolver, type FetchBudget } from '@/core/activitypub/ApResolverService.js';
 import { DI } from '@/di-symbols.js';
-import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { NativeTimeService } from '@/global/TimeService.js';
 
 type MockResponse = {
@@ -76,6 +75,7 @@ export class MockResolver extends Resolver {
 		apUtilityService?: ApUtilityService,
 		cacheService?: CacheService,
 		recursionLimit?: number,
+		fetchBudget?: FetchBudget,
 	) {
 		super(
 			config ?? {} as Config,
@@ -96,6 +96,7 @@ export class MockResolver extends Resolver {
 			apUtilityService ?? {} as ApUtilityService,
 			cacheService ?? {} as CacheService,
 			recursionLimit,
+			fetchBudget,
 		);
 	}
 
@@ -104,6 +105,14 @@ export class MockResolver extends Resolver {
 			type,
 			content: typeof content === 'string' ? content : JSON.stringify(content),
 		});
+	}
+
+	/**
+	 * Makes this resolver serve (and record requests against) the responses registered on `source`, while keeping its own history and limits.
+	 */
+	public shareRegistrations(source: MockResolver): void {
+		this.#responseMap = source.#responseMap;
+		this.#remoteGetTrials = source.#remoteGetTrials;
 	}
 
 	public clear(): void {
@@ -124,14 +133,7 @@ export class MockResolver extends Resolver {
 		value = fromTuple(value);
 		if (typeof value !== 'string') return value;
 
-		// Check history - copied from Resolver._resolve
-		if (this.history.has(value)) {
-			throw new IdentifiableError('0dc86cf6-7cd6-4e56-b1e6-5903d62d7ea5', `failed to resolve ${value}: recursive resolution blocked`);
-		}
-		if (this.history.size > this.recursionLimit) {
-			throw new IdentifiableError('d592da9f-822f-4d91-83d7-4ceefabcf3d2', `failed to resolve ${value}: hit recursion limit`);
-		}
-		this.history.add(value);
+		this.claimFetch(value);
 
 		this.#remoteGetTrials.push(value);
 		const r = this.#responseMap.get(value);

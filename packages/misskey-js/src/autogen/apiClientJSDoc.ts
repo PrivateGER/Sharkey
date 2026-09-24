@@ -4117,6 +4117,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Fetches the replies of a remote note from its origin server in the background. Newly imported replies are announced on the note's stream.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:federation*
+     */
+    request<E extends 'notes/replies/backfill', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * No description provided.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:notes-schedule*

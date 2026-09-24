@@ -53,6 +53,7 @@ import { NoteCreateService } from './NoteCreateService.js';
 import { NoteEditService } from './NoteEditService.js';
 import { NoteDeleteService } from './NoteDeleteService.js';
 import { LatestNoteService } from './LatestNoteService.js';
+import { ReplyBackfillService } from './ReplyBackfillService.js';
 import { NotePiningService } from './NotePiningService.js';
 import { NotificationService } from './NotificationService.js';
 import { PollService } from './PollService.js';
@@ -196,6 +197,7 @@ const $NoteCreateService: Provider = { provide: 'NoteCreateService', useExisting
 const $NoteEditService: Provider = { provide: 'NoteEditService', useExisting: NoteEditService };
 const $NoteDeleteService: Provider = { provide: 'NoteDeleteService', useExisting: NoteDeleteService };
 const $LatestNoteService: Provider = { provide: 'LatestNoteService', useExisting: LatestNoteService };
+const $ReplyBackfillService: Provider = { provide: 'ReplyBackfillService', useExisting: ReplyBackfillService };
 const $NotePiningService: Provider = { provide: 'NotePiningService', useExisting: NotePiningService };
 const $NotificationService: Provider = { provide: 'NotificationService', useExisting: NotificationService };
 const $PollService: Provider = { provide: 'PollService', useExisting: PollService };
@@ -362,6 +364,7 @@ const $Imports = [
 		NoteEditService,
 		NoteDeleteService,
 		LatestNoteService,
+		ReplyBackfillService,
 		NotePiningService,
 		NotificationService,
 		PollService,
@@ -519,6 +522,7 @@ const $Imports = [
 		$NoteEditService,
 		$NoteDeleteService,
 		$LatestNoteService,
+		$ReplyBackfillService,
 		$NotePiningService,
 		$NotificationService,
 		$PollService,
@@ -681,6 +685,7 @@ const $Imports = [
 		NoteEditService,
 		NoteDeleteService,
 		LatestNoteService,
+		ReplyBackfillService,
 		NotePiningService,
 		NotificationService,
 		PollService,
@@ -837,6 +842,7 @@ const $Imports = [
 		$NoteEditService,
 		$NoteDeleteService,
 		$LatestNoteService,
+		$ReplyBackfillService,
 		$NotePiningService,
 		$NotificationService,
 		$PollService,

@@ -5,8 +5,10 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import type {
-	BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask, } from '@/queue/types.js';
+	BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask, BackfillRepliesBackgroundTask } from '@/queue/types.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
+import { ApNoteService } from '@/core/activitypub/models/ApNoteService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
 import Logger from '@/logger.js';
 import { DI } from '@/di-symbols.js';
@@ -53,6 +55,8 @@ export class BackgroundTaskProcessorService {
 		private readonly pollsRepository: PollsRepository,
 
 		private readonly apPersonService: ApPersonService,
+		private readonly apNoteService: ApNoteService,
+		private readonly utilityService: UtilityService,
 		private readonly cacheService: CacheService,
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly fetchInstanceMetadataService: FetchInstanceMetadataService,
@@ -100,9 +104,11 @@ export class BackgroundTaskProcessorService {
 			return await this.processPostSuspend(job);
 		} else if (job.type === 'post-unsuspend') {
 			return await this.processPostUnsuspend(job);
-			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		} else if (job.type === 'delete-ap-logs') {
 			return await this.processDeleteApLogs(job);
+			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+		} else if (job.type === 'backfill-replies') {
+			return await this.processBackfillReplies(job);
 		} else {
 			const type = (job as { type: string }).type;
 			this.logger.warn(`Can't process unknown job type "${type}"; this is likely a bug. Full job data:`, job);
@@ -342,5 +348,21 @@ export class BackgroundTaskProcessorService {
 		}
 
 		return 'ok';
+	}
+
+	private async processBackfillReplies(task: BackfillRepliesBackgroundTask): Promise<string> {
+		const note = await this.notesRepository.findOneBy({ id: task.noteId });
+		if (!note) return `Skipping backfill-replies task: note ${task.noteId} has been deleted`;
+		if (note.userHost == null || note.uri == null) return `Skipping backfill-replies task: note ${task.noteId} is local`;
+		// Remote servers only expose public replies, and only for public notes.
+		if (note.visibility !== 'public' && note.visibility !== 'home') return `Skipping backfill-replies task: note ${task.noteId} is not public`;
+		// The host may have been blocked after the job was queued.
+		if (!this.utilityService.isFederationAllowedHost(note.userHost)) return `Skipping backfill-replies task: note ${task.noteId} is from a host that is not federated with`;
+		const user = await this.cacheService.findUserById(note.userId);
+		if (user.isSuspended) return `Skipping backfill-replies task: note ${task.noteId}'s user ${note.userId} is suspended`;
+
+		const limits = task.automatic ? { maxReplies: 30, maxFetches: 100 } : {};
+		const imported = await this.apNoteService.backfillReplies(note.uri, limits);
+		return `ok: imported ${imported} replies`;
 	}
 }

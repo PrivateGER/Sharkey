@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { IsNull, Not } from 'typeorm';
+import { In, IsNull, Not } from 'typeorm';
 import type { MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import type { NotesRepository, PollsRepository, NoteReactionsRepository, UsersRepository, FollowRequestsRepository, MiMeta, SkApFetchLog } from '@/models/_.js';
 import type { Config } from '@/config.js';
@@ -31,6 +31,11 @@ import { ApRendererService } from './ApRendererService.js';
 import { ApRequestService } from './ApRequestService.js';
 import type { IObject, ApObject, IAnonymousObject } from './type.js';
 
+/**
+ * Fetch allowance shared by several resolvers. Each fetch through any of them decrements `remaining`.
+ */
+export type FetchBudget = { remaining: number };
+
 export class Resolver {
 	protected readonly history: Set<string>;
 	private user?: MiLocalUser;
@@ -55,6 +60,7 @@ export class Resolver {
 		private readonly apUtilityService: ApUtilityService,
 		private readonly cacheService: CacheService,
 		protected readonly recursionLimit = 256,
+		protected readonly fetchBudget?: FetchBudget,
 	) {
 		this.history = new Set();
 		this.logger = this.loggerService.getLogger('ap-resolve');
@@ -68,6 +74,14 @@ export class Resolver {
 	@bindThis
 	public getRecursionLimit(): number {
 		return this.recursionLimit;
+	}
+
+	/**
+	 * Number of objects this resolver may still fetch, considering both its own recursion limit and any shared budget.
+	 */
+	@bindThis
+	public getRemainingFetches(): number {
+		return Math.min(this.recursionLimit - this.history.size, this.fetchBudget?.remaining ?? Number.MAX_SAFE_INTEGER);
 	}
 
 	@bindThis
@@ -92,7 +106,7 @@ export class Resolver {
 	 * Malformed collections (mixing Ordered and un-Ordered types) are also supported.
 	 * @param collection Collection to resolve from - can be a URL or object of any supported collection type.
 	 * @param limit Maximum number of items to resolve. If null or undefined (default), then items will be resolved until reaching the recursion limit.
-	 * @param allowAnonymous If true, collection items can be anonymous (lack an ID). If false (default), then an error is thrown when reaching an item without ID.
+	 * @param allowAnonymous If true, the collection and its items can be anonymous (lack an ID). If false (default), then an error is thrown when reaching an item without ID. Pages of an identified collection may always be anonymous.
 	 * @param sentFromUri If collection is an object, this is the URI where it was sent from.
 	 * @param concurrency Maximum number of items to resolve at once. (default: 4)
 	 * @param ignoreErrors If true (default), inaccessible items will be skipped instead of causing an exception. Inaccessible collections will still throw.
@@ -105,8 +119,17 @@ export class Resolver {
 		const iterate = async(items: ApObject, current: AnyCollection) => {
 			const sentFrom = current.id;
 			const itemArr = toArray(items);
-			const itemLimit = limit ?? Number.MAX_SAFE_INTEGER;
-			await this.resolveItemArray(itemArr, sentFrom, itemLimit, concurrency, allowAnonymous, resolvedItems, ignoreErrors);
+
+			// Resolve in batches no larger than the remaining capacity, so ignored failures don't hide later items on the same page.
+			for (let offset = 0; offset < itemArr.length;) {
+				const remainingItems = limit != null ? limit - resolvedItems.length : Number.MAX_SAFE_INTEGER;
+				const batchSize = Math.min(remainingItems, this.getRemainingFetches());
+				if (batchSize <= 0) break;
+
+				const batch = itemArr.slice(offset, offset + batchSize);
+				offset += batch.length;
+				await this.resolveItemArray(batch, sentFrom, batchSize, concurrency, allowAnonymous, resolvedItems, ignoreErrors);
+			}
 		};
 
 		let current: AnyCollection | null = await this.resolveCollection(collection, allowAnonymous, sentFromUri);
@@ -119,7 +142,10 @@ export class Resolver {
 				await iterate(current.orderedItems, current);
 			}
 
-			if (this.history.size >= this.recursionLimit) {
+			// Pages only group items, so an anonymous page (such as Mastodon's inline first page) safely inherits the authority of the identified collection or page that embeds or links it.
+			const allowAnonymousPage = allowAnonymous || current.id != null;
+
+			if (this.getRemainingFetches() <= 0) {
 				// Stop when we reach the fetch limit
 				current = null;
 			} else if (limit != null && resolvedItems.length >= limit) {
@@ -127,10 +153,10 @@ export class Resolver {
 				current = null;
 			} else if (isCollection(current) || isOrderedCollection(current)) {
 				// Continue to first page
-				current = current.first ? await this.resolveCollection(current.first, allowAnonymous, current.id) : null;
+				current = current.first ? await this.resolveCollection(current.first, allowAnonymousPage, current.id) : null;
 			} else if (isCollectionPage(current) || isOrderedCollectionPage(current)) {
 				// Continue to next page
-				current = current.next ? await this.resolveCollection(current.next, allowAnonymous, current.id) : null;
+				current = current.next ? await this.resolveCollection(current.next, allowAnonymousPage, current.id) : null;
 			} else {
 				// Stop in all other conditions
 				current = null;
@@ -141,8 +167,7 @@ export class Resolver {
 	}
 
 	private async resolveItemArray(source: (string | IObject)[], sentFrom: string | undefined, itemLimit: number, concurrency: number, allowAnonymousItems: boolean, destination: IObject[], ignoreErrors?: boolean): Promise<void> {
-		const recursionLimit = this.recursionLimit - this.history.size;
-		const batchLimit = Math.min(source.length, recursionLimit, itemLimit);
+		const batchLimit = Math.min(source.length, this.getRemainingFetches(), itemLimit);
 
 		const batch = await promiseMap(source.slice(0, batchLimit), async item => {
 			try {
@@ -287,15 +312,7 @@ export class Resolver {
 			throw new IdentifiableError('b94fd5b1-0e3b-4678-9df2-dad4cd515ab2', `failed to resolve ${value}: URL contains fragment`);
 		}
 
-		if (this.history.has(value)) {
-			throw new IdentifiableError('0dc86cf6-7cd6-4e56-b1e6-5903d62d7ea5', `failed to resolve ${value}: recursive resolution blocked`);
-		}
-
-		if (this.history.size > this.recursionLimit) {
-			throw new IdentifiableError('d592da9f-822f-4d91-83d7-4ceefabcf3d2', `failed to resolve ${value}: hit recursion limit`);
-		}
-
-		this.history.add(value);
+		this.claimFetch(value);
 
 		if (this.utilityService.isSelfHost(host)) {
 			return await this.resolveLocal(value) as IObjectWithId;
@@ -355,6 +372,28 @@ export class Resolver {
 		return object;
 	}
 
+	/**
+	 * Records a fetch of `value`, enforcing recursion protection, the recursion limit, and the shared fetch budget.
+	 */
+	protected claimFetch(value: string): void {
+		if (this.history.has(value)) {
+			throw new IdentifiableError('0dc86cf6-7cd6-4e56-b1e6-5903d62d7ea5', `failed to resolve ${value}: recursive resolution blocked`);
+		}
+
+		if (this.history.size > this.recursionLimit) {
+			throw new IdentifiableError('d592da9f-822f-4d91-83d7-4ceefabcf3d2', `failed to resolve ${value}: hit recursion limit`);
+		}
+
+		if (this.fetchBudget != null) {
+			if (this.fetchBudget.remaining <= 0) {
+				throw new IdentifiableError('96d12e20-6eca-42c6-bd11-fe9e8d653cac', `failed to resolve ${value}: fetch budget exhausted`);
+			}
+			this.fetchBudget.remaining--;
+		}
+
+		this.history.add(value);
+	}
+
 	// TODO try to remove this, as it creates a large attack surface
 	@bindThis
 	private resolveLocal(url: string): Promise<IObjectWithId> {
@@ -363,6 +402,9 @@ export class Resolver {
 
 		switch (parsed.type) {
 			case 'notes':
+				if (parsed.rest === 'replies') {
+					return this.resolveLocalReplies(parsed.id, new URL(url).searchParams);
+				}
 				return this.notesRepository.findOneOrFail({ where: { id: parsed.id, userHost: IsNull() }, relations: { user: true, renote: true } })
 					.then(async note => {
 						const author = note.user ?? await this.cacheService.findUserById(note.userId);
@@ -409,6 +451,26 @@ export class Resolver {
 				throw new IdentifiableError('7a5d2fc0-94bc-4db6-b8b8-1bf24a2e23d0', `failed to resolve local ${url}: unsupported type ${parsed.type}`);
 		}
 	}
+
+	/**
+	 * Mirrors the /notes/:note/replies route so that thread traversal can pass through this server's own notes.
+	 */
+	private async resolveLocalReplies(noteId: string, query: URLSearchParams): Promise<IObjectWithId> {
+		const isPublic = await this.notesRepository.existsBy({
+			id: noteId,
+			userHost: IsNull(),
+			visibility: In(['public', 'home']),
+			localOnly: false,
+		});
+		if (!isPublic) {
+			throw new IdentifiableError('21c244cb-6764-4f3c-b90b-9dd209c45cad', `failed to resolve local replies of ${noteId}: note does not exist or is not public`);
+		}
+
+		const collection = query.get('page') === 'true'
+			? await this.apRendererService.renderRepliesCollectionPage(noteId, query.get('until_id') ?? undefined)
+			: await this.apRendererService.renderRepliesCollection(noteId);
+		return this.apRendererService.addContext(collection) as IObjectWithId;
+	}
 }
 
 @Injectable()
@@ -452,6 +514,8 @@ export class ApResolverService {
 	public createResolver(opts?: {
 		// Override the recursion limit
 		recursionLimit?: number,
+		// Share a fetch allowance with other resolvers
+		fetchBudget?: FetchBudget,
 	}): Resolver {
 		return new Resolver(
 			this.config,
@@ -472,6 +536,7 @@ export class ApResolverService {
 			this.apUtilityService,
 			this.cacheService,
 			opts?.recursionLimit,
+			opts?.fetchBudget,
 		);
 	}
 }

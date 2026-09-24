@@ -8312,6 +8312,28 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    '/notes/replies/backfill': {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * notes/replies/backfill
+         * @description Fetches the replies of a remote note from its origin server in the background. Newly imported replies are announced on the note's stream.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:federation*
+         */
+        post: operations['notes___replies___backfill'];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     '/notes/schedule/create': {
         parameters: {
             query?: never;
@@ -17047,6 +17069,7 @@ export interface operations {
                         /** @enum {string} */
                         allowUnsignedFetch: 'never' | 'always' | 'essential';
                         enableProxyAccount: boolean;
+                        enableAutoReplyBackfill: boolean;
                         deliverSuspendedSoftware: {
                             software: string;
                             versionRange: string;
@@ -21218,6 +21241,7 @@ export interface operations {
                     /** @enum {string} */
                     allowUnsignedFetch?: 'never' | 'always' | 'essential';
                     enableProxyAccount?: boolean;
+                    enableAutoReplyBackfill?: boolean;
                     deliverSuspendedSoftware?: {
                         software: string;
                         versionRange: string;
@@ -40543,6 +40567,11 @@ export interface operations {
                     untilId?: string;
                     /** @default true */
                     showQuotes?: boolean;
+                    /**
+                     * @description Also fetch newer replies of a remote note from its origin server in the background, if the server allows it and the thread is due. Newly imported replies are announced on the note's stream. Only honored for signed-in users.
+                     * @default false
+                     */
+                    autoBackfill?: boolean;
                 };
             };
         };
@@ -42508,6 +42537,85 @@ export interface operations {
                 content: {
                     'application/json': components['schemas']['Note'][];
                 };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    notes___replies___backfill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    noteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Client error */
             400: {
