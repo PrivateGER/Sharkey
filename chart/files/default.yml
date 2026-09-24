@@ -117,8 +117,8 @@ address: '127.0.0.1'
 db:
   # Network hostname, IP address, or UNIX socket to the PostgreSQL server.
   # Note: if using a UNIX socket, then this should be the absolute path to PostgreSQL's socket *directory* - not the actual socket itself!
-  # The PG client library insists on constructing the socket filename manually, and will crash if you attempt to specify the full path directly.
-  # If multiple PG servers exist on the same machine, then the "port" option will be used to map the correct socket filename.
+  #   The PG client library insists on constructing the socket filename manually, and will crash if you attempt to specify the full path directly.
+  #   If multiple PG servers exist on the same machine, then the "port" option will be used to map the correct socket filename.
   host: localhost
   port: 5432
 
