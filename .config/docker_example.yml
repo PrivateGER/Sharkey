@@ -165,10 +165,13 @@ redis:
   host: redis
   port: 6379
   #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+  ## You can use a UNIX socket for improved performance and security.
+  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+  #path: "/var/run/redis/redis.sock"
   #pass: example-pass
   #prefix: example-prefix
   #db: 1
-  # You can specify more ioredis options...
+  ## You can specify more ioredis options...
   #username: example-username
 
 #redisForPubsub:
