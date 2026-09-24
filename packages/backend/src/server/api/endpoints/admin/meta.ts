@@ -618,6 +618,10 @@ export const meta = {
 				type: 'boolean',
 				optional: false, nullable: false,
 			},
+			enableAutoReplyBackfill: {
+				type: 'boolean',
+				optional: false, nullable: false,
+			},
 			deliverSuspendedSoftware: {
 				type: 'array',
 				optional: false, nullable: false,
@@ -803,6 +807,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				hasLegacyAuthFetchSetting: config.checkActivityPubGetSignature != null,
 				allowUnsignedFetch: instance.allowUnsignedFetch,
 				enableProxyAccount: instance.enableProxyAccount,
+				enableAutoReplyBackfill: instance.enableAutoReplyBackfill,
 				deliverSuspendedSoftware: instance.deliverSuspendedSoftware,
 			};
 		});

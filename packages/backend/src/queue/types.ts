@@ -443,7 +443,8 @@ export type BackgroundTaskJobData =
 	UpdateLatestNoteBackgroundTask |
 	PostSuspendBackgroundTask |
 	PostUnsuspendBackgroundTask |
-	DeleteApLogsBackgroundTask;
+	DeleteApLogsBackgroundTask |
+	BackfillRepliesBackgroundTask;
 
 export type UpdateUserBackgroundTask = {
 	type: 'update-user';
@@ -514,4 +515,11 @@ export type DeleteApLogsBackgroundTask = {
 	type: 'delete-ap-logs';
 	dataType: 'inbox' | 'object';
 	data: string | string[];
+};
+
+export type BackfillRepliesBackgroundTask = {
+	type: 'backfill-replies';
+	noteId: string;
+	/** Automatic backfills run with smaller limits than user-requested ones. */
+	automatic: boolean;
 };

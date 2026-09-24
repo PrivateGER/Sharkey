@@ -269,6 +269,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #caption>{{ i18n.ts.federationAllowedHostsDescription }}</template>
 					</MkTextarea>
 
+					<MkSwitch v-model="federationForm.state.enableAutoReplyBackfill">
+						<template #label>{{ i18n.ts.enableAutoReplyBackfill }}<span v-if="federationForm.modifiedStates.enableAutoReplyBackfill" class="_modified">{{ i18n.ts.modified }}</span></template>
+						<template #caption>{{ i18n.ts.enableAutoReplyBackfillDescription }}</template>
+					</MkSwitch>
+
 					<MkFolder>
 						<template #icon><i class="ti ti-list"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._serverSettings.deliverSuspendedSoftware }}</SearchLabel></template>
@@ -454,11 +459,13 @@ const federationForm = useForm({
 	federation: meta.federation,
 	federationHosts: meta.federationHosts.join('\n'),
 	deliverSuspendedSoftware: meta.deliverSuspendedSoftware,
+	enableAutoReplyBackfill: meta.enableAutoReplyBackfill,
 }, async (state) => {
 	await os.apiWithDialog('admin/update-meta', {
 		federation: state.federation,
 		federationHosts: state.federationHosts.split('\n'),
 		deliverSuspendedSoftware: state.deliverSuspendedSoftware,
+		enableAutoReplyBackfill: state.enableAutoReplyBackfill,
 	});
 	fetchInstance(true);
 });

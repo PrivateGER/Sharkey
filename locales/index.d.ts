@@ -12085,6 +12085,22 @@ export interface Locale extends ILocale {
      */
     "approvals": string;
     /**
+     * Fetch replies from the origin server
+     */
+    "fetchRemoteReplies": string;
+    /**
+     * Fetching replies from the origin server. New replies will appear here as they arrive.
+     */
+    "fetchingRemoteReplies": string;
+    /**
+     * Automatically fetch replies of remote threads
+     */
+    "enableAutoReplyBackfill": string;
+    /**
+     * When a signed-in user opens a remote public post, fetch newer replies from its origin server in the background. Recently active threads are checked more often; threads quiet for over 90 days are only fetched on request.
+     */
+    "enableAutoReplyBackfillDescription": string;
+    /**
      * Emoji suggestions
      */
     "emojiSuggestions": string;

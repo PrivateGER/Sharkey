@@ -163,6 +163,8 @@ const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', nul
 setupNoteViewInterruptors(note, isDeleted);
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
+	// A reply can be announced more than once, e.g. when a backfill races an inbox delivery.
+	if (replies.value.some(reply => reply.id === replyNote.id)) return;
 	replies.value.unshift(replyNote);
 	appearNote.value.repliesCount += 1;
 }

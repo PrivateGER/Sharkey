@@ -349,6 +349,7 @@ export * as 'notes/reactions/create' from './endpoints/notes/reactions/create.js
 export * as 'notes/reactions/delete' from './endpoints/notes/reactions/delete.js';
 export * as 'notes/renotes' from './endpoints/notes/renotes.js';
 export * as 'notes/replies' from './endpoints/notes/replies.js';
+export * as 'notes/replies/backfill' from './endpoints/notes/replies/backfill.js';
 export * as 'notes/search' from './endpoints/notes/search.js';
 export * as 'notes/schedule/create' from './endpoints/notes/schedule/create.js';
 export * as 'notes/schedule/delete' from './endpoints/notes/schedule/delete.js';

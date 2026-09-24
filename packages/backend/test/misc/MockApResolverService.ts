@@ -14,7 +14,7 @@ import type {
 	NoteReactionsRepository,
 	FollowRequestsRepository,
 } from '@/models/_.js';
-import { ApResolverService } from '@/core/activitypub/ApResolverService.js';
+import { ApResolverService, type FetchBudget } from '@/core/activitypub/ApResolverService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
@@ -140,7 +140,32 @@ export class MockApResolverService extends ApResolverService {
 	}
 
 	@bindThis
-	createResolver(): MockResolver {
-		return this.resolver;
+	createResolver(opts?: { recursionLimit?: number, fetchBudget?: FetchBudget }): MockResolver {
+		if (opts == null) return this.resolver;
+
+		// Callers that set limits rely on getting an independent resolver, as in production.
+		const resolver = new MockResolver(
+			this.config,
+			this.meta,
+			this.usersRepository,
+			this.notesRepository,
+			this.pollsRepository,
+			this.noteReactionsRepository,
+			this.followRequestsRepository,
+			this.utilityService,
+			this.systemAccountService,
+			this.apRequestService,
+			this.httpRequestService,
+			this.apRendererService,
+			this.apDbResolverService,
+			this.loggerService,
+			this.apLogService,
+			this.apUtilityService,
+			this.cacheService,
+			opts.recursionLimit,
+			opts.fetchBudget,
+		);
+		resolver.shareRegistrations(this.resolver);
+		return resolver;
 	}
 }

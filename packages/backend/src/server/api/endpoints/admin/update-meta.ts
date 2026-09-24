@@ -217,6 +217,10 @@ export const paramDef = {
 			type: 'boolean',
 			nullable: false,
 		},
+		enableAutoReplyBackfill: {
+			type: 'boolean',
+			nullable: false,
+		},
 		deliverSuspendedSoftware: {
 			type: 'array',
 			items: {
@@ -793,6 +797,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.enableProxyAccount !== undefined) {
 				set.enableProxyAccount = ps.enableProxyAccount;
+			}
+
+			if (ps.enableAutoReplyBackfill !== undefined) {
+				set.enableAutoReplyBackfill = ps.enableAutoReplyBackfill;
 			}
 
 			const before = Object.assign({}, this.serverSettings);

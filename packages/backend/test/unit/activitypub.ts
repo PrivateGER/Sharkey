@@ -444,6 +444,330 @@ describe('ActivityPub', () => {
 		});
 	});
 
+	describe('Replies backfill', () => {
+		function createReply(actor: NonTransientIActor, parent: NonTransientIPost): NonTransientIPost {
+			return { ...createRandomNote(actor), inReplyTo: parent.id };
+		}
+
+		// Mirrors Mastodon: the collection is inlined with an anonymous first page, which links to further pages.
+		function setReplies(note: NonTransientIPost, ...pages: (string | IObject)[][]): void {
+			const collectionId = `${note.id}/replies`;
+			const pageIds = pages.map((_, i) => `${collectionId}?page=${i + 1}`);
+			const renderedPages = pages.map((items, i) => ({
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'CollectionPage' as const,
+				id: i === 0 ? undefined : pageIds[i],
+				partOf: collectionId,
+				next: pageIds[i + 1],
+				items,
+			}));
+
+			for (const page of renderedPages.slice(1)) {
+				resolver.register(page.id as string, page);
+			}
+
+			note.replies = {
+				type: 'Collection',
+				id: collectionId,
+				totalItems: pages.flat().length,
+				first: renderedPages[0],
+			};
+		}
+
+		async function createRemoteNote(note: NonTransientIPost): Promise<MiNote> {
+			const created = await noteService.createNote(note, undefined, resolver, true);
+			assert.ok(created);
+			return created;
+		}
+
+		test('Imports every reply in the thread across pages and nesting levels', async () => {
+			const actor1 = createRandomActor();
+			const actor2 = createRandomActor({ actorHost: 'https://host2.test' });
+			const root = createRandomNote(actor1);
+			const reply1 = createReply(actor2, root);
+			const reply2 = createReply(actor1, root);
+			const nested = createReply(actor1, reply1);
+
+			setReplies(root, [reply1.id], [reply2.id]);
+			setReplies(reply1, [nested.id]);
+
+			resolver.register(actor1.id, actor1);
+			resolver.register(actor2.id, actor2);
+			resolver.register(root.id, root);
+			resolver.register(reply1.id, reply1);
+			resolver.register(reply2.id, reply2);
+			resolver.register(nested.id, nested);
+
+			const rootNote = await createRemoteNote(root);
+			const imported = await noteService.backfillReplies(root.id);
+
+			assert.strictEqual(imported, 3);
+			const reply1Note = await noteService.fetchNote(reply1.id);
+			const reply2Note = await noteService.fetchNote(reply2.id);
+			const nestedNote = await noteService.fetchNote(nested.id);
+			assert.strictEqual(reply1Note?.replyId, rootNote.id);
+			assert.strictEqual(reply2Note?.replyId, rootNote.id);
+			assert.strictEqual(nestedNote?.replyId, reply1Note.id);
+			mockConsole.assertNoErrors();
+		});
+
+		test('Ignores listed notes that their origin does not confirm as replies', async () => {
+			const actor1 = createRandomActor();
+			const actor2 = createRandomActor({ actorHost: 'https://host2.test' });
+			const root = createRandomNote(actor1);
+			const unrelated = createRandomNote(actor1);
+			const foreignNote = createRandomNote(actor2);
+
+			// host1 claims that a host2 note replies to the root, but host2 disagrees.
+			setReplies(root, [unrelated.id, { ...foreignNote, inReplyTo: root.id }]);
+
+			resolver.register(actor1.id, actor1);
+			resolver.register(actor2.id, actor2);
+			resolver.register(root.id, root);
+			resolver.register(unrelated.id, unrelated);
+			resolver.register(foreignNote.id, foreignNote);
+
+			await createRemoteNote(root);
+			const imported = await noteService.backfillReplies(root.id);
+
+			assert.strictEqual(imported, 0);
+			assert.strictEqual(await noteService.hasNote(unrelated.id), false);
+			assert.strictEqual(await noteService.hasNote(foreignNote.id), false);
+		});
+
+		test('Descends into already-known replies without counting them', async () => {
+			const actor = createRandomActor();
+			const root = createRandomNote(actor);
+			const knownReply = createReply(actor, root);
+			const nested = createReply(actor, knownReply);
+
+			setReplies(root, [knownReply.id]);
+			setReplies(knownReply, [nested.id]);
+
+			resolver.register(actor.id, actor);
+			resolver.register(root.id, root);
+			resolver.register(knownReply.id, knownReply);
+			resolver.register(nested.id, nested);
+
+			await createRemoteNote(root);
+			const knownReplyNote = await createRemoteNote(knownReply);
+			const imported = await noteService.backfillReplies(root.id);
+
+			assert.strictEqual(imported, 1);
+			assert.strictEqual((await noteService.fetchNote(nested.id))?.replyId, knownReplyNote.id);
+		});
+
+		test('Keeps quotes between replies listed in the same collection and reports both as new', async () => {
+			const actor = createRandomActor();
+			const root = createRandomNote(actor);
+			const quoted = createReply(actor, root);
+			const quoting = { ...createReply(actor, root), quote: quoted.id };
+
+			setReplies(root, [quoting.id, quoted.id]);
+
+			for (const object of [actor, root, quoting, quoted]) {
+				resolver.register(object.id, object);
+			}
+
+			await createRemoteNote(root);
+			const imported = await noteService.backfillReplies(root.id);
+
+			const quotedNote = await noteService.fetchNote(quoted.id);
+			const quotingNote = await noteService.fetchNote(quoting.id);
+			assert.ok(quotedNote);
+			assert.strictEqual(quotingNote?.renoteId, quotedNote.id);
+			assert.strictEqual(imported, 2);
+		});
+
+		test('Stops walking the thread once imports have used up the fetch budget', async () => {
+			const actor1 = createRandomActor();
+			const actor2 = createRandomActor({ actorHost: 'https://host2.test' });
+			const root = createRandomNote(actor1);
+			const reply = createReply(actor2, root);
+			const nested = createReply(actor1, reply);
+			const nestedCollectionId = `${reply.id}/replies`;
+
+			setReplies(root, [reply.id]);
+			reply.replies = nestedCollectionId;
+
+			for (const object of [actor1, actor2, root, reply, nested]) {
+				resolver.register(object.id, object);
+			}
+			resolver.register(nestedCollectionId, {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'Collection',
+				id: nestedCollectionId,
+				totalItems: 1,
+				items: [nested.id],
+			});
+
+			await createRemoteNote(root);
+			// Traversal fetches the root and the reply; importing the reply spends the rest on its unknown author.
+			await noteService.backfillReplies(root.id, { maxFetches: 3 });
+
+			assert.ok(await noteService.hasNote(reply.id));
+			assert.ok(!resolver.remoteGetTrials().includes(nestedCollectionId), 'nested replies must not be fetched after the budget is spent');
+			assert.strictEqual(await noteService.hasNote(nested.id), false);
+		});
+
+		test('Stops fetching once the reply limit is reached across pages', async () => {
+			const actor = createRandomActor();
+			const root = createRandomNote(actor);
+			const replies = [createReply(actor, root), createReply(actor, root), createReply(actor, root)];
+
+			setReplies(root, [replies[0].id], [replies[1].id, replies[2].id]);
+
+			resolver.register(actor.id, actor);
+			resolver.register(root.id, root);
+			for (const reply of replies) {
+				resolver.register(reply.id, reply);
+			}
+
+			await createRemoteNote(root);
+			const imported = await noteService.backfillReplies(root.id, { maxReplies: 2 });
+
+			assert.strictEqual(imported, 2);
+			const stored = await Promise.all(replies.map(reply => noteService.hasNote(reply.id)));
+			assert.deepStrictEqual(stored, [true, true, false]);
+			assert.ok(!resolver.remoteGetTrials().includes(replies[2].id), 'reply beyond the limit must not be fetched');
+		});
+
+		test('Does not count replies from this server as imported', async () => {
+			const actor = createRandomActor();
+			const root = createRandomNote(actor);
+			resolver.register(actor.id, actor);
+			const rootNote = await createRemoteNote(root);
+
+			const localUser = new MiUser({
+				id: idService.gen(),
+				host: null,
+				uri: null,
+				username: 'localReplier',
+				usernameLower: 'localreplier',
+			});
+			await usersRepository.insert(localUser);
+			const localReply = new MiNote({
+				id: idService.gen(),
+				userId: localUser.id,
+				userHost: null,
+				replyId: rootNote.id,
+				replyUserId: rootNote.userId,
+				replyUserHost: rootNote.userHost,
+				visibility: 'public',
+				localOnly: false,
+				text: 'local reply',
+				cw: null,
+				renoteCount: 0,
+				repliesCount: 0,
+				clippedCount: 0,
+				reactions: {},
+				fileIds: [],
+				attachedFileTypes: [],
+				visibleUserIds: [],
+				mentions: [],
+				mentionedRemoteUsers: '[]',
+				reactionAndUserPairCache: [],
+				emojis: [],
+				tags: [],
+				hasPoll: false,
+			});
+			await notesRepository.insert(localReply);
+
+			// The remote server lists our reply by its local URL, as it would after receiving it via federation.
+			const localReplyUri = `${config.url}/notes/${localReply.id}`;
+			setReplies(root, [localReplyUri]);
+			resolver.register(root.id, root);
+			resolver.register(localReplyUri, {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				id: localReplyUri,
+				type: 'Note',
+				attributedTo: `${config.url}/users/${localUser.id}`,
+				inReplyTo: root.id,
+				content: 'local reply',
+			});
+
+			const imported = await noteService.backfillReplies(root.id);
+
+			assert.strictEqual(imported, 0);
+		});
+	});
+
+	describe('Collection items', () => {
+		test('Keeps resolving a page after an ignored failure until the limit is reached', async () => {
+			const collectionId = `${host}/collections/${secureRndstr(8)}`;
+			const [first, second] = createRandomNotes(createRandomActor(), 2);
+			const missing = `${host}/notes/${secureRndstr(8)}`;
+
+			resolver.register(collectionId, {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'OrderedCollection',
+				id: collectionId,
+				totalItems: 3,
+				first: `${collectionId}?page=1`,
+			});
+			resolver.register(`${collectionId}?page=1`, {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'OrderedCollectionPage',
+				id: `${collectionId}?page=1`,
+				next: `${collectionId}?page=2`,
+				orderedItems: [first.id],
+			});
+			resolver.register(`${collectionId}?page=2`, {
+				'@context': 'https://www.w3.org/ns/activitystreams',
+				type: 'OrderedCollectionPage',
+				id: `${collectionId}?page=2`,
+				orderedItems: [missing, second.id],
+			});
+			resolver.register(first.id, first);
+			resolver.register(second.id, second);
+
+			const items = await resolver.resolveCollectionItems(collectionId, false, undefined, 2);
+
+			assert.deepStrictEqual(items.map(item => item.id), [first.id, second.id]);
+		});
+
+		test('Resolves the replies collection of a local note', async () => {
+			// The real resolver is needed here, because the mock never renders local objects.
+			const localResolver = ApResolverService.prototype.createResolver.call(app.get(ApResolverService));
+			const localUser = new MiUser({ id: idService.gen(), host: null, uri: null, username: 'localAuthor', usernameLower: 'localauthor' });
+			await usersRepository.insert(localUser);
+			const createLocalNote = async (replyId: string | null): Promise<MiNote> => {
+				const note = new MiNote({
+					id: idService.gen(),
+					userId: localUser.id,
+					userHost: null,
+					replyId,
+					replyUserId: replyId != null ? localUser.id : null,
+					visibility: 'public',
+					localOnly: false,
+					text: 'local',
+					cw: null,
+					renoteCount: 0,
+					repliesCount: 0,
+					clippedCount: 0,
+					reactions: {},
+					fileIds: [],
+					attachedFileTypes: [],
+					visibleUserIds: [],
+					mentions: [],
+					mentionedRemoteUsers: '[]',
+					reactionAndUserPairCache: [],
+					emojis: [],
+					tags: [],
+					hasPoll: false,
+				});
+				await notesRepository.insert(note);
+				return note;
+			};
+			const parent = await createLocalNote(null);
+			const reply = await createLocalNote(parent.id);
+
+			const items = await localResolver.resolveCollectionItems(`${config.url}/notes/${parent.id}/replies`);
+
+			assert.deepStrictEqual(items.map(item => item.id), [`${config.url}/notes/${reply.id}`]);
+		});
+	});
+
 	describe('Images', () => {
 		test('Create images', async () => {
 			const imageObject: IApDocument = {

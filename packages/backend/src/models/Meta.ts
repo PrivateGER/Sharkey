@@ -775,6 +775,11 @@ export class MiMeta {
 	})
 	public enableProxyAccount: boolean;
 
+	@Column('boolean', {
+		default: true,
+	})
+	public enableAutoReplyBackfill: boolean;
+
 	@Column('jsonb', {
 		default: [],
 	})
