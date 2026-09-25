@@ -50,6 +50,21 @@ function isCompressionBeneficial(compressedSize: number, originalSize: number): 
 	return compressedSize <= originalSize * (1 - MIN_COMPRESSION_SAVING);
 }
 
+// Files below these sizes are not compressed by default: the gain is small and re-encoding takes time and costs quality
+const MIN_DEFAULT_IMAGE_COMPRESSION_SIZE = 1024 * 1024; // 1MB
+const MIN_DEFAULT_VIDEO_COMPRESSION_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Video compression is relative to the source, so that already compact videos are not blown up
+// and users don't get surprised by a much worse video
+const VIDEO_COMPRESSION_SETTINGS = {
+	1: { maxShortSide: null, bitrateRatio: 0.8 },
+	2: { maxShortSide: 1080, bitrateRatio: 0.6 },
+	3: { maxShortSide: 720, bitrateRatio: 0.4 },
+} as const satisfies Record<Exclude<CompressionLevel, 0>, { maxShortSide: number | null; bitrateRatio: number }>;
+
+// Lowest bitrate we allow, in bits per pixel per frame. Below this, browser H.264 encoders produce visibly broken video.
+const VIDEO_MIN_BITS_PER_PIXEL = 0.05;
+
 const mimeTypeMap = {
 	'image/webp': 'webp',
 	'image/jpeg': 'jpg',
@@ -70,8 +85,11 @@ export type UploaderItem = {
 	aborted: boolean;
 	compressionLevel: CompressionLevel;
 	compressedSize?: number | null;
-	/** Compression was requested but kept the original, because it would not have made the file noticeably smaller */
-	compressionSkipped?: boolean;
+	/**
+	 * Why the original is uploaded although compression would apply:
+	 * the file is small enough to skip default compression, or compressing would not make it noticeably smaller.
+	 */
+	compressionSkipped?: 'small' | 'notBeneficial' | null;
 	/** The alt text editor for this item is open */
 	editingCaption?: boolean;
 	preprocessedFile?: Blob | null;
@@ -144,11 +162,20 @@ export function useUploader(options: {
 		return 0;
 	}
 
+	function isTooSmallForDefaultCompression(file: File): boolean {
+		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_IMAGE_COMPRESSION_SIZE;
+		if (VIDEO_COMPRESSION_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_VIDEO_COMPRESSION_SIZE;
+		return false;
+	}
+
 	function initializeFile(file: File) {
 		const id = uuid();
 		const filename = file.name ?? 'untitled';
 		const extension = filename.split('.').length > 1 ? '.' + filename.split('.').pop() : '';
 		const objectUrl = window.URL.createObjectURL(file);
+		const defaultCompressionLevel = getDefaultCompressionLevel(file);
+		// An explicitly requested level (options.compressionLevel) always applies
+		const skipAsSmall = defaultCompressionLevel !== 0 && options.compressionLevel == null && isTooSmallForDefaultCompression(file);
 		items.value.push({
 			id,
 			name: options.nameConverter?.(file) ?? (prefer.s.keepOriginalFilename ? filename : id + extension),
@@ -161,7 +188,8 @@ export function useUploader(options: {
 			aborted: false,
 			uploaded: null,
 			uploadFailed: false,
-			compressionLevel: getDefaultCompressionLevel(file),
+			compressionLevel: skipAsSmall ? 0 : defaultCompressionLevel,
+			compressionSkipped: skipAsSmall ? 'small' : null,
 			file: markRaw(file),
 			objectUrl,
 		});
@@ -269,6 +297,7 @@ export function useUploader(options: {
 		) {
 			function changeCompressionLevel(level: CompressionLevel) {
 				item.compressionLevel = level;
+				item.compressionSkipped = null;
 				preprocess(item).then(() => {
 					triggerRef(items);
 				});
@@ -426,7 +455,8 @@ export function useUploader(options: {
 	async function preprocess(item: UploaderItem): Promise<void> {
 		item.preprocessing = true;
 		item.preprocessProgress = null;
-		item.compressionSkipped = false;
+		// Keep the "small file" note until the user picks a level themselves
+		if (item.compressionLevel !== 0) item.compressionSkipped = null;
 
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(item.file.type)) {
 			try {
@@ -471,7 +501,7 @@ export function useUploader(options: {
 					item.suffix = '.' + mimeTypeMap[config.mimeType];
 				} else {
 					item.compressedSize = null;
-					item.compressionSkipped = true;
+					item.compressionSkipped = 'notBeneficial';
 					item.suffix = '';
 				}
 			} catch (err) {
@@ -488,62 +518,90 @@ export function useUploader(options: {
 
 	async function preprocessForVideo(item: UploaderItem): Promise<void> {
 		let preprocessedFile: Blob | File = item.file;
+		item.compressedSize = null;
+		item.suffix = '';
 
-		if (item.compressionLevel !== 0) {
+		const settings = item.compressionLevel !== 0 ? VIDEO_COMPRESSION_SETTINGS[item.compressionLevel] : null;
+		if (settings != null) {
 			const mediabunny = await import('mediabunny');
 
-			const source = new mediabunny.BlobSource(preprocessedFile);
-
 			const input = new mediabunny.Input({
-				source,
+				source: new mediabunny.BlobSource(preprocessedFile),
 				formats: mediabunny.ALL_FORMATS,
 			});
 
-			const output = new mediabunny.Output({
-				target: new mediabunny.BufferTarget(),
-				format: new mediabunny.Mp4OutputFormat(),
-			});
+			const videoTrack = await input.getPrimaryVideoTrack();
+			const stats = videoTrack != null ? await videoTrack.computePacketStats() : null;
 
-			const currentConversion = await mediabunny.Conversion.init({
-				input,
-				output,
-				video: {
-					bitrate: item.compressionLevel === 1 ? mediabunny.QUALITY_VERY_HIGH : item.compressionLevel === 2 ? mediabunny.QUALITY_MEDIUM : mediabunny.QUALITY_VERY_LOW,
-				},
-				audio: {
-					// Explicitly keep audio (don't discard) and copy it if possible
-					// without re-encoding to avoid WebCodecs limitations on iOS Safari
-					discard: false,
-				},
-			});
-
-			currentConversion.onProgress = newProgress => item.preprocessProgress = newProgress;
-
-			item.abortPreprocess = () => {
-				item.abortPreprocess = null;
-				currentConversion.cancel();
-				item.preprocessing = false;
-				item.preprocessProgress = null;
-			};
-
-			await currentConversion.execute();
-
-			item.abortPreprocess = null;
-
-			const compressedSize = output.target.buffer!.byteLength;
-			// Videos that are already heavily compressed (e.g. from TikTok) can come out larger
-			if (isCompressionBeneficial(compressedSize, preprocessedFile.size)) {
-				preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
-				item.compressedSize = compressedSize;
-				item.suffix = '.mp4';
+			if (videoTrack == null || stats == null || stats.averageBitrate <= 0) {
+				item.compressionSkipped = 'notBeneficial';
 			} else {
-				item.compressedSize = null;
-				item.compressionSkipped = true;
-				item.suffix = '';
+				const width = videoTrack.displayWidth;
+				const height = videoTrack.displayHeight;
+				const shortSide = Math.min(width, height);
+				const scale = settings.maxShortSide != null && shortSide > settings.maxShortSide ? settings.maxShortSide / shortSide : 1;
+				const outputPixels = width * height * scale * scale;
+				const frameRate = stats.averagePacketRate > 0 ? stats.averagePacketRate : 30;
+
+				// Fewer pixels need fewer bits, but not proportionally fewer
+				const targetBitrate = Math.round(Math.max(
+					stats.averageBitrate * settings.bitrateRatio * Math.pow(scale * scale, 0.75),
+					outputPixels * frameRate * VIDEO_MIN_BITS_PER_PIXEL,
+				));
+
+				// Don't spend time encoding when the target would not save anything worthwhile
+				if (!isCompressionBeneficial(targetBitrate, stats.averageBitrate)) {
+					item.compressionSkipped = 'notBeneficial';
+				} else {
+					const output = new mediabunny.Output({
+						target: new mediabunny.BufferTarget(),
+						format: new mediabunny.Mp4OutputFormat(),
+					});
+
+					const currentConversion = await mediabunny.Conversion.init({
+						input,
+						output,
+						video: {
+							// Scale the short side; the other side follows the aspect ratio
+							...(scale < 1 ? (width <= height ? { width: Math.round(width * scale) } : { height: Math.round(height * scale) }) : {}),
+							quality: new mediabunny.Quality({ bitrate: targetBitrate }),
+						},
+						audio: {
+							// Explicitly keep audio (don't discard) and copy it if possible
+							// without re-encoding to avoid WebCodecs limitations on iOS Safari
+							discard: false,
+						},
+					});
+
+					// The browser may be unable to decode or encode a track; never upload a video with a missing track
+					if (!currentConversion.isValid || currentConversion.discardedTracks.length > 0) {
+						item.compressionSkipped = 'notBeneficial';
+					} else {
+						currentConversion.onProgress = newProgress => item.preprocessProgress = newProgress;
+
+						item.abortPreprocess = () => {
+							item.abortPreprocess = null;
+							currentConversion.cancel();
+							item.preprocessing = false;
+							item.preprocessProgress = null;
+						};
+
+						await currentConversion.execute();
+
+						item.abortPreprocess = null;
+
+						const compressedSize = output.target.buffer!.byteLength;
+						// Encoders don't always hit the target, so check the result as well
+						if (isCompressionBeneficial(compressedSize, preprocessedFile.size)) {
+							preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
+							item.compressedSize = compressedSize;
+							item.suffix = '.mp4';
+						} else {
+							item.compressionSkipped = 'notBeneficial';
+						}
+					}
+				}
 			}
-		} else {
-			item.compressedSize = null;
-			item.suffix = '';
 		}
 
 		updateItemObjectUrls(item, preprocessedFile);

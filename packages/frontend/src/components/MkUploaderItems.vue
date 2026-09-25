@@ -38,7 +38,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span>{{ displayItem.item.file.type }}</span>
 					<span v-if="displayItem.item.compressedSize">({{ i18n.tsx._uploader.compressedToX({ x: bytes(displayItem.item.compressedSize) }) }} = {{ i18n.tsx._uploader.savedXPercent({ x: Math.round((1 - displayItem.item.compressedSize / displayItem.item.file.size) * 100) }) }})</span>
 					<span v-else>{{ bytes(displayItem.item.file.size) }}</span>
-					<span v-if="displayItem.item.compressionSkipped">({{ i18n.ts._uploader.compressionNotBeneficial }})</span>
+					<span v-if="displayItem.item.compressionSkipped === 'small'">({{ i18n.ts._uploader.smallFileNotCompressed }})</span>
+					<span v-else-if="displayItem.item.compressionSkipped === 'notBeneficial'">({{ i18n.ts._uploader.compressionNotBeneficial }})</span>
 					<span v-if="displayItem.item.preprocessing">{{ i18n.ts.preprocessing }}<MkLoading inline em style="margin-left: 0.5em;"/></span>
 				</div>
 				<button

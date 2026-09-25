@@ -12175,6 +12175,10 @@ export interface Locale extends ILocale {
          * Original kept: compressing would not make it smaller
          */
         "compressionNotBeneficial": string;
+        /**
+         * Small file, not compressed
+         */
+        "smallFileNotCompressed": string;
     };
     /**
      * Approvals
