@@ -411,7 +411,7 @@ async function onFileSelectClicked() {
 		true,
 		{
 			uploadFolder: selectedFolderId.value,
-			keepOriginal: true,
+			compressionLevel: 0,
 			// 拡張子は消す
 			nameConverter: (file) => file.name.replace(/\.[a-zA-Z0-9]+$/, ''),
 		},

@@ -409,6 +409,7 @@ export function pluginReplaceIcons(): Plugin[] {
 				'ti ti-clipboard': 'ph-clipboard ph-bold ph-lg',
 				'ti ti-cloud-cog': 'ph-cloud-check ph-bold ph-lg',
 				'ti ti-cloud-down': 'ph-cloud-arrow-down ph-bold ph-lg',
+				'ti ti-cloud-pause': 'ph-cloud-x ph-bold ph-lg',
 				'ti ti-cloud-up': 'ph-cloud-arrow-up ph-bold ph-lg',
 				'ti ti-dots-circle-horizontal': 'ph-dots-three-circle ph-bold ph-lg',
 				'ti ti-mood-plus': 'ph-smiley ph-bold ph-lg',

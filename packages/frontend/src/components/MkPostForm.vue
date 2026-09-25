@@ -135,7 +135,6 @@ import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
 import { ensureSignin, notesCount, incNotesCount } from '@/i.js';
 import { getAccounts, openAccountMenu as openAccountMenu_ } from '@/accounts.js';
-import { uploadFile } from '@/utility/upload.js';
 import { deepClone } from '@/utility/clone.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import MkScheduleEditor from '@/components/MkScheduleEditor.vue';
@@ -493,11 +492,12 @@ function replaceFile(file: Misskey.entities.DriveFile, newFile: Misskey.entities
 	files.value[files.value.findIndex(x => x.id === file.id)] = newFile;
 }
 
-function upload(file: File, name?: string): void {
+function upload(newFiles: File[], nameConverter?: (file: File) => string | undefined): void {
 	if (props.mock) return;
+	if (newFiles.length === 0) return;
 
-	uploadFile(file, prefer.s.uploadFolder, name).then(res => {
-		files.value.push(res);
+	os.launchUploader(newFiles, { nameConverter }).then(driveFiles => {
+		files.value.push(...driveFiles);
 	});
 }
 
@@ -703,6 +703,7 @@ async function onPaste(ev: ClipboardEvent) {
 	if (props.mock) return;
 	if (!ev.clipboardData) return;
 
+	const pastedFiles: File[] = [];
 	for (const { item, i } of Array.from(ev.clipboardData.items, (data, x) => ({ item: data, i: x }))) {
 		if (item.kind === 'file') {
 			const file = item.getAsFile();
@@ -710,9 +711,10 @@ async function onPaste(ev: ClipboardEvent) {
 			const lio = file.name.lastIndexOf('.');
 			const ext = lio >= 0 ? file.name.slice(lio) : '';
 			const formatted = `${formatTimeString(new Date(file.lastModified), pastedFileName).replace(/{{number}}/g, `${i + 1}`)}${ext}`;
-			upload(file, formatted);
+			pastedFiles.push(new File([file], formatted, { type: file.type, lastModified: file.lastModified }));
 		}
 	}
+	upload(pastedFiles, file => file.name);
 
 	const paste = ev.clipboardData.getData('text');
 
@@ -756,7 +758,7 @@ async function onPaste(ev: ClipboardEvent) {
 
 			const fileName = formatTimeString(new Date(), pastedFileName).replace(/{{number}}/g, '0');
 			const file = new File([paste], `${fileName}.txt`, { type: 'text/plain' });
-			upload(file, `${fileName}.txt`);
+			upload([file], f => f.name);
 		});
 	}
 }
@@ -801,7 +803,7 @@ function onDrop(ev: DragEvent): void {
 	// ファイルだったら
 	if (ev.dataTransfer && ev.dataTransfer.files.length > 0) {
 		ev.preventDefault();
-		for (const x of Array.from(ev.dataTransfer.files)) upload(x);
+		upload(Array.from(ev.dataTransfer.files));
 		return;
 	}
 

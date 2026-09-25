@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<i v-else class="ti ti-chevron-down icon"></i>
 						</button>
 						<div v-if="uiInspectorOpenedComponents.get(c)">
-							<MkTextarea :modelValue="stringifyUiProps(c.value)" code readonly></MkTextarea>
+							<MkTextarea :modelValue="stringifyUiProps(c.value)" code readonly :spellcheck="false"></MkTextarea>
 						</div>
 					</div>
 					<div :class="$style.uiInspectorDescription">{{ i18n.ts.uiInspectorDescription }}</div>

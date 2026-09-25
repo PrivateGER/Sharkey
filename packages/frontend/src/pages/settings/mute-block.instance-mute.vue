@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps_m">
 	<MkInfo>{{ i18n.ts._instanceMute.title }}</MkInfo>
-	<MkTextarea v-model="instanceMutes">
+	<MkTextarea v-model="instanceMutes" :spellcheck="false">
 		<template #label>{{ i18n.ts._instanceMute.heading }}</template>
 		<template #caption>{{ i18n.ts._instanceMute.instanceMuteDescription }}<br>{{ i18n.ts._instanceMute.instanceMuteDescription2 }}</template>
 	</MkTextarea>

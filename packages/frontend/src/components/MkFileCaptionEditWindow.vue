@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>{{ i18n.ts.describeFile }}</template>
 	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
-		<MkDriveFileThumbnail :file="file" fit="contain" style="height: 193px; margin-bottom: 16px;"/>
+		<MkDriveFileThumbnail v-if="file" :file="file" fit="contain" style="height: 193px; margin-bottom: 16px;"/>
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
@@ -47,12 +47,13 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 const props = defineProps<{
-	file: Misskey.entities.DriveFile;
-	default: string;
+	file?: Misskey.entities.DriveFile | null;
+	default?: string | null;
 }>();
 
-const isImage = props.file.type.startsWith('image/');
-const isVideo = props.file.type.startsWith('video/');
+// Alt text can only be generated for files that are already in the drive
+const isImage = props.file?.type.startsWith('image/') ?? false;
+const isVideo = props.file?.type.startsWith('video/') ?? false;
 let loading = ref(false);
 const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
 
@@ -63,10 +64,10 @@ const emit = defineEmits<{
 
 const dialog = useTemplateRef('dialog');
 
-const caption = ref(props.default);
+const caption = ref(props.default ?? '');
 
 async function generateAltText() {
-	if (!isImage && !isVideo) return;
+	if (props.file == null || (!isImage && !isVideo)) return;
 	loading.value = true;
 
 	try {

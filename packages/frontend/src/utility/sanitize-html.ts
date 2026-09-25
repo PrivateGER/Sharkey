@@ -15,5 +15,12 @@ export default function sanitizeHtml(str: string | null): string | null {
 			img: original.defaults.allowedAttributes.img.concat(['style']),
 			'*': (original.defaults.allowedAttributes['*'] || []).concat(['style']),
 		},
+		allowedSchemes: [
+			...original.defaults.allowedSchemes,
+			'xmpp',
+			'matrix',
+			'gemini',
+			'gopher',
+		],
 	});
 }

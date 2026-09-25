@@ -314,6 +314,12 @@ export const PREF_DEF = {
 	keepOriginalFilename: {
 		default: true,
 	},
+	defaultImageCompressionLevel: {
+		default: 1 as 0 | 1 | 2 | 3,
+	},
+	defaultVideoCompressionLevel: {
+		default: 0 as 0 | 1 | 2 | 3,
+	},
 	alwaysConfirmFollow: {
 		default: true,
 	},

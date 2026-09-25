@@ -45,6 +45,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</dd>
 				</dl>
 			</div>
+			<div v-if="user.listenbrainz" :class="$style.fields">
+				<XListenBrainz :userId="user.id" :popup="true"/>
+			</div>
 			<div :class="$style.status">
 				<div :class="$style.statusItem">
 					<div :class="$style.statusItemLabel">{{ i18n.ts.notes }}</div>
@@ -70,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { defineAsyncComponent, onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import { userPage } from '@/filters/user.js';
@@ -83,6 +86,8 @@ import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
+
+const XListenBrainz = defineAsyncComponent(() => import('@/components/SkListenBrainz.vue'));
 
 const props = defineProps<{
 	showing: boolean;
@@ -117,7 +122,7 @@ async function fetchUser() {
 			Misskey.acct.parse(props.q.substring(1)) :
 			{ userId: props.q };
 
-		misskeyApi('users/show', query).then(res => {
+		await misskeyApi('users/show', query).then(res => {
 			if (!props.showing) return;
 			user.value = res;
 			error.value = false;
@@ -252,6 +257,9 @@ onMounted(() => {
 	padding: 16px;
 	border-top: solid 1px var(--MI_THEME-divider);
 	border-bottom: solid 1px var(--MI_THEME-divider);
+	&:empty {
+		display: none;
+	}
 }
 
 .field {

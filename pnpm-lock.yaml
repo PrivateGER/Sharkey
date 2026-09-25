@@ -755,6 +755,9 @@ importers:
       matter-js:
         specifier: 0.20.0
         version: 0.20.0
+      mediabunny:
+        specifier: 1.55.4
+        version: 1.55.4
       mfm-js:
         specifier: npm:@transfem-org/sfm-js@0.26.1
         version: '@transfem-org/sfm-js@0.26.1'
@@ -4308,6 +4311,12 @@ packages:
 
   '@types/doctrine@0.0.9':
     resolution: {integrity: sha512-eOIHzCUSH7SMfonMG1LsC2f8vxBFtho6NGBznK41R84YzPuvSBzrhEps33IsQiOW9+VL6NQ9DbjQJznk/S4uRA==}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
 
   '@types/eslint@7.29.0':
     resolution: {integrity: sha512-VNcvioYDH8/FxaeTKkM4/TiTwt6pBV9E3OfGmvaw8tPl0rrHCJ4Ll15HRT+pMiFAf/MLQvAzC+6RzUMEL9Ceng==}
@@ -7916,6 +7925,9 @@ packages:
   media-typer@1.1.0:
     resolution: {integrity: sha512-aisnrDP4GNe06UcKFnV5bfMNPBUw4jsLGaWwWfnH3v02GnBuXX2MCVn5RbrWo0j3pczUilYblq7fQ7Nw2t5XKw==}
     engines: {node: '>= 0.8'}
+
+  mediabunny@1.55.4:
+    resolution: {integrity: sha512-dJDE7ScjKlt21ZA3wS0xWQtgXjoUBEkWzjbnTVX5/BdN88C4QMdQu1u+K13vPHbuEbvjKbsXdYy38M3JTtPRHw==}
 
   meilisearch@0.53.0:
     resolution: {integrity: sha512-nG4VXbEOSzUmtbfsgOo+t6yX1ECEgXaT4hC0ap9MBpQGK5xwT+NWYDENYsKWR75cVaWaAqva+ok4zHlgtdXlLw==}
@@ -14163,6 +14175,12 @@ snapshots:
 
   '@types/doctrine@0.0.9': {}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
+  '@types/dom-webcodecs@0.1.13': {}
+
   '@types/eslint@7.29.0':
     dependencies:
       '@types/estree': 1.0.8
@@ -18637,6 +18655,11 @@ snapshots:
 
   media-typer@1.1.0:
     optional: true
+
+  mediabunny@1.55.4:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
 
   meilisearch@0.53.0: {}
 

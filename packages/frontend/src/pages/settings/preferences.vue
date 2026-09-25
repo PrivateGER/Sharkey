@@ -849,7 +849,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 							<SearchMarker :keywords="['warn', 'external', 'url']">
 								<MkPreferenceContainer k="trustedDomains">
-									<MkTextarea v-model="trustedDomains" :debounce="true">
+									<MkTextarea v-model="trustedDomains" :debounce="true" :spellcheck="false">
 										<template #label><SearchLabel>{{ i18n.ts.trustedDomainsList }}</SearchLabel></template>
 										<template #caption>{{ i18n.ts.trustedDomainsListDescription }}</template>
 									</MkTextarea>

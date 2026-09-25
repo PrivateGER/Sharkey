@@ -41,8 +41,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</video>
 		<i class="ti ti-eye-off" :class="$style.hide" @click="hide = true"></i>
 		<div :class="$style.indicators">
-			<div v-if="video.comment" :class="$style.indicator">ALT</div>
-			<div v-if="video.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation"></i></div>
+			<div v-if="video.comment" :class="$style.indicator" @cilick.stop>ALT</div>
+			<div v-if="video.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation" @click.stop="hide = true"></i></div>
 		</div>
 	</div>
 
@@ -756,7 +756,6 @@ onDeactivated(() => {
 	position: absolute;
 	top: 10px;
 	left: 10px;
-	pointer-events: none;
 	opacity: .5;
 	gap: 6px;
 }

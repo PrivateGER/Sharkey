@@ -30,7 +30,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	(ev: 'move', v?: Misskey.entities.DriveFolder): void;
-	(ev: 'upload', file: File, folder?: Misskey.entities.DriveFolder | null): void;
+	(ev: 'upload', files: File[], folder?: Misskey.entities.DriveFolder | null): void;
 	(ev: 'removeFile', v: Misskey.entities.DriveFile['id']): void;
 	(ev: 'removeFolder', v: Misskey.entities.DriveFolder['id']): void;
 }>();
@@ -101,9 +101,7 @@ function onDrop(ev: DragEvent) {
 
 	// ファイルだったら
 	if (ev.dataTransfer.files.length > 0) {
-		for (const file of Array.from(ev.dataTransfer.files)) {
-			emit('upload', file, props.folder);
-		}
+		emit('upload', Array.from(ev.dataTransfer.files), props.folder);
 		return;
 	}
 
