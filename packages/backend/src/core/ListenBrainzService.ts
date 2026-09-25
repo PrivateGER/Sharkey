@@ -133,13 +133,18 @@ export class ListenBrainzService {
 			// we don't have full metadata. check if there's anything cached.
 			const cachedResponse = await this.getCachedMetadata(response.artist, response.title);
 			if (cachedResponse !== null) {
+				await this.setCachedListenBrainz(listenbrainzUsername, cachedResponse);
 				return cachedResponse;
 			}
 
 			if (this.serverSettings.listenbrainzAuthKey && canUseApiKey) {
 				// not cached, let's fetch it from listenbrainz.
+				const query = new URLSearchParams({
+					artist_name: playingNowMetadata.artist_name,
+					recording_name: playingNowMetadata.track_name,
+				});
 				const json = await this.httpRequestService.getJson<ListenBrainzMetadataResponse>(
-					`https://api.listenbrainz.org/1/metadata/lookup/?artist_name=${playingNowMetadata.artist_name}&recording_name=${playingNowMetadata.track_name}`,
+					`https://api.listenbrainz.org/1/metadata/lookup/?${query}`,
 					undefined,
 					headers,
 					undefined,
@@ -163,10 +168,9 @@ export class ListenBrainzService {
 
 				await this.setCachedMetadata(response.artist, response.title, response);
 			}
-
-			await this.setCachedListenBrainz(listenbrainzUsername, response);
 		}
 
+		await this.setCachedListenBrainz(listenbrainzUsername, response);
 		return response;
 	};
 
