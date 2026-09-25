@@ -394,7 +394,6 @@ export type paths = {
          * admin/antennas/global
          * @description No description provided.
          *
-         *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
          *     **Credential required**: *Yes* / **Permission**: *read:admin:antennas*
          */
         post: operations['admin___antennas___global'];
