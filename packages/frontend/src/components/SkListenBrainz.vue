@@ -18,8 +18,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="bar" :style="{ bottom: barPosition }"/>
 						<div class="bar" :style="{ bottom: barPosition }"/>
 					</div>
-					<img v-if="data.coverArt" v-show="!loading" :src="getProxiedImageUrl(data.coverArt)" :alt="data.title" class="image" @load="loading = false"/>
-					<MkLoading v-if="loading && data.coverArt" class="spinner"/>
+					<img v-if="showCoverArt" v-show="!loading" :src="getProxiedImageUrl(data.coverArt!)" :alt="data.title" class="image" @load="loading = false" @error="onCoverArtError"/>
+					<MkLoading v-if="loading && showCoverArt" class="spinner"/>
 				</div>
 			</component>
 			<div class="flex flex-col items-start titles">
@@ -65,15 +65,24 @@ const props = defineProps<{
 const data = ref<ListenBrainzData>();
 
 const loading = ref(true);
+// Cover Art Archive has no artwork for many releases, so the image can fail to load
+const coverArtFailed = ref(false);
 
-const shouldShowBars = computed(() => !data.value?.coverArt || !loading.value);
-const barPosition = computed(() => data.value?.coverArt ? '1px' : '1rem');
+const showCoverArt = computed(() => !!data.value?.coverArt && !coverArtFailed.value);
+const shouldShowBars = computed(() => !showCoverArt.value || !loading.value);
+const barPosition = computed(() => showCoverArt.value ? '1px' : '1rem');
+
+function onCoverArtError() {
+	coverArtFailed.value = true;
+	loading.value = false;
+}
 
 let intervalId: number;
 
 watch(data, (newData, oldData) => {
-	if (!loading.value && newData?.coverArt !== oldData?.coverArt) {
-		loading.value = true;
+	if (newData?.coverArt !== oldData?.coverArt) {
+		coverArtFailed.value = false;
+		if (!loading.value) loading.value = true;
 	}
 });
 

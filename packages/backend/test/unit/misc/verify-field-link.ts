@@ -5,6 +5,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
+import { Readable } from 'node:stream';
 import { Response, Headers } from 'node-fetch';
 import { GlobalModule } from '@/GlobalModule.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
@@ -67,6 +68,23 @@ describe(verifyFieldLinks, () => {
 
 		expect(verifiedLinks).toHaveLength(1);
 		expect(verifiedLinks[0]).toEqual(testUrl);
+	});
+
+	it('should release the unread body when the link header matches', async () => {
+		const body = Readable.from(['<html></html>']);
+		const text = jest.fn(async () => '');
+		httpRequestService.send.mockResolvedValue({
+			ok: true,
+			status: 200,
+			headers: new Headers([['link', `<${validProfileUrl}>; rel="me"`]]),
+			body,
+			text,
+		} as unknown as Response);
+		const verifiedLinks = await verifyFieldLinks(testFields, [validProfileUrl], httpRequestService);
+
+		expect(verifiedLinks).toEqual([testUrl]);
+		expect(text).not.toHaveBeenCalled();
+		expect(body.destroyed).toBe(true);
 	});
 
 	it('should reject a user mismatch', async () => {

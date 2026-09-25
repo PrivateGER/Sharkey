@@ -199,7 +199,8 @@ export class ListenBrainzService {
 
 	@bindThis
 	private async getCachedMetadata(artist: string, track: string): Promise<ListenBrainzResponse | undefined | null> {
-		const cacheKey = `${artist}:${track}`;
+		// JSON keeps the key unambiguous when artist or track names contain the separator
+		const cacheKey = JSON.stringify([artist, track]);
 
 		const cached = await this.listenBrainzMetadataCache.get(cacheKey);
 		if (cached) {
@@ -244,7 +245,8 @@ export class ListenBrainzService {
 
 	@bindThis
 	private async setCachedMetadata(artist: string, track: string, data: ListenBrainzResponse | undefined): Promise<void> {
-		const cacheKey = `${artist}:${track}`;
+		// JSON keeps the key unambiguous when artist or track names contain the separator
+		const cacheKey = JSON.stringify([artist, track]);
 
 		if (data) {
 			await this.listenBrainzMetadataCache.set(cacheKey, {

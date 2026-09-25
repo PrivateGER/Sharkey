@@ -6,6 +6,7 @@
 import { load as cheerio } from 'cheerio/slim';
 import type { HttpRequestService } from '@/core/HttpRequestService.js';
 import type { Response } from 'node-fetch';
+import type { Readable } from 'node:stream';
 
 type Field = { name: string, value: string };
 
@@ -16,7 +17,11 @@ export async function verifyFieldLinks(fields: Field[], profileUrls: string[], h
 			// HttpRequestService.send validates the input URL, so we can safely pass in untrusted values
 			const response = await httpRequestService.send(field_url.value, { headers: { Accept: 'text/html, */*' } });
 
-			if (hasBacklinkInHeader(response, profileUrls) || await hasBacklinkInBody(response, profileUrls)) {
+			if (hasBacklinkInHeader(response, profileUrls)) {
+				// The body is not needed, so release the connection instead of leaving it unread
+				(response.body as Readable | null)?.destroy();
+				verified_links.push(field_url.value);
+			} else if (await hasBacklinkInBody(response, profileUrls)) {
 				verified_links.push(field_url.value);
 			}
 		} catch {

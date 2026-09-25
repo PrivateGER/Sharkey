@@ -82,6 +82,22 @@ describe(ListenBrainzService, () => {
 		expect(getJson).toHaveBeenCalledTimes(1);
 	});
 
+	test('does not mix up cached metadata of tracks whose names contain the key separator', async () => {
+		getJson.mockImplementation(async (url) => {
+			if (url.includes('/user/first/')) return playingNow({ artist_name: 'A:B', track_name: 'C' });
+			if (url.includes('/user/second/')) return playingNow({ artist_name: 'A', track_name: 'B:C' });
+			const params = new URL(url).searchParams;
+			return { release_mbid: `release-${params.get('artist_name')}`, recording_mbid: 'recording' };
+		});
+
+		await service.fetchForUser(profile('first'), true);
+		const second = await service.fetchForUser(profile('second'), true);
+
+		expect(second?.artist).toBe('A');
+		expect(second?.title).toBe('B:C');
+		expect(second?.coverArt).toBe('https://coverartarchive.org/release/release-A/front-250');
+	});
+
 	test('encodes the metadata lookup query', async () => {
 		getJson.mockImplementation(async (url) => {
 			if (url.includes('/playing-now')) return playingNow({ artist_name: 'Simon & Garfunkel', track_name: 'Why? #1=2' });
