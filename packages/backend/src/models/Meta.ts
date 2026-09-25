@@ -431,6 +431,12 @@ export class MiMeta {
 		length: 1024,
 		nullable: true,
 	})
+	public listenbrainzAuthKey: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
 	public termsOfServiceUrl: string | null;
 
 	@Column('varchar', {
@@ -629,7 +635,7 @@ export class MiMeta {
 	public robotsTxt: string | null;
 
 	@Column('jsonb', {
-		default: { },
+		default: {},
 	})
 	public policies: Record<string, any>;
 

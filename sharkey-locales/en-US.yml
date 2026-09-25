@@ -274,6 +274,7 @@ _role:
     scheduleNoteMax: "Maximum number of scheduled notes"
     canTrend: "Can appear in trending notes / users"
     canViewFederation: "Can view federation stats and details of remote instances"
+    canFetchLBMetadata: "Can fetch improved ListenBrainz metadata"
   _condition:
     isLocked: "Private account"
     isExplorable: "Account is discoverable"
@@ -333,6 +334,7 @@ _profile:
   updateBackground: "Update background"
   removeBackground: "Remove background"
   listenbrainz: "ListenBrainz username"
+  listeningTo: "Listening to…"
 _timelines:
   bubble: "Bubble"
 _pages:
@@ -764,6 +766,7 @@ alsoKnownAs: "Also known as"
 accountMigratedAt: "Migrated at"
 accountMigratedTo: "Migrated to"
 accountMigrationUri: "Migration URI"
+accountMigrationPending: "Account migration pending"
 restartMigration: "Restart account migration"
 restartMigrationDescription: "Account migration was last attempted {date}. If the migration failed or was incomplete, then you may click this button to restart the process."
 restartMigrationConfirm: "Are you sure you want to restart this account migration?"
@@ -773,6 +776,9 @@ _header:
   browse: "Browse"
   manage: "Manage"
 
+listenbrainzIntegration: "ListenBrainz Integration"
+listenbrainzUserToken: "ListenBrainz User Token"
+listenbrainzUserTokenDescription: "Having an user token allows Sharkey to query track metadata directly, improving reliability of cover art and links."
 setRootUser: "Set the root user"
 setRootUserWarning: "You are currently the root user; you can give that away to someone else. If you want to remain an administrator after that, you should make yourself an administration via a role, <em>before</em> you give root away"
 previousRootUser: "Previous root user"

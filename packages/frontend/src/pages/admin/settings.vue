@@ -91,7 +91,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkFormFooter :form="pinnedUsersForm"/>
 				</template>
 
-				<MkTextarea v-model="pinnedUsersForm.state.pinnedUsers">
+				<MkTextarea v-model="pinnedUsersForm.state.pinnedUsers" :spellcheck="false">
 					<template #label>{{ i18n.ts.pinnedUsers }}<span v-if="pinnedUsersForm.modifiedStates.pinnedUsers" class="_modified">{{ i18n.ts.modified }}</span></template>
 					<template #caption>{{ i18n.ts.pinnedUsersDescription }}</template>
 				</MkTextarea>
@@ -166,7 +166,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #caption>{{ i18n.ts.turnOffBotTrending }}</template>
 					</MkSwitch>
 
-					<MkTextarea v-model="otherForm.state.robotsTxt">
+					<MkTextarea v-model="otherForm.state.robotsTxt" :spellcheck="false">
 						<template #label>{{ i18n.ts.robotsTxt }}<span v-if="otherForm.modifiedStates.robotsTxt" class="_modified">{{ i18n.ts.modified }}</span></template>
 						<template #caption>{{ i18n.ts.robotsTxtDescription }}</template>
 					</MkTextarea>
@@ -264,7 +264,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<option value="none">{{ i18n.ts.none }}</option>
 					</MkRadios>
 
-					<MkTextarea v-if="federationForm.state.federation === 'specified'" v-model="federationForm.state.federationHosts">
+					<MkTextarea v-if="federationForm.state.federation === 'specified'" v-model="federationForm.state.federationHosts" :spellcheck="false">
 						<template #label>{{ i18n.ts.federationAllowedHosts }}<span v-if="federationForm.modifiedStates.federationHosts" class="_modified">{{ i18n.ts.modified }}</span></template>
 						<template #caption>{{ i18n.ts.federationAllowedHostsDescription }}</template>
 					</MkTextarea>

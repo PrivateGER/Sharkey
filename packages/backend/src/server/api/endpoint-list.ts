@@ -415,6 +415,7 @@ export * as 'users/followers' from './endpoints/users/followers.js';
 export * as 'users/following' from './endpoints/users/following.js';
 export * as 'users/gallery/posts' from './endpoints/users/gallery/posts.js';
 export * as 'users/get-frequently-replied-users' from './endpoints/users/get-frequently-replied-users.js';
+export * as 'users/listenbrainz' from './endpoints/users/listenbrainz.js';
 export * as 'users/lists/create' from './endpoints/users/lists/create.js';
 export * as 'users/lists/create-from-public' from './endpoints/users/lists/create-from-public.js';
 export * as 'users/lists/delete' from './endpoints/users/lists/delete.js';
