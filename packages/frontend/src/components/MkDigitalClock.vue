@@ -10,31 +10,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<span v-text="mm"></span>
 	<span v-if="showS" :class="[$style.colon, { [$style.showColon]: showColon }]">:</span>
 	<span v-if="showS" v-text="ss"></span>
-	<span v-if="showMs" :class="[$style.colon, { [$style.showColon]: showColon }]">:</span>
-	<span v-if="showMs" v-text="ms"></span>
 </span>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, watch } from 'vue';
-import { defaultIdlingRenderScheduler } from '@/utility/idle-render.js';
 
 const props = withDefaults(defineProps<{
 	showS?: boolean;
-	showMs?: boolean;
 	offset?: number;
 	now?: () => Date;
 }>(), {
 	showS: true,
-	showMs: false,
 	offset: 0 - new Date().getTimezoneOffset(),
 	now: () => new Date(),
 });
 
+let intervalId: number | null = null;
 const hh = ref('');
 const mm = ref('');
 const ss = ref('');
-const ms = ref('');
 const showColon = ref(false);
 let prevSec: number | null = null;
 
@@ -52,7 +47,6 @@ const tick = (): void => {
 	hh.value = now.getHours().toString().padStart(2, '0');
 	mm.value = now.getMinutes().toString().padStart(2, '0');
 	ss.value = now.getSeconds().toString().padStart(2, '0');
-	ms.value = Math.floor(now.getMilliseconds() / 10).toString().padStart(2, '0');
 	if (now.getSeconds() !== prevSec) showColon.value = true;
 	prevSec = now.getSeconds();
 };
@@ -60,11 +54,15 @@ const tick = (): void => {
 tick();
 
 onMounted(() => {
-	defaultIdlingRenderScheduler.add(tick);
+	if (intervalId) window.clearInterval(intervalId);
+	intervalId = window.setInterval(tick, 1000);
 });
 
 onUnmounted(() => {
-	defaultIdlingRenderScheduler.delete(tick);
+	if (intervalId !== null) {
+		window.clearInterval(intervalId);
+		intervalId = null;
+	}
 });
 </script>
 

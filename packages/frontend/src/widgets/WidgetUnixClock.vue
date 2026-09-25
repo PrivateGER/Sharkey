@@ -8,15 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="widgetProps.showLabel" class="label">UNIX Epoch</div>
 	<div class="time">
 		<span v-text="ss"></span>
-		<span v-if="widgetProps.showMs" class="colon" :class="{ showColon }">:</span>
-		<span v-if="widgetProps.showMs" v-text="ms"></span>
 	</div>
 	<div v-if="widgetProps.showLabel" class="label">UTC</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
 import type { GetFormResultType } from '@/utility/form.js';
@@ -32,10 +30,6 @@ const widgetPropsDef = {
 		type: 'number' as const,
 		default: 1.5,
 		step: 0.1,
-	},
-	showMs: {
-		type: 'boolean' as const,
-		default: true,
 	},
 	showLabel: {
 		type: 'boolean' as const,
@@ -54,9 +48,8 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 	emit,
 );
 
-let intervalId;
+let intervalId: number | null = null;
 const ss = ref('');
-const ms = ref('');
 const showColon = ref(false);
 let prevSec: string | null = null;
 
@@ -71,20 +64,22 @@ watch(showColon, (v) => {
 const tick = () => {
 	const now = Date.now();
 	ss.value = Math.floor(now / 1000).toString();
-	ms.value = Math.floor(now % 1000 / 10).toString().padStart(2, '0');
 	if (ss.value !== prevSec) showColon.value = true;
 	prevSec = ss.value;
 };
 
 tick();
 
-watch(() => widgetProps.showMs, () => {
+onMounted(() => {
 	if (intervalId) window.clearInterval(intervalId);
-	intervalId = window.setInterval(tick, widgetProps.showMs ? 10 : 1000);
-}, { immediate: true });
+	intervalId = window.setInterval(tick, 1000);
+});
 
 onUnmounted(() => {
-	window.clearInterval(intervalId);
+	if (intervalId !== null) {
+		window.clearInterval(intervalId);
+		intervalId = null;
+	}
 });
 
 defineExpose<WidgetComponentExpose>({
