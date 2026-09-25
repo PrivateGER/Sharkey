@@ -12502,6 +12502,28 @@ export interface Locale extends ILocale {
      */
     "numberOfRepliesDescription": string;
     /**
+     * Reply order
+     */
+    "threadReplySort": string;
+    /**
+     * How replies in threads are ordered. You can also change this from the Replies tab of a note.
+     */
+    "threadReplySortDescription": string;
+    "_threadReplySort": {
+        /**
+         * Newest first
+         */
+        "newest": string;
+        /**
+         * People you know first
+         */
+        "relationship": string;
+        /**
+         * The thread's author first, then you, mutuals, and people you follow. Each group is newest first.
+         */
+        "relationshipDescription": string;
+    };
+    /**
      * Boost Settings
      */
     "boostSettings": string;

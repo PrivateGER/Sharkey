@@ -989,6 +989,78 @@ describe('Note', () => {
 		});
 	});
 
+	describe('notes/children', () => {
+		let op: misskey.entities.SignupResponse;
+		let viewer: misskey.entities.SignupResponse;
+		let mutual: misskey.entities.SignupResponse;
+		let followee: misskey.entities.SignupResponse;
+		let fan: misskey.entities.SignupResponse;
+		let stranger: misskey.entities.SignupResponse;
+
+		const reply = async (replyId: string, user: misskey.entities.SignupResponse): Promise<string> => {
+			const res = await api('notes/create', { text: `reply by ${user.username}`, replyId }, user);
+			assert.strictEqual(res.status, 200);
+			return res.body.createdNote.id;
+		};
+		const childIds = async (params: misskey.Endpoints['notes/children']['req'], user?: misskey.entities.SignupResponse): Promise<string[]> => {
+			const res = await api('notes/children', params, user);
+			assert.strictEqual(res.status, 200);
+			return res.body.map(note => note.id);
+		};
+
+		beforeAll(async () => {
+			op = await signup({ username: 'childrenOp' });
+			viewer = await signup({ username: 'childrenViewer' });
+			mutual = await signup({ username: 'childrenMutual' });
+			followee = await signup({ username: 'childrenFollowee' });
+			fan = await signup({ username: 'childrenFan' });
+			stranger = await signup({ username: 'childrenStranger' });
+
+			await api('following/create', { userId: mutual.id }, viewer);
+			await api('following/create', { userId: viewer.id }, mutual);
+			await api('following/create', { userId: followee.id }, viewer);
+			await api('following/create', { userId: viewer.id }, fan);
+		}, 1000 * 60);
+
+		test('relationship sort ranks the thread author, the viewer, mutuals, and followees above everyone else, each newest first', async () => {
+			const root = (await api('notes/create', { text: 'thread' }, op)).body.createdNote.id;
+			const byStranger = await reply(root, stranger);
+			const byMutual = await reply(root, mutual);
+			const byFan = await reply(root, fan);
+			const byOp = await reply(root, op);
+			const byStrangerLater = await reply(root, stranger);
+			const byFollowee = await reply(root, followee);
+			const byViewer = await reply(root, viewer);
+
+			assert.deepStrictEqual(await childIds({ noteId: root, sort: 'relationship' }, viewer), [
+				byOp, byViewer, byMutual, byFollowee, byStrangerLater, byFan, byStranger,
+			]);
+			assert.deepStrictEqual(await childIds({ noteId: root }, viewer), [
+				byViewer, byFollowee, byStrangerLater, byOp, byFan, byMutual, byStranger,
+			]);
+			assert.deepStrictEqual(await childIds({ noteId: root, sort: 'relationship' }), [
+				byOp, byViewer, byFollowee, byStrangerLater, byFan, byMutual, byStranger,
+			]);
+		});
+
+		test('relationship sort treats the root note\'s author as the thread author in subthreads', async () => {
+			const root = (await api('notes/create', { text: 'thread' }, op)).body.createdNote.id;
+			const subthread = await reply(root, stranger);
+			const byOp = await reply(subthread, op);
+			const bySubthreadAuthor = await reply(subthread, stranger);
+
+			assert.deepStrictEqual(await childIds({ noteId: subthread, sort: 'relationship' }, viewer), [byOp, bySubthreadAuthor]);
+		});
+
+		test('relationship sort rejects cursors', async () => {
+			const root = (await api('notes/create', { text: 'thread' }, op)).body.createdNote.id;
+			const res = await api('notes/children', { noteId: root, sort: 'relationship', untilId: root }, viewer);
+
+			assert.strictEqual(res.status, 400);
+			assert.strictEqual(castAsError(res.body).error.code, 'SORT_NOT_PAGINATABLE');
+		});
+	});
+
 	describe('notes/translate', () => {
 		// the types in misskey-js are wrong? this endpoints takes a
 		// `policies` object, but the generated types say it's a

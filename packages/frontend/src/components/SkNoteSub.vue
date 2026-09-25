@@ -119,7 +119,7 @@ import { getNoteClipMenu, getNoteMenu, translateNote } from '@/utility/get-note-
 import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { prefer } from '@/preferences.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
-import { insertReply } from '@/utility/insert-reply.js';
+import { useNoteReplies } from '@/use/use-note-replies.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
 import { instance, policies } from '@/instance';
 import { getAppearNote } from '@/utility/get-appear-note';
@@ -169,7 +169,7 @@ const likeButton = shallowRef<HTMLElement>();
 const renoteTooltip = computeRenoteTooltip(appearNote);
 
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
-const replies = ref<Misskey.entities.Note[]>([]);
+const { replies, load: loadReplies, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, prefer.s.numberOfReplies);
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
@@ -181,15 +181,13 @@ const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', nul
 setupNoteViewInterruptors(note, isDeleted);
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
-	if (insertReply(replies.value, replyNote)) {
+	if (addReply(replyNote)) {
 		appearNote.value.repliesCount += 1;
 	}
 }
 
 async function removeReply(id: Misskey.entities.Note['id']) {
-	const replyIdx = replies.value.findIndex(reply => reply.id === id);
-	if (replyIdx >= 0) {
-		replies.value.splice(replyIdx, 1);
+	if (removeListedReply(id)) {
 		appearNote.value.repliesCount -= 1;
 	}
 }
@@ -413,13 +411,7 @@ async function translate() {
 }
 
 if (props.detail) {
-	misskeyApi('notes/children', {
-		noteId: appearNote.value.id,
-		limit: prefer.s.numberOfReplies,
-		showQuotes: false,
-	}).then(res => {
-		replies.value = res;
-	});
+	loadReplies();
 }
 </script>
 

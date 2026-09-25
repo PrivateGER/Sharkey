@@ -40572,6 +40572,12 @@ export interface operations {
                      * @default false
                      */
                     autoBackfill?: boolean;
+                    /**
+                     * @description `relationship` lists replies by the thread's author first, then the requester's own, then those by mutuals, then by users the requester follows, then everyone else; each group newest first. It can't be combined with sinceId or untilId.
+                     * @default newest
+                     * @enum {string}
+                     */
+                    sort?: 'newest' | 'relationship';
                 };
             };
         };

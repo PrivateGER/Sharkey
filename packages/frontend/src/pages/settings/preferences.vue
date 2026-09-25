@@ -389,6 +389,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 									</MkRange>
 								</MkPreferenceContainer>
 							</SearchMarker>
+
+							<SearchMarker :keywords="['replies', 'thread', 'sort', 'order', 'following', 'mutual']">
+								<MkPreferenceContainer k="threadReplySort">
+									<MkSelect v-model="threadReplySort">
+										<template #label><SearchLabel>{{ i18n.ts.threadReplySort }}</SearchLabel><span class="_beta">{{ i18n.ts.beta }}</span></template>
+										<template #caption>{{ threadReplySort === 'relationship' ? i18n.ts._threadReplySort.relationshipDescription : i18n.ts.threadReplySortDescription }}</template>
+										<option value="newest">{{ i18n.ts._threadReplySort.newest }}</option>
+										<option value="relationship">{{ i18n.ts._threadReplySort.relationship }}</option>
+									</MkSelect>
+								</MkPreferenceContainer>
+							</SearchMarker>
 						</div>
 					</div>
 				</MkFolder>
@@ -1081,6 +1092,7 @@ const showVisibilitySelectorOnBoost = prefer.model('showVisibilitySelectorOnBoos
 const visibilityOnBoost = prefer.model('visibilityOnBoost');
 const oneko = prefer.model('oneko');
 const numberOfReplies = prefer.model('numberOfReplies');
+const threadReplySort = prefer.model('threadReplySort');
 const autoloadConversation = prefer.model('autoloadConversation');
 const clickToOpen = prefer.model('clickToOpen');
 const useCustomSearchEngine = computed(() => !Object.keys(searchEngineMap).includes(searchEngine.value));
