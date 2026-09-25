@@ -58,7 +58,7 @@ build: &build
   <<: *common
   stage: build
   image:
-    name: docker.io/node:22
+    name: docker.io/node:26
     pull_policy: if-not-present
   variables:
     POSTGRES_PASSWORD: 'ci'

@@ -9,6 +9,7 @@ const hasPromiseTry = Reflect.has(globalThis.Promise, 'try');
 
 /**
  * Polyfill for https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
+ * @deprecated This is no longer needed, and can be removed in a future MR.
  */
 export const promiseTry: PromiseTryFunc = hasPromiseTry ? Promise.try.bind(Promise) : promiseTryPolyfill;
 

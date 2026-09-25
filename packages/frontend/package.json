@@ -94,7 +94,7 @@
 		"@types/katex": "0.16.7",
 		"@types/matter-js": "0.20.2",
 		"@types/micromatch": "4.0.9",
-		"@types/node": "22.18.1",
+		"@types/node": "26.6.2",
 		"@types/punycode.js": "npm:@types/punycode@2.1.4",
 		"@types/sanitize-html": "2.16.0",
 		"@types/seedrandom": "3.0.8",
