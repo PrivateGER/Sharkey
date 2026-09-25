@@ -112,6 +112,7 @@ export const paramDef = {
 		deeplFreeInstance: { type: 'string', nullable: true },
 		libreTranslateURL: { type: 'string', nullable: true },
 		libreTranslateKey: { type: 'string', nullable: true },
+		listenbrainzAuthKey: { type: 'string', nullable: true },
 		enableEmail: { type: 'boolean' },
 		email: { type: 'string', nullable: true },
 		smtpSecure: { type: 'boolean' },
@@ -629,6 +630,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
+			if (ps.listenbrainzAuthKey !== undefined) {
+				set.listenbrainzAuthKey = ps.listenbrainzAuthKey || null;
+			}
+
 			if (ps.enableIpLogging !== undefined) {
 				set.enableIpLogging = ps.enableIpLogging;
 			}
@@ -828,6 +833,7 @@ function sanitize(meta: Partial<MiMeta & OnApplicationShutdown & OnApplicationBo
 		objectStorageSecretKey: '<redacted>',
 		deeplAuthKey: '<redacted>',
 		libreTranslateKey: '<redacted>',
+		listenbrainzAuthKey: '<redacted>',
 		verifymailAuthKey: '<redacted>',
 		truemailAuthKey: '<redacted>',
 		onApplicationBootstrap: undefined,
@@ -835,4 +841,3 @@ function sanitize(meta: Partial<MiMeta & OnApplicationShutdown & OnApplicationBo
 	};
 	return meta;
 }
-

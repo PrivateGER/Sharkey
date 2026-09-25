@@ -43,7 +43,7 @@ import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	modelValue: string | null;
 	required?: boolean;
 	readonly?: boolean;
@@ -60,7 +60,9 @@ const props = defineProps<{
 	code?: boolean;
 	tall?: boolean;
 	pre?: boolean;
-}>();
+}>(), {
+	spellcheck: true,
+});
 
 const emit = defineEmits<{
 	(ev: 'change', _ev: KeyboardEvent): void;

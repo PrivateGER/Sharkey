@@ -32,15 +32,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</button>
 							</div>
 						</div>
-						<ul v-if="$i && $i.id != user.id" :class="$style.infoBadges">
-							<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
-							<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
-							<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
-							<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
-							<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
-							<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
-							<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
-						</ul>
+						<div :class="$style.infoDiv">
+							<ul v-if="$i && $i.id !== user.id" :class="$style.infoBadges">
+								<li v-if="user.isFollowed && user.isFollowing">{{ i18n.ts.mutuals }}</li>
+								<li v-else-if="user.isFollowing">{{ i18n.ts.following }}</li>
+								<li v-else-if="user.isFollowed">{{ i18n.ts.followsYou }}</li>
+								<li v-if="user.isMuted">{{ i18n.ts.muted }}</li>
+								<li v-if="user.isRenoteMuted">{{ i18n.ts.renoteMuted }}</li>
+								<li v-if="user.isBlocking">{{ i18n.ts.blocked }}</li>
+								<li v-if="user.isBlocked && $i.isModerator">{{ i18n.ts.blockingYou }}</li>
+							</ul>
+							<ul v-if="user.listenbrainz" :class="$style.infoBadges">
+								<li :class="$style.listenbrainz">
+									<XListenBrainz :key="user.id" :userId="user.id"/>
+								</li>
+							</ul>
+						</div>
 						<div :class="$style.actions" class="actions">
 							<button :class="$style.actionsMenu" class="menu _button" @click="menu"><i class="ti ti-dots"></i></button>
 							<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" :class="$style.actionsFollow" :disabled="disableFollowControls" :inline="true" :transparent="false" :full="true" class="koudoku" @update:wait="onFollowButtonDisabledChanged"/>
@@ -150,9 +157,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLazy>
 						<XActivity :key="user.id" :user="user" :collapsed="true"/>
 					</MkLazy>
-					<MkLazy v-if="user.listenbrainz && listenbrainzdata">
-						<XListenBrainz :key="user.id" :user="user" :collapsed="true"/>
-					</MkLazy>
 				</template>
 				<!-- <div v-if="!disableNotes">
 					<MkLazy>
@@ -188,7 +192,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="!narrow" class="sub _gaps" style="container-type: inline-size;">
 			<XFiles :key="user.id" :user="user" @unfold="emit('unfoldFiles')"/>
 			<XActivity :key="user.id" :user="user"/>
-			<XListenBrainz v-if="user.listenbrainz && listenbrainzdata" :key="user.id" :user="user"/>
 		</div>
 	</div>
 	<div class="background"></div>
@@ -244,7 +247,7 @@ function calcAge(birthdate: string): number {
 
 const XFiles = defineAsyncComponent(() => import('./index.files.vue'));
 const XActivity = defineAsyncComponent(() => import('./index.activity.vue'));
-const XListenBrainz = defineAsyncComponent(() => import('./index.listenbrainz.vue'));
+const XListenBrainz = defineAsyncComponent(() => import('@/components/SkListenBrainz.vue'));
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
@@ -293,26 +296,6 @@ const isEditingMemo = ref(false);
 const moderationNote = ref(props.user.moderationNote);
 const editModerationNote = ref(false);
 const noteview = ref<string | null>(null);
-
-const listenbrainzdata = ref(false);
-if (props.user.listenbrainz) {
-	(async function() {
-		try {
-			const response = await window.fetch(`https://api.listenbrainz.org/1/user/${props.user.listenbrainz}/playing-now`, {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-			});
-			const data = await response.json();
-			if (data.payload.listens && data.payload.listens.length !== 0) {
-				listenbrainzdata.value = true;
-			}
-		} catch (err) {
-			listenbrainzdata.value = false;
-		}
-	})();
-}
 
 const background = computed(() => {
 	if (props.user.backgroundUrl == null) return {};
@@ -898,19 +881,26 @@ onUnmounted(() => {
 	margin-left: 4px;
 	color: var(--MI_THEME-success);
 }
-
-.infoBadges {
+.infoDiv {
 	position: absolute;
-	top: 12px;
-	left: 12px;
-
+	max-width: calc(100% - 6rem);
+	top: .75rem;
+	left: .75rem;
+	
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+.infoBadges {
 	display: flex;
 	flex-direction: row;
+	gap: 0.25rem;
 
 	padding: 0;
 	margin: 0;
 
 	> * {
+		box-sizing: border-box;
 		padding: 4px 8px;
 		color: #fff;
 		background: rgba(0, 0, 0, 0.7);
@@ -919,10 +909,10 @@ onUnmounted(() => {
 		list-style-type: none;
 		margin-left: 0;
 	}
+}
 
-	> :not(:first-child) {
-		margin-left: 8px;
-	}
+.listenbrainz:empty {
+	display: none;
 }
 
 .actions {

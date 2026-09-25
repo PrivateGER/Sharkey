@@ -46,6 +46,7 @@ import { HttpRequestService } from './HttpRequestService.js';
 import { ImageProcessingService } from './ImageProcessingService.js';
 import { SystemAccountService } from './SystemAccountService.js';
 import { InternalStorageService } from './InternalStorageService.js';
+import { ListenBrainzService } from './ListenBrainzService.js';
 import { MetaService } from './MetaService.js';
 import { MfmService } from './MfmService.js';
 import { ModerationLogService } from './ModerationLogService.js';
@@ -190,6 +191,7 @@ const $HashtagService: Provider = { provide: 'HashtagService', useExisting: Hash
 const $HttpRequestService: Provider = { provide: 'HttpRequestService', useExisting: HttpRequestService };
 const $ImageProcessingService: Provider = { provide: 'ImageProcessingService', useExisting: ImageProcessingService };
 const $InternalStorageService: Provider = { provide: 'InternalStorageService', useExisting: InternalStorageService };
+const $ListenBrainzService: Provider = { provide: 'ListenBrainzService', useExisting: ListenBrainzService };
 const $MetaService: Provider = { provide: 'MetaService', useExisting: MetaService };
 const $MfmService: Provider = { provide: 'MfmService', useExisting: MfmService };
 const $ModerationLogService: Provider = { provide: 'ModerationLogService', useExisting: ModerationLogService };
@@ -357,6 +359,7 @@ const $Imports = [
 		HttpRequestService,
 		ImageProcessingService,
 		InternalStorageService,
+		ListenBrainzService,
 		MetaService,
 		MfmService,
 		ModerationLogService,
@@ -515,6 +518,7 @@ const $Imports = [
 		$HttpRequestService,
 		$ImageProcessingService,
 		$InternalStorageService,
+		$ListenBrainzService,
 		$MetaService,
 		$MfmService,
 		$ModerationLogService,
@@ -678,6 +682,7 @@ const $Imports = [
 		HttpRequestService,
 		ImageProcessingService,
 		InternalStorageService,
+		ListenBrainzService,
 		MetaService,
 		MfmService,
 		ModerationLogService,
@@ -835,6 +840,7 @@ const $Imports = [
 		$HttpRequestService,
 		$ImageProcessingService,
 		$InternalStorageService,
+		$ListenBrainzService,
 		$MetaService,
 		$MfmService,
 		$ModerationLogService,
