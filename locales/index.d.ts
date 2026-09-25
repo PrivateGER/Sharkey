@@ -1035,6 +1035,10 @@ export interface Locale extends ILocale {
      */
     "processing": string;
     /**
+     * 準備中
+     */
+    "preprocessing": string;
+    /**
      * プレビュー
      */
     "preview": string;
@@ -1214,6 +1218,10 @@ export interface Locale extends ILocale {
      * アップロードが完了するまで時間がかかる場合があります。
      */
     "uploadFromUrlMayTakeTime": string;
+    /**
+     * {n}個のファイルをアップロード
+     */
+    "uploadNFiles": ParameterizedString<"n">;
     /**
      * みつける
      */
@@ -5426,6 +5434,48 @@ export interface Locale extends ILocale {
      * スクロールして閉じる
      */
     "scrollToClose": string;
+    /**
+     * 中止
+     */
+    "abort": string;
+    /**
+     * デフォルトの圧縮度
+     */
+    "defaultCompressionLevel": string;
+    /**
+     * 低くすると品質を保てますが、ファイルサイズは増加します。<br>高くするとファイルサイズを減らせますが、品質は低下します。
+     */
+    "defaultCompressionLevel_description": string;
+    "_compression": {
+        "_quality": {
+            /**
+             * 高品質
+             */
+            "high": string;
+            /**
+             * 中品質
+             */
+            "medium": string;
+            /**
+             * 低品質
+             */
+            "low": string;
+        };
+        "_size": {
+            /**
+             * サイズ大
+             */
+            "large": string;
+            /**
+             * サイズ中
+             */
+            "medium": string;
+            /**
+             * サイズ小
+             */
+            "small": string;
+        };
+    };
     "_chat": {
         /**
          * まだメッセージはありません
@@ -12087,6 +12137,40 @@ export interface Locale extends ILocale {
          * 例: misskey.example.com
          */
         "serverHostPlaceholder": string;
+    };
+    "_uploader": {
+        /**
+         * 画像の編集
+         */
+        "editImage": string;
+        /**
+         * {x}に圧縮
+         */
+        "compressedToX": ParameterizedString<"x">;
+        /**
+         * {x}%節約
+         */
+        "savedXPercent": ParameterizedString<"x">;
+        /**
+         * アップロードされていないファイルがありますが、中止しますか？
+         */
+        "abortConfirm": string;
+        /**
+         * アップロードされていないファイルがありますが、完了しますか？
+         */
+        "doneConfirm": string;
+        /**
+         * アップロード可能な最大ファイルサイズは{x}です。
+         */
+        "maxFileSizeIsX": ParameterizedString<"x">;
+        /**
+         * アップロード可能なファイル種別
+         */
+        "allowedTypes": string;
+        /**
+         * ファイルはまだアップロードされていません。このダイアログで、アップロード前の確認・リネーム・圧縮・クロッピングなどが行えます。準備が出来たら、「アップロード」ボタンを押してアップロードを開始できます。
+         */
+        "tip": string;
     };
     /**
      * Approvals
