@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template #header>
-		<i class="ti ti-upload"></i> {{ i18n.tsx.uploadNFiles({ n: files.length }) }}
+		<i class="ti ti-upload"></i> {{ i18n.tsx.uploadNFiles({ n: items.length }) }}
 	</template>
 
 	<div :class="$style.root">
@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps_s _spacer">
 			<MkInfo>{{ i18n.ts._uploader.tip }}</MkInfo>
 
-			<MkUploaderItems :items="items" @showMenu="(item, ev) => showPerItemMenu(item, ev)" @showMenuViaContextmenu="(item, ev) => showPerItemMenuViaContextmenu(item, ev)"/>
+			<MkUploaderItems :items="items" @showMenu="(item, ev) => showPerItemMenu(item, ev)" @showMenuViaContextmenu="(item, ev) => showPerItemMenuViaContextmenu(item, ev)" @editCaption="item => uploader.editCaption(item)"/>
 
 			<div v-if="props.multiple">
 				<MkButton style="margin: auto;" :iconOnly="true" rounded @click="chooseFile()"><i class="ti ti-plus"></i></MkButton>
@@ -113,7 +113,8 @@ watch(items, () => {
 		return;
 	}
 
-	if (items.value.every(item => item.uploaded)) {
+	// Wait for alt text that is still being edited, e.g. after the file was uploaded to generate it
+	if (items.value.every(item => item.uploaded) && !items.value.some(item => item.editingCaption)) {
 		emit('done', items.value.map(item => item.uploaded!));
 		dialog.value?.close();
 	}

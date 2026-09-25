@@ -15,6 +15,7 @@ import { prefer } from '@/preferences.js';
 import { isWebpSupported } from '@/utility/upload/isWebpSupported.js';
 import { uploadFile, UploadAbortedError } from '@/utility/drive.js';
 import * as os from '@/os.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 
 export type UploaderFeatures = {
 	imageEditing?: boolean;
@@ -42,6 +43,13 @@ const VIDEO_COMPRESSION_SUPPORTED_TYPES = [
 	'video/x-matroska',
 ];
 
+// Compression that saves less than this is not worth the quality loss, so the original is kept instead
+const MIN_COMPRESSION_SAVING = 0.05;
+
+function isCompressionBeneficial(compressedSize: number, originalSize: number): boolean {
+	return compressedSize <= originalSize * (1 - MIN_COMPRESSION_SAVING);
+}
+
 const mimeTypeMap = {
 	'image/webp': 'webp',
 	'image/jpeg': 'jpg',
@@ -62,6 +70,10 @@ export type UploaderItem = {
 	aborted: boolean;
 	compressionLevel: CompressionLevel;
 	compressedSize?: number | null;
+	/** Compression was requested but kept the original, because it would not have made the file noticeably smaller */
+	compressionSkipped?: boolean;
+	/** The alt text editor for this item is open */
+	editingCaption?: boolean;
 	preprocessedFile?: Blob | null;
 	file: File;
 	objectUrl: string;
@@ -217,21 +229,6 @@ export function useUploader(options: {
 					get: () => item.isSensitive ?? false,
 					set: (value) => item.isSensitive = value,
 				}),
-			}, {
-				text: i18n.ts.describeFile,
-				icon: 'ti ti-text-caption',
-				action: () => {
-					const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
-						default: item.caption ?? null,
-					}, {
-						done: caption => {
-							if (caption != null) {
-								item.caption = caption.trim().length === 0 ? null : caption;
-							}
-						},
-						closed: () => dispose(),
-					});
-				},
 			}, {
 				type: 'divider',
 			});
@@ -429,6 +426,7 @@ export function useUploader(options: {
 	async function preprocess(item: UploaderItem): Promise<void> {
 		item.preprocessing = true;
 		item.preprocessProgress = null;
+		item.compressionSkipped = false;
 
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(item.file.type)) {
 			try {
@@ -466,14 +464,14 @@ export function useUploader(options: {
 
 			try {
 				const result = await readAndCompressImage(preprocessedFile, config);
-				if (result.size < preprocessedFile.size || preprocessedFile.type === 'image/webp') {
-					// The compression may not always reduce the file size
-					// (and WebP is not browser safe yet)
+				// The compression may not always reduce the file size
+				if (isCompressionBeneficial(result.size, preprocessedFile.size)) {
 					preprocessedFile = result;
 					item.compressedSize = result.size;
 					item.suffix = '.' + mimeTypeMap[config.mimeType];
 				} else {
 					item.compressedSize = null;
+					item.compressionSkipped = true;
 					item.suffix = '';
 				}
 			} catch (err) {
@@ -532,9 +530,17 @@ export function useUploader(options: {
 
 			item.abortPreprocess = null;
 
-			preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
-			item.compressedSize = output.target.buffer!.byteLength;
-			item.suffix = '.mp4';
+			const compressedSize = output.target.buffer!.byteLength;
+			// Videos that are already heavily compressed (e.g. from TikTok) can come out larger
+			if (isCompressionBeneficial(compressedSize, preprocessedFile.size)) {
+				preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
+				item.compressedSize = compressedSize;
+				item.suffix = '.mp4';
+			} else {
+				item.compressedSize = null;
+				item.compressionSkipped = true;
+				item.suffix = '';
+			}
 		} else {
 			item.compressedSize = null;
 			item.suffix = '';
@@ -542,6 +548,48 @@ export function useUploader(options: {
 
 		updateItemObjectUrls(item, preprocessedFile);
 		item.preprocessedFile = markRaw(preprocessedFile);
+	}
+
+	async function ensureUploaded(item: UploaderItem): Promise<Misskey.entities.DriveFile> {
+		if (item.uploaded == null) await uploadOne(item);
+		if (item.uploaded == null) throw new Error('Failed to upload file');
+		return item.uploaded;
+	}
+
+	function editCaption(item: UploaderItem) {
+		if (item.preprocessing || item.uploading || item.editingCaption) return;
+
+		item.editingCaption = true;
+		let saving: Promise<void> = Promise.resolve();
+
+		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
+			file: item.uploaded,
+			default: item.uploaded?.comment ?? item.caption ?? null,
+			mimeType: (item.preprocessedFile ?? item.file).type,
+			previewUrl: item.thumbnail,
+			// Alt text generation needs the file in the drive, so upload it first
+			prepareFile: () => ensureUploaded(item),
+		}, {
+			done: caption => {
+				const comment = caption.trim().length === 0 ? null : caption;
+				item.caption = comment;
+				if (item.uploaded != null) {
+					saving = misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment }).then(file => {
+						item.uploaded = file;
+					}).catch(err => {
+						console.error('Failed to save alt text', err);
+						os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+					});
+				}
+			},
+			closed: () => {
+				// Keep the dialog open until the alt text of an uploaded file has been saved
+				saving.finally(() => {
+					item.editingCaption = false;
+				});
+				dispose();
+			},
+		});
 	}
 
 	function reset() {
@@ -570,6 +618,7 @@ export function useUploader(options: {
 		dispose,
 		upload,
 		getMenu,
+		editCaption,
 		uploading: computed(() => items.value.some(item => item.uploading)),
 		readyForUpload: computed(() => items.value.length > 0 && items.value.some(item => item.uploaded == null) && !items.value.some(item => item.uploading || item.preprocessing)),
 		allItemsUploaded: computed(() => items.value.every(item => item.uploaded != null)),

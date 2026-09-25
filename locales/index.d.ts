@@ -12171,6 +12171,10 @@ export interface Locale extends ILocale {
          * ファイルはまだアップロードされていません。このダイアログで、アップロード前の確認・リネーム・圧縮・クロッピングなどが行えます。準備が出来たら、「アップロード」ボタンを押してアップロードを開始できます。
          */
         "tip": string;
+        /**
+         * Original kept: compressing would not make it smaller
+         */
+        "compressionNotBeneficial": string;
     };
     /**
      * Approvals

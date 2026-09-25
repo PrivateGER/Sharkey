@@ -20,7 +20,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.itemActionWrapper">
 				<MkButton :iconOnly="true" rounded @click="emit('showMenu', displayItem.item, $event)"><i class="ti ti-dots"></i></MkButton>
 			</div>
-			<div :class="$style.itemThumbnail" :style="{ backgroundImage: `url(${ displayItem.item.thumbnail })` }"></div>
+			<div v-if="displayItem.item.thumbnail" :class="$style.itemThumbnail" :style="{ backgroundImage: `url(${ displayItem.item.thumbnail })` }"></div>
+			<div v-else-if="displayItem.item.file.type.startsWith('video/')" :class="$style.itemThumbnail">
+				<!-- the fragment makes browsers show the first frame instead of a blank box -->
+				<video :src="`${displayItem.item.objectUrl}#t=0.1`" :class="$style.itemVideoThumbnail" preload="metadata" muted playsinline disablepictureinpicture></video>
+			</div>
+			<div v-else :class="[$style.itemThumbnail, $style.itemIconThumbnail]"><i class="ti ti-file"></i></div>
 			<div :class="$style.itemBody">
 				<div>
 					<i v-if="displayItem.item.isSensitive" style="color: var(--MI_THEME-warn); margin-right: 0.5em;" class="ti ti-eye-exclamation"></i>
@@ -33,10 +38,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span>{{ displayItem.item.file.type }}</span>
 					<span v-if="displayItem.item.compressedSize">({{ i18n.tsx._uploader.compressedToX({ x: bytes(displayItem.item.compressedSize) }) }} = {{ i18n.tsx._uploader.savedXPercent({ x: Math.round((1 - displayItem.item.compressedSize / displayItem.item.file.size) * 100) }) }})</span>
 					<span v-else>{{ bytes(displayItem.item.file.size) }}</span>
+					<span v-if="displayItem.item.compressionSkipped">({{ i18n.ts._uploader.compressionNotBeneficial }})</span>
 					<span v-if="displayItem.item.preprocessing">{{ i18n.ts.preprocessing }}<MkLoading inline em style="margin-left: 0.5em;"/></span>
 				</div>
-				<div>
-				</div>
+				<button
+					class="_button"
+					:class="[$style.itemCaption, { [$style.itemCaptionSet]: getCaption(displayItem.item) != null }]"
+					:disabled="displayItem.item.preprocessing || displayItem.item.uploading"
+					@click="emit('editCaption', displayItem.item)"
+				>
+					<i class="ti ti-text-caption"></i>
+					<span :class="$style.itemCaptionText">{{ getCaption(displayItem.item) ?? i18n.ts.describeFile }}</span>
+				</button>
 			</div>
 			<div :class="$style.itemIconWrapper">
 				<MkSystemIcon v-if="displayItem.item.uploading" :class="$style.itemIcon" type="waiting"/>
@@ -69,6 +82,7 @@ const displayItems = computed(() => props.items.map(item => ({
 const emit = defineEmits<{
 	(ev: 'showMenu', item: UploaderItem, event: MouseEvent): void;
 	(ev: 'showMenuViaContextmenu', item: UploaderItem, event: MouseEvent): void;
+	(ev: 'editCaption', item: UploaderItem): void;
 }>();
 
 function getUploadNameParts(item: UploaderItem): {
@@ -89,6 +103,10 @@ function getUploadNameParts(item: UploaderItem): {
 		baseName: name.substring(0, extensionIndex),
 		extension: name.substring(extensionIndex),
 	};
+}
+
+function getCaption(item: UploaderItem): string | null {
+	return item.uploaded?.comment ?? item.caption ?? null;
 }
 
 function onContextmenu(item: UploaderItem, ev: MouseEvent) {
@@ -183,6 +201,54 @@ function onContextmenu(item: UploaderItem, ev: MouseEvent) {
 .itemBody {
 	flex: 1;
 	min-width: 0;
+}
+
+.itemVideoThumbnail {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.itemIconThumbnail {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 28px;
+	opacity: 0.7;
+}
+
+.itemCaption {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	margin-top: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: var(--MI_THEME-buttonBg);
+	font-size: 85%;
+
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
+	&:disabled {
+		opacity: 0.5;
+	}
+
+	&.itemCaptionSet {
+		color: var(--MI_THEME-accent);
+	}
+}
+
+.itemCaptionText {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .itemInfo {
