@@ -119,6 +119,7 @@ import { getNoteClipMenu, getNoteMenu, translateNote } from '@/utility/get-note-
 import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { prefer } from '@/preferences.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
+import { insertReply } from '@/utility/insert-reply.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
 import { instance, policies } from '@/instance';
 import { getAppearNote } from '@/utility/get-appear-note';
@@ -180,10 +181,9 @@ const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', nul
 setupNoteViewInterruptors(note, isDeleted);
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
-	// A reply can be announced more than once, e.g. when a backfill races an inbox delivery.
-	if (replies.value.some(reply => reply.id === replyNote.id)) return;
-	replies.value.unshift(replyNote);
-	appearNote.value.repliesCount += 1;
+	if (insertReply(replies.value, replyNote)) {
+		appearNote.value.repliesCount += 1;
+	}
 }
 
 async function removeReply(id: Misskey.entities.Note['id']) {

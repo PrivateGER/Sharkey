@@ -559,6 +559,7 @@ import type {
 	NotesRepliesRequest,
 	NotesRepliesResponse,
 	NotesRepliesBackfillRequest,
+	NotesRepliesBackfillResponse,
 	NotesScheduleCreateRequest,
 	NotesScheduleDeleteRequest,
 	NotesScheduleListRequest,
@@ -1067,7 +1068,7 @@ export type Endpoints = {
 	'notes/reactions/delete': { req: NotesReactionsDeleteRequest; res: EmptyResponse };
 	'notes/renotes': { req: NotesRenotesRequest; res: NotesRenotesResponse };
 	'notes/replies': { req: NotesRepliesRequest; res: NotesRepliesResponse };
-	'notes/replies/backfill': { req: NotesRepliesBackfillRequest; res: EmptyResponse };
+	'notes/replies/backfill': { req: NotesRepliesBackfillRequest; res: NotesRepliesBackfillResponse };
 	'notes/schedule/create': { req: NotesScheduleCreateRequest; res: EmptyResponse };
 	'notes/schedule/delete': { req: NotesScheduleDeleteRequest; res: EmptyResponse };
 	'notes/schedule/list': { req: NotesScheduleListRequest; res: NotesScheduleListResponse };

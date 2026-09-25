@@ -329,6 +329,20 @@ export type NoteUpdatedEvent = { id: Note['id'] } & ({
 		id: Note['id'];
 		userId: User['id'];
 	};
+} | {
+	type: 'repliesBackfillStarted';
+	body: {
+		backfillId: string;
+		automatic: boolean;
+	};
+} | {
+	type: 'repliesBackfilled';
+	body: {
+		backfillId: string;
+		automatic: boolean;
+		imported: number;
+		failed: boolean;
+	};
 });
 
 export type BroadcastEvents = {

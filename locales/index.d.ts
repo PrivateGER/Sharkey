@@ -12089,9 +12089,25 @@ export interface Locale extends ILocale {
      */
     "fetchRemoteReplies": string;
     /**
-     * Fetching replies from the origin server. New replies will appear here as they arrive.
+     * Checking the origin server for more replies…
      */
-    "fetchingRemoteReplies": string;
+    "checkingRemoteReplies": string;
+    /**
+     * New replies from the origin server: {n}
+     */
+    "fetchedRemoteReplies": ParameterizedString<"n">;
+    /**
+     * No new replies found on the origin server.
+     */
+    "noNewRemoteReplies": string;
+    /**
+     * Couldn't fetch replies from the origin server.
+     */
+    "remoteRepliesFetchFailed": string;
+    /**
+     * Replies were fetched from the origin server recently. Try again in a few minutes.
+     */
+    "remoteRepliesRecentlyChecked": string;
     /**
      * Automatically fetch replies of remote threads
      */
