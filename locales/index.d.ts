@@ -13810,6 +13810,10 @@ export interface Locale extends ILocale {
      */
     "accountMigrationUri": string;
     /**
+     * Account migration pending
+     */
+    "accountMigrationPending": string;
+    /**
      * Restart account migration
      */
     "restartMigration": string;
