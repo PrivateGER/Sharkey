@@ -9,47 +9,28 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
-import { uploadFile } from '@/utility/upload.js';
 import { prefer } from '@/preferences.js';
+import type { CompressionLevel, UploaderFeatures } from '@/use/use-uploader.js';
 
 export function chooseFileFromPc(
 	multiple: boolean,
 	options?: {
 		uploadFolder?: string | null;
-		keepOriginal?: boolean;
+		compressionLevel?: CompressionLevel;
 		nameConverter?: (file: File) => string | undefined;
+		features?: UploaderFeatures;
 	},
 ): Promise<Misskey.entities.DriveFile[]> {
-	const uploadFolder = options?.uploadFolder ?? prefer.s.uploadFolder;
-	const keepOriginal = options?.keepOriginal ?? false;
-	const nameConverter = options?.nameConverter ?? (() => undefined);
+	return os.pickLocalFiles({ multiple }).then(files => {
+		if (files.length === 0) return [];
 
-	return new Promise((res, rej) => {
-		const input = window.document.createElement('input');
-		input.type = 'file';
-		input.multiple = multiple;
-		input.onchange = () => {
-			if (!input.files) return res([]);
-			const promises = Array.from(
-				input.files,
-				file => uploadFile(file, uploadFolder, nameConverter(file), keepOriginal),
-			);
-
-			Promise.all(promises).then(driveFiles => {
-				res(driveFiles);
-			}).catch(err => {
-				// アップロードのエラーは uploadFile 内でハンドリングされているためアラートダイアログを出したりはしてはいけない
-			});
-
-			// 一応廃棄
-			(window as any).__misskey_input_ref__ = null;
-		};
-
-		// https://qiita.com/fukasawah/items/b9dc732d95d99551013d
-		// iOS Safari で正常に動かす為のおまじない
-		(window as any).__misskey_input_ref__ = input;
-
-		input.click();
+		return os.launchUploader(files, {
+			folderId: options?.uploadFolder ?? prefer.s.uploadFolder,
+			multiple,
+			features: options?.features,
+			compressionLevel: options?.compressionLevel,
+			nameConverter: options?.nameConverter,
+		});
 	});
 }
 
@@ -101,13 +82,9 @@ function select(src: HTMLElement | EventTarget | null, label: string | null, mul
 			text: label,
 			type: 'label',
 		} : undefined, {
-			text: i18n.ts.upload + ' (' + i18n.ts.compress + ')',
-			icon: 'ti ti-upload',
-			action: () => chooseFileFromPc(multiple, { keepOriginal: false }).then(files => res(files)),
-		}, {
 			text: i18n.ts.upload,
 			icon: 'ti ti-upload',
-			action: () => chooseFileFromPc(multiple, { keepOriginal: true }).then(files => res(files)),
+			action: () => chooseFileFromPc(multiple).then(files => res(files)),
 		}, {
 			text: i18n.ts.fromDrive,
 			icon: 'ti ti-cloud',

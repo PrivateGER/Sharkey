@@ -16,6 +16,7 @@ import type { PostFormProps } from '@/types/post-form.js';
 import type MkRoleSelectDialog_TypeReferenceOnly from '@/components/MkRoleSelectDialog.vue';
 import type MkEmojiPickerDialog_TypeReferenceOnly from '@/components/MkEmojiPickerDialog.vue';
 import type { AnyRequest, Endpoint, Request, Response } from '@/utility/misskey-api.js';
+import type { CompressionLevel, UploaderFeatures } from '@/use/use-uploader.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
@@ -681,6 +682,75 @@ export async function cropImage(image: Misskey.entities.DriveFile, options: {
 		}, {
 			ok: x => {
 				resolve(x);
+			},
+			closed: () => dispose(),
+		});
+	});
+}
+
+export async function cropImageFile<F extends File | Blob>(imageFile: F, options: {
+	aspectRatio: number | null;
+}): Promise<F> {
+	return new Promise(resolve => {
+		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkImageFileCropperDialog.vue')), {
+			imageFile: imageFile,
+			aspectRatio: options.aspectRatio,
+		}, {
+			ok: x => {
+				resolve(x as F);
+			},
+			closed: () => dispose(),
+		});
+	});
+}
+
+export function pickLocalFiles(options: {
+	multiple?: boolean;
+} = {}): Promise<File[]> {
+	return new Promise((res) => {
+		const input = window.document.createElement('input');
+		input.type = 'file';
+		input.multiple = options.multiple ?? false;
+		input.onchange = () => {
+			if (!input.files) return res([]);
+
+			res(Array.from(input.files));
+
+			// 一応廃棄
+			(window as any).__misskey_input_ref__ = null;
+		};
+
+		// https://qiita.com/fukasawah/items/b9dc732d95d99551013d
+		// iOS Safari で正常に動かす為のおまじない
+		(window as any).__misskey_input_ref__ = input;
+
+		input.click();
+	});
+}
+
+export function launchUploader(
+	files: File[],
+	options?: {
+		folderId?: string | null;
+		multiple?: boolean;
+		features?: UploaderFeatures;
+		compressionLevel?: CompressionLevel;
+		nameConverter?: (file: File) => string | undefined;
+	},
+): Promise<Misskey.entities.DriveFile[]> {
+	return new Promise((res, rej) => {
+		if (files.length === 0) return rej();
+		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUploaderDialog.vue')), {
+			files: markRaw(files),
+			folderId: options?.folderId,
+			multiple: options?.multiple,
+			features: options?.features,
+			compressionLevel: options?.compressionLevel,
+			nameConverter: options?.nameConverter,
+		}, {
+			done: driveFiles => {
+				if (driveFiles.length === 0) return rej();
+				res(driveFiles);
 			},
 			closed: () => dispose(),
 		});
