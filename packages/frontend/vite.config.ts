@@ -215,7 +215,6 @@ export function getConfig(): UserConfig {
 			environment: 'happy-dom',
 			// https://github.com/vitest-dev/vitest/issues/8757#issuecomment-3523887616
 			// https://nodejs.org/api/cli.html#--no-experimental-webstorage
-			// @ts-expect-error This file gets checked by the wrong tsconfig; will be fixed in an upcoming MR.
 			execArgv: [
 				'--no-experimental-webstorage',
 			],
