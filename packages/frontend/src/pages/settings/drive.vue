@@ -62,6 +62,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkPreferenceContainer>
 				</SearchMarker>
 
+				<SearchMarker :keywords="['default', 'image', 'compression']">
+					<MkPreferenceContainer k="defaultImageCompressionLevel">
+						<MkSelect v-model="defaultImageCompressionLevel" :items="compressionLevelItems">
+							<template #label><SearchLabel>{{ i18n.ts.defaultCompressionLevel }} ({{ i18n.ts.image }})</SearchLabel></template>
+							<template #caption><div v-html="i18n.ts.defaultCompressionLevel_description"></div></template>
+						</MkSelect>
+					</MkPreferenceContainer>
+				</SearchMarker>
+
+				<SearchMarker :keywords="['default', 'video', 'compression']">
+					<MkPreferenceContainer k="defaultVideoCompressionLevel">
+						<MkSelect v-model="defaultVideoCompressionLevel" :items="compressionLevelItems">
+							<template #label><SearchLabel>{{ i18n.ts.defaultCompressionLevel }} ({{ i18n.ts.video }})</SearchLabel></template>
+							<template #caption><div v-html="i18n.ts.defaultCompressionLevel_description"></div></template>
+						</MkSelect>
+					</MkPreferenceContainer>
+				</SearchMarker>
+
 				<SearchMarker :keywords="['always', 'default', 'mark', 'nsfw', 'sensitive', 'media', 'file']">
 					<MkSwitch v-model="defaultSensitive" @update:modelValue="saveProfile()">
 						<template #label><SearchLabel>{{ i18n.ts.alwaysMarkSensitive }}</SearchLabel></template>
@@ -79,6 +97,8 @@ import * as Misskey from 'misskey-js';
 import tinycolor from 'tinycolor2';
 import FormLink from '@/components/form/link.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
+import MkSelect from '@/components/MkSelect.vue';
+import type { MkSelectItem } from '@/components/MkSelect.vue';
 import FormSection from '@/components/form/section.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import FormSplit from '@/components/form/split.vue';
@@ -114,6 +134,15 @@ const meterStyle = computed(() => {
 });
 
 const keepOriginalFilename = prefer.model('keepOriginalFilename');
+const defaultImageCompressionLevel = prefer.model('defaultImageCompressionLevel');
+const defaultVideoCompressionLevel = prefer.model('defaultVideoCompressionLevel');
+
+const compressionLevelItems: MkSelectItem<0 | 1 | 2 | 3>[] = [
+	{ label: i18n.ts.none, value: 0 },
+	{ label: `${i18n.ts.low} (${i18n.ts._compression._quality.high}; ${i18n.ts._compression._size.large})`, value: 1 },
+	{ label: `${i18n.ts.medium} (${i18n.ts._compression._quality.medium}; ${i18n.ts._compression._size.medium})`, value: 2 },
+	{ label: `${i18n.ts.high} (${i18n.ts._compression._quality.low}; ${i18n.ts._compression._size.small})`, value: 3 },
+];
 
 misskeyApi('drive').then(info => {
 	capacity.value = info.capacity;

@@ -53,6 +53,7 @@
 		"katex": "0.16.22",
 		"locales": "workspace:*",
 		"matter-js": "0.20.0",
+		"mediabunny": "1.55.4",
 		"mfm-js": "npm:@transfem-org/sfm-js@0.26.1",
 		"misskey-bubble-game": "workspace:*",
 		"misskey-js": "workspace:*",

@@ -17,6 +17,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.body">
 			<slot :width="bodyWidth" :height="bodyHeight"></slot>
 		</div>
+		<div v-if="$slots.footer" :class="$style.footer">
+			<slot name="footer"></slot>
+		</div>
 	</div>
 </MkModal>
 </template>
@@ -145,5 +148,12 @@ defineExpose({
 	overflow: auto;
 	background: var(--MI_THEME-panel);
 	container-type: size;
+}
+
+.footer {
+	padding: 12px 16px;
+	overflow: auto;
+	background: var(--MI_THEME-panel);
+	border-top: 1px solid var(--MI_THEME-divider);
 }
 </style>
