@@ -67,11 +67,14 @@ async function ok() {
 		const zoomedRate = croppedImage.getBoundingClientRect().width / croppedImage.clientWidth;
 		const widthToRender = croppedSection.getBoundingClientRect().width / zoomedRate;
 
+		// Keep the source format so that cropping alone does not turn a photo into a much larger PNG
+		const type = ['image/jpeg', 'image/webp', 'image/png'].includes(props.imageFile.type) ? props.imageFile.type : 'image/png';
+
 		const croppedCanvas = await croppedSection.$toCanvas({ width: widthToRender });
 		croppedCanvas.toBlob(b => {
 			if (!b) return rej(new Error('Failed to convert canvas to blob'));
 			res(b);
-		});
+		}, type, 0.92);
 	});
 
 	const finalFile = (props.imageFile instanceof File

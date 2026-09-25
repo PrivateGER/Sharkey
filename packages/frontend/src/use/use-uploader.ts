@@ -402,7 +402,10 @@ export function useUploader(options: {
 				continue;
 			}
 
-			await uploadOne(item);
+			// Keep going after a failed item: the error has already been shown and the item stays marked as failed
+			await uploadOne(item).catch(err => {
+				console.error('Failed to upload file', err);
+			});
 		}
 	}
 
