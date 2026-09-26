@@ -4,12 +4,15 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { In } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { NotesRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
+import { IdService } from '@/core/IdService.js';
+import { TimeService } from '@/global/TimeService.js';
+import { rankTopPosts } from '@/misc/top-posts-ranking.js';
 import { DI } from '@/di-symbols.js';
-import { DataSource, In } from 'typeorm';
 
 export const meta = {
 	tags: ['notes'],
@@ -53,12 +56,16 @@ export const paramDef = {
 	required: [],
 } as const;
 
-// Define the type for the top post from the database
-interface TopPost {
-	post_id: string;
-	total_score: number;
-	score_explanation: Record<string, any>;
-}
+type CandidateRow = {
+	noteId: string;
+	authorId: string;
+	renoters: number;
+	repliers: number;
+	reactors: number;
+	engagers: number;
+	isFollowingAuthor: boolean;
+	followedEngagers: number;
+};
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
@@ -66,11 +73,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
-		@Inject(DI.db)
-		private db: DataSource,
-
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
+		private idService: IdService,
+		private timeService: TimeService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			// Only authenticated local users can see their personalized top posts
@@ -78,48 +84,62 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new Error('Access denied: Only local users can view top posts');
 			}
 
-			// Get top posts from the materialized view.
-			// I CANNOT be arsed to do this with TypeORM.
-			const topPosts = await this.db.query<TopPost[]>(
-				`SELECT post_id, total_score, score_explanation
-				FROM top_interesting_posts_for_local_users
-				WHERE user_id = $1
-				ORDER BY rank ASC
-				LIMIT $2`,
-				[me.id, ps.limit]
+			// The materialized view holds globally interesting posts and their engagement stats.
+			// Everything that depends on the viewer or on the current time is worked out here.
+			const query = this.notesRepository.createQueryBuilder('note')
+				.innerJoin('top_interesting_posts_for_local_users', 'top', 'top.post_id = note.id')
+				.select('note.id', 'noteId')
+				.addSelect('note.userId', 'authorId')
+				.addSelect('top.renoters', 'renoters')
+				.addSelect('top.repliers', 'repliers')
+				.addSelect('top.reactors', 'reactors')
+				.addSelect('top.engagers', 'engagers')
+				.addSelect('EXISTS (SELECT 1 FROM "following" f WHERE f."followerId" = :meId AND f."followeeId" = "note"."userId")', 'isFollowingAuthor')
+				.addSelect('(SELECT count(*) FROM "following" f WHERE f."followerId" = :meId AND f."followeeId" = ANY(top.engager_ids))::int', 'followedEngagers')
+				// Nothing you wrote or already interacted with
+				.where('note.userId != :meId')
+				.andWhere('NOT (:meId = ANY(top.engager_ids))')
+				.setParameters({ meId: me.id });
+
+			this.queryService.andNotBlockingUser(query, ':meId', 'note.userId');
+			this.queryService.generateBlockedHostQueryForNote(query);
+			this.queryService.generateSuspendedUserQueryForNote(query);
+			this.queryService.generateMutedUserQueryForNotes(query, me);
+			this.queryService.generateBlockedUserQueryForNotes(query, me);
+			this.queryService.generateMutedNoteThreadQuery(query, me);
+
+			const candidates = await query.getRawMany<CandidateRow>();
+
+			const ranked = rankTopPosts(
+				candidates.map(candidate => ({
+					...candidate,
+					createdAt: this.idService.parse(candidate.noteId).date.getTime(),
+				})),
+				this.timeService.now,
+				ps.limit,
 			);
 
-			// If no top posts found, return empty array
-			if (topPosts.length === 0) {
+			if (ranked.length === 0) {
 				return [];
 			}
 
-			const noteIds = topPosts.map((post: TopPost) => post.post_id);
-
 			const notes = await this.notesRepository.findBy({
-				id: In(noteIds),
+				id: In(ranked.map(post => post.noteId)),
 			});
 
 			const packedNotes = await this.noteEntityService.packMany(notes, me);
-			const packedNoteMap = new Map();
-			for (const note of packedNotes) {
-				packedNoteMap.set(note.id, note);
-			}
+			const packedNoteMap = new Map(packedNotes.map(note => [note.id, note]));
 
-			return topPosts
-				.map((post: TopPost) => {
-					const packedNote = packedNoteMap.get(post.post_id);
-					if (!packedNote) return undefined;
+			return ranked.flatMap(post => {
+				const packedNote = packedNoteMap.get(post.noteId);
+				if (!packedNote) return [];
 
-					return {
-						note: packedNote,
-						score: post.total_score,
-						scoreExplanation: post.score_explanation,
-					};
-				})
-				.filter((post): post is { note: any; score: number; scoreExplanation: Record<string, any> } =>
-					post !== undefined
-				);
+				return [{
+					note: packedNote,
+					score: post.score,
+					scoreExplanation: post.scoreExplanation,
+				}];
+			});
 		});
 	}
 }

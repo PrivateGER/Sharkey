@@ -27,14 +27,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-else>
 					<MkInfo v-if="showInfo" class="info" :closable="true" @close="hideInfo">
 						<b>About Top Posts</b>
-						<p>This feed shows the top 25 posts that are currently trending based on a scoring system that considers:</p>
+						<p>This feed shows up to 25 popular posts from the last two days, ranked by:</p>
 						<ul>
-							<li>Engagement (reactions, replies, and renotes)</li>
-							<li>Recency (newer posts score higher)</li>
-							<li>Following status (posts from users you follow get a boost)</li>
+							<li>Engagement: how many different people renoted, replied to, or reacted to a post</li>
+							<li>Recency: newer posts score higher</li>
+							<li>Your network: posts by people you follow, or that people you follow engaged with, get a boost</li>
 						</ul>
+						<p>Replies, bots, your own posts and posts you already interacted with are left out, and each author appears at most twice.</p>
 						<p>Click the info icon next to any post's score to see the detailed calculation.</p>
-						<p>This feed refreshes periodically and is unique to your account. If you're new, it may take a few minutes to generate for you.</p>
+						<p>The pool of popular posts refreshes periodically, and the ranking is personalized for you every time you open this page.</p>
 					</MkInfo>
 
 					<div class="timeline">
@@ -126,17 +127,18 @@ function showScoreDetails(post: Post) {
 		text: `Total Score: ${formatNumber(explanation.total_score)}
 Formula: ${explanation.formula}
 
-Engagement Score: ${formatNumber(explanation.components.engagement.score)}
-- Renotes: ${explanation.components.engagement.renotes.count} × ${explanation.components.engagement.renotes.weight} = ${formatNumber(explanation.components.engagement.renotes.contribution)}
-- Replies: ${explanation.components.engagement.replies.count} × ${explanation.components.engagement.replies.weight} = ${formatNumber(explanation.components.engagement.replies.contribution)}
-- Reactions: ${explanation.components.engagement.reactions.count} × ${explanation.components.engagement.reactions.weight} = ${formatNumber(explanation.components.engagement.reactions.contribution)}
+Engagement Points: ${explanation.components.engagement.points} from ${explanation.components.engagement.people} people
+- Renotes: ${explanation.components.engagement.renotes.count} × ${explanation.components.engagement.renotes.weight} = ${explanation.components.engagement.renotes.contribution}
+- Replies: ${explanation.components.engagement.replies.count} × ${explanation.components.engagement.replies.weight} = ${explanation.components.engagement.replies.contribution}
+- Reactions: ${explanation.components.engagement.reactions.count} × ${explanation.components.engagement.reactions.weight} = ${explanation.components.engagement.reactions.contribution}
 
 Recency Factor: ${formatNumber(explanation.components.recency.factor)}
 - Hours Old: ${formatNumber(explanation.components.recency.hours_old, 1)}
 - Formula: ${explanation.components.recency.formula}
 
-Following Boost: ${explanation.components.following.boost}
-- Is Following: ${explanation.components.following.is_following ? 'Yes' : 'No'}`,
+Personal Factor: ${formatNumber(explanation.components.personal.factor)}
+- Following Author: ${explanation.components.personal.is_following_author ? 'Yes' : 'No'} (+${explanation.components.personal.following_boost})
+- People You Follow Who Engaged: ${explanation.components.personal.followed_engagers} (+${explanation.components.personal.followed_engagers_boost})`,
 	});
 }
 
