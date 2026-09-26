@@ -70,6 +70,7 @@ watch(description, () => {
 function setAvatar(ev) {
 	chooseFileFromPc(false).then(async (files) => {
 		const file = files[0];
+		if (file == null) return;
 
 		let originalOrCropped = file;
 

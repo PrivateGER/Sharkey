@@ -752,6 +752,8 @@ export function launchUploader(
 				if (driveFiles.length === 0) return rej();
 				res(driveFiles);
 			},
+			// Settle the promise so that callers waiting for a selection can finish
+			canceled: () => res([]),
 			closed: () => dispose(),
 		});
 	});

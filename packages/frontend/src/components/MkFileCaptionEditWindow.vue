@@ -17,6 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts.describeFile }}</template>
 	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
 		<MkDriveFileThumbnail v-if="file" :file="file" fit="contain" style="height: 193px; margin-bottom: 16px;"/>
+		<img v-else-if="previewUrl" :src="previewUrl" alt="" :class="$style.preview"/>
 		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription" @keydown="onKeydown($event)">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
@@ -49,11 +50,20 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 const props = defineProps<{
 	file?: Misskey.entities.DriveFile | null;
 	default?: string | null;
+	/**
+	 * Alt text can only be generated for files that are already in the drive.
+	 * For a file that has not been uploaded yet, this is called to upload it before generating.
+	 */
+	prepareFile?: (() => Promise<Misskey.entities.DriveFile>) | null;
+	/** MIME type of the file that prepareFile will upload */
+	mimeType?: string | null;
+	/** Image shown when there is no drive file yet */
+	previewUrl?: string | null;
 }>();
 
-// Alt text can only be generated for files that are already in the drive
-const isImage = props.file?.type.startsWith('image/') ?? false;
-const isVideo = props.file?.type.startsWith('video/') ?? false;
+const fileType = props.file?.type ?? (props.prepareFile != null ? props.mimeType : null) ?? '';
+const isImage = fileType.startsWith('image/');
+const isVideo = fileType.startsWith('video/');
 let loading = ref(false);
 const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
 
@@ -67,12 +77,15 @@ const dialog = useTemplateRef('dialog');
 const caption = ref(props.default ?? '');
 
 async function generateAltText() {
-	if (props.file == null || (!isImage && !isVideo)) return;
+	if (!isImage && !isVideo) return;
 	loading.value = true;
 
 	try {
+		const file = props.file ?? await props.prepareFile?.();
+		if (file == null) return;
+
 		const res = await misskeyApi('drive/files/generate-alt-text', {
-			fileId: props.file.id,
+			fileId: file.id,
 			modelType: selectedModel.value,
 		});
 
@@ -110,3 +123,13 @@ async function ok() {
 	dialog.value?.close();
 }
 </script>
+
+<style lang="scss" module>
+.preview {
+	display: block;
+	width: 100%;
+	height: 193px;
+	margin-bottom: 16px;
+	object-fit: contain;
+}
+</style>

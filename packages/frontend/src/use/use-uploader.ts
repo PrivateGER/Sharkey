@@ -15,6 +15,9 @@ import { prefer } from '@/preferences.js';
 import { isWebpSupported } from '@/utility/upload/isWebpSupported.js';
 import { uploadFile, UploadAbortedError } from '@/utility/drive.js';
 import * as os from '@/os.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { $i } from '@/i.js';
+import { instance } from '@/instance.js';
 
 export type UploaderFeatures = {
 	imageEditing?: boolean;
@@ -42,6 +45,28 @@ const VIDEO_COMPRESSION_SUPPORTED_TYPES = [
 	'video/x-matroska',
 ];
 
+// Compression that saves less than this is not worth the quality loss, so the original is kept instead
+const MIN_COMPRESSION_SAVING = 0.05;
+
+function isCompressionBeneficial(compressedSize: number, originalSize: number): boolean {
+	return compressedSize <= originalSize * (1 - MIN_COMPRESSION_SAVING);
+}
+
+// Files below these sizes are not compressed by default: the gain is small and re-encoding takes time and costs quality
+const MIN_DEFAULT_IMAGE_COMPRESSION_SIZE = 1024 * 1024; // 1MB
+const MIN_DEFAULT_VIDEO_COMPRESSION_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Video compression is relative to the source, so that already compact videos are not blown up
+// and users don't get surprised by a much worse video
+const VIDEO_COMPRESSION_SETTINGS = {
+	1: { maxShortSide: null, bitrateRatio: 0.8 },
+	2: { maxShortSide: 1080, bitrateRatio: 0.6 },
+	3: { maxShortSide: 720, bitrateRatio: 0.4 },
+} as const satisfies Record<Exclude<CompressionLevel, 0>, { maxShortSide: number | null; bitrateRatio: number }>;
+
+// Lowest bitrate we allow, in bits per pixel per frame. Below this, browser H.264 encoders produce visibly broken video.
+const VIDEO_MIN_BITS_PER_PIXEL = 0.05;
+
 const mimeTypeMap = {
 	'image/webp': 'webp',
 	'image/jpeg': 'jpg',
@@ -62,6 +87,15 @@ export type UploaderItem = {
 	aborted: boolean;
 	compressionLevel: CompressionLevel;
 	compressedSize?: number | null;
+	/**
+	 * Why the original is uploaded although compression would apply:
+	 * the file is small enough to skip default compression, or compressing would not make it noticeably smaller.
+	 */
+	compressionSkipped?: 'small' | 'notBeneficial' | null;
+	/** The alt text editor for this item is open */
+	editingCaption?: boolean;
+	/** Saving the alt text of the already uploaded file failed, so item.caption has not been saved yet */
+	captionSaveFailed?: boolean;
 	preprocessedFile?: Blob | null;
 	file: File;
 	objectUrl: string;
@@ -132,11 +166,34 @@ export function useUploader(options: {
 		return 0;
 	}
 
+	function getUploadLimit(): number {
+		return Math.min(instance.maxFileSize, ($i?.policies.maxFileSizeMb ?? Infinity) * 1024 * 1024);
+	}
+
+	/** Whether to upload the compressed result instead of the original */
+	function shouldUseCompressed(compressedSize: number, originalSize: number): boolean {
+		// Compression that makes an otherwise too large file uploadable is always worth it
+		if (originalSize > getUploadLimit() && compressedSize <= getUploadLimit()) return true;
+		return isCompressionBeneficial(compressedSize, originalSize);
+	}
+
+	function isTooSmallForDefaultCompression(file: File): boolean {
+		// Files over the upload limit may only become uploadable through compression
+		if (file.size > getUploadLimit()) return false;
+
+		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_IMAGE_COMPRESSION_SIZE;
+		if (VIDEO_COMPRESSION_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_VIDEO_COMPRESSION_SIZE;
+		return false;
+	}
+
 	function initializeFile(file: File) {
 		const id = uuid();
 		const filename = file.name ?? 'untitled';
 		const extension = filename.split('.').length > 1 ? '.' + filename.split('.').pop() : '';
 		const objectUrl = window.URL.createObjectURL(file);
+		const defaultCompressionLevel = getDefaultCompressionLevel(file);
+		// An explicitly requested level (options.compressionLevel) always applies
+		const skipAsSmall = defaultCompressionLevel !== 0 && options.compressionLevel == null && isTooSmallForDefaultCompression(file);
 		items.value.push({
 			id,
 			name: options.nameConverter?.(file) ?? (prefer.s.keepOriginalFilename ? filename : id + extension),
@@ -149,7 +206,8 @@ export function useUploader(options: {
 			aborted: false,
 			uploaded: null,
 			uploadFailed: false,
-			compressionLevel: getDefaultCompressionLevel(file),
+			compressionLevel: skipAsSmall ? 0 : defaultCompressionLevel,
+			compressionSkipped: skipAsSmall ? 'small' : null,
 			file: markRaw(file),
 			objectUrl,
 		});
@@ -218,21 +276,6 @@ export function useUploader(options: {
 					set: (value) => item.isSensitive = value,
 				}),
 			}, {
-				text: i18n.ts.describeFile,
-				icon: 'ti ti-text-caption',
-				action: () => {
-					const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
-						default: item.caption ?? null,
-					}, {
-						done: caption => {
-							if (caption != null) {
-								item.caption = caption.trim().length === 0 ? null : caption;
-							}
-						},
-						closed: () => dispose(),
-					});
-				},
-			}, {
 				type: 'divider',
 			});
 		}
@@ -257,6 +300,11 @@ export function useUploader(options: {
 						objectUrl: newObjectUrl,
 					});
 					const reactiveItem = items.value.find(x => x.id === item.id)!;
+					// The cropped file may no longer be small enough to skip the default compression
+					if (reactiveItem.compressionSkipped === 'small' && !isTooSmallForDefaultCompression(cropped)) {
+						reactiveItem.compressionLevel = getDefaultCompressionLevel(cropped);
+						reactiveItem.compressionSkipped = null;
+					}
 					preprocess(reactiveItem).then(() => {
 						triggerRef(items);
 					});
@@ -272,6 +320,7 @@ export function useUploader(options: {
 		) {
 			function changeCompressionLevel(level: CompressionLevel) {
 				item.compressionLevel = level;
+				item.compressionSkipped = null;
 				preprocess(item).then(() => {
 					triggerRef(items);
 				});
@@ -426,15 +475,27 @@ export function useUploader(options: {
 		}
 	}
 
+	function useOriginalFile(item: UploaderItem) {
+		item.preprocessedFile = null;
+		item.compressedSize = null;
+		item.suffix = '';
+		updateItemObjectUrls(item, item.file);
+	}
+
 	async function preprocess(item: UploaderItem): Promise<void> {
 		item.preprocessing = true;
 		item.preprocessProgress = null;
+		// Never keep the result of an earlier run: if this one fails or is canceled, the original file is used
+		item.preprocessedFile = null;
+		// Keep the "small file" note until the user picks a level themselves
+		if (item.compressionLevel !== 0) item.compressionSkipped = null;
 
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(item.file.type)) {
 			try {
 				await preprocessForImage(item);
 			} catch (err) {
 				console.error('Failed to preprocess image', err);
+				useOriginalFile(item);
 			}
 		}
 
@@ -443,6 +504,7 @@ export function useUploader(options: {
 				await preprocessForVideo(item);
 			} catch (err) {
 				console.error('Failed to preprocess video', err);
+				useOriginalFile(item);
 			}
 		}
 
@@ -452,6 +514,9 @@ export function useUploader(options: {
 
 	async function preprocessForImage(item: UploaderItem): Promise<void> {
 		let preprocessedFile: Blob | File = item.file;
+		// Reset first, so a failed compression doesn't leave the result of an earlier one behind
+		item.compressedSize = null;
+		item.suffix = '';
 
 		const compressionSettings = getCompressionSettings(item.compressionLevel);
 		const needsCompress = item.compressionLevel !== 0 && compressionSettings && !(await isAnimated(preprocessedFile));
@@ -466,14 +531,14 @@ export function useUploader(options: {
 
 			try {
 				const result = await readAndCompressImage(preprocessedFile, config);
-				if (result.size < preprocessedFile.size || preprocessedFile.type === 'image/webp') {
-					// The compression may not always reduce the file size
-					// (and WebP is not browser safe yet)
+				// The compression may not always reduce the file size
+				if (shouldUseCompressed(result.size, preprocessedFile.size)) {
 					preprocessedFile = result;
 					item.compressedSize = result.size;
 					item.suffix = '.' + mimeTypeMap[config.mimeType];
 				} else {
 					item.compressedSize = null;
+					item.compressionSkipped = 'notBeneficial';
 					item.suffix = '';
 				}
 			} catch (err) {
@@ -490,58 +555,155 @@ export function useUploader(options: {
 
 	async function preprocessForVideo(item: UploaderItem): Promise<void> {
 		let preprocessedFile: Blob | File = item.file;
+		item.compressedSize = null;
+		item.suffix = '';
 
-		if (item.compressionLevel !== 0) {
+		const settings = item.compressionLevel !== 0 ? VIDEO_COMPRESSION_SETTINGS[item.compressionLevel] : null;
+		if (settings != null) {
 			const mediabunny = await import('mediabunny');
 
-			const source = new mediabunny.BlobSource(preprocessedFile);
-
 			const input = new mediabunny.Input({
-				source,
+				source: new mediabunny.BlobSource(preprocessedFile),
 				formats: mediabunny.ALL_FORMATS,
 			});
 
-			const output = new mediabunny.Output({
-				target: new mediabunny.BufferTarget(),
-				format: new mediabunny.Mp4OutputFormat(),
-			});
+			const videoTrack = await input.getPrimaryVideoTrack();
+			const stats = videoTrack != null ? await videoTrack.computePacketStats() : null;
+			// The uploader may have been closed while the video was being analyzed
+			if (item.aborted) return;
 
-			const currentConversion = await mediabunny.Conversion.init({
-				input,
-				output,
-				video: {
-					bitrate: item.compressionLevel === 1 ? mediabunny.QUALITY_VERY_HIGH : item.compressionLevel === 2 ? mediabunny.QUALITY_MEDIUM : mediabunny.QUALITY_VERY_LOW,
-				},
-				audio: {
-					// Explicitly keep audio (don't discard) and copy it if possible
-					// without re-encoding to avoid WebCodecs limitations on iOS Safari
-					discard: false,
-				},
-			});
+			if (videoTrack == null || stats == null || stats.averageBitrate <= 0) {
+				item.compressionSkipped = 'notBeneficial';
+			} else {
+				const width = videoTrack.displayWidth;
+				const height = videoTrack.displayHeight;
+				const shortSide = Math.min(width, height);
+				const scale = settings.maxShortSide != null && shortSide > settings.maxShortSide ? settings.maxShortSide / shortSide : 1;
+				const outputPixels = width * height * scale * scale;
+				const frameRate = stats.averagePacketRate > 0 ? stats.averagePacketRate : 30;
 
-			currentConversion.onProgress = newProgress => item.preprocessProgress = newProgress;
+				// Fewer pixels need fewer bits, but not proportionally fewer
+				const targetBitrate = Math.round(Math.max(
+					stats.averageBitrate * settings.bitrateRatio * Math.pow(scale * scale, 0.75),
+					outputPixels * frameRate * VIDEO_MIN_BITS_PER_PIXEL,
+				));
 
-			item.abortPreprocess = () => {
-				item.abortPreprocess = null;
-				currentConversion.cancel();
-				item.preprocessing = false;
-				item.preprocessProgress = null;
-			};
+				// Don't spend time encoding when the target would not save anything worthwhile
+				// (unless the original is too large to upload at all)
+				if (!isCompressionBeneficial(targetBitrate, stats.averageBitrate) && preprocessedFile.size <= getUploadLimit()) {
+					item.compressionSkipped = 'notBeneficial';
+				} else {
+					const output = new mediabunny.Output({
+						target: new mediabunny.BufferTarget(),
+						format: new mediabunny.Mp4OutputFormat(),
+					});
 
-			await currentConversion.execute();
+					const currentConversion = await mediabunny.Conversion.init({
+						input,
+						output,
+						video: {
+							// Scale the short side; the other side follows the aspect ratio
+							...(scale < 1 ? (width <= height ? { width: Math.round(width * scale) } : { height: Math.round(height * scale) }) : {}),
+							quality: new mediabunny.Quality({ bitrate: targetBitrate }),
+						},
+						audio: {
+							// Explicitly keep audio (don't discard) and copy it if possible
+							// without re-encoding to avoid WebCodecs limitations on iOS Safari
+							discard: false,
+						},
+					});
 
-			item.abortPreprocess = null;
+					if (item.aborted) return;
 
-			preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
-			item.compressedSize = output.target.buffer!.byteLength;
-			item.suffix = '.mp4';
-		} else {
-			item.compressedSize = null;
-			item.suffix = '';
+					// The browser may be unable to decode or encode a track; never upload a video with a missing track
+					if (!currentConversion.isValid || currentConversion.discardedTracks.length > 0) {
+						item.compressionSkipped = 'notBeneficial';
+					} else {
+						currentConversion.onProgress = newProgress => item.preprocessProgress = newProgress;
+
+						item.abortPreprocess = () => {
+							item.abortPreprocess = null;
+							currentConversion.cancel();
+							item.preprocessing = false;
+							item.preprocessProgress = null;
+						};
+
+						await currentConversion.execute();
+
+						item.abortPreprocess = null;
+
+						const compressedSize = output.target.buffer!.byteLength;
+						// Encoders don't always hit the target, so check the result as well
+						if (shouldUseCompressed(compressedSize, preprocessedFile.size)) {
+							preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
+							item.compressedSize = compressedSize;
+							item.suffix = '.mp4';
+						} else {
+							item.compressionSkipped = 'notBeneficial';
+						}
+					}
+				}
+			}
 		}
 
 		updateItemObjectUrls(item, preprocessedFile);
 		item.preprocessedFile = markRaw(preprocessedFile);
+	}
+
+	async function ensureUploaded(item: UploaderItem): Promise<Misskey.entities.DriveFile> {
+		if (item.uploaded == null) await uploadOne(item);
+		if (item.uploaded == null) throw new Error('Failed to upload file');
+		return item.uploaded;
+	}
+
+	function editCaption(item: UploaderItem) {
+		if (item.preprocessing || item.uploading || item.editingCaption) return;
+
+		item.editingCaption = true;
+		let saving: Promise<void> = Promise.resolve();
+		// Upload started to generate alt text; the editor can be confirmed before it finishes
+		let preparing: Promise<unknown> = Promise.resolve();
+
+		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
+			file: item.uploaded,
+			// An unsaved caption (after a failed save) takes precedence, so it can be retried
+			default: item.caption !== undefined ? item.caption : (item.uploaded?.comment ?? null),
+			mimeType: (item.preprocessedFile ?? item.file).type,
+			previewUrl: item.thumbnail,
+			// Alt text generation needs the file in the drive, so upload it first
+			prepareFile: () => {
+				const upload = ensureUploaded(item);
+				preparing = upload.catch(() => {});
+				return upload;
+			},
+		}, {
+			done: caption => {
+				const comment = caption.trim().length === 0 ? null : caption;
+				item.caption = comment;
+				saving = (async () => {
+					// An upload that is still running was started with the old alt text, so save the new one afterwards
+					await preparing;
+					if (item.uploaded == null) return;
+
+					try {
+						item.uploaded = await misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment });
+						item.captionSaveFailed = false;
+					} catch (err) {
+						console.error('Failed to save alt text', err);
+						// Keeps the uploader open, so the alt text can be saved again
+						item.captionSaveFailed = true;
+						os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+					}
+				})();
+			},
+			closed: () => {
+				// Keep the dialog open until the alt text of an uploaded file has been saved
+				saving.finally(() => {
+					item.editingCaption = false;
+				});
+				dispose();
+			},
+		});
 	}
 
 	function reset() {
@@ -570,6 +732,7 @@ export function useUploader(options: {
 		dispose,
 		upload,
 		getMenu,
+		editCaption,
 		uploading: computed(() => items.value.some(item => item.uploading)),
 		readyForUpload: computed(() => items.value.length > 0 && items.value.some(item => item.uploaded == null) && !items.value.some(item => item.uploading || item.preprocessing)),
 		allItemsUploaded: computed(() => items.value.every(item => item.uploaded != null)),

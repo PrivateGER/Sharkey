@@ -806,3 +806,7 @@ lastFetchedFeaturedAt: "Last fetched featured at"
 lastFetchedOutboxAt: "Last fetched outbox at"
 loginDates: "Login Dates"
 root: "Root"
+
+_uploader:
+  compressionNotBeneficial: "Original kept: compressing would not make it smaller"
+  smallFileNotCompressed: "Small file, not compressed"
