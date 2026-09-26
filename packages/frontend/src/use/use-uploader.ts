@@ -645,6 +645,8 @@ export function useUploader(options: {
 
 		item.editingCaption = true;
 		let saving: Promise<void> = Promise.resolve();
+		// Upload started to generate alt text; the editor can be confirmed before it finishes
+		let preparing: Promise<unknown> = Promise.resolve();
 
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
 			file: item.uploaded,
@@ -653,22 +655,30 @@ export function useUploader(options: {
 			mimeType: (item.preprocessedFile ?? item.file).type,
 			previewUrl: item.thumbnail,
 			// Alt text generation needs the file in the drive, so upload it first
-			prepareFile: () => ensureUploaded(item),
+			prepareFile: () => {
+				const upload = ensureUploaded(item);
+				preparing = upload.catch(() => {});
+				return upload;
+			},
 		}, {
 			done: caption => {
 				const comment = caption.trim().length === 0 ? null : caption;
 				item.caption = comment;
-				if (item.uploaded != null) {
-					saving = misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment }).then(file => {
-						item.uploaded = file;
+				saving = (async () => {
+					// An upload that is still running was started with the old alt text, so save the new one afterwards
+					await preparing;
+					if (item.uploaded == null) return;
+
+					try {
+						item.uploaded = await misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment });
 						item.captionSaveFailed = false;
-					}).catch(err => {
+					} catch (err) {
 						console.error('Failed to save alt text', err);
 						// Keeps the uploader open, so the alt text can be saved again
 						item.captionSaveFailed = true;
 						os.alert({ type: 'error', text: i18n.ts.somethingHappened });
-					});
-				}
+					}
+				})();
 			},
 			closed: () => {
 				// Keep the dialog open until the alt text of an uploaded file has been saved
