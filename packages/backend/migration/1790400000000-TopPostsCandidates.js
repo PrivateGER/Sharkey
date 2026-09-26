@@ -50,7 +50,10 @@ export class TopPostsCandidates1790400000000 {
 				WHERE n."userId" <> c."userId"
 			),
 			stats AS (
-				-- Count people, not events, and ignore accounts that can't be trusted to vote
+				-- Count people, not events, and ignore accounts that can't be trusted to vote.
+				-- We only see a fraction of remote engagement on remote posts, but all of it on local ones.
+				-- To compare both fairly, only count people whose activity we reliably receive:
+				-- local users and remote users followed from here.
 				SELECT
 					e.note_id,
 					count(DISTINCT e.user_id) FILTER (WHERE e.kind = 'renote') AS renoters,
@@ -61,6 +64,9 @@ export class TopPostsCandidates1790400000000 {
 				FROM engagements e
 				JOIN "user" u ON u.id = e.user_id
 				WHERE NOT u."isSuspended" AND NOT u."isDeleted" AND NOT u."isSilenced" AND NOT u."isBot"
+					AND (u.host IS NULL OR EXISTS (
+						SELECT 1 FROM following f WHERE f."followeeId" = u.id AND f."followerHost" IS NULL
+					))
 				GROUP BY e.note_id
 			)
 			SELECT

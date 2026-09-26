@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<b>About Top Posts</b>
 						<p>This feed shows up to 25 popular posts from the last two days, ranked by:</p>
 						<ul>
-							<li>Engagement: how many different people renoted, replied to, or reacted to a post</li>
+							<li>Engagement: how many different people on this server, or followed from it, renoted, replied to, or reacted to a post</li>
 							<li>Recency: newer posts score higher</li>
 							<li>Your network: posts by people you follow, or that people you follow engaged with, get a boost</li>
 						</ul>
