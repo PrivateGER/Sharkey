@@ -12197,11 +12197,11 @@ export interface Locale extends ILocale {
      */
     "fetchedRemoteReplies": ParameterizedString<"n">;
     /**
-     * No new replies found on the origin server.
+     * Checked the origin server: no new replies
      */
     "noNewRemoteReplies": string;
     /**
-     * Couldn't fetch replies from the origin server.
+     * Couldn't fetch replies from the origin server
      */
     "remoteRepliesFetchFailed": string;
     /**
