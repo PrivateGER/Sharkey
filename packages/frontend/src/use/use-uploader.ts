@@ -300,6 +300,11 @@ export function useUploader(options: {
 						objectUrl: newObjectUrl,
 					});
 					const reactiveItem = items.value.find(x => x.id === item.id)!;
+					// The cropped file may no longer be small enough to skip the default compression
+					if (reactiveItem.compressionSkipped === 'small' && !isTooSmallForDefaultCompression(cropped)) {
+						reactiveItem.compressionLevel = getDefaultCompressionLevel(cropped);
+						reactiveItem.compressionSkipped = null;
+					}
 					preprocess(reactiveItem).then(() => {
 						triggerRef(items);
 					});

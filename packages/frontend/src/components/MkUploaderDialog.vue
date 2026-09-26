@@ -94,7 +94,8 @@ const items = uploader.items;
 
 const firstUploadAttempted = ref(false);
 const canRetry = computed(() => firstUploadAttempted.value && uploader.readyForUpload.value);
-const canDone = computed(() => items.value.some(item => item.uploaded != null));
+// Wait for alt text that is still being edited or saved, otherwise the caller gets the file without it
+const canDone = computed(() => items.value.some(item => item.uploaded != null) && !items.value.some(item => item.editingCaption));
 const overallProgress = computed(() => {
 	const max = items.value.length;
 	if (max === 0) return 0;
