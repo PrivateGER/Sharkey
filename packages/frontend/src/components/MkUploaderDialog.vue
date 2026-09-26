@@ -114,7 +114,7 @@ watch(items, () => {
 	}
 
 	// Wait for alt text that is still being edited, e.g. after the file was uploaded to generate it
-	if (items.value.every(item => item.uploaded) && !items.value.some(item => item.editingCaption)) {
+	if (items.value.every(item => item.uploaded) && !items.value.some(item => item.editingCaption || item.captionSaveFailed)) {
 		emit('done', items.value.map(item => item.uploaded!));
 		dialog.value?.close();
 	}

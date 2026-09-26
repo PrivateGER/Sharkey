@@ -107,7 +107,8 @@ function getUploadNameParts(item: UploaderItem): {
 }
 
 function getCaption(item: UploaderItem): string | null {
-	return item.uploaded?.comment ?? item.caption ?? null;
+	// item.caption is newer than the uploaded file's comment while saving it failed
+	return item.caption !== undefined ? item.caption : (item.uploaded?.comment ?? null);
 }
 
 function onContextmenu(item: UploaderItem, ev: MouseEvent) {

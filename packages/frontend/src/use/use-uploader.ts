@@ -16,6 +16,8 @@ import { isWebpSupported } from '@/utility/upload/isWebpSupported.js';
 import { uploadFile, UploadAbortedError } from '@/utility/drive.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { $i } from '@/i.js';
+import { instance } from '@/instance.js';
 
 export type UploaderFeatures = {
 	imageEditing?: boolean;
@@ -92,6 +94,8 @@ export type UploaderItem = {
 	compressionSkipped?: 'small' | 'notBeneficial' | null;
 	/** The alt text editor for this item is open */
 	editingCaption?: boolean;
+	/** Saving the alt text of the already uploaded file failed, so item.caption has not been saved yet */
+	captionSaveFailed?: boolean;
 	preprocessedFile?: Blob | null;
 	file: File;
 	objectUrl: string;
@@ -163,6 +167,10 @@ export function useUploader(options: {
 	}
 
 	function isTooSmallForDefaultCompression(file: File): boolean {
+		// Files over the upload limit may only become uploadable through compression
+		const uploadLimit = Math.min(instance.maxFileSize, ($i?.policies.maxFileSizeMb ?? Infinity) * 1024 * 1024);
+		if (file.size > uploadLimit) return false;
+
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_IMAGE_COMPRESSION_SIZE;
 		if (VIDEO_COMPRESSION_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_VIDEO_COMPRESSION_SIZE;
 		return false;
@@ -452,9 +460,18 @@ export function useUploader(options: {
 		}
 	}
 
+	function useOriginalFile(item: UploaderItem) {
+		item.preprocessedFile = null;
+		item.compressedSize = null;
+		item.suffix = '';
+		updateItemObjectUrls(item, item.file);
+	}
+
 	async function preprocess(item: UploaderItem): Promise<void> {
 		item.preprocessing = true;
 		item.preprocessProgress = null;
+		// Never keep the result of an earlier run: if this one fails or is canceled, the original file is used
+		item.preprocessedFile = null;
 		// Keep the "small file" note until the user picks a level themselves
 		if (item.compressionLevel !== 0) item.compressionSkipped = null;
 
@@ -463,6 +480,7 @@ export function useUploader(options: {
 				await preprocessForImage(item);
 			} catch (err) {
 				console.error('Failed to preprocess image', err);
+				useOriginalFile(item);
 			}
 		}
 
@@ -471,6 +489,7 @@ export function useUploader(options: {
 				await preprocessForVideo(item);
 			} catch (err) {
 				console.error('Failed to preprocess video', err);
+				useOriginalFile(item);
 			}
 		}
 
@@ -535,6 +554,8 @@ export function useUploader(options: {
 
 			const videoTrack = await input.getPrimaryVideoTrack();
 			const stats = videoTrack != null ? await videoTrack.computePacketStats() : null;
+			// The uploader may have been closed while the video was being analyzed
+			if (item.aborted) return;
 
 			if (videoTrack == null || stats == null || stats.averageBitrate <= 0) {
 				item.compressionSkipped = 'notBeneficial';
@@ -575,6 +596,8 @@ export function useUploader(options: {
 							discard: false,
 						},
 					});
+
+					if (item.aborted) return;
 
 					// The browser may be unable to decode or encode a track; never upload a video with a missing track
 					if (!currentConversion.isValid || currentConversion.discardedTracks.length > 0) {
@@ -625,7 +648,8 @@ export function useUploader(options: {
 
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
 			file: item.uploaded,
-			default: item.uploaded?.comment ?? item.caption ?? null,
+			// An unsaved caption (after a failed save) takes precedence, so it can be retried
+			default: item.caption !== undefined ? item.caption : (item.uploaded?.comment ?? null),
 			mimeType: (item.preprocessedFile ?? item.file).type,
 			previewUrl: item.thumbnail,
 			// Alt text generation needs the file in the drive, so upload it first
@@ -637,8 +661,11 @@ export function useUploader(options: {
 				if (item.uploaded != null) {
 					saving = misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment }).then(file => {
 						item.uploaded = file;
+						item.captionSaveFailed = false;
 					}).catch(err => {
 						console.error('Failed to save alt text', err);
+						// Keeps the uploader open, so the alt text can be saved again
+						item.captionSaveFailed = true;
 						os.alert({ type: 'error', text: i18n.ts.somethingHappened });
 					});
 				}
