@@ -84,7 +84,10 @@ function select(src: HTMLElement | EventTarget | null, label: string | null, mul
 		} : undefined, {
 			text: i18n.ts.upload,
 			icon: 'ti ti-upload',
-			action: () => chooseFileFromPc(multiple).then(files => res(files)),
+			action: () => chooseFileFromPc(multiple).then(files => {
+				// Nothing was uploaded, e.g. the uploader was canceled
+				if (files.length > 0) res(files);
+			}),
 		}, {
 			text: i18n.ts.fromDrive,
 			icon: 'ti ti-cloud',

@@ -480,6 +480,9 @@ export function useUploader(options: {
 
 	async function preprocessForImage(item: UploaderItem): Promise<void> {
 		let preprocessedFile: Blob | File = item.file;
+		// Reset first, so a failed compression doesn't leave the result of an earlier one behind
+		item.compressedSize = null;
+		item.suffix = '';
 
 		const compressionSettings = getCompressionSettings(item.compressionLevel);
 		const needsCompress = item.compressionLevel !== 0 && compressionSettings && !(await isAnimated(preprocessedFile));
