@@ -166,10 +166,20 @@ export function useUploader(options: {
 		return 0;
 	}
 
+	function getUploadLimit(): number {
+		return Math.min(instance.maxFileSize, ($i?.policies.maxFileSizeMb ?? Infinity) * 1024 * 1024);
+	}
+
+	/** Whether to upload the compressed result instead of the original */
+	function shouldUseCompressed(compressedSize: number, originalSize: number): boolean {
+		// Compression that makes an otherwise too large file uploadable is always worth it
+		if (originalSize > getUploadLimit() && compressedSize <= getUploadLimit()) return true;
+		return isCompressionBeneficial(compressedSize, originalSize);
+	}
+
 	function isTooSmallForDefaultCompression(file: File): boolean {
 		// Files over the upload limit may only become uploadable through compression
-		const uploadLimit = Math.min(instance.maxFileSize, ($i?.policies.maxFileSizeMb ?? Infinity) * 1024 * 1024);
-		if (file.size > uploadLimit) return false;
+		if (file.size > getUploadLimit()) return false;
 
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_IMAGE_COMPRESSION_SIZE;
 		if (VIDEO_COMPRESSION_SUPPORTED_TYPES.includes(file.type)) return file.size < MIN_DEFAULT_VIDEO_COMPRESSION_SIZE;
@@ -517,7 +527,7 @@ export function useUploader(options: {
 			try {
 				const result = await readAndCompressImage(preprocessedFile, config);
 				// The compression may not always reduce the file size
-				if (isCompressionBeneficial(result.size, preprocessedFile.size)) {
+				if (shouldUseCompressed(result.size, preprocessedFile.size)) {
 					preprocessedFile = result;
 					item.compressedSize = result.size;
 					item.suffix = '.' + mimeTypeMap[config.mimeType];
@@ -574,7 +584,8 @@ export function useUploader(options: {
 				));
 
 				// Don't spend time encoding when the target would not save anything worthwhile
-				if (!isCompressionBeneficial(targetBitrate, stats.averageBitrate)) {
+				// (unless the original is too large to upload at all)
+				if (!isCompressionBeneficial(targetBitrate, stats.averageBitrate) && preprocessedFile.size <= getUploadLimit()) {
 					item.compressionSkipped = 'notBeneficial';
 				} else {
 					const output = new mediabunny.Output({
@@ -618,7 +629,7 @@ export function useUploader(options: {
 
 						const compressedSize = output.target.buffer!.byteLength;
 						// Encoders don't always hit the target, so check the result as well
-						if (isCompressionBeneficial(compressedSize, preprocessedFile.size)) {
+						if (shouldUseCompressed(compressedSize, preprocessedFile.size)) {
 							preprocessedFile = new Blob([output.target.buffer!], { type: output.format.mimeType });
 							item.compressedSize = compressedSize;
 							item.suffix = '.mp4';
