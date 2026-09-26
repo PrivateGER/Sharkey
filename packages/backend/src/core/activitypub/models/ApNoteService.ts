@@ -587,10 +587,10 @@ export class ApNoteService implements OnModuleInit {
 	 * @param opts.maxReplies Maximum number of replies to process, including already-known ones
 	 * @param opts.maxFetches Maximum number of ActivityPub objects to resolve, shared by traversal and by importing replies with their dependencies.
 	 * Side requests made while importing (media downloads, profile link verification, queued jobs) are not counted.
-	 * @returns Number of newly imported replies
+	 * @returns Number of newly imported replies, and whether the whole tree below the root was walked without hitting a limit or an error
 	 */
 	@bindThis
-	public async backfillReplies(rootUri: string, opts: { maxReplies?: number, maxFetches?: number } = {}): Promise<number> {
+	public async backfillReplies(rootUri: string, opts: { maxReplies?: number, maxFetches?: number } = {}): Promise<{ imported: number, complete: boolean }> {
 		const maxReplies = opts.maxReplies ?? 100;
 		const fetchBudget: FetchBudget = { remaining: opts.maxFetches ?? 500 };
 		const resolver = this.apResolverService.createResolver({ recursionLimit: fetchBudget.remaining, fetchBudget });
@@ -604,10 +604,15 @@ export class ApNoteService implements OnModuleInit {
 		const pending: IPost[] = [root];
 		let processed = 0;
 		let imported = 0;
+		// Set whenever part of the tree is left unwalked. Items the resolver skips because they failed to resolve are not detected.
+		let truncated = false;
 
-		for (let parent = pending.shift(); parent != null && processed < maxReplies; parent = pending.shift()) {
+		for (let parent = pending.shift(); parent != null; parent = pending.shift()) {
 			if (parent.replies == null) continue;
-			if (fetchBudget.remaining <= 0) break;
+			if (processed >= maxReplies || fetchBudget.remaining <= 0) {
+				truncated = true;
+				break;
+			}
 
 			const parentUri = getApId(parent);
 			let items: IObject[];
@@ -615,9 +620,13 @@ export class ApNoteService implements OnModuleInit {
 				items = await resolver.resolveCollectionItems(parent.replies, false, parentUri, maxReplies - processed, 2);
 			} catch (err) {
 				if (parent === root) throw err;
+				truncated = true;
 				this.logger.warn(`Skipping replies of ${parentUri} during backfill of ${rootUri}: ${renderInlineError(err)}`);
 				continue;
 			}
+
+			// The collection may hold more items than were resolved.
+			if (items.length >= maxReplies - processed) truncated = true;
 
 			const replies: { uri: string, object: IPost }[] = [];
 			for (const item of items) {
@@ -640,7 +649,10 @@ export class ApNoteService implements OnModuleInit {
 			const known = await Promise.all(replies.map(reply => this.fetchNote(reply.uri)));
 
 			for (const [index, reply] of replies.entries()) {
-				if (fetchBudget.remaining <= 0) break;
+				if (fetchBudget.remaining <= 0) {
+					truncated = true;
+					break;
+				}
 
 				// Import with a fresh resolver: the traversal resolver's history already holds every listed reply,
 				// so resolving a sibling reply as a quote through it would be rejected as recursion.
@@ -669,6 +681,7 @@ export class ApNoteService implements OnModuleInit {
 
 					pending.push(reply.object);
 				} catch (err) {
+					truncated = true;
 					this.logger.warn(`Failed to import reply ${reply.uri} during backfill of ${rootUri}: ${renderInlineError(err)}`);
 				} finally {
 					fetchBudget.remaining -= importResolver.getHistory().length - fetchesBefore;
@@ -676,7 +689,10 @@ export class ApNoteService implements OnModuleInit {
 			}
 		}
 
-		return imported;
+		// The resolver also stops paging through a collection once the budget runs out.
+		if (fetchBudget.remaining <= 0) truncated = true;
+
+		return { imported, complete: !truncated };
 	}
 
 	@bindThis
