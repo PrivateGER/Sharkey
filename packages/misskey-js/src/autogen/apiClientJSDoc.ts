@@ -4116,7 +4116,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Fetches the replies of a remote note from its origin server in the background. Newly imported replies are announced on the note's stream.
+     * Fetches the replies of a remote note from its origin server in the background. The note's stream announces when the fetch starts and finishes, and each newly imported reply.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:federation*
      */

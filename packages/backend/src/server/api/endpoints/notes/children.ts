@@ -5,13 +5,14 @@
 
 import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
-import type { NotesRepository } from '@/models/_.js';
+import type { MiNote, MiUser, NotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
+import { ApiError } from '../../error.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -34,6 +35,14 @@ export const meta = {
 		size: 25,
 		dripRate: 250,
 	},
+
+	errors: {
+		sortNotPaginatable: {
+			message: 'sinceId and untilId can only be used with the newest sort.',
+			code: 'SORT_NOT_PAGINATABLE',
+			id: '6cf35866-f24e-446e-9d39-cdb2a5383661',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -48,6 +57,12 @@ export const paramDef = {
 			type: 'boolean',
 			default: false,
 			description: 'Also fetch newer replies of a remote note from its origin server in the background, if the server allows it and the thread is due. Newly imported replies are announced on the note\'s stream. Only honored for signed-in users.',
+		},
+		sort: {
+			type: 'string',
+			enum: ['newest', 'relationship'],
+			default: 'newest',
+			description: '`relationship` lists replies by the thread\'s author first, then the requester\'s own, then those by mutuals, then by users the requester follows, then everyone else; each group newest first. It can\'t be combined with sinceId or untilId.',
 		},
 	},
 	required: ['noteId'],
@@ -64,6 +79,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly replyBackfillService: ReplyBackfillService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			if (ps.sort === 'relationship' && (ps.sinceId != null || ps.untilId != null)) {
+				throw new ApiError(meta.errors.sortNotPaginatable);
+			}
+
 			if (ps.autoBackfill && me != null) {
 				trackPromise(this.replyBackfillService.requestAutomatic(ps.noteId, me));
 			}
@@ -95,9 +114,47 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.queryService.generateBlockedUserQueryForNotes(query, me);
 			}
 
+			if (ps.sort === 'relationship') {
+				const rank = await this.relationshipRank(ps.noteId, me?.id ?? null);
+				query.setParameters(rank.parameters)
+					.orderBy(rank.expression, 'ASC')
+					.addOrderBy('note.id', 'DESC');
+			}
+
 			const notes = await query.getMany();
 
 			return await this.noteEntityService.packMany(notes, me);
 		});
+	}
+
+	/**
+	 * SQL expression ranking a reply by its author's relation to the thread and the viewer; lower ranks first.
+	 */
+	private async relationshipRank(noteId: MiNote['id'], meId: MiUser['id'] | null): Promise<{ expression: string, parameters: Record<string, string> }> {
+		const parent = await this.notesRepository.findOne({ where: { id: noteId }, select: { id: true, userId: true, threadId: true } });
+		const threadAuthorId = parent?.threadId == null
+			? parent?.userId
+			: (await this.notesRepository.findOne({ where: { id: parent.threadId }, select: { id: true, userId: true } }))?.userId;
+
+		const cases: string[] = [];
+		const parameters: Record<string, string> = {};
+		if (threadAuthorId != null) {
+			cases.push('WHEN "note"."userId" = :rankThreadAuthorId THEN 0');
+			parameters.rankThreadAuthorId = threadAuthorId;
+		}
+		if (meId != null) {
+			const follows = (followerId: string, followeeId: string) =>
+				`EXISTS (SELECT 1 FROM "following" "rankFollowing" WHERE "rankFollowing"."followerId" = ${followerId} AND "rankFollowing"."followeeId" = ${followeeId})`;
+			cases.push(
+				'WHEN "note"."userId" = :rankMeId THEN 1',
+				`WHEN ${follows(':rankMeId', '"note"."userId"')} THEN CASE WHEN ${follows('"note"."userId"', ':rankMeId')} THEN 2 ELSE 3 END`,
+			);
+			parameters.rankMeId = meId;
+		}
+
+		return {
+			expression: cases.length > 0 ? `CASE ${cases.join(' ')} ELSE 4 END` : '4',
+			parameters,
+		};
 	}
 }

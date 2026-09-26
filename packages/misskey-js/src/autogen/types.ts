@@ -8322,7 +8322,7 @@ export type paths = {
         put?: never;
         /**
          * notes/replies/backfill
-         * @description Fetches the replies of a remote note from its origin server in the background. Newly imported replies are announced on the note's stream.
+         * @description Fetches the replies of a remote note from its origin server in the background. The note's stream announces when the fetch starts and finishes, and each newly imported reply.
          *
          *     **Credential required**: *Yes* / **Permission**: *read:federation*
          */
@@ -40596,6 +40596,12 @@ export interface operations {
                      * @default false
                      */
                     autoBackfill?: boolean;
+                    /**
+                     * @description `relationship` lists replies by the thread's author first, then the requester's own, then those by mutuals, then by users the requester follows, then everyone else; each group newest first. It can't be combined with sinceId or untilId.
+                     * @default newest
+                     * @enum {string}
+                     */
+                    sort?: 'newest' | 'relationship';
                 };
             };
         };
@@ -42634,12 +42640,19 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK (without any results) */
-            204: {
+            /** @description OK (with results) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    'application/json': {
+                        /** @enum {string} */
+                        status: 'queued' | 'running' | 'recentlyChecked';
+                        /** @description Identifies the queued or running fetch in the note stream's repliesBackfillStarted and repliesBackfilled events. */
+                        backfillId?: string;
+                    };
+                };
             };
             /** @description Client error */
             400: {

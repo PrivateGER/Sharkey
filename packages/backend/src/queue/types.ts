@@ -522,4 +522,6 @@ export type BackfillRepliesBackgroundTask = {
 	noteId: string;
 	/** Automatic backfills run with smaller limits than user-requested ones. */
 	automatic: boolean;
+	/** Identifies this run in the note's stream events and its reservation of the note. */
+	backfillId: string;
 };

@@ -125,6 +125,16 @@ export interface NoteEventTypes {
 		id: MiNote['id'];
 		userId: MiUser['id'];
 	};
+	repliesBackfillStarted: {
+		backfillId: string;
+		automatic: boolean;
+	};
+	repliesBackfilled: {
+		backfillId: string;
+		automatic: boolean;
+		imported: number;
+		failed: boolean;
+	};
 }
 type NoteStreamEventTypes = {
 	[key in keyof NoteEventTypes]: {

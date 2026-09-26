@@ -12181,9 +12181,25 @@ export interface Locale extends ILocale {
      */
     "fetchRemoteReplies": string;
     /**
-     * Fetching replies from the origin server. New replies will appear here as they arrive.
+     * Checking the origin server for more replies…
      */
-    "fetchingRemoteReplies": string;
+    "checkingRemoteReplies": string;
+    /**
+     * New replies from the origin server: {n}
+     */
+    "fetchedRemoteReplies": ParameterizedString<"n">;
+    /**
+     * No new replies found on the origin server.
+     */
+    "noNewRemoteReplies": string;
+    /**
+     * Couldn't fetch replies from the origin server.
+     */
+    "remoteRepliesFetchFailed": string;
+    /**
+     * Replies were fetched from the origin server recently. Try again in a few minutes.
+     */
+    "remoteRepliesRecentlyChecked": string;
     /**
      * Automatically fetch replies of remote threads
      */
@@ -12577,6 +12593,28 @@ export interface Locale extends ILocale {
      * Increasing this number will display more replies. Setting this too high can cause replies to be cramped and unreadable.
      */
     "numberOfRepliesDescription": string;
+    /**
+     * Reply order
+     */
+    "threadReplySort": string;
+    /**
+     * How replies in threads are ordered. You can also change this from the Replies tab of a note.
+     */
+    "threadReplySortDescription": string;
+    "_threadReplySort": {
+        /**
+         * Newest first
+         */
+        "newest": string;
+        /**
+         * People you know first
+         */
+        "relationship": string;
+        /**
+         * The thread's author first, then you, mutuals, and people you follow. Each group is newest first.
+         */
+        "relationshipDescription": string;
+    };
     /**
      * Boost Settings
      */

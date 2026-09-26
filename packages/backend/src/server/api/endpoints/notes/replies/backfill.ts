@@ -7,7 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { NotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
-import { QueueService } from '@/core/QueueService.js';
+import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
@@ -15,11 +15,28 @@ import { ApiError } from '../../../error.js';
 export const meta = {
 	tags: ['notes', 'federation'],
 
-	description: 'Fetches the replies of a remote note from its origin server in the background. Newly imported replies are announced on the note\'s stream.',
+	description: 'Fetches the replies of a remote note from its origin server in the background. The note\'s stream announces when the fetch starts and finishes, and each newly imported reply.',
 
 	requireCredential: true,
 
 	kind: 'read:federation',
+
+	res: {
+		type: 'object',
+		optional: false, nullable: false,
+		properties: {
+			status: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['queued', 'running', 'recentlyChecked'],
+			},
+			backfillId: {
+				type: 'string',
+				optional: true, nullable: false,
+				description: 'Identifies the queued or running fetch in the note stream\'s repliesBackfillStarted and repliesBackfilled events.',
+			},
+		},
+	},
 
 	errors: {
 		noSuchNote: {
@@ -69,7 +86,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly notesRepository: NotesRepository,
 
 		private readonly queryService: QueryService,
-		private readonly queueService: QueueService,
+		private readonly replyBackfillService: ReplyBackfillService,
 		private readonly utilityService: UtilityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -97,7 +114,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.hostNotFederated);
 			}
 
-			await this.queueService.createBackfillRepliesJob(note.id);
+			return await this.replyBackfillService.requestManual(note.id);
 		});
 	}
 }

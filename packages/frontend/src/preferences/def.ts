@@ -471,6 +471,9 @@ export const PREF_DEF = {
 	showVisibilitySelectorOnBoost: {
 		default: true,
 	},
+	threadReplySort: {
+		default: 'newest' as 'newest' | 'relationship',
+	},
 	trustedDomains: {
 		default: [] as string[],
 	},

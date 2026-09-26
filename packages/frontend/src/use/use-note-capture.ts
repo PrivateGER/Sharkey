@@ -10,6 +10,8 @@ import { useStream } from '@/stream.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
+export type ReplyBackfillEvent = Extract<Misskey.NoteUpdatedEvent, { type: 'repliesBackfillStarted' | 'repliesBackfilled' }>;
+
 export function useNoteCapture(props: {
 	rootEl: Readonly<Ref<HTMLElement | null | undefined>>;
 	note: Ref<Misskey.entities.Note>;
@@ -17,6 +19,7 @@ export function useNoteCapture(props: {
 	isDeletedRef: Ref<boolean>;
 	onReplyCallback?: (replyNote: Misskey.entities.Note) => void | Promise<void>;
 	onDeleteCallback?: (id: Misskey.entities.Note['id']) => void | Promise<void>;
+	onReplyBackfillEvent?: (event: ReplyBackfillEvent) => void;
 }) {
 	const note = props.note;
 	const pureNote = props.pureNote !== undefined ? props.pureNote : props.note;
@@ -117,6 +120,12 @@ export function useNoteCapture(props: {
 					});
 				} catch { /* empty */ }
 
+				break;
+			}
+
+			case 'repliesBackfillStarted':
+			case 'repliesBackfilled': {
+				props.onReplyBackfillEvent?.(noteData);
 				break;
 			}
 		}

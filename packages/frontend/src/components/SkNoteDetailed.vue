@@ -179,7 +179,7 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 			<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :disabled="translating || !!translation" @click.stop="translate()">
 				<i class="ti ti-language-hiragana"></i>
 			</button>
-			<button v-if="canBackfillReplies" :class="$style.noteFooterButton" class="_button" :title="i18n.ts.fetchRemoteReplies" @click.stop="backfill()">
+			<button v-if="canBackfillReplies" :class="$style.noteFooterButton" class="_button" :title="i18n.ts.fetchRemoteReplies" :disabled="checkingReplies" @click.stop="backfill()">
 				<i class="ph-lg ph-bold ph-cloud-arrow-down"></i>
 			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="showMenu()">
@@ -197,6 +197,17 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 		<div v-if="tab === 'replies'">
 			<div v-if="!repliesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
+			</div>
+			<div v-if="replies.length > 1" :class="$style.replySort">
+				<button class="_button" :class="$style.replySortButton" @click="ev => showThreadReplySortMenu(ev.currentTarget)">
+					<i class="ti ti-arrows-sort"></i> {{ threadReplySortLabel }} <i class="ti ti-chevron-down"></i><span class="_beta">{{ i18n.ts.beta }}</span>
+				</button>
+			</div>
+			<div v-if="checkingReplies || replyBackfillResult" :class="$style.replyBackfillStatus">
+				<template v-if="checkingReplies"><MkLoading em/> {{ i18n.ts.checkingRemoteReplies }}</template>
+				<template v-else-if="replyBackfillResult?.failed">{{ i18n.ts.remoteRepliesFetchFailed }}</template>
+				<template v-else-if="replyBackfillResult && replyBackfillResult.imported > 0">{{ i18n.tsx.fetchedRemoteReplies({ n: replyBackfillResult.imported }) }}</template>
+				<template v-else>{{ i18n.ts.noNewRemoteReplies }}</template>
 			</div>
 			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
 		</div>
@@ -273,6 +284,8 @@ import { getNoteClipMenu, getNoteMenu, getRenoteMenu, translateNote } from '@/ut
 import { getNoteVersionsMenu } from '@/utility/get-note-versions-menu.js';
 import { checkAnimationFromMfm } from '@/utility/check-animated-mfm.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
+import { useReplyBackfill } from '@/use/use-reply-backfill.js';
+import { showThreadReplySortMenu, threadReplySortLabel, useNoteReplies } from '@/use/use-note-replies.js';
 import { deepClone } from '@/utility/clone.js';
 import { useTooltip } from '@/use/use-tooltip.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -325,6 +338,12 @@ const quoteButton = useTemplateRef('quoteButton');
 const likeButton = useTemplateRef('likeButton');
 const appearNote = computed(() => getAppearNote(note.value));
 const canBackfillReplies = computed(() => appearNote.value.user.host != null && ['public', 'home'].includes(appearNote.value.visibility));
+const {
+	checking: checkingReplies,
+	result: replyBackfillResult,
+	request: requestReplyBackfill,
+	onEvent: onReplyBackfillEvent,
+} = useReplyBackfill(appearNote);
 const galleryEl = useTemplateRef('galleryEl');
 const isMyRenote = $i && ($i.id === note.value.userId);
 const showContent = ref(prefer.s.uncollapseCW);
@@ -337,7 +356,7 @@ const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.valu
 const allowAnim = ref(prefer.s.advancedMfm && prefer.s.animatedMfm ? true : false);
 const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.value.user.instance);
 const conversation = ref<Misskey.entities.Note[]>([]);
-const replies = ref<Misskey.entities.Note[]>([]);
+const { replies, loaded: repliesLoaded, load: loadReplyList, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, 30);
 const quotes = ref<Misskey.entities.Note[]>([]);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
@@ -417,16 +436,13 @@ const reactionsPagination = computed<Paging>(() => ({
 }));
 
 async function addReplyTo(replyNote: Misskey.entities.Note) {
-	// A reply can be announced more than once, e.g. when a backfill races an inbox delivery.
-	if (replies.value.some(reply => reply.id === replyNote.id)) return;
-	replies.value.unshift(replyNote);
-	appearNote.value.repliesCount += 1;
+	if (addReply(replyNote)) {
+		appearNote.value.repliesCount += 1;
+	}
 }
 
 async function removeReply(id: Misskey.entities.Note['id']) {
-	const replyIdx = replies.value.findIndex(note => note.id === id);
-	if (replyIdx >= 0) {
-		replies.value.splice(replyIdx, 1);
+	if (removeListedReply(id)) {
 		appearNote.value.repliesCount -= 1;
 	}
 }
@@ -437,6 +453,7 @@ useNoteCapture({
 	pureNote: note,
 	isDeletedRef: isDeleted,
 	onReplyCallback: addReplyTo,
+	onReplyBackfillEvent,
 });
 
 useTooltip(renoteButton, async (showing) => {
@@ -520,9 +537,7 @@ function backfill() {
 		return;
 	}
 
-	os.apiWithDialog('notes/replies/backfill', { noteId: appearNote.value.id }).then(() => {
-		os.toast(i18n.ts.fetchingRemoteReplies);
-	});
+	requestReplyBackfill();
 }
 
 function renote(visibility: Visibility, localOnly: boolean = false) {
@@ -795,18 +810,8 @@ function blur() {
 	noteEl.value?.blur();
 }
 
-const repliesLoaded = ref(false);
-
 function loadReplies() {
-	repliesLoaded.value = true;
-	misskeyApi('notes/children', {
-		noteId: appearNote.value.id,
-		limit: 30,
-		showQuotes: false,
-		autoBackfill: canBackfillReplies.value,
-	}).then(res => {
-		replies.value = res;
-	});
+	loadReplyList(canBackfillReplies.value);
 }
 
 loadReplies();
@@ -1150,6 +1155,38 @@ onUnmounted(() => {
 
 .reply:not(:first-child) {
 	border-top: solid 0.5px var(--MI_THEME-divider);
+}
+
+.replySort {
+	display: flex;
+	justify-content: flex-end;
+	padding: 8px 16px 0;
+}
+
+.replySortButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
+	padding: 4px 8px;
+	border-radius: var(--MI-radius-sm);
+	font-size: 0.9em;
+	opacity: 0.8;
+
+	&:hover {
+		background: var(--MI_THEME-panelHighlight);
+	}
+
+	// The shared pill is top-aligned with a wide margin for headings; here the flex gap spaces it.
+	> :global(._beta) {
+		margin-left: 0.2em;
+	}
+}
+
+.replyBackfillStatus {
+	padding: 12px 16px;
+	text-align: center;
+	font-size: 0.9em;
+	opacity: 0.8;
 }
 
 .tabs {

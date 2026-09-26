@@ -562,6 +562,7 @@ export type NotesRenotesResponse = operations['notes___renotes']['responses']['2
 export type NotesRepliesRequest = operations['notes___replies']['requestBody']['content']['application/json'];
 export type NotesRepliesResponse = operations['notes___replies']['responses']['200']['content']['application/json'];
 export type NotesRepliesBackfillRequest = operations['notes___replies___backfill']['requestBody']['content']['application/json'];
+export type NotesRepliesBackfillResponse = operations['notes___replies___backfill']['responses']['200']['content']['application/json'];
 export type NotesScheduleCreateRequest = operations['notes___schedule___create']['requestBody']['content']['application/json'];
 export type NotesScheduleDeleteRequest = operations['notes___schedule___delete']['requestBody']['content']['application/json'];
 export type NotesScheduleListRequest = operations['notes___schedule___list']['requestBody']['content']['application/json'];

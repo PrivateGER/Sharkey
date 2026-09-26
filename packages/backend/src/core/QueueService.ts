@@ -837,26 +837,11 @@ export class QueueService implements OnModuleInit, OnApplicationBootstrap {
 	}
 
 	/**
-	 * Additional requests for the same note are dropped until the cooldown expires, even if the first job already finished.
+	 * Not deduplicated here: ReplyBackfillService reserves the note, so only one backfill per note is ever queued or running.
 	 */
 	@bindThis
-	public async createBackfillRepliesJob(noteId: string) {
-		return await this.createBackgroundTask({ type: 'backfill-replies', noteId, automatic: false }, {
-			id: `backfill-replies_${noteId}`,
-			ttl: 1000 * 60 * 15,
-		});
-	}
-
-	/**
-	 * Like {@link createBackfillRepliesJob}, but with the smaller limits for automatic backfills.
-	 * Only deduplicates while a job for the note is pending; the caller decides when a thread is due again.
-	 * Uses its own deduplication key, so automatic backfills never block a manual request.
-	 */
-	@bindThis
-	public async createAutoBackfillRepliesJob(noteId: string) {
-		return await this.createBackgroundTask({ type: 'backfill-replies', noteId, automatic: true }, {
-			id: `backfill-replies-auto_${noteId}`,
-		});
+	public async createBackfillRepliesJob(noteId: string, automatic: boolean, backfillId: string) {
+		return await this.createBackgroundTask({ type: 'backfill-replies', noteId, automatic, backfillId });
 	}
 
 	protected async createBackgroundTask<T extends BackgroundTaskJobData>(data: T, duplication?: string | { id: string, ttl?: number }): Promise<void> {

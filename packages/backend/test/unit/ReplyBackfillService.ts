@@ -6,6 +6,7 @@
 process.env.NODE_ENV = 'test';
 
 import { jest } from '@jest/globals';
+import { UnrecoverableError } from 'bullmq';
 import { Test } from '@nestjs/testing';
 import { GodOfTimeService } from '../misc/GodOfTimeService.js';
 import { MockRedis } from '../misc/MockRedis.js';
@@ -21,6 +22,9 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { QueueService } from '@/core/QueueService.js';
+import { ApNoteService } from '@/core/activitypub/models/ApNoteService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { IdService } from '@/core/IdService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { CacheManagementService } from '@/global/CacheManagementService.js';
@@ -38,7 +42,9 @@ describe(ReplyBackfillService, () => {
 	let meta: MiMeta;
 	let usersRepository: UsersRepository;
 	let notesRepository: NotesRepository;
-	let createAutoBackfillRepliesJob: jest.Mock<(noteId: string) => Promise<void>>;
+	let createBackfillRepliesJob: jest.Mock<(noteId: string, automatic: boolean, backfillId: string) => Promise<void>>;
+	let backfillReplies: jest.Mock<(uri: string, opts: unknown) => Promise<number>>;
+	let publishNoteStream: jest.Mock<(noteId: string, type: string, value: { body: unknown }) => Promise<void>>;
 	let viewer: MiLocalUser;
 	let remoteAuthor: MiUser;
 
@@ -88,7 +94,10 @@ describe(ReplyBackfillService, () => {
 				IdService,
 				LoggerService,
 				UtilityService,
-				{ provide: QueueService, useValue: { createAutoBackfillRepliesJob: jest.fn() } },
+				{ provide: QueueService, useValue: { createBackfillRepliesJob: jest.fn() } },
+				{ provide: ApNoteService, useValue: { backfillReplies: jest.fn() } },
+				{ provide: GlobalEventService, useValue: { publishNoteStream: jest.fn() } },
+				{ provide: CacheService, useValue: { findUserById: async () => ({ isSuspended: false }) } },
 			],
 		})
 			.overrideProvider(TimeService).useClass(GodOfTimeService)
@@ -120,7 +129,9 @@ describe(ReplyBackfillService, () => {
 		meta = app.get<MiMeta>(DI.meta);
 		usersRepository = app.get(DI.usersRepository);
 		notesRepository = app.get(DI.notesRepository);
-		createAutoBackfillRepliesJob = app.get<{ createAutoBackfillRepliesJob: typeof createAutoBackfillRepliesJob }>(QueueService).createAutoBackfillRepliesJob;
+		createBackfillRepliesJob = app.get<{ createBackfillRepliesJob: typeof createBackfillRepliesJob }>(QueueService).createBackfillRepliesJob;
+		backfillReplies = app.get<{ backfillReplies: typeof backfillReplies }>(ApNoteService).backfillReplies;
+		publishNoteStream = app.get<{ publishNoteStream: typeof publishNoteStream }>(GlobalEventService).publishNoteStream;
 
 		await app.get<InstancesRepository>(DI.instancesRepository).createQueryBuilder()
 			.insert()
@@ -135,7 +146,10 @@ describe(ReplyBackfillService, () => {
 
 	beforeEach(async () => {
 		await usersRepository.deleteAll();
-		createAutoBackfillRepliesJob.mockReset();
+		createBackfillRepliesJob.mockReset();
+		backfillReplies.mockReset();
+		publishNoteStream.mockReset();
+		app.get<MockRedis>(DI.redis).mockReset();
 		meta.enableAutoReplyBackfill = true;
 		meta.federation = 'all';
 		meta.blockedHosts = [];
@@ -147,14 +161,16 @@ describe(ReplyBackfillService, () => {
 
 	test('queues a backfill for a recently active remote thread, then waits for the cooldown', async () => {
 		const root = await createNote(remoteAuthor);
+		backfillReplies.mockResolvedValue(0);
 
 		await service.requestAutomatic(root.id, viewer);
+		await runLastQueued();
 		clock.tick(4 * minute);
 		await service.requestAutomatic(root.id, viewer);
 		clock.tick(2 * minute);
 		await service.requestAutomatic(root.id, viewer);
 
-		expect(createAutoBackfillRepliesJob.mock.calls).toEqual([[root.id], [root.id]]);
+		expect(createBackfillRepliesJob.mock.calls.map(([noteId, automatic]) => [noteId, automatic])).toEqual([[root.id, true], [root.id, true]]);
 	});
 
 	test('becomes due again as soon as a quiet thread gets a new reply', async () => {
@@ -164,13 +180,13 @@ describe(ReplyBackfillService, () => {
 		await service.requestAutomatic(root.id, viewer);
 		clock.tick(day);
 		await service.requestAutomatic(root.id, viewer);
-		expect(createAutoBackfillRepliesJob).toHaveBeenCalledTimes(1);
+		expect(createBackfillRepliesJob).toHaveBeenCalledTimes(1);
 
 		await createNote(remoteAuthor, { replyId: root.id, threadId: root.id });
 		clock.tick(10 * minute);
 		await service.requestAutomatic(root.id, viewer);
 
-		expect(createAutoBackfillRepliesJob).toHaveBeenCalledTimes(2);
+		expect(createBackfillRepliesJob).toHaveBeenCalledTimes(2);
 	});
 
 	test('does not queue a backfill for a thread quiet for over 90 days', async () => {
@@ -179,7 +195,7 @@ describe(ReplyBackfillService, () => {
 
 		await service.requestAutomatic(root.id, viewer);
 
-		expect(createAutoBackfillRepliesJob).not.toHaveBeenCalled();
+		expect(createBackfillRepliesJob).not.toHaveBeenCalled();
 	});
 
 	test('does not queue a backfill when the server disables it', async () => {
@@ -188,7 +204,7 @@ describe(ReplyBackfillService, () => {
 
 		await service.requestAutomatic(root.id, viewer);
 
-		expect(createAutoBackfillRepliesJob).not.toHaveBeenCalled();
+		expect(createBackfillRepliesJob).not.toHaveBeenCalled();
 	});
 
 	test('does not queue a backfill for a note from a host the server does not federate with', async () => {
@@ -197,7 +213,7 @@ describe(ReplyBackfillService, () => {
 
 		await service.requestAutomatic(root.id, viewer);
 
-		expect(createAutoBackfillRepliesJob).not.toHaveBeenCalled();
+		expect(createBackfillRepliesJob).not.toHaveBeenCalled();
 	});
 
 	test('does not queue a backfill for local or non-public notes', async () => {
@@ -207,6 +223,93 @@ describe(ReplyBackfillService, () => {
 		await service.requestAutomatic(localNote.id, viewer);
 		await service.requestAutomatic(followersOnly.id, viewer);
 
-		expect(createAutoBackfillRepliesJob).not.toHaveBeenCalled();
+		expect(createBackfillRepliesJob).not.toHaveBeenCalled();
+	});
+
+	async function runLastQueued(): Promise<string> {
+		const [noteId, automatic, backfillId] = createBackfillRepliesJob.mock.calls.at(-1)!;
+		return await service.run(noteId, automatic, backfillId);
+	}
+
+	test('reports a manual request as running until the backfill finishes, then as recently checked for 15 minutes', async () => {
+		const root = await createNote(remoteAuthor);
+		backfillReplies.mockResolvedValue(0);
+
+		const first = await service.requestManual(root.id);
+		expect(first).toEqual({ status: 'queued', backfillId: expect.any(String) });
+		expect(await service.requestManual(root.id)).toEqual({ status: 'running', backfillId: (first as { backfillId: string }).backfillId });
+
+		await runLastQueued();
+		expect(await service.requestManual(root.id)).toEqual({ status: 'recentlyChecked' });
+
+		clock.tick(15 * minute);
+		expect(await service.requestManual(root.id)).toMatchObject({ status: 'queued' });
+		expect(createBackfillRepliesJob).toHaveBeenCalledTimes(2);
+	});
+
+	test('runs at most one backfill per note, and a manual request follows a pending automatic one', async () => {
+		const root = await createNote(remoteAuthor);
+		backfillReplies.mockResolvedValue(0);
+
+		await service.requestAutomatic(root.id, viewer);
+		const [, , automaticId] = createBackfillRepliesJob.mock.calls[0];
+
+		expect(await service.requestManual(root.id)).toEqual({ status: 'running', backfillId: automaticId });
+		expect(createBackfillRepliesJob).toHaveBeenCalledTimes(1);
+
+		await runLastQueued();
+		expect(await service.requestManual(root.id)).toMatchObject({ status: 'queued' });
+	});
+
+	test('a backfill that outlived its reservation does not end the next one', async () => {
+		const root = await createNote(remoteAuthor);
+		backfillReplies.mockResolvedValue(0);
+
+		await service.requestManual(root.id);
+		const [, , staleId] = createBackfillRepliesJob.mock.calls[0];
+		clock.tick(15 * minute);
+		const current = await service.requestManual(root.id);
+		expect(current).toMatchObject({ status: 'queued' });
+
+		await service.run(root.id, false, staleId);
+
+		expect(await service.requestManual(root.id)).toEqual({ status: 'running', backfillId: (current as { backfillId: string }).backfillId });
+	});
+
+	test('announces the start and result of a backfill on the note stream', async () => {
+		const root = await createNote(remoteAuthor);
+		backfillReplies.mockResolvedValue(3);
+
+		await service.run(root.id, true, 'b1');
+
+		expect(publishNoteStream.mock.calls.map(([noteId, type, value]) => [noteId, type, value.body])).toEqual([
+			[root.id, 'repliesBackfillStarted', { backfillId: 'b1', automatic: true }],
+			[root.id, 'repliesBackfilled', { backfillId: 'b1', automatic: true, imported: 3, failed: false }],
+		]);
+	});
+
+	test('announces a failed backfill and fails the job without retrying', async () => {
+		const root = await createNote(remoteAuthor);
+		backfillReplies.mockRejectedValue(new Error('origin unreachable'));
+
+		await expect(service.run(root.id, false, 'b1')).rejects.toBeInstanceOf(UnrecoverableError);
+
+		expect(publishNoteStream).toHaveBeenLastCalledWith(root.id, 'repliesBackfilled', expect.objectContaining({
+			body: { backfillId: 'b1', automatic: false, imported: 0, failed: true },
+		}));
+	});
+
+	test('closes out a queued manual request when the job is skipped', async () => {
+		const root = await createNote(remoteAuthor);
+		const queued = await service.requestManual(root.id);
+		meta.blockedHosts = ['remote.test'];
+
+		await runLastQueued();
+
+		expect(backfillReplies).not.toHaveBeenCalled();
+		expect(publishNoteStream.mock.calls.map(([, type, value]) => [type, value.body])).toEqual([
+			['repliesBackfilled', { backfillId: (queued as { backfillId: string }).backfillId, automatic: false, imported: 0, failed: true }],
+		]);
+		expect(await service.requestManual(root.id)).toEqual({ status: 'recentlyChecked' });
 	});
 });
