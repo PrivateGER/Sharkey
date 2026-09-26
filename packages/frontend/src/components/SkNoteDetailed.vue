@@ -198,16 +198,16 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 			<div v-if="!repliesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
 			</div>
-			<div v-if="replies.length > 1" :class="$style.replySort">
+			<div :class="$style.repliesHeader">
+				<div v-if="checkingReplies || replyBackfillResult" :class="$style.replyBackfillStatus">
+					<template v-if="checkingReplies"><MkLoading em/> {{ i18n.ts.checkingRemoteReplies }}</template>
+					<template v-else-if="replyBackfillResult?.failed"><i class="ti ti-alert-triangle"></i> {{ i18n.ts.remoteRepliesFetchFailed }}</template>
+					<template v-else-if="replyBackfillResult && replyBackfillResult.imported > 0"><i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.tsx.fetchedRemoteReplies({ n: replyBackfillResult.imported }) }}</template>
+					<template v-else><i class="ti ti-check"></i> {{ i18n.ts.noNewRemoteReplies }}</template>
+				</div>
 				<button class="_button" :class="$style.replySortButton" @click="ev => showThreadReplySortMenu(ev.currentTarget)">
 					<i class="ti ti-arrows-sort"></i> {{ threadReplySortLabel }} <i class="ti ti-chevron-down"></i><span class="_beta">{{ i18n.ts.beta }}</span>
 				</button>
-			</div>
-			<div v-if="checkingReplies || replyBackfillResult" :class="$style.replyBackfillStatus">
-				<template v-if="checkingReplies"><MkLoading em/> {{ i18n.ts.checkingRemoteReplies }}</template>
-				<template v-else-if="replyBackfillResult?.failed">{{ i18n.ts.remoteRepliesFetchFailed }}</template>
-				<template v-else-if="replyBackfillResult && replyBackfillResult.imported > 0">{{ i18n.tsx.fetchedRemoteReplies({ n: replyBackfillResult.imported }) }}</template>
-				<template v-else>{{ i18n.ts.noNewRemoteReplies }}</template>
 			</div>
 			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
 		</div>
@@ -1157,16 +1157,19 @@ onUnmounted(() => {
 	border-top: solid 0.5px var(--MI_THEME-divider);
 }
 
-.replySort {
+.repliesHeader {
 	display: flex;
-	justify-content: flex-end;
-	padding: 8px 16px 0;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	padding: 8px 16px;
 }
 
 .replySortButton {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.35em;
+	margin-left: auto;
 	padding: 4px 8px;
 	border-radius: var(--MI-radius-sm);
 	font-size: 0.9em;
@@ -1183,8 +1186,10 @@ onUnmounted(() => {
 }
 
 .replyBackfillStatus {
-	padding: 12px 16px;
-	text-align: center;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	min-width: 0;
 	font-size: 0.9em;
 	opacity: 0.8;
 }

@@ -45,10 +45,7 @@ export function useReplyBackfill(note: Readonly<Ref<Misskey.entities.Note>>) {
 		if (awaitedBackfillId == null || event.body.backfillId === awaitedBackfillId) setChecking(false);
 		const outcome = { imported: event.body.imported, failed: event.body.failed };
 		finished.set(event.body.backfillId, outcome);
-		// Automatic checks stay quiet unless they found something; someone asked for the others, so always answer those.
-		if (!event.body.automatic || outcome.imported > 0 || event.body.backfillId === awaitedBackfillId) {
-			result.value = outcome;
-		}
+		result.value = outcome;
 		if (event.body.backfillId === awaitedBackfillId) awaitedBackfillId = null;
 	}
 
