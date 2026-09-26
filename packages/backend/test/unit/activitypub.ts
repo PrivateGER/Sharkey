@@ -500,9 +500,10 @@ describe('ActivityPub', () => {
 			resolver.register(nested.id, nested);
 
 			const rootNote = await createRemoteNote(root);
-			const imported = await noteService.backfillReplies(root.id);
+			const { imported, complete } = await noteService.backfillReplies(root.id);
 
 			assert.strictEqual(imported, 3);
+			assert.strictEqual(complete, true);
 			const reply1Note = await noteService.fetchNote(reply1.id);
 			const reply2Note = await noteService.fetchNote(reply2.id);
 			const nestedNote = await noteService.fetchNote(nested.id);
@@ -529,7 +530,7 @@ describe('ActivityPub', () => {
 			resolver.register(foreignNote.id, foreignNote);
 
 			await createRemoteNote(root);
-			const imported = await noteService.backfillReplies(root.id);
+			const { imported } = await noteService.backfillReplies(root.id);
 
 			assert.strictEqual(imported, 0);
 			assert.strictEqual(await noteService.hasNote(unrelated.id), false);
@@ -552,7 +553,7 @@ describe('ActivityPub', () => {
 
 			await createRemoteNote(root);
 			const knownReplyNote = await createRemoteNote(knownReply);
-			const imported = await noteService.backfillReplies(root.id);
+			const { imported } = await noteService.backfillReplies(root.id);
 
 			assert.strictEqual(imported, 1);
 			assert.strictEqual((await noteService.fetchNote(nested.id))?.replyId, knownReplyNote.id);
@@ -571,7 +572,7 @@ describe('ActivityPub', () => {
 			}
 
 			await createRemoteNote(root);
-			const imported = await noteService.backfillReplies(root.id);
+			const { imported } = await noteService.backfillReplies(root.id);
 
 			const quotedNote = await noteService.fetchNote(quoted.id);
 			const quotingNote = await noteService.fetchNote(quoting.id);
@@ -604,11 +605,12 @@ describe('ActivityPub', () => {
 
 			await createRemoteNote(root);
 			// Traversal fetches the root and the reply; importing the reply spends the rest on its unknown author.
-			await noteService.backfillReplies(root.id, { maxFetches: 3 });
+			const { complete } = await noteService.backfillReplies(root.id, { maxFetches: 3 });
 
 			assert.ok(await noteService.hasNote(reply.id));
 			assert.ok(!resolver.remoteGetTrials().includes(nestedCollectionId), 'nested replies must not be fetched after the budget is spent');
 			assert.strictEqual(await noteService.hasNote(nested.id), false);
+			assert.strictEqual(complete, false);
 		});
 
 		test('Stops fetching once the reply limit is reached across pages', async () => {
@@ -625,9 +627,10 @@ describe('ActivityPub', () => {
 			}
 
 			await createRemoteNote(root);
-			const imported = await noteService.backfillReplies(root.id, { maxReplies: 2 });
+			const { imported, complete } = await noteService.backfillReplies(root.id, { maxReplies: 2 });
 
 			assert.strictEqual(imported, 2);
+			assert.strictEqual(complete, false);
 			const stored = await Promise.all(replies.map(reply => noteService.hasNote(reply.id)));
 			assert.deepStrictEqual(stored, [true, true, false]);
 			assert.ok(!resolver.remoteGetTrials().includes(replies[2].id), 'reply beyond the limit must not be fetched');
@@ -687,7 +690,7 @@ describe('ActivityPub', () => {
 				content: 'local reply',
 			});
 
-			const imported = await noteService.backfillReplies(root.id);
+			const { imported } = await noteService.backfillReplies(root.id);
 
 			assert.strictEqual(imported, 0);
 		});

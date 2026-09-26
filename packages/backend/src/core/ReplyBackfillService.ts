@@ -28,6 +28,9 @@ const manualCooldown = 1000 * 60 * 15;
 // Bounds how long a crashed worker can make a note look busy.
 const inProgressTimeout = 1000 * 60 * 10;
 
+// Bounds how far up a thread a backfill is looked for. Beyond this, deeper replies are backfilled on their own.
+const maxAncestorDepth = 100;
+
 export type ManualBackfillResult =
 	| { status: 'queued' | 'running', backfillId: string }
 	| { status: 'recentlyChecked' };
@@ -99,6 +102,16 @@ export class ReplyBackfillService {
 			const lastQueued = await this.redisClient.get(lastQueuedKey);
 			if (lastQueued != null && now - Number(lastQueued) < cooldown) return;
 
+			// A backfill walks the whole tree below its note, so one of an ancestor covers this note's replies too.
+			// Only complete ones count: a backfill that hit its limits may have stopped before reaching this part of the thread.
+			const ancestorIds = note.replyId != null ? await this.getAncestorIds(note.replyId) : [];
+			const lastCovered = await this.getMany([note.id, ...ancestorIds].map(id => this.coveredKey(id)));
+			if (lastCovered.some(covered => covered != null && now - Number(covered) < cooldown)) return;
+
+			// Likewise, one that is pending or running may reach this note. If it does not, a later view will queue one here.
+			const ancestorsInProgress = await this.getMany(ancestorIds.map(id => this.inProgressKey(id)));
+			if (ancestorsInProgress.some(backfill => backfill != null)) return;
+
 			const backfillId = await this.claim(note.id);
 			if (backfillId == null) return;
 
@@ -162,11 +175,13 @@ export class ReplyBackfillService {
 				body: { backfillId, automatic },
 			});
 
+			const startedAt = this.timeService.now;
 			let imported = 0;
+			let complete = false;
 			let failed = true;
 			try {
 				const limits = automatic ? { maxReplies: 30, maxFetches: 100 } : {};
-				imported = await this.apNoteService.backfillReplies(note.uri, limits);
+				({ imported, complete } = await this.apNoteService.backfillReplies(note.uri, limits));
 				failed = false;
 			} catch (err) {
 				throw new UnrecoverableError(`failed to backfill replies of note ${noteId}: ${renderInlineError(err)}`);
@@ -176,6 +191,10 @@ export class ReplyBackfillService {
 					userId: note.userId,
 					body: { backfillId, automatic, imported, failed },
 				});
+			}
+
+			if (complete) {
+				await this.redisClient.set(this.coveredKey(note.id), String(startedAt), 'PX', maxAutoBackfillCooldown);
 			}
 			return `ok: imported ${imported} replies`;
 		} finally {
@@ -195,6 +214,40 @@ export class ReplyBackfillService {
 
 	private inProgressKey(noteId: MiNote['id']): string {
 		return `replyBackfill:inProgress:${noteId}`;
+	}
+
+	/**
+	 * Holds when the last backfill that walked the whole tree below the note started.
+	 */
+	private coveredKey(noteId: MiNote['id']): string {
+		return `replyBackfill:lastCovered:${noteId}`;
+	}
+
+	private async getMany(keys: string[]): Promise<(string | null)[]> {
+		if (keys.length === 0) return [];
+		const results = await this.redisClient.pipeline(keys.map(key => ['get', key])).exec();
+		return (results ?? []).map(([err, value]) => {
+			if (err) throw err;
+			return value as string | null;
+		});
+	}
+
+	/**
+	 * @param parentId ID of the note's parent
+	 * @returns IDs of the note's ancestors, starting with its parent
+	 */
+	private async getAncestorIds(parentId: MiNote['id']): Promise<MiNote['id'][]> {
+		const rows: { id: MiNote['id'] }[] = await this.notesRepository.query(`
+			WITH RECURSIVE "ancestor" ("id", "replyId", "depth") AS (
+				SELECT "id", "replyId", 1 FROM "note" WHERE "id" = $1
+				UNION ALL
+				SELECT "note"."id", "note"."replyId", "ancestor"."depth" + 1
+				FROM "note" INNER JOIN "ancestor" ON "note"."id" = "ancestor"."replyId"
+				WHERE "ancestor"."depth" < $2
+			)
+			SELECT "id" FROM "ancestor" ORDER BY "depth"
+		`, [parentId, maxAncestorDepth]);
+		return rows.map(row => row.id);
 	}
 
 	/**
