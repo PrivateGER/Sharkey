@@ -469,8 +469,29 @@ export class NoteVisibilityService {
 		// Silence if we've muted the instance
 		if (note.userHost && data.userMutedInstances.has(note.userHost)) return true;
 
+		// Mirror of QueryService.generateMutedUserQueryForNotes and QueryService.generateMutedNoteThreadQuery:
+		// replies and quotes are hidden along with the muted content they point at.
+		if (note.reply && this.isTargetAuthorMuted(note, note.reply, data)) return true;
+		if (note.renote) {
+			if (data.userMutedThreads.has(note.renote.threadId)) return true;
+			if (data.userMutedNotes.has(note.renote.id)) return true;
+			if (this.isTargetAuthorMuted(note, note.renote, data)) return true;
+		}
+
 		// Otherwise don't silence
 		return false;
+	}
+
+	private isTargetAuthorMuted(note: PopulatedNote, target: PopulatedNote, data: NoteVisibilityData): boolean {
+		// Self-replies and self-quotes are covered by the author check on the outer note.
+		if (target.userId === note.userId) return false;
+
+		const relation = data.userRelations.get(target.userId);
+		if (relation?.isMuting) return true;
+
+		// Instance mutes spare conversations with followed users, and a same-instance target was already checked via the outer note.
+		if (target.userHost == null || target.userHost === note.userHost) return false;
+		return !relation?.isFollowing && data.userMutedInstances.has(target.userHost);
 	}
 
 	private shouldSilenceForSilence(note: PopulatedNote, me: PopulatedMe, data: NoteVisibilityData, ignoreSilencedAuthor: boolean): boolean {
