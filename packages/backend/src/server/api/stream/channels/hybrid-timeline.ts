@@ -71,7 +71,7 @@ class HybridTimelineChannel extends NoteChannel {
 			(note.channelId != null && this.followingChannels?.has(note.channelId))
 		)) return;
 
-		const preparedNote = await this.prepareNote(note);
+		const preparedNote = await this.prepareNote(note, { excludeRepliesToInaccessible: true });
 		if (preparedNote) {
 			this.send('note', preparedNote);
 		}

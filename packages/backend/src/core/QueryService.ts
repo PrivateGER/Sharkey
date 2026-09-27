@@ -221,32 +221,40 @@ export class QueryService {
 	// For moderation purposes, you can set isSilenced to forcibly hide existing posts by a user.
 	@bindThis
 	public generateVisibilityQuery<E extends ObjectLiteral>(q: SelectQueryBuilder<E>, me?: { id: MiUser['id'] } | null): SelectQueryBuilder<E> {
+		return q.andWhere(new Brackets(qb => this.orVisibleTo(qb, 'note', me)));
+	}
+
+	/**
+	 * Excludes replies whose parent the user can't see, since those would show up without any context.
+	 */
+	@bindThis
+	public generateVisibleReplyTargetQueryForNotes<E extends ObjectLiteral>(q: SelectQueryBuilder<E>, me: { id: MiUser['id'] }): SelectQueryBuilder<E> {
+		return this
+			.leftJoin(q, 'note.reply', 'reply')
+			.andWhere(new Brackets(qb => {
+				qb.orWhere('note.replyId IS NULL');
+				this.orVisibleTo(qb, 'reply', me);
+			}));
+	}
+
+	private orVisibleTo<Q extends WhereExpressionBuilder>(qb: Q, alias: string, me?: { id: MiUser['id'] } | null): Q {
 		// This code must always be synchronized with the checks in NoteEntityService.isVisibleForMe.
-		return q.andWhere(new Brackets(qb => {
-			// Public post
-			qb.orWhere('note.visibility = \'public\'')
-				.orWhere('note.visibility = \'home\'');
+		qb.orWhere(`${alias}.visibility = 'public'`)
+			.orWhere(`${alias}.visibility = 'home'`);
 
-			if (me != null) {
-				qb
-					// My post
-					.orWhere(':meId = note.userId')
-					// Visible to me
-					.orWhere(':meIdAsList <@ note.visibleUserIds')
-					// Followers-only post
-					.orWhere(new Brackets(qb => qb
-						.andWhere(new Brackets(qbb => this
-							// Following author
-							.orFollowingUser(qbb, ':meId', 'note.userId')
-							// Mentions me
-							.orWhere(':meIdAsList <@ note.mentions')
-							// Reply to me
-							.orWhere(':meId = note.replyUserId')))
-						.andWhere('note.visibility = \'followers\'')));
+		if (me != null) {
+			qb
+				.orWhere(`:meId = ${alias}.userId`, { meId: me.id })
+				.orWhere(`:meIdAsList <@ ${alias}.visibleUserIds`, { meIdAsList: [me.id] })
+				.orWhere(new Brackets(qbb => qbb
+					.andWhere(new Brackets(qbbb => this
+						.orFollowingUser(qbbb, ':meId', `${alias}.userId`)
+						.orWhere(`:meIdAsList <@ ${alias}.mentions`)
+						.orWhere(`:meId = ${alias}.replyUserId`)))
+					.andWhere(`${alias}.visibility = 'followers'`)));
+		}
 
-				q.setParameters({ meId: me.id, meIdAsList: [me.id] });
-			}
-		}));
+		return qb;
 	}
 
 	@bindThis

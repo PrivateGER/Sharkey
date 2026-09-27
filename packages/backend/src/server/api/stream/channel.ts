@@ -7,6 +7,7 @@ import { bindThis } from '@/decorators.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JsonObject, JsonValue } from '@/misc/json-value.js';
 import type { NoteEntityService } from '@/core/entities/NoteEntityService.js';
+import type { NoteVisibilityFilters } from '@/core/NoteVisibilityService.js';
 import type { Connection } from '@/server/api/stream/Connection.js';
 
 /**
@@ -111,8 +112,9 @@ export abstract class NoteChannel extends Channel {
 	 * who owns this connection, for whatever reason.
 	 */
 	@bindThis
-	protected async prepareNote(note: Packed<'Note'>): Promise<Packed<'Note'> | null> {
+	protected async prepareNote(note: Packed<'Note'>, filters?: NoteVisibilityFilters): Promise<Packed<'Note'> | null> {
 		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user, {
+			filters,
 			hint: {
 				userMutedInstances: this.userMutedInstances,
 				userMutedThreads: this.userMutedThreads,

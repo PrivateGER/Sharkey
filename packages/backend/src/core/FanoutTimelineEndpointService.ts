@@ -35,6 +35,7 @@ type TimelineOptions = {
 	ignoreAuthorFromInstanceBlock?: boolean;
 	excludeNoFiles?: boolean;
 	excludeReplies?: boolean;
+	excludeRepliesToInaccessible?: boolean;
 	excludeBots?: boolean;
 	excludePureRenotes: boolean;
 	includeMutedNotes?: boolean;
@@ -116,6 +117,7 @@ export class FanoutTimelineEndpointService {
 					const { accessible, silence } = this.noteVisibilityService.checkNoteVisibility(populated, me, { data: visData, filters: {
 						includeSilencedAuthor: ps.ignoreAuthorFromUserSilence,
 						includeReplies: true, // Include replies because we check them elsewhere
+						excludeRepliesToInaccessible: ps.excludeRepliesToInaccessible,
 					} });
 					if (!accessible || silence) return false;
 

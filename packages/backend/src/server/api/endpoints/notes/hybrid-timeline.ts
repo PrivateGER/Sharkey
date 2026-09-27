@@ -153,6 +153,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				useDbFallback: this.serverSettings.enableFanoutTimelineDbFallback,
 				excludePureRenotes: !ps.withRenotes,
 				excludeBots: !ps.withBots,
+				excludeRepliesToInaccessible: true,
 				dbFallback: async (untilId, sinceId, limit) => await this.getFromDb({
 					untilId,
 					sinceId,
@@ -202,6 +203,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		}
 
 		await this.queryService.generateVisibilityQuery(query, me);
+		this.queryService.generateVisibleReplyTargetQueryForNotes(query, me);
 		this.queryService.generateBlockedHostQueryForNote(query);
 		this.queryService.generateSuspendedUserQueryForNote(query);
 		this.queryService.generateSilencedUserQueryForNotes(query, me);

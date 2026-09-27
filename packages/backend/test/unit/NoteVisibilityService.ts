@@ -5,7 +5,7 @@
 
 process.env.NODE_ENV = 'test';
 
-import { NoteVisibilityService, type NoteVisibilityData, type PopulatedNote } from '@/core/NoteVisibilityService.js';
+import { NoteVisibilityService, type NoteVisibilityData, type NoteVisibilityFilters, type PopulatedNote } from '@/core/NoteVisibilityService.js';
 import type { UserRelation } from '@/core/CacheService.js';
 
 const me = { id: 'me', host: null };
@@ -22,7 +22,7 @@ function makeUser(id: string, host: string | null = null): PopulatedNote['user']
 	};
 }
 
-function makeNote(id: string, user: PopulatedNote['user'], opts: { reply?: PopulatedNote, renote?: PopulatedNote } = {}): PopulatedNote {
+function makeNote(id: string, user: PopulatedNote['user'], opts: { reply?: PopulatedNote, renote?: PopulatedNote, visibility?: PopulatedNote['visibility'] } = {}): PopulatedNote {
 	return {
 		id,
 		threadId: opts.reply?.threadId ?? id,
@@ -35,7 +35,7 @@ function makeNote(id: string, user: PopulatedNote['user'], opts: { reply?: Popul
 		reply: opts.reply ?? null,
 		mentions: [],
 		visibleUserIds: [],
-		visibility: 'public',
+		visibility: opts.visibility ?? 'public',
 		createdAt: new Date(0),
 		text: 'text',
 		cw: null,
@@ -93,8 +93,8 @@ describe('NoteVisibilityService', () => {
 	const muted = makeUser('muted');
 	const other = makeUser('other');
 
-	function silenced(note: PopulatedNote, data: NoteVisibilityData): boolean {
-		return service.checkNoteVisibility(note, me, { data, filters: { includeReplies: true } }).silence;
+	function silenced(note: PopulatedNote, data: NoteVisibilityData, filters: NoteVisibilityFilters = {}): boolean {
+		return service.checkNoteVisibility(note, me, { data, filters: { includeReplies: true, ...filters } }).silence;
 	}
 
 	describe('mutes apply to the content a note points at', () => {
@@ -151,6 +151,43 @@ describe('NoteVisibilityService', () => {
 			], { userMutedInstances: new Set(['muted.example']) });
 
 			expect(silenced(reply, data)).toBe(false);
+		});
+	});
+
+	describe('excludeRepliesToInaccessible', () => {
+		const filters = { excludeRepliesToInaccessible: true };
+		const data = makeData([
+			makeRelation(followed.id, { isFollowing: true, isFollowingWithReplies: true }),
+			makeRelation(other.id),
+		]);
+
+		test('a reply to a followers-only post by someone I don\'t follow is silenced', () => {
+			const reply = makeNote('reply', followed, { reply: makeNote('target', other, { visibility: 'followers' }) });
+
+			expect(silenced(reply, data, filters)).toBe(true);
+		});
+
+		test('the same reply is not silenced without the filter', () => {
+			const reply = makeNote('reply', followed, { reply: makeNote('target', other, { visibility: 'followers' }) });
+
+			expect(silenced(reply, data)).toBe(false);
+		});
+
+		test('a reply to a followers-only post by someone I follow is not silenced', () => {
+			const target = makeUser('target-author');
+			const reply = makeNote('reply', followed, { reply: makeNote('target', target, { visibility: 'followers' }) });
+			const followingData = makeData([
+				makeRelation(followed.id, { isFollowing: true, isFollowingWithReplies: true }),
+				makeRelation(target.id, { isFollowing: true }),
+			]);
+
+			expect(silenced(reply, followingData, filters)).toBe(false);
+		});
+
+		test('a reply to my own followers-only post is not silenced', () => {
+			const reply = makeNote('reply', followed, { reply: makeNote('target', makeUser(me.id), { visibility: 'followers' }) });
+
+			expect(silenced(reply, data, filters)).toBe(false);
 		});
 	});
 });

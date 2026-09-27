@@ -57,6 +57,12 @@ export interface NoteVisibilityFilters {
 	includeSilencedAuthor?: boolean;
 
 	/**
+	 * If true, silence replies whose parent the user can't access, since they'd appear without any context.
+	 * If false (default), such replies are treated like any other post.
+	 */
+	excludeRepliesToInaccessible?: boolean;
+
+	/**
 	 * Set to an ID to apply visibility from the context of a specific user list.
 	 * Membership and "with replies" settings will be adopted from this list.
 	 */
@@ -447,6 +453,10 @@ export class NoteVisibilityService {
 		}
 
 		if (!filters?.includeReplies && this.shouldSilenceForFollowWithoutReplies(note, me, data)) {
+			return true;
+		}
+
+		if (filters?.excludeRepliesToInaccessible && note.reply && !this.isAccessible(note.reply, me, data, undefined)) {
 			return true;
 		}
 
