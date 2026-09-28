@@ -158,6 +158,14 @@ export type MiNotification = {
 	createdAt: string;
 	noteId: MiNote['id'];
 } | {
+	/**
+	 * Deliberately has no notifierId: muting the posting admin must not suppress it.
+	 */
+	type: 'announcementNote';
+	id: string;
+	createdAt: string;
+	noteId: MiNote['id'];
+} | {
 	type: 'sharedAccessGranted';
 	id: string;
 	createdAt: string;

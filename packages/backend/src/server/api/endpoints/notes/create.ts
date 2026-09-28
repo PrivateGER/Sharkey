@@ -20,6 +20,7 @@ import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { TimeService } from '@/global/TimeService.js';
 import { UserService } from '@/core/UserService.js';
+import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -152,6 +153,18 @@ export const meta = {
 			code: 'QUOTE_DISABLED_FOR_USER',
 			id: '1c0ea108-d1e3-4e8e-aa3f-4d2487626153',
 		},
+
+		notifyAllUsersRequiresAdmin: {
+			message: 'Only administrators can notify all users about a note.',
+			code: 'NOTIFY_ALL_USERS_REQUIRES_ADMIN',
+			id: 'c6f8f0a4-5f55-4b8e-8f53-0d7e0b8f6a31',
+		},
+
+		notifyAllUsersRequiresPublicVisibility: {
+			message: 'Notes that notify all users must have public or home visibility.',
+			code: 'NOTIFY_ALL_USERS_REQUIRES_PUBLIC_VISIBILITY',
+			id: '4a3c2f71-6f0e-4d8e-9f0a-2b8f0f6c9d15',
+		},
 	},
 } as const;
 
@@ -168,6 +181,7 @@ export const paramDef = {
 		noExtractMentions: { type: 'boolean', default: false },
 		noExtractHashtags: { type: 'boolean', default: false },
 		noExtractEmojis: { type: 'boolean', default: false },
+		notifyAllUsers: { type: 'boolean', default: false },
 		replyId: { type: 'string', format: 'misskey:id', nullable: true },
 		renoteId: { type: 'string', format: 'misskey:id', nullable: true },
 		channelId: { type: 'string', format: 'misskey:id', nullable: true },
@@ -265,6 +279,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteCreateService: NoteCreateService,
 		private readonly timeService: TimeService,
 		private readonly userService: UserService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (ps.text && ps.text.length > this.config.maxNoteLength) {
@@ -272,6 +287,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 			if (ps.cw && ps.cw.length > this.config.maxCwLength) {
 				throw new ApiError(meta.errors.maxCwLength);
+			}
+
+			if (ps.notifyAllUsers && !await this.roleService.isAdministrator(me)) {
+				throw new ApiError(meta.errors.notifyAllUsersRequiresAdmin);
 			}
 
 			let visibleUsers: MiUser[] = [];
@@ -374,6 +393,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					apMentions: ps.noExtractMentions ? [] : undefined,
 					apHashtags: ps.noExtractHashtags ? [] : undefined,
 					apEmojis: ps.noExtractEmojis ? [] : undefined,
+					notifyAllUsers: ps.notifyAllUsers,
 				});
 
 				this.userService.markUserActive(me, true);
@@ -400,6 +420,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						throw new ApiError(meta.errors.cannotReplyToPureRenote);
 					} else if (e.id === 'b98980fa-3780-406c-a935-b6d0eeee10d1') {
 						throw new ApiError(meta.errors.cannotReplyToInvisibleNote);
+					} else if (e.id === '4a3c2f71-6f0e-4d8e-9f0a-2b8f0f6c9d15') {
+						throw new ApiError(meta.errors.notifyAllUsersRequiresPublicVisibility);
 					}
 				}
 				throw e;

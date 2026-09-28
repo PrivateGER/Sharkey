@@ -8,6 +8,7 @@ import type {
 	BackgroundTaskJobData, PostDeliverBackgroundTask, PostInboxBackgroundTask, PostNoteBackgroundTask, UpdateFeaturedBackgroundTask, UpdateInstanceBackgroundTask, UpdateUserTagsBackgroundTask, UpdateUserBackgroundTask, UpdateNoteTagsBackgroundTask, DeleteFileBackgroundTask, UpdateLatestNoteBackgroundTask, PostSuspendBackgroundTask, PostUnsuspendBackgroundTask, DeleteApLogsBackgroundTask, BackfillRepliesBackgroundTask } from '@/queue/types.js';
 import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
 import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
+import { AnnouncementNoteService } from '@/core/AnnouncementNoteService.js';
 import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
 import Logger from '@/logger.js';
 import { DI } from '@/di-symbols.js';
@@ -55,6 +56,7 @@ export class BackgroundTaskProcessorService {
 
 		private readonly apPersonService: ApPersonService,
 		private readonly replyBackfillService: ReplyBackfillService,
+		private readonly announcementNoteService: AnnouncementNoteService,
 		private readonly cacheService: CacheService,
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly fetchInstanceMetadataService: FetchInstanceMetadataService,
@@ -104,9 +106,11 @@ export class BackgroundTaskProcessorService {
 			return await this.processPostUnsuspend(job);
 		} else if (job.type === 'delete-ap-logs') {
 			return await this.processDeleteApLogs(job);
-			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		} else if (job.type === 'backfill-replies') {
 			return await this.processBackfillReplies(job);
+			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+		} else if (job.type === 'notify-announcement-note') {
+			return await this.announcementNoteService.notifyLocalUsers(job.noteId);
 		} else {
 			const type = (job as { type: string }).type;
 			this.logger.warn(`Can't process unknown job type "${type}"; this is likely a bug. Full job data:`, job);

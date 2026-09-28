@@ -23,6 +23,7 @@
  * createToken - トークン作成
  * app - アプリ通知
  * test - テスト通知（サーバー側）
+ * announcementNote - 管理者がお知らせとして投稿した (always delivered; not user-configurable)
  */
 export const notificationTypes = [
 	'note',
@@ -51,6 +52,7 @@ export const notificationTypes = [
 	'sharedAccessGranted',
 	'sharedAccessRevoked',
 	'sharedAccessLogin',
+	'announcementNote',
 ] as const;
 
 export const groupedNotificationTypes = [

@@ -444,7 +444,8 @@ export type BackgroundTaskJobData =
 	PostSuspendBackgroundTask |
 	PostUnsuspendBackgroundTask |
 	DeleteApLogsBackgroundTask |
-	BackfillRepliesBackgroundTask;
+	BackfillRepliesBackgroundTask |
+	NotifyAnnouncementNoteBackgroundTask;
 
 export type UpdateUserBackgroundTask = {
 	type: 'update-user';
@@ -524,4 +525,9 @@ export type BackfillRepliesBackgroundTask = {
 	automatic: boolean;
 	/** Identifies this run in the note's stream events and its reservation of the note. */
 	backfillId: string;
+};
+
+export type NotifyAnnouncementNoteBackgroundTask = {
+	type: 'notify-announcement-note';
+	noteId: string;
 };

@@ -55,6 +55,7 @@ import { NoteEditService } from './NoteEditService.js';
 import { NoteDeleteService } from './NoteDeleteService.js';
 import { LatestNoteService } from './LatestNoteService.js';
 import { ReplyBackfillService } from './ReplyBackfillService.js';
+import { AnnouncementNoteService } from './AnnouncementNoteService.js';
 import { NotePiningService } from './NotePiningService.js';
 import { NotificationService } from './NotificationService.js';
 import { PollService } from './PollService.js';
@@ -200,6 +201,7 @@ const $NoteEditService: Provider = { provide: 'NoteEditService', useExisting: No
 const $NoteDeleteService: Provider = { provide: 'NoteDeleteService', useExisting: NoteDeleteService };
 const $LatestNoteService: Provider = { provide: 'LatestNoteService', useExisting: LatestNoteService };
 const $ReplyBackfillService: Provider = { provide: 'ReplyBackfillService', useExisting: ReplyBackfillService };
+const $AnnouncementNoteService: Provider = { provide: 'AnnouncementNoteService', useExisting: AnnouncementNoteService };
 const $NotePiningService: Provider = { provide: 'NotePiningService', useExisting: NotePiningService };
 const $NotificationService: Provider = { provide: 'NotificationService', useExisting: NotificationService };
 const $PollService: Provider = { provide: 'PollService', useExisting: PollService };
@@ -368,6 +370,7 @@ const $Imports = [
 		NoteDeleteService,
 		LatestNoteService,
 		ReplyBackfillService,
+		AnnouncementNoteService,
 		NotePiningService,
 		NotificationService,
 		PollService,
@@ -527,6 +530,7 @@ const $Imports = [
 		$NoteDeleteService,
 		$LatestNoteService,
 		$ReplyBackfillService,
+		$AnnouncementNoteService,
 		$NotePiningService,
 		$NotificationService,
 		$PollService,
@@ -691,6 +695,7 @@ const $Imports = [
 		NoteDeleteService,
 		LatestNoteService,
 		ReplyBackfillService,
+		AnnouncementNoteService,
 		NotePiningService,
 		NotificationService,
 		PollService,
@@ -849,6 +854,7 @@ const $Imports = [
 		$NoteDeleteService,
 		$LatestNoteService,
 		$ReplyBackfillService,
+		$AnnouncementNoteService,
 		$NotePiningService,
 		$NotificationService,
 		$PollService,

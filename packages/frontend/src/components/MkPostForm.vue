@@ -55,6 +55,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkNoteSimple v-if="reply" :class="$style.targetNote" :hideFiles="true" :note="reply" :skipMute="true"/>
 	<MkNoteSimple v-if="renoteTargetNote" :class="$style.targetNote" :hideFiles="true" :note="renoteTargetNote" :skipMute="true"/>
 	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
+	<div v-if="notifyAllUsers" :class="$style.notifyAllUsers">
+		<i class="ti ti-speakerphone"></i>
+		<span>{{ i18n.ts.notifyAllUsers }}</span>
+		<button v-tooltip="i18n.ts.cancel" class="_button" :class="$style.notifyAllUsersCancel" @click="notifyAllUsers = false"><i class="ti ti-x"></i></button>
+	</div>
 	<div v-if="visibility === 'specified'" :class="$style.toSpecified">
 		<span style="margin-right: 8px;">{{ i18n.ts.recipient }}</span>
 		<div :class="$style.visibleUsers">
@@ -644,6 +649,17 @@ function showOtherSettings() {
 		});
 	}
 
+	if ((postAccount.value ?? $i).isAdmin) {
+		menuItems.push({ type: 'divider' }, {
+			type: 'switch',
+			text: i18n.ts.notifyAllUsers,
+			caption: i18n.ts.notifyAllUsersDescription,
+			icon: 'ti ti-speakerphone',
+			ref: notifyAllUsers,
+			disabled: computed(() => !canNotifyAllUsers.value),
+		});
+	}
+
 	os.popupMenu(menuItems, otherSettingsButton.value);
 }
 //#endregion
@@ -671,6 +687,7 @@ function clear() {
 	poll.value = null;
 	quoteId.value = null;
 	scheduleNote.value = null;
+	notifyAllUsers.value = false;
 }
 
 function onKeydown(ev: KeyboardEvent) {
@@ -899,6 +916,14 @@ async function post(ev?: MouseEvent) {
 		}
 	}
 
+	if (notifyAllUsers.value) {
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			text: i18n.ts.notifyAllUsersConfirm,
+		});
+		if (canceled) return;
+	}
+
 	let postData = {
 		text: text.value === '' ? null : text.value,
 		fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
@@ -913,6 +938,7 @@ async function post(ev?: MouseEvent) {
 		reactionAcceptance: reactionAcceptance.value,
 		editId: props.editId ? props.editId : undefined,
 		scheduleNote: scheduleNote.value ?? undefined,
+		notifyAllUsers: notifyAllUsers.value || undefined,
 	};
 
 	if (withHashtags.value && hashtags.value && hashtags.value.trim() !== '') {
@@ -1132,6 +1158,16 @@ function showActions(ev: MouseEvent) {
 }
 
 const postAccount = ref<Misskey.entities.UserDetailed | null>(null);
+
+// Deliberately not saved in drafts, so a restored draft can never notify everyone by surprise.
+const notifyAllUsers = ref(false);
+const canNotifyAllUsers = computed(() => (postAccount.value ?? $i).isAdmin === true &&
+	props.editId == null &&
+	scheduleNote.value == null &&
+	(visibility.value === 'public' || visibility.value === 'home'));
+watch(canNotifyAllUsers, allowed => {
+	if (!allowed) notifyAllUsers.value = false;
+});
 
 function openAccountMenu(ev: MouseEvent) {
 	if (props.mock) return;
@@ -1412,6 +1448,20 @@ defineExpose({
 .withQuote {
 	margin: 0 0 8px 0;
 	color: var(--MI_THEME-accent);
+}
+
+.notifyAllUsers {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 24px;
+	margin-bottom: 8px;
+	color: var(--MI_THEME-accent);
+}
+
+.notifyAllUsersCancel {
+	margin-left: auto;
+	padding: 4px 8px;
 }
 
 .toSpecified {

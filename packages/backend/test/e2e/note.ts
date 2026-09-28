@@ -955,6 +955,26 @@ describe('Note', () => {
 		});
 	});
 
+	describe('notes/create with notifyAllUsers', () => {
+		test('is rejected for non-administrators, and nothing is posted', async () => {
+			const text = 'not an announcement from alice';
+			const res = await api('notes/create', { text, notifyAllUsers: true }, alice);
+
+			assert.strictEqual(res.status, 400);
+			assert.strictEqual(castAsError(res.body).error.code, 'NOTIFY_ALL_USERS_REQUIRES_ADMIN');
+			assert.strictEqual(await Notes.findOneBy({ text }), null);
+		});
+
+		test('is rejected for followers-only notes, and nothing is posted', async () => {
+			const text = 'followers-only announcement';
+			const res = await api('notes/create', { text, visibility: 'followers', notifyAllUsers: true }, root);
+
+			assert.strictEqual(res.status, 400);
+			assert.strictEqual(castAsError(res.body).error.code, 'NOTIFY_ALL_USERS_REQUIRES_PUBLIC_VISIBILITY');
+			assert.strictEqual(await Notes.findOneBy({ text }), null);
+		});
+	});
+
 	describe('notes/delete', () => {
 		test('delete a reply', async () => {
 			const mainNoteRes = await api('notes/create', {
