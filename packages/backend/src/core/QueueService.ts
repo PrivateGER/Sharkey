@@ -844,6 +844,11 @@ export class QueueService implements OnModuleInit, OnApplicationBootstrap {
 		return await this.createBackgroundTask({ type: 'backfill-replies', noteId, automatic, backfillId });
 	}
 
+	@bindThis
+	public async createNotifyAnnouncementNoteJob(noteId: string) {
+		return await this.createBackgroundTask({ type: 'notify-announcement-note', noteId }, noteId);
+	}
+
 	protected async createBackgroundTask<T extends BackgroundTaskJobData>(data: T, duplication?: string | { id: string, ttl?: number }): Promise<void> {
 		await this.add(
 			'backgroundTask',

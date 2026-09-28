@@ -280,6 +280,14 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						data,
 					}];
 
+				case 'announcementNote':
+					return [i18n.ts._notification.announcementNote + ': ' + getUserName(data.body.note.user), {
+						body: data.body.note.text ?? '',
+						icon: data.body.note.user.avatarUrl ?? undefined,
+						badge: iconUrl('bell'),
+						data,
+					}];
+
 				default:
 					return null;
 			}

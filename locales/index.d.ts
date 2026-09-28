@@ -10498,6 +10498,10 @@ export interface Locale extends ILocale {
              */
             "scheduledNotePosted": string;
             /**
+             * Announcements
+             */
+            "announcementNote": string;
+            /**
              * The import has been completed
              */
             "importCompleted": string;
@@ -10552,6 +10556,10 @@ export interface Locale extends ILocale {
          * :{name}: was added to this server.
          */
         "emojiSuggestionAcceptedDescription": ParameterizedString<"name">;
+        /**
+         * Announcement
+         */
+        "announcementNote": string;
     };
     "_deck": {
         /**
@@ -12609,6 +12617,18 @@ export interface Locale extends ILocale {
      * How replies in threads are ordered. You can also change this from the Replies tab of a note.
      */
     "threadReplySortDescription": string;
+    /**
+     * Notify all users
+     */
+    "notifyAllUsers": string;
+    /**
+     * Every user on this server gets a notification for this note, regardless of their notification settings.
+     */
+    "notifyAllUsersDescription": string;
+    /**
+     * This note will send a notification to every user on this server. Post it?
+     */
+    "notifyAllUsersConfirm": string;
     "_threadReplySort": {
         /**
          * Newest first

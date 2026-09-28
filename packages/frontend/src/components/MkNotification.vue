@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div :class="$style.head">
-		<MkAvatar v-if="['pollEnded', 'note', 'edited', 'scheduledNotePosted'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
+		<MkAvatar v-if="['pollEnded', 'note', 'edited', 'scheduledNotePosted', 'announcementNote'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
 		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'emojiSuggestionAccepted', 'exportCompleted', 'importCompleted', 'login', 'createToken', 'scheduledNoteFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
 		<div v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'" :class="[$style.icon, $style.icon_reactionGroupHeart]"><i class="ph-smiley ph-bold ph-lg" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ph-smiley ph-bold ph-lg" style="line-height: 1;"></i></div>
@@ -35,6 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_pollEnded]: notification.type === 'edited',
 				[$style.t_roleAssigned]: notification.type === 'scheduledNoteFailed',
 				[$style.t_pollEnded]: notification.type === 'scheduledNotePosted',
+				[$style.t_announcementNote]: notification.type === 'announcementNote',
 			}]"
 		>
 			<!-- we re-use t_pollEnded for "edited" instead of making an identical style -->
@@ -60,6 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'edited'" class="ph-pencil ph-bold ph-lg"></i>
 			<i v-else-if="notification.type === 'scheduledNoteFailed'" class="ti ti-calendar-event"></i>
 			<i v-else-if="notification.type === 'scheduledNotePosted'" class="ti ti-calendar-event"></i>
+			<i v-else-if="notification.type === 'announcementNote'" class="ti ti-speakerphone"></i>
 			<i v-else-if="notification.type === 'sharedAccessGranted'" class="ph-door-open ph-bold pg-lg"></i>
 			<i v-else-if="notification.type === 'sharedAccessRevoked'" class="ph-lock ph-bold pg-lg"></i>
 			<i v-else-if="notification.type === 'sharedAccessLogin'" class="ph-sign-in ph-bold pg-lg"></i>
@@ -77,6 +79,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<header :class="$style.header">
 			<span v-if="notification.type === 'pollEnded'">{{ i18n.ts._notification.pollEnded }}</span>
 			<span v-else-if="notification.type === 'note'">{{ i18n.ts._notification.newNote }}: <MkUserName :user="notification.note.user"/></span>
+			<span v-else-if="notification.type === 'announcementNote'">{{ i18n.ts._notification.announcementNote }}: <MkUserName :user="notification.note.user"/></span>
 			<span v-else-if="notification.type === 'roleAssigned'">{{ i18n.ts._notification.roleAssigned }}</span>
 			<span v-else-if="notification.type === 'chatRoomInvitationReceived'">{{ i18n.ts._notification.chatRoomInvitationReceived }}</span>
 			<span v-else-if="notification.type === 'achievementEarned'">{{ i18n.ts._notification.achievementEarned }}</span>
@@ -120,6 +123,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<Mfm :text="getNoteSummary(notification.note)" :isBlock="true" :plain="true" :nowrap="true" :author="notification.note.user"/>
 			</MkA>
 			<MkA v-else-if="notification.type === 'note'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
+				<Mfm :text="getNoteSummary(notification.note)" :isBlock="true" :plain="true" :nowrap="true" :author="notification.note.user"/>
+			</MkA>
+			<MkA v-else-if="notification.type === 'announcementNote'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
 				<Mfm :text="getNoteSummary(notification.note)" :isBlock="true" :plain="true" :nowrap="true" :author="notification.note.user"/>
 			</MkA>
 			<MkA v-else-if="notification.type === 'pollEnded'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
@@ -456,6 +462,12 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 
 .t_chatRoomInvitationReceived {
 	background: var(--eventOther);
+	pointer-events: none;
+}
+
+.t_announcementNote {
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
 	pointer-events: none;
 }
 

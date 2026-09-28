@@ -105,6 +105,9 @@ numberOfReplies: "スレッド内の返信数"
 numberOfRepliesDescription: "この数値を大きくすると、より多くの返信が表示されます。この値を大きくしすぎると、UIが窮屈になって読みにくくなることがあります。"
 threadReplySort: "返信の並び順"
 threadReplySortDescription: "スレッド内の返信の並び順です。ノートの「返信」タブからも変更できます。"
+notifyAllUsers: "全ユーザーに通知"
+notifyAllUsersDescription: "通知設定に関わらず、このサーバーの全ユーザーにこのノートの通知が届きます。"
+notifyAllUsersConfirm: "このノートはサーバーの全ユーザーに通知されます。投稿しますか？"
 _threadReplySort:
   newest: "新しい順"
   relationship: "知り合いを優先"
@@ -273,9 +276,11 @@ _pages:
 _notification:
   youRenoted: "{name}がBoostしました"
   renotedBySomeUsers: "{n}人がリノートしました"
+  announcementNote: "お知らせ"
   _types:
     renote: "Boost"
     edited: "編集済み"
+    announcementNote: "お知らせ"
   _actions:
     renote: "ブースト"
 _webhookSettings:

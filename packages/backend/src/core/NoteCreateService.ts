@@ -147,6 +147,8 @@ type Option = {
 	app?: MiApp | null;
 	processErrors?: string[] | null;
 	mandatoryCW?: string | null;
+	/** Sends an announcementNote notification to every local user. Callers must ensure the author is an administrator. */
+	notifyAllUsers?: boolean;
 };
 
 export type PureRenoteOption = Option & { renote: MiNote } & ({ text?: null } | { cw?: null } | { reply?: null } | { poll?: null } | { files?: null | [] });
@@ -456,9 +458,18 @@ export class NoteCreateService implements OnApplicationShutdown {
 			throw new IdentifiableError('9f466dab-c856-48cd-9e65-ff90ff750580', 'Note contains too many mentions');
 		}
 
+		// Checked against the final visibility, which may have been narrowed above (e.g. quoting a followers-only note).
+		if (data.notifyAllUsers && data.visibility !== 'public' && data.visibility !== 'home') {
+			throw new IdentifiableError('4a3c2f71-6f0e-4d8e-9f0a-2b8f0f6c9d15', 'Announcements must be public or home visibility');
+		}
+
 		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
 
 		await this.queueService.createPostNoteJob(note.id, silent, 'create');
+
+		if (data.notifyAllUsers) {
+			await this.queueService.createNotifyAnnouncementNoteJob(note.id);
+		}
 
 		return note;
 	}

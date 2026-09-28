@@ -22,7 +22,7 @@ import type { OnModuleInit } from '@nestjs/common';
 import type { UserEntityService } from './UserEntityService.js';
 import type { NoteEntityService } from './NoteEntityService.js';
 
-const NOTE_REQUIRED_NOTIFICATION_TYPES = new Set(['note', 'mention', 'reply', 'renote', 'renote:grouped', 'quote', 'reaction', 'reaction:grouped', 'pollEnded', 'edited', 'scheduledNotePosted']);
+const NOTE_REQUIRED_NOTIFICATION_TYPES = new Set(['note', 'mention', 'reply', 'renote', 'renote:grouped', 'quote', 'reaction', 'reaction:grouped', 'pollEnded', 'edited', 'scheduledNotePosted', 'announcementNote']);
 
 function undefOnMissing<T>(packPromise: Promise<T>): Promise<T | undefined> {
 	return packPromise.catch(err => {

@@ -114,9 +114,10 @@ export class NotificationService implements OnApplicationShutdown {
 				: null,
 		]);
 
+		// announcementNote is mandatory by design; no stored receive config may suppress it.
 		// 古いMisskeyバージョンのキャッシュが残っている可能性がある
 		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-		const recieveConfig = (profile.notificationRecieveConfig ?? {})[type];
+		const recieveConfig = type === 'announcementNote' ? undefined : (profile.notificationRecieveConfig ?? {})[type];
 		if (recieveConfig?.type === 'never') {
 			return null;
 		}
