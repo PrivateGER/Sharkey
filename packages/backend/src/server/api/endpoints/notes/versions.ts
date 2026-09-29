@@ -10,6 +10,7 @@ import type { NotesRepository } from '@/models/_.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { ApiError } from '../../error.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -75,6 +76,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private getterService: GetterService,
 		private queryService: QueryService,
+		private noteVisibilityService: NoteVisibilityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.notesRepository.createQueryBuilder('note')
@@ -95,6 +97,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			if (note.user!.requireSigninToViewContents && me == null) {
 				throw new ApiError(meta.errors.signinRequired);
+			}
+
+			const visibility = await this.noteVisibilityService.checkNoteVisibilityAsync(note, me);
+			if (!visibility.accessible || visibility.redact) {
+				throw new ApiError(meta.errors.noSuchNote);
 			}
 
 			const edits = await this.getterService.getEdits(ps.noteId).catch(err => {
