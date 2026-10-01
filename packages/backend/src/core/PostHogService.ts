@@ -18,6 +18,12 @@ import { EnvService } from '@/global/EnvService.js';
 
 export type PostHogProperties = Record<string, string | number | boolean | null | undefined>;
 
+export type PostHogContext = {
+	properties: PostHogProperties;
+	/** The authenticated user of the current request. */
+	actor?: { id: string; username: string };
+};
+
 /** First-party path that relays browser analytics to `posthog.host` (PostHogProxyServerService). */
 export const postHogProxyPath = '/ph';
 
@@ -29,7 +35,7 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 	private readonly client: PostHog | null = null;
 	private readonly logProvider: LoggerProvider | null = null;
 	private readonly logger: OtelLogger | null = null;
-	private readonly context = new AsyncLocalStorage<PostHogProperties>();
+	private readonly context = new AsyncLocalStorage<PostHogContext>();
 
 	constructor(
 		@Inject(DI.config)
@@ -56,22 +62,29 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 		this.logger = this.logProvider.getLogger('sharkey');
 	}
 
+	/**
+	 * `username` is stored on the PostHog person; when omitted, it comes from the request context
+	 * if the event belongs to the authenticated user. Local usernames are immutable, hence `$set_once`.
+	 */
 	@bindThis
-	public capture(distinctId: string, event: string, properties?: PostHogProperties): void {
+	public capture(distinctId: string, event: string, properties?: PostHogProperties, username?: string): void {
+		const store = this.context.getStore();
+		const personUsername = username ?? (store?.actor?.id === distinctId ? store.actor.username : undefined);
 		this.client?.capture({
 			distinctId,
 			event,
 			properties: {
-				...this.context.getStore(),
+				...store?.properties,
 				...properties,
 				sharkey_version: this.config.version,
+				...(personUsername !== undefined ? { $set_once: { username: personUsername } } : {}),
 			},
 		});
 	}
 
 	@bindThis
-	public runWithContext<T>(properties: PostHogProperties, fn: () => T): T {
-		return this.context.run(properties, fn);
+	public runWithContext<T>(context: PostHogContext, fn: () => T): T {
+		return this.context.run(context, fn);
 	}
 
 	@bindThis

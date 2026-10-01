@@ -165,9 +165,10 @@ export class SignupService {
 		if (this.meta.rootUserId == null) {
 			await this.metaService.update({ rootUserId: account.id });
 		} else if (account.host == null && !isSystemAccount(account)) {
+			// Admin-created accounts haven't acted yet, so their username is only attached once they do.
 			this.postHogService.capture(account.id, 'user_signed_up', {
 				via: opts.ignorePreservedUsernames ? 'admin_created' : 'signup',
-			});
+			}, opts.ignorePreservedUsernames ? undefined : account.username);
 		}
 
 		return { account, secret };

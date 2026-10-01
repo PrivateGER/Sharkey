@@ -59,7 +59,7 @@ function sanitizeUrls(properties: Record<string, unknown> | undefined, maskPath:
 
 export async function initPostHog(
 	config: { projectToken: string; host: string },
-	user: Pick<entities.MeDetailed, 'id' | 'isBot' | 'isModerator' | 'isAdmin' | 'createdAt'> | null,
+	user: Pick<entities.MeDetailed, 'id' | 'username' | 'isBot' | 'isModerator' | 'isAdmin' | 'createdAt'> | null,
 	versions: { server: string; client: string },
 ): Promise<void> {
 	// Disabled instances must not download or execute the browser SDK.
@@ -122,6 +122,7 @@ export async function initPostHog(
 			posthog.register({ sharkey_version: versions.server, client_version: versions.client });
 			if (user === null) return;
 			posthog.identify(user.id, {
+				username: user.username,
 				is_bot: user.isBot ?? false,
 				is_moderator: user.isModerator ?? false,
 				is_admin: user.isAdmin ?? false,

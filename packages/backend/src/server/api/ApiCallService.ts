@@ -168,7 +168,7 @@ export class ApiCallService {
 			return;
 		}
 		await this.authenticateService.authenticate(token).then(async ([user, app]) => {
-			await this.postHogService.runWithContext(user ? { client: app ? 'api_app' : 'web' } : {}, () =>
+			await this.postHogService.runWithContext(user ? { properties: { client: app ? 'api_app' : 'web' }, actor: user } : { properties: {} }, () =>
 				this.call(endpoint, user, app, body, null, request, reply),
 			).then((res) => {
 				if (request.method === 'GET' && endpoint.meta.cacheSec && !token && !user) {
@@ -230,7 +230,7 @@ export class ApiCallService {
 			return;
 		}
 		await this.authenticateService.authenticate(token).then(async ([user, app]) => {
-			await this.postHogService.runWithContext(user ? { client: app ? 'api_app' : 'web' } : {}, () =>
+			await this.postHogService.runWithContext(user ? { properties: { client: app ? 'api_app' : 'web' }, actor: user } : { properties: {} }, () =>
 				this.call(endpoint, user, app, fields, {
 					name: multipartData.filename,
 					path: path,
