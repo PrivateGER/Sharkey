@@ -445,14 +445,16 @@ export class ApiCallService {
 		}
 
 		// API invoking
+		const exec = () => ep.exec(data, user, token, file, request.ip, request.headers);
+		// Errors are normalized after tracing, so the span records the original exception rather than the generic API error.
+		const run = () => (user
+			? this.postHogService.traceUserRequest(user.id, 'API: ' + ep.name, { client: token ? 'api_app' : 'web' }, exec)
+			: exec()
+		).catch((err: Error) => this.#onExecError(ep, data, err, user?.id));
 		if (this.config.sentryForBackend) {
-			return await Sentry.startSpan({
-				name: 'API: ' + ep.name,
-			}, () => ep.exec(data, user, token, file, request.ip, request.headers)
-				.catch((err: Error) => this.#onExecError(ep, data, err, user?.id)));
+			return await Sentry.startSpan({ name: 'API: ' + ep.name }, run);
 		} else {
-			return await ep.exec(data, user, token, file, request.ip, request.headers)
-				.catch((err: Error) => this.#onExecError(ep, data, err, user?.id));
+			return await run();
 		}
 	}
 }

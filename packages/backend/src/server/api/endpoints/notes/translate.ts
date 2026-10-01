@@ -18,6 +18,7 @@ import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { CacheManagementService, type ManagedRedisKVCache } from '@/global/CacheManagementService.js';
 import { ApiError } from '@/server/api/error.js';
 import { bindThis } from '@/decorators.js';
+import { PostHogService } from '@/core/PostHogService.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -88,6 +89,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private roleService: RoleService,
 		private readonly loggerService: ApiLoggerService,
 		private readonly noteVisibilityService: NoteVisibilityService,
+		private readonly postHogService: PostHogService,
 
 		cacheManagementService: CacheManagementService,
 	) {
@@ -117,7 +119,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			let response = await this.getCachedTranslation(note, targetLang);
 			if (!response) {
 				this.loggerService.logger.debug(`Fetching new translation for note=${note.id} lang=${targetLang}`);
-				response = await this.fetchTranslation(note, targetLang);
+				response = await this.postHogService.withSpan('translation.fetch', {}, () => this.fetchTranslation(note, targetLang));
 				if (!response) {
 					throw new ApiError(meta.errors.translationFailed);
 				}
@@ -225,6 +227,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 		} catch (e) {
 			this.loggerService.logger.error('Unhandled error from translation API: ', { e });
+			this.postHogService.recordError(e);
 		}
 
 		return null;

@@ -143,7 +143,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				});
 			};
 
-			const response = await client.chat.completions.create({
+			const response = await this.postHogService.withSpan<OpenAI.ChatCompletion>('alt_text.generate', {
+				model: selectedModel,
+				model_type: modelType,
+				media_type: isVideo ? 'video' : 'image',
+			}, () => client.chat.completions.create({
 				model: selectedModel,
 				messages: [
 					{
@@ -160,7 +164,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				],
 				stream: false,
 				store: false,
-			}).catch((error: unknown) => {
+			})).catch((error: unknown) => {
 				captureGeneration({ model: selectedModel, httpStatus: error instanceof OpenAI.APIError ? error.status ?? null : null, isError: true });
 				throw error;
 			});
