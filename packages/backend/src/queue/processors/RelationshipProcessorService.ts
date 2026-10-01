@@ -43,6 +43,7 @@ export class RelationshipProcessorService {
 			requestId: job.data.requestId,
 			silent: job.data.silent,
 			withReplies: job.data.withReplies,
+			skipAnalytics: true,
 		});
 		return 'ok';
 	}
@@ -54,7 +55,7 @@ export class RelationshipProcessorService {
 			this.cacheService.findUserById(job.data.from.id),
 			this.cacheService.findUserById(job.data.to.id),
 		]) as [MiLocalUser | MiRemoteUser, MiLocalUser | MiRemoteUser];
-		await this.userFollowingService.unfollow(follower, followee, job.data.silent);
+		await this.userFollowingService.unfollow(follower, followee, job.data.silent, true);
 		return 'ok';
 	}
 

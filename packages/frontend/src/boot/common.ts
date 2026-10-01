@@ -27,6 +27,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import { fetchCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
+import { initPostHog } from '@/utility/posthog.js';
 
 export async function common(createVue: () => Promise<App<Element>>) {
 	console.info(`Sharkey v${version}`);
@@ -316,6 +317,12 @@ export async function common(createVue: () => Promise<App<Element>>) {
 			...instance.sentryForFrontend.options,
 		});
 	}
+
+	fetchInstanceMetaPromise.then(async () => {
+		if (instance.posthog) await initPostHog(instance.posthog, $i, { server: instance.version, client: version });
+	}).catch(err => {
+		console.warn('Failed to initialize PostHog', err);
+	});
 
 	app.mount(rootEl);
 

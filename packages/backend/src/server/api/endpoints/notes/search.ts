@@ -8,6 +8,9 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { fileTypeCategories, SearchService } from '@/core/SearchService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
+import { PostHogService } from '@/core/PostHogService.js';
+import { isLocalUser } from '@/models/User.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -72,6 +75,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 		private searchService: SearchService,
 		private roleService: RoleService,
+		private postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const policies = await this.roleService.getUserPolicies(me ? me.id : null);
@@ -91,7 +95,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				limit: ps.limit,
 			});
 
-			return await this.noteEntityService.packMany(notes, me);
+			const packed = await this.noteEntityService.packMany(notes, me);
+			if (me && isLocalUser(me) && !isSystemAccount(me)) {
+				const operators = ps.query.replace(/"[^"]*"/g, '""');
+				this.postHogService.capture(me.id, 'note_search_performed', {
+					uses_phrase: /"[^"]+"/.test(ps.query),
+					uses_or: /(?:^|\s)OR(?:\s|$)/i.test(operators),
+					uses_exclusion: /(?:^|\s)-\S/.test(operators),
+					has_filters: Boolean(ps.userId || ps.host || ps.channelId || ps.sinceId || ps.untilId || ps.filetype),
+					result_count: packed.length,
+				});
+			}
+			return packed;
 		});
 	}
 }

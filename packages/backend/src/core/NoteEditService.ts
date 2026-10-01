@@ -35,6 +35,7 @@ import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import { QueueService } from '@/core/QueueService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
@@ -47,6 +48,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { TimeService } from '@/global/TimeService.js';
@@ -212,6 +214,7 @@ export class NoteEditService implements OnApplicationShutdown {
 		private relayService: RelayService,
 		private federatedInstanceService: FederatedInstanceService,
 		private webhookService: UserWebhookService,
+		private postHogService: PostHogService,
 		private remoteUserResolveService: RemoteUserResolveService,
 		private apDeliverManagerService: ApDeliverManagerService,
 		private apRendererService: ApRendererService,
@@ -601,6 +604,22 @@ export class NoteEditService implements OnApplicationShutdown {
 
 			// Re-fetch note to get the default values of null / unset fields.
 			const edited = await this.notesRepository.findOneByOrFail({ id: note.id });
+
+			if (isLocalUser(user) && !silent && !isSystemAccount(user) && data.mandatoryCW === undefined) {
+				this.postHogService.capture(user.id, 'note_published', {
+					action: 'edited',
+					visibility: edited.visibility,
+					local_only: edited.localOnly,
+					has_attachments: edited.fileIds.length > 0,
+					has_poll: edited.hasPoll,
+					has_content_warning: edited.cw != null,
+					is_reply: edited.replyId != null,
+					is_quote: edited.renoteId != null && !isPureRenote(edited),
+					in_channel: edited.channelId != null,
+					reply_target_is_remote: edited.replyId != null ? edited.replyUserHost != null : null,
+					quote_target_is_remote: edited.renoteId != null && !isPureRenote(edited) ? edited.renoteUserHost != null : null,
+				});
+			}
 
 			await this.queueService.createPostNoteJob(note.id, silent, 'edit');
 

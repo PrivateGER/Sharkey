@@ -12,6 +12,9 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
+import { PostHogService } from '@/core/PostHogService.js';
+import { isLocalUser } from '@/models/User.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -77,6 +80,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
 		private readonly replyBackfillService: ReplyBackfillService,
+		private readonly postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (ps.sort === 'relationship' && (ps.sinceId != null || ps.untilId != null)) {
@@ -123,7 +127,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const notes = await query.getMany();
 
-			return await this.noteEntityService.packMany(notes, me);
+			const packed = await this.noteEntityService.packMany(notes, me);
+			if (ps.sort !== 'newest' && me && isLocalUser(me) && !isSystemAccount(me)) {
+				this.postHogService.capture(me.id, 'thread_replies_sorted', {
+					sort: ps.sort,
+				});
+			}
+			return packed;
 		});
 	}
 

@@ -33,6 +33,7 @@ import { StreamingApiServerService } from './api/StreamingApiServerService.js';
 import { WellKnownServerService } from './WellKnownServerService.js';
 import { FileServerService } from './FileServerService.js';
 import { HealthServerService } from './HealthServerService.js';
+import { PostHogProxyServerService } from './PostHogProxyServerService.js';
 import { ClientServerService } from './web/ClientServerService.js';
 import { OpenApiServerService } from './api/openapi/OpenApiServerService.js';
 import { MastodonApiServerService } from './api/mastodon/MastodonApiServerService.js';
@@ -72,6 +73,7 @@ export class ServerService implements BeforeApplicationShutdown {
 		private nodeinfoServerService: NodeinfoServerService,
 		private fileServerService: FileServerService,
 		private healthServerService: HealthServerService,
+		private postHogProxyServerService: PostHogProxyServerService,
 		private clientServerService: ClientServerService,
 		private globalEventService: GlobalEventService,
 		private loggerService: LoggerService,
@@ -162,6 +164,7 @@ export class ServerService implements BeforeApplicationShutdown {
 		fastify.register(this.wellKnownServerService.createServer);
 		fastify.register(this.oauth2ProviderService.createServer, { prefix: '/oauth' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });
+		fastify.register(this.postHogProxyServerService.createServer);
 
 		fastify.get<{ Params: { path: string }; Querystring: { static?: any; badge?: any; }; }>('/emoji/:path(.*)', async (request, reply) => {
 			const path = request.params.path;

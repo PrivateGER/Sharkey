@@ -14,6 +14,7 @@ import { IdService } from '@/core/IdService.js';
 import { MiUserKeypair } from '@/models/UserKeypair.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { generateNativeUserToken } from '@/misc/token.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import UsersChart from '@/core/chart/charts/users.js';
@@ -23,6 +24,7 @@ import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { MetaService } from '@/core/MetaService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { UserAuthService } from '@/core/UserAuthService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 
 @Injectable()
 export class SignupService {
@@ -46,6 +48,7 @@ export class SignupService {
 		private systemAccountService: SystemAccountService,
 		private metaService: MetaService,
 		private usersChart: UsersChart,
+		private postHogService: PostHogService,
 		private readonly timeService: TimeService,
 		private readonly userAuthService: UserAuthService,
 	) {
@@ -161,6 +164,10 @@ export class SignupService {
 
 		if (this.meta.rootUserId == null) {
 			await this.metaService.update({ rootUserId: account.id });
+		} else if (account.host == null && !isSystemAccount(account)) {
+			this.postHogService.capture(account.id, 'user_signed_up', {
+				via: opts.ignorePreservedUsernames ? 'admin_created' : 'signup',
+			});
 		}
 
 		return { account, secret };

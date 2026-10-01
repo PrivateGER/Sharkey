@@ -6,6 +6,9 @@
 import { Injectable } from '@nestjs/common';
 import { EmojiSuggestionService } from '@/core/EmojiSuggestionService.js';
 import { EmojiSuggestionEntityService } from '@/core/entities/EmojiSuggestionEntityService.js';
+import { PostHogService } from '@/core/PostHogService.js';
+import { isLocalUser } from '@/models/User.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { emojiSuggestionErrors, emojiSuggestionParamDef } from '@/server/api/emoji-suggestion.js';
@@ -32,6 +35,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		private readonly emojiSuggestionService: EmojiSuggestionService,
 		private readonly emojiSuggestionEntityService: EmojiSuggestionEntityService,
+		private readonly postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const source = ps.fileId != null
@@ -47,6 +51,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				localOnly: ps.localOnly ?? false,
 			}, me);
 			if (!result.ok) throw new ApiError(meta.errors[result.reason]);
+			if (isLocalUser(me) && !isSystemAccount(me)) {
+				this.postHogService.capture(me.id, 'emoji_suggestion_created', {
+					source: ps.fileId != null ? 'drive' : 'remote',
+				});
+			}
 
 			return await this.emojiSuggestionEntityService.pack(result.value, me);
 		});

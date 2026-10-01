@@ -91,3 +91,6 @@ vite.config.local-dev.ts.timestamp-*
 # TypeScript
 .tsbuildinfo
 *.tsbuildinfo
+
+# Local environment files
+.env

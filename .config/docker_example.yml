@@ -301,6 +301,30 @@ id: 'aidx'
 #  options:
 #    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
 
+#   ┌───────────────────┐
+#───┘ Product analytics └───────────────────────────────────────
+
+# PostHog is available for product analytics. When enabled:
+# - the server reports actions of local users: posts, edits, scheduled posts,
+#   renotes, likes and reactions, follows, sign-ups, searches (query syntax
+#   flags only), reply fetching, the reply sort, emoji suggestions, and AI
+#   alt-text generations (model, tokens and latency; never prompts, images or
+#   generated text). Events carry the Sharkey version and the client type
+#   (web or API app), and never contain post text or other users' IDs;
+# - the web client reports pageviews (route pattern and URL without query
+#   strings or fragments; paths can still contain note IDs and handles),
+#   unhandled errors, alt-text edits and upload cropping/compression, and
+#   identifies users with their ID, role flags and account creation date.
+# Browsers send through /ph on this instance, which forwards to `host` without
+# cookies, so common tracker blocklists don't drop it.
+# Disclose this in your instance's privacy policy.
+# The project token is public: it is sent to every browser.
+# Environment overrides: MK_CONFIG_POSTHOG_PROJECTTOKEN, MK_CONFIG_POSTHOG_HOST
+
+#posthog:
+#  projectToken: 'phc_exampleProjectToken'
+#  host: 'https://us.i.posthog.com'
+
 #   ┌─────────────────────┐
 #───┘ Other configuration └─────────────────────────────────────
 

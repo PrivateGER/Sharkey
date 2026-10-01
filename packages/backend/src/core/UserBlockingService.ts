@@ -68,8 +68,8 @@ export class UserBlockingService implements OnModuleInit {
 		await Promise.all([
 			this.cancelRequest(blocker, blockee, silent),
 			this.cancelRequest(blockee, blocker, silent),
-			this.userFollowingService.unfollow(blocker, blockee, silent),
-			this.userFollowingService.unfollow(blockee, blocker, silent),
+			this.userFollowingService.unfollow(blocker, blockee, silent, true),
+			this.userFollowingService.unfollow(blockee, blocker, silent, true),
 			this.removeFromList(blockee, blocker),
 		]);
 

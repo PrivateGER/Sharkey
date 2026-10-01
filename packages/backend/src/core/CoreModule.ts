@@ -59,6 +59,7 @@ import { AnnouncementNoteService } from './AnnouncementNoteService.js';
 import { NotePiningService } from './NotePiningService.js';
 import { NotificationService } from './NotificationService.js';
 import { PollService } from './PollService.js';
+import { PostHogService } from './PostHogService.js';
 import { PushNotificationService } from './PushNotificationService.js';
 import { QueryService } from './QueryService.js';
 import { ReactionService } from './ReactionService.js';
@@ -205,6 +206,7 @@ const $AnnouncementNoteService: Provider = { provide: 'AnnouncementNoteService',
 const $NotePiningService: Provider = { provide: 'NotePiningService', useExisting: NotePiningService };
 const $NotificationService: Provider = { provide: 'NotificationService', useExisting: NotificationService };
 const $PollService: Provider = { provide: 'PollService', useExisting: PollService };
+const $PostHogService: Provider = { provide: 'PostHogService', useExisting: PostHogService };
 const $SystemAccountService: Provider = { provide: 'SystemAccountService', useExisting: SystemAccountService };
 const $PushNotificationService: Provider = { provide: 'PushNotificationService', useExisting: PushNotificationService };
 const $QueryService: Provider = { provide: 'QueryService', useExisting: QueryService };
@@ -374,6 +376,7 @@ const $Imports = [
 		NotePiningService,
 		NotificationService,
 		PollService,
+		PostHogService,
 		SystemAccountService,
 		PushNotificationService,
 		QueryService,
@@ -534,6 +537,7 @@ const $Imports = [
 		$NotePiningService,
 		$NotificationService,
 		$PollService,
+		$PostHogService,
 		$SystemAccountService,
 		$PushNotificationService,
 		$QueryService,
@@ -699,6 +703,7 @@ const $Imports = [
 		NotePiningService,
 		NotificationService,
 		PollService,
+		PostHogService,
 		SystemAccountService,
 		PushNotificationService,
 		QueryService,
@@ -858,6 +863,7 @@ const $Imports = [
 		$NotePiningService,
 		$NotificationService,
 		$PollService,
+		$PostHogService,
 		$SystemAccountService,
 		$PushNotificationService,
 		$QueryService,

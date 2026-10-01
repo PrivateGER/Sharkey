@@ -35,6 +35,7 @@ import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import { HashtagService } from '@/core/HashtagService.js';
 import { AntennaService } from '@/core/AntennaService.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -51,6 +52,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { isReply } from '@/misc/is-reply.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
@@ -211,6 +213,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private hashtagService: HashtagService,
 		private antennaService: AntennaService,
 		private webhookService: UserWebhookService,
+		private postHogService: PostHogService,
 		private featuredService: FeaturedService,
 		private remoteUserResolveService: RemoteUserResolveService,
 		private apDeliverManagerService: ApDeliverManagerService,
@@ -464,6 +467,31 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
+
+		if (isLocalUser(user) && !silent && !isSystemAccount(user)) {
+			if (isPureRenote(data)) {
+				this.postHogService.capture(user.id, 'note_renoted', {
+					visibility: note.visibility,
+					local_only: note.localOnly,
+					in_channel: note.channelId != null,
+					target_is_remote: data.renote.userHost != null,
+				});
+			} else {
+				this.postHogService.capture(user.id, 'note_published', {
+					action: 'published',
+					visibility: note.visibility,
+					local_only: note.localOnly,
+					has_attachments: note.fileIds.length > 0,
+					has_poll: note.hasPoll,
+					has_content_warning: note.cw != null,
+					is_reply: note.replyId != null,
+					is_quote: note.renoteId != null,
+					in_channel: note.channelId != null,
+					reply_target_is_remote: data.reply ? data.reply.userHost != null : null,
+					quote_target_is_remote: data.renote ? data.renote.userHost != null : null,
+				});
+			}
+		}
 
 		await this.queueService.createPostNoteJob(note.id, silent, 'create');
 

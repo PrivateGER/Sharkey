@@ -17,6 +17,7 @@ import type { MiMeta, UserIpsRepository } from '@/models/_.js';
 import { createTemp } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import type { Config } from '@/config.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
@@ -55,6 +56,7 @@ export class ApiCallService {
 		private authenticateService: AuthenticateService,
 		private rateLimiterService: SkRateLimiterService,
 		private roleService: RoleService,
+		private postHogService: PostHogService,
 		private apiLoggerService: ApiLoggerService,
 		private readonly timeService: TimeService,
 		private readonly serverUtilityServer: ServerUtilityService,
@@ -166,7 +168,9 @@ export class ApiCallService {
 			return;
 		}
 		await this.authenticateService.authenticate(token).then(async ([user, app]) => {
-			await this.call(endpoint, user, app, body, null, request, reply).then((res) => {
+			await this.postHogService.runWithContext(user ? { client: app ? 'api_app' : 'web' } : {}, () =>
+				this.call(endpoint, user, app, body, null, request, reply),
+			).then((res) => {
 				if (request.method === 'GET' && endpoint.meta.cacheSec && !token && !user) {
 					reply.header('Cache-Control', `public, max-age=${endpoint.meta.cacheSec}`);
 				}
@@ -226,10 +230,12 @@ export class ApiCallService {
 			return;
 		}
 		await this.authenticateService.authenticate(token).then(async ([user, app]) => {
-			await this.call(endpoint, user, app, fields, {
-				name: multipartData.filename,
-				path: path,
-			}, request, reply).then((res) => {
+			await this.postHogService.runWithContext(user ? { client: app ? 'api_app' : 'web' } : {}, () =>
+				this.call(endpoint, user, app, fields, {
+					name: multipartData.filename,
+					path: path,
+				}, request, reply),
+			).then((res) => {
 				this.send(reply, res);
 			}).catch((err: ApiError) => {
 				cleanup();

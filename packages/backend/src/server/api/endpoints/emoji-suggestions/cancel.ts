@@ -5,6 +5,9 @@
 
 import { Injectable } from '@nestjs/common';
 import { EmojiSuggestionService } from '@/core/EmojiSuggestionService.js';
+import { PostHogService } from '@/core/PostHogService.js';
+import { isLocalUser } from '@/models/User.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { emojiSuggestionErrors } from '@/server/api/emoji-suggestion.js';
@@ -26,10 +29,16 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
-	constructor(private readonly emojiSuggestionService: EmojiSuggestionService) {
+	constructor(
+		private readonly emojiSuggestionService: EmojiSuggestionService,
+		private readonly postHogService: PostHogService,
+	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (!await this.emojiSuggestionService.cancel(ps.suggestionId, me)) {
 				throw new ApiError(meta.errors.noSuchSuggestion);
+			}
+			if (isLocalUser(me) && !isSystemAccount(me)) {
+				this.postHogService.capture(me.id, 'emoji_suggestion_cancelled');
 			}
 		});
 	}

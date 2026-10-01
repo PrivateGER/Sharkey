@@ -46,6 +46,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { capturePostHogEvent } from '@/utility/posthog.js';
 
 const props = defineProps<{
 	file?: Misskey.entities.DriveFile | null;
@@ -66,6 +67,7 @@ const isImage = fileType.startsWith('image/');
 const isVideo = fileType.startsWith('video/');
 let loading = ref(false);
 const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
+let generatedCaption: { text: string; modelType: 'fast' | 'quality' | 'experimental' } | null = null;
 
 const emit = defineEmits<{
 	(ev: 'done', v: string): void;
@@ -79,6 +81,7 @@ const caption = ref(props.default ?? '');
 async function generateAltText() {
 	if (!isImage && !isVideo) return;
 	loading.value = true;
+	const modelType = isVideo ? 'fast' : selectedModel.value;
 
 	try {
 		const file = props.file ?? await props.prepareFile?.();
@@ -86,7 +89,7 @@ async function generateAltText() {
 
 		const res = await misskeyApi('drive/files/generate-alt-text', {
 			fileId: file.id,
-			modelType: selectedModel.value,
+			modelType,
 		});
 
 		if (!res) {
@@ -96,6 +99,7 @@ async function generateAltText() {
 
 		os.toast(i18n.ts.generatedAltTextSuccess);
 		caption.value = res.text;
+		generatedCaption = { text: res.text, modelType };
 		// eslint-disable-next-line id-denylist
 	} catch (e: unknown) {
 		if (e != null && typeof e === 'object' && 'code' in e && e.code === 'VIDEO_TOO_LONG') {
@@ -120,6 +124,13 @@ function onKeydown(ev: KeyboardEvent) {
 
 async function ok() {
 	emit('done', caption.value);
+	if (generatedCaption !== null) {
+		capturePostHogEvent('alt_text_applied', {
+			edited: caption.value !== generatedCaption.text,
+			model_type: generatedCaption.modelType,
+		});
+		generatedCaption = null;
+	}
 	dialog.value?.close();
 }
 </script>

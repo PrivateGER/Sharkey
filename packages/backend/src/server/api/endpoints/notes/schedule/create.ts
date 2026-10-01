@@ -7,6 +7,7 @@ import ms from 'ms';
 import { In } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import { isPureRenote } from '@/misc/is-renote.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import type { MiUser } from '@/models/User.js';
 import type {
 	UsersRepository,
@@ -24,6 +25,7 @@ import { QueueService } from '@/core/QueueService.js';
 import { IdService } from '@/core/IdService.js';
 import { MiScheduleNoteType } from '@/models/NoteSchedule.js';
 import { RoleService } from '@/core/RoleService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../../error.js';
 
@@ -215,6 +217,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queueService: QueueService,
 		private roleService: RoleService,
 		private idService: IdService,
+		private postHogService: PostHogService,
 		private readonly timeService: TimeService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -365,6 +368,30 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					removeOnComplete: true,
 					jobId,
 				});
+
+				if (!isSystemAccount(me)) {
+					this.postHogService.capture(me.id, 'note_published', {
+						action: 'scheduled',
+						visibility: note.visibility,
+						local_only: note.localOnly,
+						has_attachments: files.length > 0,
+						has_poll: note.poll != null,
+						has_content_warning: note.cw != null,
+						is_reply: note.reply != null,
+						is_quote: note.renote != null && !isPureRenote({
+							renoteId: note.renote,
+							id: noteId,
+							visibility: ps.visibility,
+							userId: me.id,
+							replyId: note.reply ?? null,
+							text: note.text ?? null,
+							cw: note.cw ?? null,
+							hasPoll: note.poll != null,
+							fileIds: note.files,
+						}),
+						in_channel: false,
+					});
+				}
 			}
 
 			return '';

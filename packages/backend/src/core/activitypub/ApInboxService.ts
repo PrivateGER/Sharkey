@@ -730,7 +730,7 @@ export class ApInboxService {
 		const isFollowing = await this.cacheService.isFollowing(follower, actor);
 
 		if (isFollowing) {
-			await this.userFollowingService.unfollow(follower, actor);
+			await this.userFollowingService.unfollow(follower, actor, false, true);
 			return 'ok: unfollowed';
 		}
 

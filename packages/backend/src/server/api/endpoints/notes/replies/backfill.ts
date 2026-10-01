@@ -9,6 +9,9 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { UtilityService } from '@/core/UtilityService.js';
+import { PostHogService } from '@/core/PostHogService.js';
+import { isLocalUser } from '@/models/User.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../../error.js';
 
@@ -88,6 +91,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly queryService: QueryService,
 		private readonly replyBackfillService: ReplyBackfillService,
 		private readonly utilityService: UtilityService,
+		private readonly postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.notesRepository.createQueryBuilder('note')
@@ -114,7 +118,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.hostNotFederated);
 			}
 
-			return await this.replyBackfillService.requestManual(note.id);
+			const result = await this.replyBackfillService.requestManual(note.id);
+			if (isLocalUser(me) && !isSystemAccount(me)) {
+				this.postHogService.capture(me.id, 'replies_backfill_requested', {
+					queued: result.status === 'queued',
+				});
+			}
+			return result;
 		});
 	}
 }
