@@ -9,7 +9,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { DriveService } from '@/core/DriveService.js';
-import { PostHogService } from '@/core/PostHogService.js';
+import { runDetached } from '@/core/PostHogTracing.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
@@ -62,7 +62,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFileEntityService: DriveFileEntityService,
 		private driveService: DriveService,
 		private globalEventService: GlobalEventService,
-		private postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, user, _1, _2, _3, ip, headers) => {
 			if (ps.comment && ps.comment.length > this.config.maxAltTextLength) {
@@ -70,7 +69,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// The download finishes after the response, so it isn't part of the traced request.
-			this.postHogService.runDetached(() => this.driveService.uploadFromUrl({ url: ps.url, user, folderId: ps.folderId, sensitive: ps.isSensitive, force: ps.force, comment: ps.comment, requestIp: ip, requestHeaders: headers, isForImport: ps.isForImport })).then(file => {
+			runDetached(() => this.driveService.uploadFromUrl({ url: ps.url, user, folderId: ps.folderId, sensitive: ps.isSensitive, force: ps.force, comment: ps.comment, requestIp: ip, requestHeaders: headers, isForImport: ps.isForImport })).then(file => {
 				this.driveFileEntityService.pack(file, { self: true }).then(packedFile => {
 					this.globalEventService.publishMainStream(user.id, 'urlUploadFinished', {
 						marker: ps.marker,

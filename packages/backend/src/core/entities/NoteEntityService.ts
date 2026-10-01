@@ -13,6 +13,7 @@ import type { MiUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
 import type { UsersRepository, NotesRepository, FollowingsRepository, PollsRepository, PollVotesRepository, NoteReactionsRepository, ChannelsRepository, MiMeta, MiPollVote, MiPoll, MiChannel, NoteFavoritesRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { IsOne } from '@/misc/is-one.js';
 import { deepClone } from '@/misc/clone.js';
 import { crawlNote } from '@/misc/crawl-note.js';
@@ -765,6 +766,7 @@ export class NoteEntityService implements OnModuleInit {
 	}
 
 	@bindThis
+	@traced('note.pack_many', (notes: unknown[]) => ({ count: notes.length }))
 	public async packMany(
 		notes: MiNote[],
 		me?: { id: MiUser['id'] } | null | undefined,

@@ -23,6 +23,7 @@ import { InternalEventService } from '@/global/InternalEventService.js';
 import * as Acct from '@/misc/acct.js';
 import { isRemoteUser } from '@/models/User.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 
 @Injectable()
@@ -51,6 +52,7 @@ export class RemoteUserResolveService {
 	}
 
 	@bindThis
+	@traced('user.resolve_acct', (_username: string, host: string | null) => (host ? { 'server.address': host } : {}))
 	public async resolveUser(username: string, host: string | null): Promise<MiLocalUser | MiRemoteUser> {
 		// Normalize inputs
 		const acct = this.utilityService.stringifyAcct({ username, host });

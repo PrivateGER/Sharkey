@@ -12,6 +12,7 @@ import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { DI } from '@/di-symbols.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 import { fromTuple } from '@/misc/from-tuple.js';
@@ -304,6 +305,7 @@ export class Resolver {
 		}
 	}
 
+	@traced('ap.fetch', (_value: string, host: string) => ({ 'server.address': host }))
 	private async _resolve(value: string, host: string, allowAnonymous: boolean, log?: SkApFetchLog): Promise<IObjectWithId> {
 		if (value.includes('#')) {
 			// URLs with fragment parts cannot be resolved correctly because

@@ -24,6 +24,7 @@ import { PollService } from '@/core/PollService.js';
 import { StatusError } from '@/misc/status-error.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { checkHttps } from '@/misc/check-https.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { isRetryableError } from '@/misc/is-retryable-error.js';
@@ -181,6 +182,7 @@ export class ApNoteService implements OnModuleInit {
 	 * Noteを作成します。
 	 */
 	@bindThis
+	@traced('ap.note.create')
 	public async createNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
 		// eslint-disable-next-line no-param-reassign
 		if (resolver == null) resolver = this.apResolverService.createResolver();
@@ -367,6 +369,7 @@ export class ApNoteService implements OnModuleInit {
 	 * Noteを作成します。
 	 */
 	@bindThis
+	@traced('ap.note.update')
 	public async updateNote(value: string | IObject, actor?: MiRemoteUser, resolver?: Resolver, silent = false): Promise<MiNote | null> {
 		const noteUri = getApId(value);
 
@@ -550,6 +553,7 @@ export class ApNoteService implements OnModuleInit {
 	 * リモートサーバーからフェッチしてMisskeyに登録しそれを返します。
 	 */
 	@bindThis
+	@traced('ap.note.resolve')
 	public async resolveNote(value: string | IObject, options: { sentFrom?: string, resolver?: Resolver } = {}): Promise<MiNote | null> {
 		const uri = getApId(value);
 

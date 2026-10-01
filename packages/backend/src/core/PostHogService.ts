@@ -6,7 +6,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import cluster from 'node:cluster';
 import { Inject, Injectable, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { PostHog, type SpanAttributes } from 'posthog-node';
+import { PostHog } from 'posthog-node';
 import { SeverityNumber, type Logger as OtelLogger } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
@@ -15,6 +15,7 @@ import type { Config, PostHogConfig } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { EnvService } from '@/global/EnvService.js';
+import { flushPostHogTracing, startPostHogTracing } from '@/core/PostHogTracing.js';
 
 type PostHogPropertyValue = string | number | boolean | null | undefined | PostHogPropertyValue[] | { [key: string]: PostHogPropertyValue };
 
@@ -38,11 +39,6 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 	private readonly logProvider: LoggerProvider | null = null;
 	private readonly logger: OtelLogger | null = null;
 	private readonly context = new AsyncLocalStorage<PostHogContext>();
-	/**
-	 * Open while a traced user request runs. PostHog's own active span stays visible to async work
-	 * that outlives the request, so it can't tell whether we're still inside one.
-	 */
-	private readonly requestScope = new AsyncLocalStorage<{ open: boolean }>();
 
 	constructor(
 		@Inject(DI.config)
@@ -53,13 +49,13 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 
 		const environment = envService.env.NODE_ENV ?? 'production';
 
-		this.client = new PostHog(config.posthog.projectToken, {
-			host: config.posthog.host,
-			traces: {
-				serviceName: 'sharkey-backend',
-				serviceVersion: config.version,
-				environment,
-			},
+		this.client = new PostHog(config.posthog.projectToken, { host: config.posthog.host });
+		startPostHogTracing({
+			tracesUrl: postHogUrl(config.posthog, 'i/v1/traces'),
+			projectToken: config.posthog.projectToken,
+			serviceVersion: config.version,
+			environment,
+			instrumentLibraries: !config.sentryForBackend,
 		});
 
 		this.logProvider = new LoggerProvider({
@@ -100,53 +96,6 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 		return this.context.run(context, fn);
 	}
 
-	/**
-	 * Traces an API request made by a user. Only user-initiated requests are traced;
-	 * background work such as federation queues is deliberately left out.
-	 */
-	@bindThis
-	public traceUserRequest<T>(distinctId: string, name: string, attributes: SpanAttributes, fn: () => Promise<T>): Promise<T> {
-		const client = this.client;
-		if (!client) return fn();
-
-		const scope = { open: true };
-		// The PostHog context links the span to the user's person.
-		return this.requestScope.run(scope, () => client.withContext({ distinctId }, () => client.withSpan(name, { kind: 'server', attributes }, async (span) => {
-			try {
-				return await fn();
-			} catch (err) {
-				// API errors carry a stable code, which is easier to group by than the message.
-				if (err instanceof Error && 'code' in err && typeof err.code === 'string') span.setAttribute('error.code', err.code);
-				throw err;
-			} finally {
-				scope.open = false;
-			}
-		})));
-	}
-
-	/**
-	 * Times a step of user-facing work. It only becomes a span while a user request traced by
-	 * traceUserRequest is running, so the same code running for federation or queues is never traced.
-	 */
-	@bindThis
-	public withSpan<T>(name: string, attributes: SpanAttributes, fn: () => Promise<T>): Promise<T> {
-		if (!this.client || !this.requestScope.getStore()?.open) return fn();
-		return this.client.withSpan(name, { attributes }, fn);
-	}
-
-	/** Marks the current step as failed, for errors that are handled instead of rethrown. */
-	@bindThis
-	public recordError(err: unknown): void {
-		if (!this.requestScope.getStore()?.open) return;
-		this.client?.getActiveSpan()?.recordException(err);
-	}
-
-	/** Runs work that continues after the response outside the request, so it isn't traced. */
-	@bindThis
-	public runDetached<T>(fn: () => T): T {
-		return this.requestScope.exit(fn);
-	}
-
 	@bindThis
 	public log(message: string, attributes?: Record<string, string | number | boolean>): void {
 		this.logger?.emit({ severityNumber: SeverityNumber.INFO, severityText: 'info', body: message, attributes });
@@ -165,6 +114,7 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 		await Promise.allSettled([
 			this.client?.shutdown(),
 			this.logProvider?.shutdown(),
+			flushPostHogTracing(),
 		]);
 	}
 }

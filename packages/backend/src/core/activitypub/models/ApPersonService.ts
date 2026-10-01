@@ -34,6 +34,7 @@ import type { HashtagService } from '@/core/HashtagService.js';
 import { MiUserNotePining } from '@/models/UserNotePining.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { RoleService } from '@/core/RoleService.js';
 import type { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
@@ -354,6 +355,7 @@ export class ApPersonService implements OnModuleInit {
 	 * Personを作成します。
 	 */
 	@bindThis
+	@traced('ap.person.create')
 	public async createPerson(uri: string, resolver?: Resolver): Promise<MiRemoteUser> {
 		if (typeof uri !== 'string') throw new UnrecoverableError(`failed to create user ${uri}: input is not string`);
 
@@ -606,6 +608,7 @@ export class ApPersonService implements OnModuleInit {
 	 * @param movePreventUris ここに指定されたURIがPersonのmovedToに指定されていたり10回より多く回っている場合これ以上アカウント移行を行わない（無限ループ防止）
 	 */
 	@bindThis
+	@traced('ap.person.update')
 	public async updatePerson(uri: string, resolver?: Resolver | null, hint?: IObject, movePreventUris: string[] = []): Promise<string | void> {
 		if (typeof uri !== 'string') throw new UnrecoverableError(`failed to update user ${uri}: input is not string`);
 
@@ -864,6 +867,7 @@ export class ApPersonService implements OnModuleInit {
 	 * リモートサーバーからフェッチしてMisskeyに登録しそれを返します。
 	 */
 	@bindThis
+	@traced('ap.person.resolve')
 	public async resolvePerson(value: string | IObject, resolver?: Resolver, sentFrom?: string): Promise<MiLocalUser | MiRemoteUser> {
 		const uri = getApId(value);
 
