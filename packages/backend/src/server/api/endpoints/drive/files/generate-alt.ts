@@ -126,13 +126,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				: { type: 'image_url' as const, image_url: { url: file.url } };
 
 			const startedAt = performance.now();
-			const captureGeneration = (outcome: { model: string; usage?: OpenAI.CompletionUsage | null; httpStatus: number | null; isError: boolean }) => {
-				// Prompts, media URLs and generated text are deliberately not sent.
+			const captureGeneration = (outcome: { model: string; usage?: OpenAI.CompletionUsage | null; httpStatus: number | null; isError: boolean; output?: string | null }) => {
 				this.postHogService.capture(me.id, '$ai_generation', {
 					$ai_trace_id: randomUUID(),
 					$ai_session_id: `alt-text:${file.id}`,
 					$ai_provider: aiProviderName(this.config.openai?.baseUrl),
 					$ai_model: outcome.model,
+					$ai_input: [
+						{ role: 'system', content: systemPrompt },
+						// PostHog's LLM view has no video block, so videos are logged as their URL.
+						{ role: 'user', content: [isVideo ? { type: 'text', text: file.url } : mediaContent] },
+					],
+					$ai_output_choices: outcome.output != null ? [{ role: 'assistant', content: outcome.output }] : undefined,
 					$ai_input_tokens: outcome.usage?.prompt_tokens,
 					$ai_output_tokens: outcome.usage?.completion_tokens,
 					$ai_latency: (performance.now() - startedAt) / 1000,
@@ -170,7 +175,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			const isEmpty = response.choices.length === 0 || response.choices[0].message === undefined;
-			captureGeneration({ model: response.model, usage: response.usage, httpStatus: 200, isError: isEmpty });
+			captureGeneration({ model: response.model, usage: response.usage, httpStatus: 200, isError: isEmpty, output: response.choices[0]?.message?.content });
 			if (isEmpty) {
 				throw new ApiError(meta.errors.generationFailed);
 			}

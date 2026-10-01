@@ -16,7 +16,9 @@ import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { EnvService } from '@/global/EnvService.js';
 
-export type PostHogProperties = Record<string, string | number | boolean | null | undefined>;
+type PostHogPropertyValue = string | number | boolean | null | undefined | PostHogPropertyValue[] | { [key: string]: PostHogPropertyValue };
+
+export type PostHogProperties = Record<string, PostHogPropertyValue>;
 
 export type PostHogContext = {
 	properties: PostHogProperties;
@@ -53,7 +55,6 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 
 		this.client = new PostHog(config.posthog.projectToken, {
 			host: config.posthog.host,
-			privacyMode: true,
 			traces: {
 				serviceName: 'sharkey-backend',
 				serviceVersion: config.version,
