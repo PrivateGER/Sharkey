@@ -18,7 +18,7 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 import { instance } from '@/instance.js';
-import { capturePostHogEvent } from '@/utility/posthog.js';
+import { captureAltTextApplied, capturePostHogEvent } from '@/utility/posthog.js';
 
 export type UploaderFeatures = {
 	imageEditing?: boolean;
@@ -689,7 +689,7 @@ export function useUploader(options: {
 				return upload;
 			},
 		}, {
-			done: caption => {
+			done: (caption, generated) => {
 				const comment = caption.trim().length === 0 ? null : caption;
 				item.caption = comment;
 				saving = (async () => {
@@ -700,6 +700,7 @@ export function useUploader(options: {
 					try {
 						item.uploaded = await misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment });
 						item.captionSaveFailed = false;
+						captureAltTextApplied(generated);
 					} catch (err) {
 						console.error('Failed to save alt text', err);
 						// Keeps the uploader open, so the alt text can be saved again

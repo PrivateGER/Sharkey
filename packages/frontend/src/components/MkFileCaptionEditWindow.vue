@@ -46,7 +46,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { capturePostHogEvent } from '@/utility/posthog.js';
+import type { GeneratedAltText } from '@/utility/posthog.js';
 
 const props = defineProps<{
 	file?: Misskey.entities.DriveFile | null;
@@ -70,7 +70,7 @@ const selectedModel = ref<'fast' | 'quality' | 'experimental'>('fast');
 let generatedCaption: { text: string; modelType: 'fast' | 'quality' | 'experimental' } | null = null;
 
 const emit = defineEmits<{
-	(ev: 'done', v: string): void;
+	(ev: 'done', v: string, generated: GeneratedAltText | null): void;
 	(ev: 'closed'): void;
 }>();
 
@@ -123,14 +123,12 @@ function onKeydown(ev: KeyboardEvent) {
 }
 
 async function ok() {
-	emit('done', caption.value);
-	if (generatedCaption !== null) {
-		capturePostHogEvent('alt_text_applied', {
-			edited: caption.value !== generatedCaption.text,
-			model_type: generatedCaption.modelType,
-		});
-		generatedCaption = null;
-	}
+	const generated: GeneratedAltText | null = generatedCaption && {
+		edited: caption.value !== generatedCaption.text,
+		modelType: generatedCaption.modelType,
+	};
+	generatedCaption = null;
+	emit('done', caption.value, generated);
 	dialog.value?.close();
 }
 </script>

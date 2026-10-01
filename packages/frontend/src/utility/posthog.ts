@@ -5,10 +5,38 @@
 
 import type { entities } from 'misskey-js';
 import type { PostHog } from 'posthog-js/dist/module.no-external.js';
+import type { PathResolvedResult } from '@/lib/nirax.js';
 
 let client: PostHog | undefined;
 
-function sanitizeUrls(properties: Record<string, unknown> | undefined): void {
+// Route params that carry credentials: password reset, email verification, unsubscribe, OAuth and MiAuth sessions.
+const secretRouteParams = ['token', 'code', 'session'];
+
+type PathMasker = (pathname: string) => string;
+
+function createPathMasker(router: { resolve(path: string): PathResolvedResult | null }): PathMasker {
+	return (pathname) => {
+		const secrets = new Map<string, string>();
+		for (let resolved = router.resolve(pathname); resolved; resolved = resolved.child ?? null) {
+			for (const name of secretRouteParams) {
+				const value = resolved.props.get(name);
+				if (typeof value === 'string' && value !== '') secrets.set(value, name);
+			}
+		}
+		if (secrets.size === 0) return pathname;
+
+		return pathname.split('/').map(segment => {
+			let decoded = segment;
+			try {
+				decoded = decodeURIComponent(segment);
+			} catch { /* Compare the raw segment. */ }
+			const name = secrets.get(decoded);
+			return name ? `:${name}` : segment;
+		}).join('/');
+	};
+}
+
+function sanitizeUrls(properties: Record<string, unknown> | undefined, maskPath: PathMasker): void {
 	if (!properties) return;
 
 	for (const [key, value] of Object.entries(properties)) {
@@ -17,11 +45,14 @@ function sanitizeUrls(properties: Record<string, unknown> | undefined): void {
 				const url = new URL(value);
 				url.search = '';
 				url.hash = '';
+				if (url.origin === window.location.origin) url.pathname = maskPath(url.pathname);
 				properties[key] = url.href;
 			} catch { /* Leave unparseable URLs unchanged. */ }
+		} else if (typeof value === 'string' && key.endsWith('pathname') && value.startsWith('/')) {
+			properties[key] = maskPath(value);
 		} else if (value !== null && typeof value === 'object') {
 			// Exception stack frames also contain URLs, nested inside arrays of objects.
-			sanitizeUrls(value as Record<string, unknown>);
+			sanitizeUrls(value as Record<string, unknown>, maskPath);
 		}
 	}
 }
@@ -37,6 +68,8 @@ export async function initPostHog(
 		import('posthog-js/dist/exception-autocapture.js'),
 		import('@/router.js'),
 	]);
+
+	const maskPath = createPathMasker(mainRouter);
 
 	posthog.init(config.projectToken, {
 		api_host: config.host,
@@ -75,9 +108,9 @@ export async function initPostHog(
 					}
 				}
 				event.properties.route = route;
-				sanitizeUrls(event.properties);
-				sanitizeUrls(event.$set);
-				sanitizeUrls(event.$set_once);
+				sanitizeUrls(event.properties, maskPath);
+				sanitizeUrls(event.$set, maskPath);
+				sanitizeUrls(event.$set_once, maskPath);
 			}
 			return event;
 		},
@@ -101,6 +134,15 @@ export async function initPostHog(
 
 export function capturePostHogEvent(event: string, properties?: Record<string, string | number | boolean | null>): void {
 	client?.capture(event, properties);
+}
+
+/** How the confirmed alt text relates to an AI generation in the caption dialog. */
+export type GeneratedAltText = { edited: boolean; modelType: 'fast' | 'quality' | 'experimental' };
+
+/** Call once the caption has been persisted, so failed saves aren't counted. */
+export function captureAltTextApplied(generated: GeneratedAltText | null): void {
+	if (generated === null) return;
+	capturePostHogEvent('alt_text_applied', { edited: generated.edited, model_type: generated.modelType });
 }
 
 export function resetPostHog(): void {

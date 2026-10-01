@@ -126,7 +126,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				: { type: 'image_url' as const, image_url: { url: file.url } };
 
 			const startedAt = performance.now();
-			const captureGeneration = (outcome: { model: string; usage?: OpenAI.CompletionUsage | null; error?: unknown }) => {
+			const captureGeneration = (outcome: { model: string; usage?: OpenAI.CompletionUsage | null; httpStatus: number | null; isError: boolean }) => {
 				// Prompts, media URLs and generated text are deliberately not sent.
 				this.postHogService.capture(me.id, '$ai_generation', {
 					$ai_trace_id: randomUUID(),
@@ -136,8 +136,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					$ai_input_tokens: outcome.usage?.prompt_tokens,
 					$ai_output_tokens: outcome.usage?.completion_tokens,
 					$ai_latency: (performance.now() - startedAt) / 1000,
-					$ai_http_status: outcome.error === undefined ? 200 : outcome.error instanceof OpenAI.APIError ? outcome.error.status ?? null : null,
-					$ai_is_error: outcome.error !== undefined,
+					$ai_http_status: outcome.httpStatus,
+					$ai_is_error: outcome.isError,
 					media_type: isVideo ? 'video' : 'image',
 					model_type: modelType,
 				});
@@ -161,12 +161,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				stream: false,
 				store: false,
 			}).catch((error: unknown) => {
-				captureGeneration({ model: selectedModel, error });
+				captureGeneration({ model: selectedModel, httpStatus: error instanceof OpenAI.APIError ? error.status ?? null : null, isError: true });
 				throw error;
 			});
-			captureGeneration({ model: response.model, usage: response.usage });
 
-			if (response.choices.length === 0 || response.choices[0].message === undefined) {
+			const isEmpty = response.choices.length === 0 || response.choices[0].message === undefined;
+			captureGeneration({ model: response.model, usage: response.usage, httpStatus: 200, isError: isEmpty });
+			if (isEmpty) {
 				throw new ApiError(meta.errors.generationFailed);
 			}
 

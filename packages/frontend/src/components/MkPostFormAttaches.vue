@@ -43,6 +43,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
+import { captureAltTextApplied } from '@/utility/posthog.js';
 
 const Sortable = defineAsyncComponent(() => import('vuedraggable').then(x => x.default));
 
@@ -129,13 +130,14 @@ async function describe(file: Misskey.entities.DriveFile) {
 		default: file.comment !== null ? file.comment : '',
 		file: file,
 	}, {
-		done: caption => {
+		done: (caption, generated) => {
 			let comment = caption.length === 0 ? null : caption;
 			misskeyApi('drive/files/update', {
 				fileId: file.id,
 				comment: comment,
 			}).then(() => {
 				file.comment = comment;
+				captureAltTextApplied(generated);
 			});
 		},
 		closed: () => dispose(),
