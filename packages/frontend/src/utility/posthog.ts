@@ -9,7 +9,8 @@ import type { PathResolvedResult } from '@/lib/nirax.js';
 
 let client: PostHog | undefined;
 
-// Route params that carry credentials: password reset, email verification, unsubscribe, OAuth and MiAuth sessions.
+// Route and query params that carry credentials: password reset, email verification, unsubscribe,
+// OAuth and MiAuth sessions, and the session/token/code that auth callbacks append to their URL.
 const secretRouteParams = ['token', 'code', 'session'];
 
 type PathMasker = (pathname: string) => string;
@@ -36,23 +37,24 @@ function createPathMasker(router: { resolve(path: string): PathResolvedResult | 
 	};
 }
 
-function sanitizeUrls(properties: Record<string, unknown> | undefined, maskPath: PathMasker): void {
+function maskCredentialUrls(properties: Record<string, unknown> | undefined, maskPath: PathMasker): void {
 	if (!properties) return;
 
 	for (const [key, value] of Object.entries(properties)) {
-		if (typeof value === 'string' && /^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
+		if (typeof value === 'string' && value.startsWith(window.location.origin + '/')) {
 			try {
 				const url = new URL(value);
-				url.search = '';
-				url.hash = '';
-				if (url.origin === window.location.origin) url.pathname = maskPath(url.pathname);
+				url.pathname = maskPath(url.pathname);
+				for (const name of secretRouteParams) {
+					if (url.searchParams.has(name)) url.searchParams.set(name, 'redacted');
+				}
 				properties[key] = url.href;
 			} catch { /* Leave unparseable URLs unchanged. */ }
 		} else if (typeof value === 'string' && key.endsWith('pathname') && value.startsWith('/')) {
 			properties[key] = maskPath(value);
 		} else if (value !== null && typeof value === 'object') {
 			// Exception stack frames also contain URLs, nested inside arrays of objects.
-			sanitizeUrls(value as Record<string, unknown>, maskPath);
+			maskCredentialUrls(value as Record<string, unknown>, maskPath);
 		}
 	}
 }
@@ -83,8 +85,8 @@ export async function initPostHog(
 		disable_surveys: true,
 		disable_external_dependency_loading: true,
 		person_profiles: 'identified_only',
-		// before_send never sees the /flags request, which would otherwise upload the
-		// unsanitized initial URL as person properties. It also stops project settings
+		// before_send never sees the /flags request, which would otherwise upload the initial
+		// URL, credentials included, as person properties. It also stops project settings
 		// from remotely enabling features that this config turns off.
 		advanced_disable_flags: true,
 		// Avoid a PostHog cookie being attached to every request to this instance.
@@ -108,9 +110,9 @@ export async function initPostHog(
 					}
 				}
 				event.properties.route = route;
-				sanitizeUrls(event.properties, maskPath);
-				sanitizeUrls(event.$set, maskPath);
-				sanitizeUrls(event.$set_once, maskPath);
+				maskCredentialUrls(event.properties, maskPath);
+				maskCredentialUrls(event.$set, maskPath);
+				maskCredentialUrls(event.$set_once, maskPath);
 			}
 			return event;
 		},
