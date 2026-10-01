@@ -1563,7 +1563,7 @@ packages:
     resolution: {integrity: sha512-Ff9+ksdQQB3rMncgqDK78uLznstjyfIf2Arnh22pW8kBpLs6rpKDwgnZT46hin5Hl1WzazzK64DOrhSwYpS7bQ==}
 
   '@aiscript-dev/aiscript-languageserver@https://github.com/aiscript-dev/aiscript-languageserver/releases/download/0.1.6/aiscript-dev-aiscript-languageserver-0.1.6.tgz':
-    resolution: {tarball: https://github.com/aiscript-dev/aiscript-languageserver/releases/download/0.1.6/aiscript-dev-aiscript-languageserver-0.1.6.tgz}
+    resolution: {integrity: sha512-DBcHPHTeAVthlVi4lR4uFBYQU8AakaTYGMMVecGA8s8jFJPxscjkOgQ8/oOnJTcxbQx71V59ECQcoKahXMKcDw==, tarball: https://github.com/aiscript-dev/aiscript-languageserver/releases/download/0.1.6/aiscript-dev-aiscript-languageserver-0.1.6.tgz}
     version: 0.1.6
     hasBin: true
 
