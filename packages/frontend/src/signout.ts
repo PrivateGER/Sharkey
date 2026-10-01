@@ -10,6 +10,7 @@ import { waiting } from '@/os.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { clear } from '@/utility/idb-proxy.js';
 import { $i } from '@/i.js';
+import { resetPostHog } from '@/utility/posthog.js';
 
 export async function signout() {
 	if (!$i) return;
@@ -75,5 +76,6 @@ export async function signout() {
 	}
 	//#endregion
 
+	resetPostHog();
 	unisonReload('/');
 }

@@ -301,6 +301,15 @@ id: 'aidx'
 #  options:
 #    dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0'
 
+#   ┌───────────────────┐
+#───┘ Product analytics └───────────────────────────────────────
+
+# PostHog is available for product analytics.
+
+#posthog:
+#  projectToken: 'phc_exampleProjectToken'
+#  host: 'https://us.i.posthog.com'
+
 #   ┌─────────────────────┐
 #───┘ Other configuration └─────────────────────────────────────
 

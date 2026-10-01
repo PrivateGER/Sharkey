@@ -393,7 +393,7 @@ export class SignupApiService {
 			}
 
 			if (adminUser) {
-				await this.userFollowingService.follow(account, adminUser);
+				await this.userFollowingService.follow(account, adminUser, { skipAnalytics: true });
 			}
 
 			if (this.config.ntfyURL) {

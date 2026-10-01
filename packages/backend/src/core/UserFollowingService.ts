@@ -18,6 +18,7 @@ import InstanceChart from '@/core/chart/charts/instance.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import { DI } from '@/di-symbols.js';
 import type { FollowingsRepository, FollowRequestsRepository, InstancesRepository, MiMeta, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
@@ -33,6 +34,7 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { CollapsedQueueService } from '@/core/CollapsedQueueService.js';
 import type Logger from '../logger.js';
 
@@ -87,6 +89,7 @@ export class UserFollowingService implements OnModuleInit {
 		private notificationService: NotificationService,
 		private federatedInstanceService: FederatedInstanceService,
 		private webhookService: UserWebhookService,
+		private postHogService: PostHogService,
 		private apRendererService: ApRendererService,
 		private accountMoveService: AccountMoveService,
 		private perUserFollowingChart: PerUserFollowingChart,
@@ -115,10 +118,11 @@ export class UserFollowingService implements OnModuleInit {
 	public async follow(
 		_follower: ThinUser,
 		_followee: ThinUser,
-		{ requestId, silent = false, withReplies }: {
+		{ requestId, silent = false, withReplies, skipAnalytics = false }: {
 			requestId?: string,
 			silent?: boolean,
 			withReplies?: boolean,
+			skipAnalytics?: boolean,
 		} = {},
 	): Promise<void> {
 		/**
@@ -206,11 +210,24 @@ export class UserFollowingService implements OnModuleInit {
 
 			if (!autoAccept) {
 				await this.createFollowRequest(follower, followee, requestId, withReplies);
+				if (!silent && !skipAnalytics && this.userEntityService.isLocalUser(follower) && !isSystemAccount(follower) && follower.id !== followee.id) {
+					this.postHogService.capture(follower.id, 'user_followed', {
+						follow_request: true,
+						followee_is_remote: followee.host != null,
+					});
+				}
 				return;
 			}
 		}
 
 		await this.insertFollowingDoc(followee, follower, silent, withReplies);
+
+		if (!silent && !skipAnalytics && this.userEntityService.isLocalUser(follower) && !isSystemAccount(follower) && follower.id !== followee.id) {
+			this.postHogService.capture(follower.id, 'user_followed', {
+				follow_request: false,
+				followee_is_remote: followee.host != null,
+			});
+		}
 
 		if (this.userEntityService.isRemoteUser(follower) && this.userEntityService.isLocalUser(followee)) {
 			trackPromise(this.deliverAccept(follower, followee, requestId));
@@ -343,6 +360,7 @@ export class UserFollowingService implements OnModuleInit {
 			id: MiUser['id']; host: MiUser['host']; uri: MiUser['host']; inbox: MiUser['inbox']; sharedInbox: MiUser['sharedInbox'];
 		},
 		silent = false,
+		skipAnalytics = false,
 	): Promise<void> {
 		const [
 			followerUser,
@@ -359,7 +377,12 @@ export class UserFollowingService implements OnModuleInit {
 			return;
 		}
 
-		await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
+		const result = await this.followingsRepository.delete({ followerId: follower.id, followeeId: followee.id });
+		if (result.affected && !silent && !skipAnalytics && this.userEntityService.isLocalUser(followerUser) && !isSystemAccount(followerUser)) {
+			this.postHogService.capture(follower.id, 'user_unfollowed', {
+				followee_is_remote: followeeUser.host != null,
+			});
+		}
 		await this.internalEventService.emit('unfollow', { followerId: follower.id, followeeId: followee.id });
 
 		this.decrementFollowing(followerUser, followeeUser);

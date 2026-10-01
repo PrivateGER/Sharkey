@@ -15,6 +15,7 @@ import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
 import { TimeService } from '@/global/TimeService.js';
+import { postHogProxyPath } from '@/core/PostHogService.js';
 
 @Injectable()
 export class MetaEntityService {
@@ -146,6 +147,10 @@ export class MetaEntityService {
 			policies: { ...DEFAULT_POLICIES, ...instance.policies },
 
 			sentryForFrontend: this.config.sentryForFrontend ?? null,
+			posthog: this.config.posthog ? {
+				projectToken: this.config.posthog.projectToken,
+				host: `${this.config.scheme}://${this.config.host}${postHogProxyPath}`,
+			} : null,
 			mediaProxy: this.config.mediaProxy,
 			enableUrlPreview: instance.urlPreviewEnabled,
 			noteSearchableScope: (this.config.meilisearch == null || this.config.meilisearch.scope !== 'local') ? 'global' : 'local',

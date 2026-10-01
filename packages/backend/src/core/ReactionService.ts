@@ -16,6 +16,7 @@ import { MiNoteReaction } from '@/models/NoteReaction.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import PerUserReactionsChart from '@/core/chart/charts/per-user-reactions.js';
 import { emojiRegex } from '@/misc/emoji-regex.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
@@ -28,6 +29,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { PER_NOTE_REACTION_USER_PAIR_CACHE_MAX } from '@/const.js';
 import { CacheService } from '@/core/CacheService.js';
@@ -108,6 +110,7 @@ export class ReactionService implements OnModuleInit {
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
 		private notificationService: NotificationService,
+		private postHogService: PostHogService,
 		private perUserReactionsChart: PerUserReactionsChart,
 		private readonly cacheService: CacheService,
 		private readonly noteVisibilityService: NoteVisibilityService,
@@ -123,7 +126,7 @@ export class ReactionService implements OnModuleInit {
 	}
 
 	@bindThis
-	public async create(user: MiUser, note: MiNote, _reaction?: string | null) {
+	public async create(user: MiUser, note: MiNote, _reaction?: string | null, isLike = false) {
 		// Check blocking / visibility
 		if (note.userId !== user.id) {
 			const { accessible } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, user);
@@ -220,6 +223,12 @@ export class ReactionService implements OnModuleInit {
 				})
 				.where('id = :id', { id: note.id })
 				.execute();
+		}
+
+		if (isLocalUser(user) && !isSystemAccount(user)) {
+			this.postHogService.capture(user.id, isLike || reaction === FALLBACK ? 'note_liked' : 'note_reacted', {
+				target_is_remote: note.userHost != null,
+			});
 		}
 
 		this.collapsedQueueService.updateUserQueue.enqueue(user.id, { updatedAt: this.timeService.date });

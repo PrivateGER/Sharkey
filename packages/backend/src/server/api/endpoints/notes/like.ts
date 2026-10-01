@@ -66,7 +66,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (err.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 				throw err;
 			});
-			await this.reactionService.create(me, note, like).catch(async err => {
+			await this.reactionService.create(me, note, like, true).catch(async err => {
 				if (err.id === '51c42bb4-931a-456b-bff7-e5a8a70dd298') {
 					await this.reactionService.delete(me, note);
 					return;

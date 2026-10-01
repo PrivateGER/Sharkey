@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { DriveFilesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { DriveService } from '@/core/DriveService.js';
+import { PostHogService } from '@/core/PostHogService.js';
 import type { Config } from '@/config.js';
 import { ApiError } from '../../../error.js';
 import OpenAI from 'openai';
@@ -79,6 +81,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 		@Inject(DI.config)
 		private config: Config,
+		private postHogService: PostHogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const file = await this.driveFilesRepository.findOneBy({ id: ps.fileId });
@@ -122,6 +125,24 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				? { type: 'video_url' as const, video_url: { url: file.url } }
 				: { type: 'image_url' as const, image_url: { url: file.url } };
 
+			const startedAt = performance.now();
+			const captureGeneration = (outcome: { model: string; usage?: OpenAI.CompletionUsage | null; httpStatus: number | null; isError: boolean }) => {
+				// Prompts, media URLs and generated text are deliberately not sent.
+				this.postHogService.capture(me.id, '$ai_generation', {
+					$ai_trace_id: randomUUID(),
+					$ai_session_id: `alt-text:${file.id}`,
+					$ai_provider: aiProviderName(this.config.openai?.baseUrl),
+					$ai_model: outcome.model,
+					$ai_input_tokens: outcome.usage?.prompt_tokens,
+					$ai_output_tokens: outcome.usage?.completion_tokens,
+					$ai_latency: (performance.now() - startedAt) / 1000,
+					$ai_http_status: outcome.httpStatus,
+					$ai_is_error: outcome.isError,
+					media_type: isVideo ? 'video' : 'image',
+					model_type: modelType,
+				});
+			};
+
 			const response = await client.chat.completions.create({
 				model: selectedModel,
 				messages: [
@@ -139,9 +160,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				],
 				stream: false,
 				store: false,
+			}).catch((error: unknown) => {
+				captureGeneration({ model: selectedModel, httpStatus: error instanceof OpenAI.APIError ? error.status ?? null : null, isError: true });
+				throw error;
 			});
 
-			if (response.choices.length === 0 || response.choices[0].message === undefined) {
+			const isEmpty = response.choices.length === 0 || response.choices[0].message === undefined;
+			captureGeneration({ model: response.model, usage: response.usage, httpStatus: 200, isError: isEmpty });
+			if (isEmpty) {
 				throw new ApiError(meta.errors.generationFailed);
 			}
 
@@ -149,5 +175,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				text: response.choices[0].message.content ?? '',
 			};
 		});
+	}
+}
+
+function aiProviderName(baseUrl: string | undefined): string {
+	if (!baseUrl) return 'openai';
+	try {
+		return new URL(baseUrl).hostname;
+	} catch {
+		return 'unknown';
 	}
 }

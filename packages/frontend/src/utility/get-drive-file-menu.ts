@@ -11,6 +11,7 @@ import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
+import { captureAltTextApplied } from '@/utility/posthog.js';
 
 function rename(file: Misskey.entities.DriveFile) {
 	os.inputText({
@@ -31,11 +32,11 @@ function describe(file: Misskey.entities.DriveFile) {
 		default: file.comment ?? '',
 		file: file,
 	}, {
-		done: caption => {
+		done: (caption, generated) => {
 			misskeyApi('drive/files/update', {
 				fileId: file.id,
 				comment: caption.length === 0 ? null : caption,
-			});
+			}).then(() => captureAltTextApplied(generated));
 		},
 		closed: () => dispose(),
 	});

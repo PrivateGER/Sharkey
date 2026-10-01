@@ -12033,6 +12033,10 @@ export type components = {
                     [key: string]: unknown;
                 } | null;
             } | null;
+            posthog: {
+                projectToken: string;
+                host: string;
+            } | null;
             mediaProxy: string;
             enableUrlPreview: boolean;
             backgroundImageUrl: string | null;

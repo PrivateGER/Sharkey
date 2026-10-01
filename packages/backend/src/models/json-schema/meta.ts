@@ -305,6 +305,20 @@ export const packedMetaLiteSchema = {
 				},
 			},
 		},
+		posthog: {
+			type: 'object',
+			optional: false, nullable: true,
+			properties: {
+				projectToken: {
+					type: 'string',
+					optional: false, nullable: false,
+				},
+				host: {
+					type: 'string',
+					optional: false, nullable: false,
+				},
+			},
+		},
 		mediaProxy: {
 			type: 'string',
 			optional: false, nullable: false,

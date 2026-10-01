@@ -18,6 +18,7 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 import { instance } from '@/instance.js';
+import { captureAltTextApplied, capturePostHogEvent } from '@/utility/posthog.js';
 
 export type UploaderFeatures = {
 	imageEditing?: boolean;
@@ -86,6 +87,7 @@ export type UploaderItem = {
 	uploadFailed: boolean;
 	aborted: boolean;
 	compressionLevel: CompressionLevel;
+	cropped?: boolean;
 	compressedSize?: number | null;
 	/**
 	 * Why the original is uploaded although compression would apply:
@@ -159,6 +161,7 @@ export function useUploader(options: {
 	});
 
 	const items = ref<UploaderItem[]>([]);
+	const processedUploads = new Set<string>();
 
 	function getDefaultCompressionLevel(file: File): CompressionLevel {
 		if (IMAGE_EDITING_SUPPORTED_TYPES.includes(file.type)) return options.compressionLevel ?? prefer.s.defaultImageCompressionLevel;
@@ -296,6 +299,7 @@ export function useUploader(options: {
 					items.value.splice(items.value.indexOf(item), 1, {
 						...item,
 						file: markRaw(cropped),
+						cropped: true,
 						thumbnail: THUMBNAIL_SUPPORTED_TYPES.includes(cropped.type) ? newObjectUrl : null,
 						objectUrl: newObjectUrl,
 					});
@@ -425,6 +429,14 @@ export function useUploader(options: {
 		await filePromise.then((file) => {
 			item.uploaded = file;
 			item.abort = null;
+			if (!processedUploads.has(item.id)) {
+				processedUploads.add(item.id);
+				capturePostHogEvent('upload_processed', {
+					cropped: item.cropped ?? false,
+					compression_level: item.compressedSize != null ? item.compressionLevel : 0,
+					media_type: item.file.type.startsWith('image/') ? 'image' : item.file.type.startsWith('video/') ? 'video' : 'other',
+				});
+			}
 			events.emit('itemUploaded', { item });
 		}).catch(err => {
 			item.uploadFailed = true;
@@ -677,7 +689,7 @@ export function useUploader(options: {
 				return upload;
 			},
 		}, {
-			done: caption => {
+			done: (caption, generated) => {
 				const comment = caption.trim().length === 0 ? null : caption;
 				item.caption = comment;
 				saving = (async () => {
@@ -688,6 +700,7 @@ export function useUploader(options: {
 					try {
 						item.uploaded = await misskeyApi('drive/files/update', { fileId: item.uploaded.id, comment });
 						item.captionSaveFailed = false;
+						captureAltTextApplied(generated);
 					} catch (err) {
 						console.error('Failed to save alt text', err);
 						// Keeps the uploader open, so the alt text can be saved again

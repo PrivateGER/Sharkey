@@ -93,7 +93,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.notFollowing);
 			}
 
-			await this.userFollowingService.unfollow(follower, followee);
+			await this.userFollowingService.unfollow(follower, followee, false, true);
 
 			return await this.userEntityService.pack(follower.id, me);
 		});

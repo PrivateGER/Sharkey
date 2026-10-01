@@ -20,6 +20,7 @@ import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { ApiCallService } from './api/ApiCallService.js';
 import { FileServerService } from './FileServerService.js';
 import { HealthServerService } from './HealthServerService.js';
+import { PostHogProxyServerService } from './PostHogProxyServerService.js';
 import { NodeinfoServerService } from './NodeinfoServerService.js';
 import { ServerService } from './ServerService.js';
 import { WellKnownServerService } from './WellKnownServerService.js';
@@ -78,6 +79,7 @@ const $Imports = [
 		ClientLoggerService,
 		FeedService,
 		HealthServerService,
+		PostHogProxyServerService,
 		UrlPreviewService,
 		ActivityPubServerService,
 		FileServerService,

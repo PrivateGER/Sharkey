@@ -100,6 +100,7 @@ type Source = Partial<QueueConfig> & {
 		browserTracingIntegration?: Parameters<typeof SentryVue.browserTracingIntegration>[0] | null;
 		replayIntegration?: Parameters<typeof SentryVue.replayIntegration>[0] | null;
 	};
+	posthog?: Partial<PostHogConfig>;
 
 	publishTarballInsteadOfProvideRepositoryUrl?: boolean;
 
@@ -249,6 +250,26 @@ function parseIpOrMask(ipOrMask: string): CIDR | null {
 	return null;
 }
 
+export type PostHogConfig = {
+	/** Public project token; it is also sent to browsers. */
+	projectToken: string;
+	host: string;
+};
+
+function parsePostHogConfig(source: Partial<PostHogConfig> | undefined, configLogger: Logger): PostHogConfig | undefined {
+	if (!source) return undefined;
+	if (!source.projectToken || !source.host) {
+		configLogger.warn('posthog requires both projectToken and host; PostHog is disabled');
+		return undefined;
+	}
+	if (!URL.canParse(source.host)) {
+		configLogger.warn('posthog.host is not a valid URL; PostHog is disabled');
+		return undefined;
+	}
+
+	return { projectToken: source.projectToken, host: source.host };
+}
+
 export type Config = QueueConfig & {
 	url: string;
 	port: number;
@@ -353,6 +374,7 @@ export type Config = QueueConfig & {
 		browserTracingIntegration?: Parameters<typeof SentryVue.browserTracingIntegration>[0] | null;
 		replayIntegration?: Parameters<typeof SentryVue.replayIntegration>[0] | null;
 	} | undefined;
+	posthog: PostHogConfig | undefined;
 	perChannelMaxNoteCacheCount: number;
 	perUserNotificationsMaxCount: number;
 	deactivateAntennaThreshold: number;
@@ -516,6 +538,7 @@ export function loadConfig(logger?: Logger): Config {
 		redisForRateLimit: config.redisForRateLimit ? convertRedisOptions(config.redisForRateLimit, host) : redis,
 		sentryForBackend: config.sentryForBackend,
 		sentryForFrontend: config.sentryForFrontend,
+		posthog: parsePostHogConfig(config.posthog, configLogger),
 		id: config.id,
 		proxy: config.proxy,
 		proxySmtp: config.proxySmtp,
@@ -731,6 +754,7 @@ function applyEnvOverrides(config: Source) {
 	_apply_top(['sentryForFrontend', 'vueIntegration', ['attachProps', 'attachErrorHandler']]);
 	_apply_top(['sentryForFrontend', 'vueIntegration', 'tracingOptions', 'timeout']);
 	_apply_top(['sentryForFrontend', 'browserTracingIntegration', 'routeLabel']);
+	_apply_top(['posthog', ['projectToken', 'host']]);
 	_apply_top([['clusterLimit', 'deliverJobConcurrency', 'inboxJobConcurrency', 'relashionshipJobConcurrency', 'deliverJobPerSec', 'inboxJobPerSec', 'relashionshipJobPerSec', 'deliverJobMaxAttempts', 'inboxJobMaxAttempts']]);
 	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaDirectory', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator']]);
 	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'maxBioLength', 'maxRemoteBioLength', 'maxDialogAnnouncements', 'pidFile', 'filePermissionBits']]);

@@ -83,6 +83,7 @@ import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
+import { captureAltTextApplied } from '@/utility/posthog.js';
 
 const router = useRouter();
 
@@ -191,11 +192,12 @@ function describe() {
 		default: file.value.comment ?? '',
 		file: file.value,
 	}, {
-		done: caption => {
+		done: (caption, generated) => {
 			os.apiWithDialog('drive/files/update', {
 				fileId: file.value.id,
 				comment: caption.length === 0 ? null : caption,
 			}).then(async () => {
+				captureAltTextApplied(generated);
 				await fetch();
 			});
 		},

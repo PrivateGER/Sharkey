@@ -2,6 +2,10 @@
 
 ## 2025.5.2
 
+### Node.js 22.22 or newer
+
+The backend now requires Node.js 22.22.0 or newer.
+
 ### Mark instance as NSFW
 
 The "Mark instance as NSFW" has been removed in favor of the new "mandatory CW" / "force CW" system.
