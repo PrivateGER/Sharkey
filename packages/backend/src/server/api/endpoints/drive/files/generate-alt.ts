@@ -11,6 +11,7 @@ import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { DriveService } from '@/core/DriveService.js';
 import { PostHogService } from '@/core/PostHogService.js';
+import { withSpan } from '@/core/PostHogTracing.js';
 import type { Config } from '@/config.js';
 import { ApiError } from '../../../error.js';
 import OpenAI from 'openai';
@@ -148,7 +149,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				});
 			};
 
-			const response = await this.postHogService.withSpan<OpenAI.ChatCompletion>('alt_text.generate', {
+			const response = await withSpan<OpenAI.ChatCompletion>('alt_text.generate', {
 				model: selectedModel,
 				model_type: modelType,
 				media_type: isVideo ? 'video' : 'image',

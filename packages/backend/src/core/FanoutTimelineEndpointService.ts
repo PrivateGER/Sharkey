@@ -6,6 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import type { MiUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
 import type { MiMeta } from '@/models/Meta.js';
@@ -67,6 +68,7 @@ export class FanoutTimelineEndpointService {
 	}
 
 	@bindThis
+	@traced('timeline.collect_notes')
 	async getMiNotes(ps: TimelineOptions): Promise<MiNote[]> {
 		// 呼び出し元と以下の処理をシンプルにするためにdbFallbackを置き換える
 		if (!ps.useDbFallback) ps.dbFallback = () => Promise.resolve([]);

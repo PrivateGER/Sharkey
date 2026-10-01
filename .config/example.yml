@@ -316,7 +316,7 @@ id: 'aidx'
 #   ┌───────────────────┐
 #───┘ Product analytics └───────────────────────────────────────
 
-# PostHog is available for product analytics.
+# PostHog is available for product analytics and for tracing logged-in users' API requests.
 
 #posthog:
 #  projectToken: 'phc_exampleProjectToken'

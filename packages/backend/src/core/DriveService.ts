@@ -48,7 +48,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { BunnyService } from '@/core/BunnyService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
-import { PostHogService } from '@/core/PostHogService.js';
+import { withSpan } from '@/core/PostHogTracing.js';
 import { LoggerService } from './LoggerService.js';
 
 type AddFileArgs = {
@@ -145,7 +145,6 @@ export class DriveService {
 		private instanceChart: InstanceChart,
 		private utilityService: UtilityService,
 		private readonly cacheService: CacheService,
-		private readonly postHogService: PostHogService,
 
 		loggerService: LoggerService,
 	) {
@@ -170,7 +169,7 @@ export class DriveService {
 
 		// thunbnail, webpublic を必要なら生成
 		const mediaType = type.split('/')[0];
-		const alts = await this.postHogService.withSpan('drive.generate_variants', { media_type: mediaType }, () => this.generateAlts(path, type, !file.uri));
+		const alts = await withSpan('drive.generate_variants', { media_type: mediaType }, () => this.generateAlts(path, type, !file.uri));
 
 		if (alts.duration != null) {
 			file.properties = { ...file.properties, duration: alts.duration };
@@ -178,7 +177,7 @@ export class DriveService {
 
 		if (type && type.startsWith('video/')) {
 			try {
-				await this.postHogService.withSpan('drive.optimize_video', {}, () => this.videoProcessingService.webOptimizeVideo(path, type));
+				await withSpan('drive.optimize_video', {}, () => this.videoProcessingService.webOptimizeVideo(path, type));
 				const newInfo = await this.fileInfoService.getFileInfo(path);
 				hash = newInfo.md5;
 				size = newInfo.size;
@@ -520,7 +519,7 @@ export class DriveService {
 		ext = null,
 	}: AddFileArgs): Promise<AddFileResult> {
 		const userRoleNSFW = user && (await this.roleService.getUserPolicies(user.id)).alwaysMarkNsfw;
-		const info = await this.postHogService.withSpan('drive.analyze', {}, () => this.fileInfoService.getFileInfo(path));
+		const info = await withSpan('drive.analyze', {}, () => this.fileInfoService.getFileInfo(path));
 
 		// detect name
 		const detectedName = correctFilename(
@@ -684,7 +683,7 @@ export class DriveService {
 				}
 			}
 		} else {
-			file = await this.postHogService.withSpan('drive.save', { media_type: info.type.mime.split('/')[0] }, () => this.save(file, path, detectedName, info));
+			file = await withSpan('drive.save', { media_type: info.type.mime.split('/')[0] }, () => this.save(file, path, detectedName, info));
 		}
 
 		this.registerLogger.info(`Created file ${file.id} (${detectedName}) of type ${info.type.mime} for user ${user?.id ?? '<none>'}`);

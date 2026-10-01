@@ -18,6 +18,7 @@ import { createTemp } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import { PostHogService } from '@/core/PostHogService.js';
+import { traceUserRequest } from '@/core/PostHogTracing.js';
 import type { Config } from '@/config.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
@@ -448,7 +449,7 @@ export class ApiCallService {
 		const exec = () => ep.exec(data, user, token, file, request.ip, request.headers);
 		// Errors are normalized after tracing, so the span records the original exception rather than the generic API error.
 		const run = () => (user
-			? this.postHogService.traceUserRequest(user.id, 'API: ' + ep.name, { client: token ? 'api_app' : 'web' }, exec)
+			? traceUserRequest(user.id, 'API: ' + ep.name, { client: token ? 'api_app' : 'web' }, exec)
 			: exec()
 		).catch((err: Error) => this.#onExecError(ep, data, err, user?.id));
 		if (this.config.sentryForBackend) {

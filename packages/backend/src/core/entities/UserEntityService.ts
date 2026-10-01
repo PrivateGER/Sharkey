@@ -44,6 +44,7 @@ import type {
 } from '@/models/_.js';
 import { IsOne } from '@/misc/is-one.js';
 import { bindThis } from '@/decorators.js';
+import { traced } from '@/core/PostHogTracing.js';
 import { getCallerId } from '@/misc/attach-caller-id.js';
 import { isSystemAccount } from '@/misc/is-system-account.js';
 import { TimeService } from '@/global/TimeService.js';
@@ -612,6 +613,7 @@ export class UserEntityService implements OnModuleInit {
 		return await awaitAll(packed);
 	}
 
+	@traced('user.pack_many', (users: unknown[]) => ({ count: users.length }))
 	public async packMany<S extends 'MeDetailed' | 'UserDetailedNotMe' | 'UserDetailed' | 'UserLite' = 'UserLite'>(
 		usersOrIds: (MiUser['id'] | MiUser)[],
 		me?: { id: MiUser['id'] } | null | undefined,
