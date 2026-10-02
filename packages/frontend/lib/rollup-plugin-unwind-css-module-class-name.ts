@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { parse } from 'acorn';
 import { generate } from 'astring';
+import { SourceMapGenerator } from 'source-map-js';
 import { walk } from '../node_modules/estree-walker/src/index.js';
 import type * as estree from 'estree';
 import type * as estreeWalker from 'estree-walker';
+import type { Options as AstringOptions } from 'astring';
 import type { Plugin } from 'vite';
 import type { Identifier } from 'estree';
 
@@ -476,10 +479,14 @@ export function unwindCssModuleClassName(ast: estree.Node): void {
 export default function pluginUnwindCssModuleClassName(): Plugin {
 	return {
 		name: 'UnwindCssModuleClassName',
-		renderChunk(code): { code: string } {
-			const ast = this.parse(code) as unknown as estree.Node;
+		renderChunk(code, chunk) {
+			// Rollup's this.parse() omits `loc`, which astring needs to emit mappings. Returning code without a map makes Rollup discard every earlier sourcemap for the chunk.
+			const ast = parse(code, { ecmaVersion: 'latest', sourceType: 'module', locations: true }) as unknown as estree.Node;
 			unwindCssModuleClassName(ast);
-			return { code: generate(ast) };
+			const sourceMap = new SourceMapGenerator({ file: chunk.fileName });
+			// source-map-js is a fork of source-map with the same generator API; only unrelated method typings differ.
+			const generated = generate(ast, { sourceMap: sourceMap as unknown as AstringOptions<null>['sourceMap'] });
+			return { code: generated, map: sourceMap.toString() };
 		},
 	};
 }

@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1.4
+# syntax = docker/dockerfile:1.10
 
 ARG NODE_VERSION=22-alpine3.22
 
@@ -21,6 +21,15 @@ RUN pnpm config set fetch-retries 5
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
 	pnpm i --frozen-lockfile --aggregate-output
 RUN pnpm build
+# Must run on the exact files that ship: PostHog matches errors to maps via the injected chunk IDs.
+# Gated on a build arg rather than the secret alone: secret contents are excluded from BuildKit cache keys,
+# so enabling the key would otherwise reuse a cached layer where the upload was skipped.
+ARG POSTHOG_SOURCEMAPS=false
+RUN --mount=type=secret,id=posthog_cli_api_key,env=POSTHOG_CLI_API_KEY \
+	if [ "$POSTHOG_SOURCEMAPS" = true ]; then \
+		POSTHOG_CLI_HOST=https://eu.posthog.com POSTHOG_CLI_PROJECT_ID=290347 \
+		pnpm dlx @posthog/cli@0.18.9 sourcemap process --directory built/_frontend_vite_ --release-name sharkey; \
+	fi
 RUN node scripts/trim-deps.js
 RUN mv packages/frontend/assets sharkey-assets
 RUN mv packages/frontend-embed/assets sharkey-embed-assets
