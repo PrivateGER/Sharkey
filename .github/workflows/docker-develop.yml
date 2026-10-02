@@ -56,3 +56,7 @@ jobs:
           labels: develop
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            POSTHOG_SOURCEMAPS=${{ secrets.POSTHOG_CLI_API_KEY != '' }}
+          secrets: |
+            posthog_cli_api_key=${{ secrets.POSTHOG_CLI_API_KEY }}
