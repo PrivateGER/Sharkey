@@ -56,6 +56,7 @@ export class PostHogService implements OnApplicationBootstrap, OnApplicationShut
 			serviceVersion: config.version,
 			environment,
 			instrumentLibraries: !config.sentryForBackend,
+			untracedUserIds: config.posthog.untracedUserIds,
 		});
 
 		this.logProvider = new LoggerProvider({

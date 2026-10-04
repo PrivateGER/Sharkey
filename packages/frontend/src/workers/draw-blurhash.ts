@@ -5,7 +5,12 @@
 
 import { render } from 'buraha';
 
-const canvas = new OffscreenCanvas(64, 64);
+let canvas = new OffscreenCanvas(64, 64);
+
+function draw(hash: string): ImageBitmap {
+	render(hash, canvas);
+	return canvas.transferToImageBitmap();
+}
 
 onmessage = (event) => {
 	// console.log(event.data);
@@ -16,7 +21,19 @@ onmessage = (event) => {
 		return;
 	}
 
-	render(event.data.hash, canvas);
-	const bitmap = canvas.transferToImageBitmap();
+	let bitmap: ImageBitmap;
+	try {
+		bitmap = draw(event.data.hash);
+	} catch {
+		// A lost WebGL context (common on Android once the GPU reclaims it) stays lost for this canvas,
+		// so every later draw would fail too. A new canvas gets a fresh context.
+		canvas = new OffscreenCanvas(64, 64);
+		try {
+			bitmap = draw(event.data.hash);
+		} catch {
+			// No usable WebGL context; the component keeps showing the average colour.
+			return;
+		}
+	}
 	postMessage({ id: event.data.id, bitmap });
 };

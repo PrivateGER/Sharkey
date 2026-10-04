@@ -321,6 +321,9 @@ id: 'aidx'
 #posthog:
 #  projectToken: 'phc_exampleProjectToken'
 #  host: 'https://us.i.posthog.com'
+#  # API requests by these users are not traced, e.g. accounts used by in-instance services.
+#  untracedUserIds:
+#    - '9abcdefghi'
 
 #   ┌─────────────────────┐
 #───┘ Other configuration └─────────────────────────────────────

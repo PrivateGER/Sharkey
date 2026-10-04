@@ -467,7 +467,8 @@ function init() {
 			hasAudio(videoEl.value).then(had => {
 				if (!had && videoEl.value) {
 					videoEl.value.loop = videoEl.value.muted = true;
-					videoEl.value.play();
+					// Browsers can still block muted autoplay; the video then just waits for a click.
+					videoEl.value.play().catch(() => {});
 				}
 			});
 		}
