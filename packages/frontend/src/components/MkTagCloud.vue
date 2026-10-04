@@ -70,7 +70,12 @@ onBeforeUnmount(() => {
 
 defineExpose({
 	update: () => {
-		window.TagCanvas.Update(idForCanvas);
+		try {
+			window.TagCanvas.Update(idForCanvas);
+		} catch {
+			// TagCanvas can throw while re-measuring tags (a non-finite size reaches getImageData);
+			// the cloud then keeps showing the previous tags, same as when Start fails.
+		}
 	},
 });
 </script>
