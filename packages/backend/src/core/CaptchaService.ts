@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import type { MiLocalUser } from '@/models/User.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { bindThis } from '@/decorators.js';
 import { MetaService } from '@/core/MetaService.js';
@@ -267,6 +268,7 @@ export class CaptchaService {
 	 *
 	 * @param provider 検証するcaptchaのプロバイダ
 	 * @param params
+	 * @param opts
 	 * @param params.sitekey hcaptcha, recaptcha, turnstile, mcaptchaの場合に指定するsitekey. それ以外のプロバイダでは無視されます
 	 * @param params.secret hcaptcha, recaptcha, turnstile, mcaptchaの場合に指定するsecret. それ以外のプロバイダでは無視されます
 	 * @param params.instanceUrl mcaptchaの場合に指定するインスタンスのURL. それ以外のプロバイダでは無視されます
@@ -286,6 +288,9 @@ export class CaptchaService {
 			instanceUrl?: string | null;
 			captchaResult?: string | null;
 		},
+		opts?: {
+			moderator?: MiLocalUser | null,
+		},
 	): Promise<CaptchaSaveResult> {
 		if (!supportedCaptchaProviders.includes(provider)) {
 			return {
@@ -296,7 +301,7 @@ export class CaptchaService {
 
 		const operation = {
 			none: async () => {
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			hcaptcha: async () => {
 				if (!params?.secret || !params.captchaResult) {
@@ -304,7 +309,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyHcaptcha(params.secret, params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			mcaptcha: async () => {
 				if (!params?.secret || !params.sitekey || !params.instanceUrl || !params.captchaResult) {
@@ -312,7 +317,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyMcaptcha(params.secret, params.sitekey, params.instanceUrl, params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			recaptcha: async () => {
 				if (!params?.secret || !params.captchaResult) {
@@ -320,7 +325,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyRecaptcha(params.secret, params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			turnstile: async () => {
 				if (!params?.secret || !params.captchaResult) {
@@ -328,7 +333,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyTurnstile(params.secret, params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			testcaptcha: async () => {
 				if (!params?.captchaResult) {
@@ -336,7 +341,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyTestcaptcha(params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 			fc: async () => {
 				if (!params?.secret || !params.captchaResult) {
@@ -344,7 +349,7 @@ export class CaptchaService {
 				}
 
 				await this.verifyFriendlyCaptcha(params.secret, params.captchaResult);
-				await this.updateMeta(provider, params);
+				await this.updateMeta(provider, params, opts);
 			},
 		}[provider];
 
@@ -369,6 +374,9 @@ export class CaptchaService {
 			sitekey?: string | null;
 			secret?: string | null;
 			instanceUrl?: string | null;
+		},
+		opts?: {
+			moderator?: MiLocalUser | null,
 		},
 	) {
 		const metaPartial: Partial<
@@ -422,7 +430,9 @@ export class CaptchaService {
 			}
 		}
 
-		await this.metaService.update(metaPartial);
+		await this.metaService.update(metaPartial, {
+			moderator: opts?.moderator,
+		});
 	}
 }
 
