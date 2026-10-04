@@ -78,7 +78,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			try {
 				const canUseApiKey = !!me && (await this.roleService.getUserPolicies(me)).canFetchLBMetadata;
 				const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
-				return listenBrainzService.fetchForUser(profile, canUseApiKey);
+				return await listenBrainzService.fetchForUser(profile, canUseApiKey);
 			} catch (err) {
 				if (err instanceof IdentifiableError) {
 					throw new ApiError(ERROR_MAP[err.id]);
