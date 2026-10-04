@@ -25,6 +25,8 @@ export type PostHogTracingOptions = {
 	 * instrumentation packages, and a second instance would unwrap Sentry's patches.
 	 */
 	instrumentLibraries: boolean;
+	/** Users whose requests are never traced, such as accounts driven by in-instance services. */
+	untracedUserIds: readonly string[];
 };
 
 type RequestState = { open: boolean };
@@ -42,6 +44,7 @@ const pathAttributes = ['http.target', 'url.path', 'url.query'];
 let tracer: Tracer | null = null;
 let provider: BasicTracerProvider | null = null;
 let exporter: OTLPTraceExporter | null = null;
+let untracedUserIds: ReadonlySet<string> = new Set();
 
 /**
  * Spans are recorded only while a user request traced by {@link traceUserRequest} is still running,
@@ -92,6 +95,8 @@ const openSpanTracker: SpanProcessor = {
  */
 export function startPostHogTracing(options: PostHogTracingOptions): void {
 	if (provider) return;
+
+	untracedUserIds = new Set(options.untracedUserIds);
 
 	exporter = new OTLPTraceExporter({
 		url: options.tracesUrl,
@@ -184,7 +189,7 @@ function recordFailure(span: Span, err: unknown): void {
  * so background work such as federation queues is never traced.
  */
 export async function traceUserRequest<T>(distinctId: string, name: string, attributes: Attributes, fn: () => Promise<T>): Promise<T> {
-	if (!tracer) return await fn();
+	if (!tracer || untracedUserIds.has(distinctId)) return await fn();
 
 	const request: RequestState = { open: true };
 	const requestContext = context.active().setValue(distinctIdKey, distinctId).setValue(requestKey, request);

@@ -254,6 +254,7 @@ export type PostHogConfig = {
 	/** Public project token; it is also sent to browsers. */
 	projectToken: string;
 	host: string;
+	untracedUserIds: string[];
 };
 
 function parsePostHogConfig(source: Partial<PostHogConfig> | undefined, configLogger: Logger): PostHogConfig | undefined {
@@ -267,7 +268,13 @@ function parsePostHogConfig(source: Partial<PostHogConfig> | undefined, configLo
 		return undefined;
 	}
 
-	return { projectToken: source.projectToken, host: source.host };
+	let untracedUserIds = source.untracedUserIds ?? [];
+	if (!Array.isArray(untracedUserIds) || !untracedUserIds.every(id => typeof id === 'string')) {
+		configLogger.warn('posthog.untracedUserIds must be a list of user ID strings; ignoring it');
+		untracedUserIds = [];
+	}
+
+	return { projectToken: source.projectToken, host: source.host, untracedUserIds };
 }
 
 export type Config = QueueConfig & {

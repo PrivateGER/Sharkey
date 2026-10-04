@@ -43,6 +43,7 @@ describe('PostHogTracing', () => {
 			serviceVersion: 'test',
 			environment: 'test',
 			instrumentLibraries: false,
+			untracedUserIds: ['service'],
 		});
 	});
 
@@ -83,6 +84,12 @@ describe('PostHogTracing', () => {
 		});
 
 		expect(await exportedNames()).not.toContain('detached');
+	});
+
+	test('does not record requests by untraced users', async () => {
+		await traceUserRequest('service', 'API: test', {}, () => withSpan('step', {}, async () => undefined));
+
+		expect(await exportedNames()).toEqual([]);
 	});
 
 	test('stops recording new steps once the request has returned, even under a step that is still running', async () => {
