@@ -11,6 +11,17 @@ export const pendingApiRequestsCount = ref(0);
 
 export type Endpoint = keyof Misskey.Endpoints;
 
+/**
+ * API errors are plain objects, so error tracking gets no stack trace when one goes unhandled.
+ * Attach the stack of the call site as a non-enumerable property, which keeps the error's serialized shape.
+ */
+function withCallSite(error: unknown, callSite: Error): unknown {
+	if (error != null && typeof error === 'object' && !('stack' in error)) {
+		Object.defineProperty(error, 'stack', { value: callSite.stack, configurable: true, writable: true });
+	}
+	return error;
+}
+
 export type Request<E extends Endpoint> = Misskey.Endpoints[E]['req'];
 
 export type AnyRequest<E extends Endpoint | (string & unknown)> =
@@ -34,6 +45,7 @@ export function misskeyApi<
 	signal?: AbortSignal,
 ): Promise<_ResT> {
 	if (endpoint.includes('://')) throw new Error('invalid endpoint');
+	const callSite = new Error(`API request to ${endpoint} failed`);
 	pendingApiRequestsCount.value++;
 
 	const onFinally = () => {
@@ -75,7 +87,7 @@ export function misskeyApi<
 			} else if (res.status === 204) {
 				resolve(undefined as _ResT); // void -> undefined
 			} else {
-				reject(body.error);
+				reject(withCallSite(body.error, callSite));
 			}
 		}).catch(reject);
 	});
@@ -97,6 +109,7 @@ export function misskeyApiGet<
 	token?: string | null | undefined,
 	signal?: AbortSignal,
 ): Promise<_ResT> {
+	const callSite = new Error(`API request to ${endpoint} failed`);
 	pendingApiRequestsCount.value++;
 
 	const onFinally = () => {
@@ -135,7 +148,7 @@ export function misskeyApiGet<
 			} else if (res.status === 204) {
 				resolve(undefined as _ResT); // void -> undefined
 			} else {
-				reject(body.error);
+				reject(withCallSite(body.error, callSite));
 			}
 		}).catch(reject);
 	});
