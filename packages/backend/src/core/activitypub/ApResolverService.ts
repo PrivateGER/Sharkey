@@ -305,7 +305,7 @@ export class Resolver {
 		}
 	}
 
-	@traced('ap.fetch', (_value: string, host: string) => ({ 'server.address': host }))
+	@traced('ap.fetch', (value: string, host: string) => ({ 'server.address': host, 'url.full': value }))
 	private async _resolve(value: string, host: string, allowAnonymous: boolean, log?: SkApFetchLog): Promise<IObjectWithId> {
 		if (value.includes('#')) {
 			// URLs with fragment parts cannot be resolved correctly because

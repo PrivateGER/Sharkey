@@ -38,8 +38,17 @@ const distinctIdKey = createContextKey('sharkey.posthog.distinctId');
 const openSpans = new WeakSet<object>();
 
 /** URL attributes from the HTTP instrumentations; paths and queries can carry emails and API keys. */
-const urlAttributes = ['http.url', 'url.full'];
-const pathAttributes = ['http.target', 'url.path', 'url.query'];
+const urlAttributes = ['http.url', 'url.full', 'http.target', 'url.path'];
+const queryAttributes = ['url.query'];
+
+/**
+ * Matches query parameter names, lowercased and stripped of separators, whose values are credentials.
+ * `i` is the access token parameter of the Misskey API.
+ */
+const credentialParam = /(?:key|token|secret|password|passwd|pwd|sig|signature|hmac|auth|authorization|credential|session|code|otp)$|^xamz|^i$/;
+
+/** The local part of an email address, which identifies a person, e.g. in email validation API calls. */
+const emailLocalPart = /[^\s/?#&=:@]+(?=(?:@|%40)[\w-]+(?:\.[\w-]+)+)/gi;
 
 let tracer: Tracer | null = null;
 let provider: BasicTracerProvider | null = null;
@@ -76,10 +85,11 @@ const openSpanTracker: SpanProcessor = {
 	onEnding(span) {
 		for (const key of urlAttributes) {
 			const url = span.attributes[key];
-			if (typeof url === 'string') span.setAttribute(key, URL.canParse(url) ? new URL(url).origin : '[redacted]');
+			if (typeof url === 'string') span.setAttribute(key, redactUrl(url));
 		}
-		for (const key of pathAttributes) {
-			if (key in span.attributes) span.setAttribute(key, '[redacted]');
+		for (const key of queryAttributes) {
+			const query = span.attributes[key];
+			if (typeof query === 'string') span.setAttribute(key, redactQuery(query));
 		}
 	},
 	onEnd(span: ReadableSpan) {
@@ -169,17 +179,40 @@ export function sqlSpanName(sql: string): string {
 	return /^\s*(\w+)/.exec(sql)?.[1].toUpperCase() ?? 'SQL';
 }
 
-/** HttpRequestService errors embed the request URL, whose query can hold third-party API keys. */
-function stripUrlQueries(text: string): string {
-	return text.replace(/(https?:\/\/[^\s?#]+)[?#]\S*/gi, '$1');
+function redactQuery(query: string): string {
+	return query.split('&').map(pair => {
+		const eq = pair.indexOf('=');
+		if (eq === -1) return pair.replace(emailLocalPart, '[redacted]');
+		const name = pair.slice(0, eq);
+		const value = credentialParam.test(name.toLowerCase().replace(/[^a-z]/g, '')) ? '[redacted]' : pair.slice(eq + 1).replace(emailLocalPart, '[redacted]');
+		return `${name}=${value}`;
+	}).join('&');
+}
+
+/**
+ * Keeps a URL (or path) readable for debugging, but removes credentials and email addresses:
+ * userinfo, the values of credential-like query parameters, and the fragment, which can hold OAuth tokens.
+ */
+export function redactUrl(url: string): string {
+	const withoutFragment = url.split('#', 1)[0];
+	const queryStart = withoutFragment.indexOf('?');
+	const base = (queryStart === -1 ? withoutFragment : withoutFragment.slice(0, queryStart))
+		.replace(/^([a-z][a-z\d+.-]*:\/\/)[^/@]*@/i, '$1[redacted]@')
+		.replace(emailLocalPart, '[redacted]');
+	return queryStart === -1 ? base : `${base}?${redactQuery(withoutFragment.slice(queryStart + 1))}`;
+}
+
+/** HttpRequestService errors embed the request URL, which can hold third-party API keys. */
+function redactUrls(text: string): string {
+	return text.replace(/https?:\/\/[^\s"'<>]+/gi, redactUrl);
 }
 
 function recordFailure(span: Span, err: unknown): void {
-	const message = stripUrlQueries(err instanceof Error ? err.message : String(err));
+	const message = redactUrls(err instanceof Error ? err.message : String(err));
 	span.recordException({
 		name: err instanceof Error ? err.name : undefined,
 		message,
-		stack: err instanceof Error && err.stack ? stripUrlQueries(err.stack) : undefined,
+		stack: err instanceof Error && err.stack ? redactUrls(err.stack) : undefined,
 	});
 	span.setStatus({ code: SpanStatusCode.ERROR, message });
 }

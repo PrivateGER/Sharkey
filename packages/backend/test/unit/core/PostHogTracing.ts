@@ -113,14 +113,29 @@ describe('PostHogTracing', () => {
 	test.each([
 		'https://remote.example/api/check',
 		'HTTPS://remote.example/api/check',
-	])('does not export URL query strings from errors (%s)', async (url) => {
+	])('keeps URLs in errors but redacts credentials in their query (%s)', async (url) => {
 		await expect(traceUserRequest('user1', 'API: test', {}, async () => {
-			throw new Error(`request error from ${url}?key=SECRET`);
+			throw new Error(`request error from ${url}?page=2&key=SECRET`);
 		})).rejects.toThrow();
 
 		await flushPostHogTracing();
 		const [span] = exported;
-		expect(span.status?.message).toBe(`request error from ${url}`);
+		expect(span.status?.message).toBe(`request error from ${url}?page=2&key=[redacted]`);
+		expect(JSON.stringify(span)).not.toContain('SECRET');
+	});
+
+	test.each([
+		['https://remote.example/notes/9abc?page=2', 'https://remote.example/notes/9abc?page=2'],
+		['https://user:SECRET@remote.example/inbox', 'https://[redacted]@remote.example/inbox'],
+		['https://remote.example/a?access_token=SECRET&X-Amz-Signature=SECRET&i=SECRET#SECRET', 'https://remote.example/a?access_token=[redacted]&X-Amz-Signature=[redacted]&i=[redacted]'],
+		['https://verifymail.io/api/alice@example.com?key=SECRET', 'https://verifymail.io/api/[redacted]@example.com?key=[redacted]'],
+		['/check?email=alice%40example.com&format=json', '/check?email=[redacted]%40example.com&format=json'],
+	])('redacts credentials and emails from URL attributes (%s)', async (url, expected) => {
+		await traceUserRequest('user1', 'API: test', {}, () => withSpan('fetch', { 'url.full': url }, async () => undefined));
+
+		await flushPostHogTracing();
+		const span = exported.find(s => s.name === 'fetch');
+		expect(span?.attributes).toContainEqual({ key: 'url.full', value: { stringValue: expected } });
 		expect(JSON.stringify(span)).not.toContain('SECRET');
 	});
 });
