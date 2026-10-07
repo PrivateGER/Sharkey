@@ -400,6 +400,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 									</MkSelect>
 								</MkPreferenceContainer>
 							</SearchMarker>
+
+							<SearchMarker :keywords="['replies', 'thread', 'new', 'backfill', 'remote', 'hold', 'append']">
+								<MkPreferenceContainer k="threadReplyArrival">
+									<MkSelect v-model="threadReplyArrival">
+										<template #label><SearchLabel>{{ i18n.ts.threadReplyArrival }}</SearchLabel></template>
+										<template #caption>{{ i18n.ts.threadReplyArrivalDescription }}</template>
+										<option value="hold">{{ i18n.ts._threadReplyArrival.hold }}</option>
+										<option value="append">{{ i18n.ts._threadReplyArrival.append }}</option>
+										<option value="live">{{ i18n.ts._threadReplyArrival.live }}</option>
+									</MkSelect>
+								</MkPreferenceContainer>
+							</SearchMarker>
 						</div>
 					</div>
 				</MkFolder>
@@ -1093,6 +1105,7 @@ const visibilityOnBoost = prefer.model('visibilityOnBoost');
 const oneko = prefer.model('oneko');
 const numberOfReplies = prefer.model('numberOfReplies');
 const threadReplySort = prefer.model('threadReplySort');
+const threadReplyArrival = prefer.model('threadReplyArrival');
 const autoloadConversation = prefer.model('autoloadConversation');
 const clickToOpen = prefer.model('clickToOpen');
 const useCustomSearchEngine = computed(() => !Object.keys(searchEngineMap).includes(searchEngine.value));

@@ -12217,6 +12217,22 @@ export interface Locale extends ILocale {
      */
     "remoteRepliesRecentlyChecked": string;
     /**
+     * Show new replies ({n})
+     */
+    "showNewReplies": ParameterizedString<"n">;
+    /**
+     * Sort in new replies ({n})
+     */
+    "sortInNewReplies": ParameterizedString<"n">;
+    /**
+     * New, not sorted yet
+     */
+    "unsortedNewReplies": string;
+    /**
+     * Sort them in
+     */
+    "sortInNow": string;
+    /**
      * Automatically fetch replies of remote threads
      */
     "enableAutoReplyBackfill": string;
@@ -12642,6 +12658,28 @@ export interface Locale extends ILocale {
          * The thread's author first, then you, mutuals, and people you follow. Each group is newest first.
          */
         "relationshipDescription": string;
+    };
+    /**
+     * Replies arriving while you read
+     */
+    "threadReplyArrival": string;
+    /**
+     * While a thread's replies are fetched from the origin server, new ones can arrive as you read. Holding them or adding them at the bottom keeps the replies you're reading where they are.
+     */
+    "threadReplyArrivalDescription": string;
+    "_threadReplyArrival": {
+        /**
+         * Hold them until I show them
+         */
+        "hold": string;
+        /**
+         * Add them at the bottom
+         */
+        "append": string;
+        /**
+         * Show them right away (the thread may move)
+         */
+        "live": string;
     };
     /**
      * Boost Settings

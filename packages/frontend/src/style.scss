@@ -611,6 +611,15 @@ html[data-color-scheme=dark] ._woodenFrame {
 	90% { opacity: 0; transform: scale(0.5); }
 }
 
+// Fades in the highlight of replies that were held back while the thread was read, right after they're shown.
+// Each reply component draws the highlight to fit its own layout, on elements marked with the _newReply class.
+// Holds before fading, because the page may first smooth-scroll to them.
+// Run it for 3s, and keep that in sync with highlightDuration in use-note-replies.ts.
+@keyframes global-new-reply {
+	0%, 40% { opacity: 1; }
+	to { opacity: 0; }
+}
+
 @keyframes global-tada {
 	from {
 		transform: scale3d(1, 1, 1);

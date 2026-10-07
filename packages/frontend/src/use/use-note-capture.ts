@@ -11,13 +11,14 @@ import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 export type ReplyBackfillEvent = Extract<Misskey.NoteUpdatedEvent, { type: 'repliesBackfillStarted' | 'repliesBackfilled' }>;
+export type ReplyAnnouncement = Extract<Misskey.NoteUpdatedEvent, { type: 'replied' }>['body'];
 
 export function useNoteCapture(props: {
 	rootEl: Readonly<Ref<HTMLElement | null | undefined>>;
 	note: Ref<Misskey.entities.Note>;
 	pureNote?: Ref<Misskey.entities.Note>;
 	isDeletedRef: Ref<boolean>;
-	onReplyCallback?: (replyNote: Misskey.entities.Note) => void | Promise<void>;
+	onReplyCallback?: (reply: ReplyAnnouncement) => void | Promise<void>;
 	onDeleteCallback?: (id: Misskey.entities.Note['id']) => void | Promise<void>;
 	onReplyBackfillEvent?: (event: ReplyBackfillEvent) => void;
 }) {
@@ -32,17 +33,8 @@ export function useNoteCapture(props: {
 
 		switch (type) {
 			case 'replied': {
-				if (!props.onReplyCallback) break;
-
-				// notes/show may throw if the current user can't see the note
-				try {
-					const replyNote = await misskeyApi('notes/show', {
-						noteId: body.id,
-					});
-
-					await props.onReplyCallback(replyNote);
-				} catch { /* empty */ }
-
+				// Synchronous, so the receiver can decide where the reply goes before anything else changes; it loads the reply itself.
+				props.onReplyCallback?.(body);
 				break;
 			}
 
