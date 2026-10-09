@@ -306,3 +306,16 @@ test('a held reply that can no longer be seen is dropped when shown', async () =
 	expect(ids(t.root.replies.value)).toEqual(['r1']);
 	expect(t.thread.pendingCount.value).toBe(0);
 });
+
+test('the thread lists every held reply, including replies to replies, for showing them unsorted', async () => {
+	const t = renderThread({ root: [note('r1')], r1: [] });
+	await t.root.load();
+	await t.nested.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+
+	await t.root.add(announce('r2'));
+	await t.nested.add(announce('r1a'));
+
+	expect(ids(t.thread.pending.value).sort()).toEqual(['r1a', 'r2']);
+});

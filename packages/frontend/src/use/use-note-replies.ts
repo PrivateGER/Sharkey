@@ -75,10 +75,14 @@ export function useThreadReplies(props: {
 
 	onUnmounted(() => observer.disconnect());
 
+	// Every reply held anywhere in the thread, including replies to replies.
+	const pending = computed(() => [...lists].flatMap(list => list.pending.value));
+
 	return {
 		thread,
 		headerInView,
-		pendingCount: computed(() => [...lists].reduce((count, list) => count + list.pending.value.length, 0)),
+		pending,
+		pendingCount: computed(() => pending.value.length),
 		showAllPending: async () => {
 			await Promise.all([...lists].map(list => list.showPending()));
 			await nextTick();

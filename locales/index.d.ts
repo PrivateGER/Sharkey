@@ -12233,6 +12233,10 @@ export interface Locale extends ILocale {
      */
     "sortInNow": string;
     /**
+     * Replying to {user}
+     */
+    "replyingTo": ParameterizedString<"user">;
+    /**
      * Automatically fetch replies of remote threads
      */
     "enableAutoReplyBackfill": string;

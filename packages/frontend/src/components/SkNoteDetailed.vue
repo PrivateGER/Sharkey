@@ -217,12 +217,18 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 				<button class="_buttonPrimary" :class="$style.newRepliesFloatButton" @click="showAllPendingReplies"><i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.tsx.showNewReplies({ n: pendingReplyCount }) }}</button>
 			</div>
 			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="[$style.reply, { [newReplyClass]: recentlyShownReplies.has(note.id) }]" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
-			<template v-if="pendingReplies.length > 0 && prefer.r.threadReplyArrival.value === 'append'">
+			<template v-if="threadPendingReplies.length > 0 && prefer.r.threadReplyArrival.value === 'append'">
 				<div :class="$style.unsortedRepliesDivider">
 					<i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.ts.unsortedNewReplies }}
 					<button class="_textButton" :class="$style.unsortedRepliesSort" @click="showAllPendingReplies">{{ i18n.ts.sortInNow }}</button>
 				</div>
-				<SkNoteSub v-for="note in pendingReplies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
+				<div v-for="note in threadPendingReplies" :key="note.id" :class="$style.reply">
+					<div v-if="note.reply && note.replyId !== appearNote.id" :class="$style.unsortedReplyContext">
+						<i class="ti ti-arrow-back-up"></i>
+						<I18n :src="i18n.ts.replyingTo" tag="span"><template #user><MkUserName :user="note.reply.user"/></template></I18n>
+					</div>
+					<SkNoteSub :note="note" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
+				</div>
 			</template>
 		</div>
 		<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
@@ -374,6 +380,7 @@ const conversation = ref<Misskey.entities.Note[]>([]);
 const {
 	thread: threadReplies,
 	headerInView: repliesHeaderInView,
+	pending: threadPendingReplies,
 	pendingCount: pendingReplyCount,
 	showAllPending: showAllPendingReplies,
 } = useThreadReplies({
@@ -383,7 +390,6 @@ const {
 });
 const {
 	replies,
-	pending: pendingReplies,
 	recentlyShown: recentlyShownReplies,
 	loaded: repliesLoaded,
 	load: loadReplyList,
@@ -1279,6 +1285,17 @@ onUnmounted(() => {
 
 .unsortedRepliesSort {
 	margin-left: auto;
+}
+
+// Replies to replies land here away from their parent, so they say who they answer.
+.unsortedReplyContext {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 16px 32px 0;
+	margin-bottom: -16px;
+	font-size: 0.85em;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
 }
 
 .tabs {
