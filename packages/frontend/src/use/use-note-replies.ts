@@ -13,6 +13,7 @@ import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { insertReply } from '@/utility/insert-reply.js';
+import { useStream } from '@/stream.js';
 import type { ReplyAnnouncement } from '@/use/use-note-capture.js';
 
 // Replies often stream in bursts, e.g. from a backfill, so reload at most this often.
@@ -102,8 +103,11 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	// Holding replies back from an empty list would only show a count next to "no replies";
 	// only safe for a list with nothing rendered below it.
 	placeWhileEmpty?: boolean;
+	// Removes a held reply that was deleted or can no longer be seen; defaults to `remove`.
+	onHeldDeleted?: (id: Misskey.entities.Note['id']) => void;
 } = {}) {
 	const thread = options.thread ?? inject(threadRepliesKey, null);
+	const connection = $i ? useStream() : null;
 	const replies = ref<Misskey.entities.Note[]>([]);
 	const pending = ref<Misskey.entities.Note[]>([]);
 	const recentlyShown = ref<ReadonlySet<Misskey.entities.Note['id']>>(new Set());
@@ -112,6 +116,8 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	const announced = new Set<Misskey.entities.Note['id']>();
 	// Held replies the viewer asked to see, which stay held until a reload actually places them.
 	const released = new Map<Misskey.entities.Note['id'], Misskey.entities.Note>();
+	// Held replies that were edited, reacted to and so on since they were loaded.
+	const changedWhileHeld = new Set<Misskey.entities.Note['id']>();
 	let latestLoad = 0;
 	let reloadTimer: number | null = null;
 	let highlightTimer: number | null = null;
@@ -213,9 +219,29 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 		}, highlightDuration);
 	}
 
+	/**
+	 * Reloads held replies that changed while they waited, so that they aren't shown out of date, or at all once deleted.
+	 */
+	async function refreshChanged() {
+		const changed = pending.value.filter(reply => changedWhileHeld.has(reply.id));
+		await Promise.all(changed.map(async reply => {
+			let fresh: Misskey.entities.Note;
+			try {
+				fresh = await misskeyApi('notes/show', { noteId: reply.id });
+			} catch (err) {
+				if ((err as Misskey.api.APIError).code === 'NO_SUCH_NOTE') (options.onHeldDeleted ?? remove)(reply.id);
+				return;
+			}
+			changedWhileHeld.delete(reply.id);
+			const index = pending.value.findIndex(held => held.id === reply.id);
+			if (index !== -1) pending.value[index] = fresh;
+			if (released.has(reply.id)) released.set(reply.id, fresh);
+		}));
+	}
+
 	async function showPending() {
 		if (pending.value.length === 0) return;
-
+		await refreshChanged();
 		if (prefer.s.threadReplySort === 'newest') {
 			const shown = pending.value;
 			pending.value = [];
@@ -233,6 +259,31 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	const list: ReplyList = { pending, showPending };
 	thread?.register(list);
 
+	// Held replies aren't rendered, so nothing else keeps them current while they wait.
+	function onNoteUpdated(event: Misskey.NoteUpdatedEvent) {
+		if (!pending.value.some(reply => reply.id === event.id)) return;
+		if (event.type === 'deleted') (options.onHeldDeleted ?? remove)(event.id);
+		else changedWhileHeld.add(event.id);
+	}
+
+	function onStreamConnected() {
+		for (const reply of pending.value) connection?.send('s', { id: reply.id });
+	}
+
+	// After rendering, so that a reply leaving the held list is already subscribed by its own component;
+	// the server counts subscriptions, and would otherwise briefly stop sending its events.
+	watch(() => pending.value.map(reply => reply.id), (ids, oldIds) => {
+		for (const id of ids) if (!oldIds.includes(id)) connection?.send('s', { id });
+		for (const id of oldIds) {
+			if (ids.includes(id)) continue;
+			connection?.send('un', { id });
+			changedWhileHeld.delete(id);
+		}
+	}, { flush: 'post' });
+
+	connection?.on('noteUpdated', onNoteUpdated);
+	connection?.on('_connected_', onStreamConnected);
+
 	watch(prefer.r.threadReplySort, () => {
 		if (!loaded.value) return;
 		// Changing the order rebuilds the list anyway, so held replies take their places too.
@@ -242,6 +293,9 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 
 	onUnmounted(() => {
 		thread?.unregister(list);
+		connection?.off('noteUpdated', onNoteUpdated);
+		connection?.off('_connected_', onStreamConnected);
+		for (const reply of pending.value) connection?.send('un', { id: reply.id });
 		if (reloadTimer != null) window.clearTimeout(reloadTimer);
 		if (highlightTimer != null) window.clearTimeout(highlightTimer);
 	});

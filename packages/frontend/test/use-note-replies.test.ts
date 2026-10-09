@@ -13,9 +13,31 @@ import { useNoteReplies, useThreadReplies } from '@/use/use-note-replies.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn() }));
 
+// The note stream, as seen by the page: whatever the server sends for the notes it subscribed to.
+const stream = vi.hoisted(() => {
+	const listeners = new Set<(event: unknown) => void>();
+	return {
+		listeners,
+		noteUpdated: (event: { id: string; type: string; body?: unknown }) => {
+			for (const listener of listeners) listener(event);
+		},
+	};
+});
+
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/i.js', () => ({ $i: { id: 'viewer' } }));
 vi.mock('@/os.js', () => ({ popupMenu: vi.fn() }));
+vi.mock('@/stream.js', () => ({
+	useStream: () => ({
+		on: (type: string, listener: (event: unknown) => void) => {
+			if (type === 'noteUpdated') stream.listeners.add(listener);
+		},
+		off: (type: string, listener: (event: unknown) => void) => {
+			stream.listeners.delete(listener);
+		},
+		send: () => {},
+	}),
+}));
 
 // Lets each test decide when the reply list counts as having been on screen.
 let showOnScreen: (el: Element) => void = () => {};
@@ -236,5 +258,51 @@ test('a shown reply stays listed even when it falls outside the replies the serv
 	await t.thread.showAllPending();
 
 	expect(ids(t.root.replies.value)).toEqual(['r2', 'r1', 'r0']);
+	expect(t.thread.pendingCount.value).toBe(0);
+});
+
+test('a held reply deleted before it is shown never appears', async () => {
+	const t = renderThread({ root: [note('r1')] });
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r2'));
+
+	stream.noteUpdated({ id: 'r2', type: 'deleted', body: { deletedAt: '2026-01-01T00:00:01.000Z' } });
+	await t.thread.showAllPending();
+
+	expect(ids(t.root.replies.value)).toEqual(['r1']);
+	expect(t.thread.pendingCount.value).toBe(0);
+});
+
+test('a held reply edited before it is shown appears as edited', async () => {
+	const slowReplies: Record<string, Promise<Misskey.entities.Note>> = {};
+	const t = renderThread({ root: [note('r1')] }, slowReplies);
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r2'));
+
+	slowReplies.r2 = Promise.resolve({ ...note('r2'), text: 'edited' });
+	stream.noteUpdated({ id: 'r2', type: 'updated', body: {} });
+	await t.thread.showAllPending();
+
+	expect(t.root.replies.value.find(reply => reply.id === 'r2')?.text).toBe('edited');
+});
+
+test('a held reply that can no longer be seen is dropped when shown', async () => {
+	const slowReplies: Record<string, Promise<Misskey.entities.Note>> = {};
+	const t = renderThread({ root: [note('r1')] }, slowReplies);
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r2'));
+
+	slowReplies.r2 = Promise.reject(Object.assign(new Error('No such note.'), { code: 'NO_SUCH_NOTE' }));
+	slowReplies.r2.catch(() => {});
+	stream.noteUpdated({ id: 'r2', type: 'updated', body: {} });
+	await t.thread.showAllPending();
+
+	expect(ids(t.root.replies.value)).toEqual(['r1']);
 	expect(t.thread.pendingCount.value).toBe(0);
 });

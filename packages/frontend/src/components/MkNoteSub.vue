@@ -153,7 +153,7 @@ const likeButton = shallowRef<HTMLElement>();
 const renoteTooltip = computeRenoteTooltip(appearNote);
 
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
-const { replies, recentlyShown: recentlyShownReplies, load: loadReplies, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, prefer.s.numberOfReplies);
+const { replies, recentlyShown: recentlyShownReplies, load: loadReplies, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, prefer.s.numberOfReplies, { onHeldDeleted: removeReply });
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',

@@ -389,7 +389,7 @@ const {
 	load: loadReplyList,
 	add: addReply,
 	remove: removeListedReply,
-} = useNoteReplies(appearNote, 30, { thread: threadReplies, placeWhileEmpty: true });
+} = useNoteReplies(appearNote, 30, { thread: threadReplies, placeWhileEmpty: true, onHeldDeleted: removeReply });
 const quotes = ref<Misskey.entities.Note[]>([]);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
