@@ -204,3 +204,37 @@ test('a reload during a backfill keeps held replies out even though the server r
 	expect(ids(t.root.replies.value)).toEqual(['r1']);
 	expect(t.thread.pendingCount.value).toBe(1);
 });
+
+test('when "people you know first" can\'t be reloaded, held replies stay held to try again', async () => {
+	preferState.threadReplySort = 'relationship';
+	const childrenOf: Record<string, Misskey.entities.Note[]> = { root: [note('r1')] };
+	const t = renderThread(childrenOf);
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r2'));
+
+	mocks.api.mockRejectedValueOnce(new Error('offline'));
+	await expect(t.thread.showAllPending()).rejects.toThrow();
+	expect(ids(t.root.replies.value)).toEqual(['r1']);
+	expect(t.thread.pendingCount.value).toBe(1);
+
+	childrenOf.root = [note('r2'), note('r1')];
+	await t.thread.showAllPending();
+	expect(ids(t.root.replies.value)).toEqual(['r2', 'r1']);
+	expect(t.thread.pendingCount.value).toBe(0);
+});
+
+test('a shown reply stays listed even when it falls outside the replies the server returns', async () => {
+	preferState.threadReplySort = 'relationship';
+	const t = renderThread({ root: [note('r2'), note('r1')] });
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r0'));
+
+	await t.thread.showAllPending();
+
+	expect(ids(t.root.replies.value)).toEqual(['r2', 'r1', 'r0']);
+	expect(t.thread.pendingCount.value).toBe(0);
+});

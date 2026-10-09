@@ -110,11 +110,16 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	const loaded = ref(false);
 	// Includes replies waiting for a reload, which aren't listed yet but must not be counted twice.
 	const announced = new Set<Misskey.entities.Note['id']>();
+	// Held replies the viewer asked to see, which stay held until a reload actually places them.
+	const released = new Map<Misskey.entities.Note['id'], Misskey.entities.Note>();
 	let latestLoad = 0;
 	let reloadTimer: number | null = null;
 	let highlightTimer: number | null = null;
 
-	async function load(autoBackfill = false) {
+	/**
+	 * @returns the released replies this load placed, or null if a later load superseded it
+	 */
+	async function load(autoBackfill = false): Promise<Misskey.entities.Note[] | null> {
 		loaded.value = true;
 		const loadId = ++latestLoad;
 		const res = await misskeyApi('notes/children', {
@@ -125,10 +130,23 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 			autoBackfill,
 		});
 		// A load started later, e.g. for a different sort, wins even if it returns first.
-		if (loadId !== latestLoad) return;
+		if (loadId !== latestLoad) return null;
+
+		const placed = [...released.values()];
+		released.clear();
+		const placedIds = new Set(placed.map(reply => reply.id));
+		pending.value = pending.value.filter(reply => !placedIds.has(reply.id));
 		// Held replies stay held even when the server already returns them.
 		const held = new Set(pending.value.map(reply => reply.id));
-		replies.value = res.filter(reply => !held.has(reply.id));
+		const listed = res.filter(reply => !held.has(reply.id));
+		// The server only returns the first `limit` replies, but one the viewer asked to see must not vanish.
+		for (const reply of placed) {
+			if (listed.some(existing => existing.id === reply.id)) continue;
+			if (prefer.s.threadReplySort === 'newest') insertReply(listed, reply);
+			else listed.push(reply);
+		}
+		replies.value = listed;
+		return placed;
 	}
 
 	function shouldHold(userId: Misskey.entities.User['id']): boolean {
@@ -175,6 +193,7 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	 * @returns false if the reply wasn't listed or held
 	 */
 	function remove(id: Misskey.entities.Note['id']): boolean {
+		released.delete(id);
 		for (const list of [replies, pending]) {
 			const index = list.value.findIndex(reply => reply.id === id);
 			if (index !== -1) {
@@ -185,17 +204,7 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 		return false;
 	}
 
-	async function showPending() {
-		if (pending.value.length === 0) return;
-		const shown = pending.value;
-		pending.value = [];
-
-		if (prefer.s.threadReplySort === 'newest') {
-			for (const reply of shown) insertReply(replies.value, reply);
-		} else {
-			await load();
-		}
-
+	function highlight(shown: Misskey.entities.Note[]) {
 		if (highlightTimer != null) window.clearTimeout(highlightTimer);
 		recentlyShown.value = new Set(shown.map(reply => reply.id));
 		highlightTimer = window.setTimeout(() => {
@@ -204,13 +213,30 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 		}, highlightDuration);
 	}
 
+	async function showPending() {
+		if (pending.value.length === 0) return;
+
+		if (prefer.s.threadReplySort === 'newest') {
+			const shown = pending.value;
+			pending.value = [];
+			for (const reply of shown) insertReply(replies.value, reply);
+			highlight(shown);
+			return;
+		}
+
+		// They stay held until the reload succeeds, so that a failed request leaves them to retry.
+		for (const reply of pending.value) released.set(reply.id, reply);
+		const placed = await load();
+		if (placed != null) highlight(placed);
+	}
+
 	const list: ReplyList = { pending, showPending };
 	thread?.register(list);
 
 	watch(prefer.r.threadReplySort, () => {
 		if (!loaded.value) return;
 		// Changing the order rebuilds the list anyway, so held replies take their places too.
-		pending.value = [];
+		for (const reply of pending.value) released.set(reply.id, reply);
 		load();
 	});
 
