@@ -225,6 +225,7 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 
 	/**
 	 * Reloads held replies that changed while they waited, so that they aren't shown out of date, or at all once deleted.
+	 * One that can't be reloaded, e.g. because of the endpoint's rate limit, stays marked as changed.
 	 */
 	async function refreshChanged() {
 		const changed = pending.value.filter(reply => changedWhileHeld.has(reply.id));
@@ -239,23 +240,34 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 			changedWhileHeld.delete(reply.id);
 			const index = pending.value.findIndex(held => held.id === reply.id);
 			if (index !== -1) pending.value[index] = fresh;
-			if (released.has(reply.id)) released.set(reply.id, fresh);
 		}));
+	}
+
+	/**
+	 * Held replies whose snapshot is current; one still marked as changed stays held, so that showing it again retries.
+	 */
+	function upToDatePending() {
+		return pending.value.filter(reply => !changedWhileHeld.has(reply.id));
 	}
 
 	async function showPending() {
 		if (pending.value.length === 0) return;
 		await refreshChanged();
+		const shown = upToDatePending();
+		if (shown.length === 0) return;
+
 		if (prefer.s.threadReplySort === 'newest') {
-			const shown = pending.value;
-			pending.value = [];
+			const shownIds = new Set(shown.map(reply => reply.id));
+			pending.value = pending.value.filter(reply => !shownIds.has(reply.id));
 			for (const reply of shown) insertReply(replies.value, reply);
 			highlight(shown);
 			return;
 		}
 
 		// They stay held until the reload succeeds, so that a failed request leaves them to retry.
-		for (const reply of pending.value) released.set(reply.id, reply);
+		// Replaces earlier releases, whose snapshots may have changed since.
+		released.clear();
+		for (const reply of shown) released.set(reply.id, reply);
 		const placed = await load();
 		if (placed != null) highlight(placed);
 	}
@@ -291,7 +303,7 @@ export function useNoteReplies(note: Readonly<Ref<Misskey.entities.Note>>, limit
 	watch(prefer.r.threadReplySort, () => {
 		if (!loaded.value) return;
 		// Changing the order rebuilds the list anyway, so held replies take their places too.
-		for (const reply of pending.value) released.set(reply.id, reply);
+		for (const reply of upToDatePending()) released.set(reply.id, reply);
 		load();
 	});
 

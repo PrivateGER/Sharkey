@@ -307,6 +307,30 @@ test('a held reply that can no longer be seen is dropped when shown', async () =
 	expect(t.thread.pendingCount.value).toBe(0);
 });
 
+test('a changed held reply that can\'t be reloaded stays held, while up-to-date ones are shown', async () => {
+	const slowReplies: Record<string, Promise<Misskey.entities.Note>> = {};
+	const t = renderThread({ root: [note('r1')] }, slowReplies);
+	await t.root.load();
+	t.seeReplies();
+	t.backfilling.value = true;
+	await t.root.add(announce('r2'));
+	await t.root.add(announce('r3'));
+
+	slowReplies.r2 = Promise.reject(Object.assign(new Error('Rate limit exceeded.'), { code: 'RATE_LIMIT_EXCEEDED' }));
+	slowReplies.r2.catch(() => {});
+	stream.noteUpdated({ id: 'r2', type: 'updated', body: {} });
+	await t.thread.showAllPending();
+
+	expect(ids(t.root.replies.value)).toEqual(['r3', 'r1']);
+	expect(ids(t.thread.pending.value)).toEqual(['r2']);
+
+	slowReplies.r2 = Promise.resolve({ ...note('r2'), text: 'edited' });
+	await t.thread.showAllPending();
+
+	expect(ids(t.root.replies.value)).toEqual(['r3', 'r2', 'r1']);
+	expect(t.root.replies.value.find(reply => reply.id === 'r2')?.text).toBe('edited');
+});
+
 test('the thread lists every held reply, including replies to replies, for showing them unsorted', async () => {
 	const t = renderThread({ root: [note('r1')], r1: [] });
 	await t.root.load();
