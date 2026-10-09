@@ -194,12 +194,16 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 		<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'reactions' }]" @click="tab = 'reactions'"><i class="ph-smiley ph-bold ph-lg"></i> {{ i18n.ts.reactions }}</button>
 	</div>
 	<div>
-		<div v-if="tab === 'replies'">
+		<div v-if="tab === 'replies'" ref="repliesEl">
 			<div v-if="!repliesLoaded" style="padding: 16px">
 				<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
 			</div>
-			<div :class="$style.repliesHeader">
-				<div v-if="checkingReplies || replyBackfillResult" :class="$style.replyBackfillStatus">
+			<div ref="repliesHeaderEl" :class="$style.repliesHeader">
+				<button v-if="pendingReplyCount > 0" class="_button" :class="$style.newRepliesChip" @click="showAllPendingReplies">
+					<MkLoading v-if="checkingReplies" em/><i v-else class="ph-cloud-arrow-down ph-bold ph-lg"></i>
+					{{ prefer.r.threadReplyArrival.value === 'append' ? i18n.tsx.sortInNewReplies({ n: pendingReplyCount }) : i18n.tsx.showNewReplies({ n: pendingReplyCount }) }}
+				</button>
+				<div v-else-if="checkingReplies || replyBackfillResult" :class="$style.replyBackfillStatus">
 					<template v-if="checkingReplies"><MkLoading em/> {{ i18n.ts.checkingRemoteReplies }}</template>
 					<template v-else-if="replyBackfillResult?.failed"><i class="ti ti-alert-triangle"></i> {{ i18n.ts.remoteRepliesFetchFailed }}</template>
 					<template v-else-if="replyBackfillResult && replyBackfillResult.imported > 0"><i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.tsx.fetchedRemoteReplies({ n: replyBackfillResult.imported }) }}</template>
@@ -209,7 +213,23 @@ Detailed view of a note in the Sharkey style. Used when opening a note onto its 
 					<i class="ti ti-arrows-sort"></i> {{ threadReplySortLabel }} <i class="ti ti-chevron-down"></i><span class="_beta">{{ i18n.ts.beta }}</span>
 				</button>
 			</div>
-			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
+			<div v-if="pendingReplyCount > 0 && !repliesHeaderInView && prefer.r.threadReplyArrival.value === 'hold'" :class="$style.newRepliesFloat">
+				<button class="_buttonPrimary" :class="$style.newRepliesFloatButton" @click="showAllPendingReplies"><i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.tsx.showNewReplies({ n: pendingReplyCount }) }}</button>
+			</div>
+			<SkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="[$style.reply, { [newReplyClass]: recentlyShownReplies.has(note.id) }]" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
+			<template v-if="threadPendingReplies.length > 0 && prefer.r.threadReplyArrival.value === 'append'">
+				<div :class="$style.unsortedRepliesDivider">
+					<i class="ph-cloud-arrow-down ph-bold ph-lg"></i> {{ i18n.ts.unsortedNewReplies }}
+					<button class="_textButton" :class="$style.unsortedRepliesSort" @click="showAllPendingReplies">{{ i18n.ts.sortInNow }}</button>
+				</div>
+				<div v-for="note in threadPendingReplies" :key="note.id" :class="$style.reply">
+					<div v-if="note.reply && note.replyId !== appearNote.id" :class="$style.unsortedReplyContext">
+						<i class="ti ti-arrow-back-up"></i>
+						<I18n :src="i18n.ts.replyingTo" tag="span"><template #user><MkUserName :user="note.reply.user"/></template></I18n>
+					</div>
+					<SkNoteSub :note="note" :detail="true" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" :isReply="true" @expandMute="n => emit('expandMute', n)"/>
+				</div>
+			</template>
 		</div>
 		<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
 			<MkPagination :pagination="renotesPagination" :disableAutoLoad="true">
@@ -284,8 +304,9 @@ import { getNoteClipMenu, getNoteMenu, getRenoteMenu, translateNote } from '@/ut
 import { getNoteVersionsMenu } from '@/utility/get-note-versions-menu.js';
 import { checkAnimationFromMfm } from '@/utility/check-animated-mfm.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
+import type { ReplyAnnouncement } from '@/use/use-note-capture.js';
 import { useReplyBackfill } from '@/use/use-reply-backfill.js';
-import { showThreadReplySortMenu, threadReplySortLabel, useNoteReplies } from '@/use/use-note-replies.js';
+import { newReplyClass, showThreadReplySortMenu, threadReplySortLabel, useNoteReplies, useThreadReplies } from '@/use/use-note-replies.js';
 import { deepClone } from '@/utility/clone.js';
 import { useTooltip } from '@/use/use-tooltip.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -356,7 +377,25 @@ const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.valu
 const allowAnim = ref(prefer.s.advancedMfm && prefer.s.animatedMfm ? true : false);
 const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.value.user.instance);
 const conversation = ref<Misskey.entities.Note[]>([]);
-const { replies, loaded: repliesLoaded, load: loadReplyList, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, 30);
+const {
+	thread: threadReplies,
+	headerInView: repliesHeaderInView,
+	pending: threadPendingReplies,
+	pendingCount: pendingReplyCount,
+	showAllPending: showAllPendingReplies,
+} = useThreadReplies({
+	backfilling: checkingReplies,
+	listEl: useTemplateRef('repliesEl'),
+	headerEl: useTemplateRef('repliesHeaderEl'),
+});
+const {
+	replies,
+	recentlyShown: recentlyShownReplies,
+	loaded: repliesLoaded,
+	load: loadReplyList,
+	add: addReply,
+	remove: removeListedReply,
+} = useNoteReplies(appearNote, 30, { thread: threadReplies, placeWhileEmpty: true, onHeldDeleted: removeReply });
 const quotes = ref<Misskey.entities.Note[]>([]);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
@@ -435,8 +474,8 @@ const reactionsPagination = computed<Paging>(() => ({
 	},
 }));
 
-async function addReplyTo(replyNote: Misskey.entities.Note) {
-	if (addReply(replyNote)) {
+async function addReplyTo(reply: ReplyAnnouncement) {
+	if (await addReply(reply)) {
 		appearNote.value.repliesCount += 1;
 	}
 }
@@ -1192,6 +1231,71 @@ onUnmounted(() => {
 	min-width: 0;
 	font-size: 0.9em;
 	opacity: 0.8;
+}
+
+// It replaces the status text, possibly on a row of its own on narrow screens,
+// so the negative margin keeps its padding from making the header taller.
+.newRepliesChip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	min-width: 0;
+	margin: -4px 0;
+	padding: 4px 10px;
+	border-radius: var(--MI-radius-ellipse);
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+	font-size: 0.9em;
+
+	&:hover {
+		background: color-mix(in srgb, var(--MI_THEME-accent) 20%, transparent);
+	}
+}
+
+// Zero height, so that showing it doesn't move the replies under it.
+.newRepliesFloat {
+	position: sticky;
+	top: calc(var(--MI-stickyTop, 0px) + 16px);
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	height: 0;
+}
+
+.newRepliesFloatButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 8px 16px;
+	border-radius: var(--MI-radius-ellipse);
+	box-shadow: 0 4px 16px var(--MI_THEME-shadow);
+	font-size: 0.9em;
+}
+
+.unsortedRepliesDivider {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 8px 16px;
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	font-size: 0.9em;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 80%, transparent);
+}
+
+.unsortedRepliesSort {
+	margin-left: auto;
+}
+
+// Replies to replies land here away from their parent, so they say who they answer.
+.unsortedReplyContext {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 16px 32px 0;
+	margin-bottom: -16px;
+	font-size: 0.85em;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
 }
 
 .tabs {

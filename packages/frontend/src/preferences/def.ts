@@ -471,6 +471,9 @@ export const PREF_DEF = {
 	showVisibilitySelectorOnBoost: {
 		default: true,
 	},
+	threadReplyArrival: {
+		default: 'hold' as 'hold' | 'append' | 'live',
+	},
 	threadReplySort: {
 		default: 'newest' as 'newest' | 'relationship',
 	},

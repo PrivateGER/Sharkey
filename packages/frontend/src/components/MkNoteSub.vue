@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 	<template v-if="depth < prefer.s.numberOfReplies">
-		<MkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="$style.reply" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" @expandMute="n => emit('expandMute', n)"/>
+		<MkNoteSub v-for="reply in replies" :key="reply.id" :note="reply" :class="[$style.reply, { [newReplyClass]: recentlyShownReplies.has(reply.id) }]" :detail="true" :depth="depth + 1" :expandAllCws="props.expandAllCws" :onDeleteCallback="removeReply" @expandMute="n => emit('expandMute', n)"/>
 	</template>
 	<div v-else :class="$style.more">
 		<MkA class="_link" :to="notePage(note)">{{ i18n.ts.continueThread }} <i class="ti ti-chevron-double-right"></i></MkA>
@@ -107,7 +107,8 @@ import { getNoteClipMenu, getNoteMenu, translateNote } from '@/utility/get-note-
 import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { prefer } from '@/preferences.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
-import { useNoteReplies } from '@/use/use-note-replies.js';
+import type { ReplyAnnouncement } from '@/use/use-note-capture.js';
+import { newReplyClass, useNoteReplies } from '@/use/use-note-replies.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
 import { instance, policies } from '@/instance';
 import { getAppearNote } from '@/utility/get-appear-note';
@@ -152,7 +153,7 @@ const likeButton = shallowRef<HTMLElement>();
 const renoteTooltip = computeRenoteTooltip(appearNote);
 
 const defaultLike = computed(() => prefer.s.like ? prefer.s.like : null);
-const { replies, load: loadReplies, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, prefer.s.numberOfReplies);
+const { replies, recentlyShown: recentlyShownReplies, load: loadReplies, add: addReply, remove: removeListedReply } = useNoteReplies(appearNote, prefer.s.numberOfReplies, { onHeldDeleted: removeReply });
 
 const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	type: 'lookup',
@@ -163,8 +164,8 @@ const currentClip = inject<Ref<Misskey.entities.Clip> | null>('currentClip', nul
 
 setupNoteViewInterruptors(note, isDeleted);
 
-async function addReplyTo(replyNote: Misskey.entities.Note) {
-	if (addReply(replyNote)) {
+async function addReplyTo(reply: ReplyAnnouncement) {
+	if (await addReply(reply)) {
 		appearNote.value.repliesCount += 1;
 	}
 }
@@ -407,6 +408,29 @@ if (props.detail) {
 	&.children {
 		padding: 10px 0 0 16px;
 		font-size: 1em;
+	}
+
+	// A reply that was held back is highlighted once shown, on a layer behind it.
+	&:global(._newReply) {
+		isolation: isolate;
+
+		&::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			z-index: -1;
+			background: var(--MI_THEME-accentedBg);
+			opacity: 0;
+			pointer-events: none;
+			// global(), or CSS modules would rename the shared keyframes from style.scss.
+			animation: global(global-new-reply) 3s ease-out;
+		}
+	}
+
+	// Nested replies have no padding on the right, and their left edge is the thread's divider line.
+	&.children:global(._newReply)::before {
+		inset: 0 -12px -4px 0;
+		border-radius: 0 var(--MI-radius-sm) var(--MI-radius-sm) 0;
 	}
 }
 
