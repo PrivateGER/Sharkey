@@ -103,6 +103,10 @@ url: https://example.tld/
 # The port that your Sharkey server should listen on.
 port: 3000
 
+# Network protocol to use.
+# Options: "http1", "http2"
+# protocol: 'http1'
+
 #   ┌──────────────────────────┐
 #───┘ PostgreSQL configuration └────────────────────────────────
 
