@@ -101,6 +101,16 @@ url: http://127.0.0.1:3000/
 # The port that your Sharkey server should listen on.
 port: 3000
 
+# Network address to listen on.
+# The default value listens to the local IPv4 loopback address, which is the most secure option and suitable for most typical deployments.
+# Docker-based deployments should use '0.0.0.0' instead, as the reverse-proxy runs on a separate machine and Docker itself acts as a simple firewall.
+# Do not change this without a firewall to prevent unauthorized access!
+#address: '127.0.0.1'
+
+# You can also use UNIX domain socket.
+# socket: /path/to/sharkey.sock
+# chmodSocket: '777'
+
 # Network protocol to use.
 # Options: "http1", "http2"
 # protocol: 'http1'
