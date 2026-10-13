@@ -20,5 +20,8 @@
 		"target": "ESNext"
 	},
 	"minify": false,
-	"sourceMaps": "inline"
+	"sourceMaps": "inline",
+	"module": {
+		"type": "es6"
+	}
 }

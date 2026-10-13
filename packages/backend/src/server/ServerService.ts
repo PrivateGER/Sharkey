@@ -4,7 +4,8 @@
  */
 
 import cluster from 'node:cluster';
-import * as fs from 'node:fs';
+import * as nodeFS from 'node:fs/promises';
+import * as nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Inject, Injectable, type BeforeApplicationShutdown } from '@nestjs/common';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -295,15 +296,16 @@ export class ServerService implements BeforeApplicationShutdown {
 			}
 		});
 
-		if (this.config.socket) {
-			if (fs.existsSync(this.config.socket)) {
-				fs.unlinkSync(this.config.socket);
-			}
+		const socket = this.config.socket;
+		if (socket) {
+			await nodeFS.rm(socket, { force: true });
+			await nodeFS.mkdir(nodePath.dirname(socket), { recursive: true });
 
-			await fastify.listen({ path: this.config.socket });
+			// TODO ToC/ToU race condition
+			await fastify.listen({ path: socket });
 
 			if (this.config.chmodSocket) {
-				fs.chmodSync(this.config.socket!, this.config.chmodSocket);
+				await nodeFS.chmod(socket, this.config.chmodSocket);
 			}
 		} else {
 			await fastify.listen({ port: this.config.port, host: this.config.address });

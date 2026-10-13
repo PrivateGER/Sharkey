@@ -6,7 +6,7 @@
 // trims dependencies for production
 // only run after a full build
 
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 
 // Sections within package.json to search
 const checks = ['dependencies', 'optionalDependencies', 'devDependencies', 'peerDependencies'];

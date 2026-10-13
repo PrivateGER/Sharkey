@@ -5,6 +5,7 @@
 		// Target
 		// ES2025 is the earliest that supports our API uses: https://node.green/#ES2025
 		// But TS doesn't implement it yet: https://github.com/microsoft/TypeScript/issues/61735
+		// TODO replace all "ESNext" with "ES2025" once we've upgraded to TS 6.x
 		"target": "ESNext",
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",

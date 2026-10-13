@@ -18,7 +18,7 @@ import { readyRef } from './ready.js';
 // TODO make this customizable
 process.title = `Misskey (${cluster.isPrimary ? 'master' : 'worker'})`;
 
-prepEnv();
+await prepEnv();
 
 // We wrap this in a main function, that gets called,
 // because not all platforms support top level await :/

@@ -13,7 +13,7 @@ import {
 	type Plugin,
 	type PluginOption
 } from 'vite';
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import fastGlob from 'fast-glob';
 import JSON5 from 'json5';
 import MagicString, { SourceMap } from 'magic-string';

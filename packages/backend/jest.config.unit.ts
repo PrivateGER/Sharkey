@@ -7,9 +7,11 @@ import base from './jest.config.common.ts';
 
 export default {
 	...base,
-	globalSetup: '<rootDir>/test/jest.setup.unit.mjs',
+	setupFilesAfterEnv: [
+		'<rootDir>/test/jest.setup.unit.ts',
+	],
 	testMatch: [
-		"<rootDir>/test/unit/**/*.ts",
-		"<rootDir>/src/**/*.test.ts",
+		'<rootDir>/test/unit/**/*.ts',
+		'<rootDir>/src/**/*.test.ts',
 	],
 };

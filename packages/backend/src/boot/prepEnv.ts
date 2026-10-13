@@ -17,7 +17,7 @@ import 'reflect-metadata/lite';
 /**
  * Configures Node.JS global runtime options for values appropriate for Sharkey.
  */
-export function prepEnv() {
+export async function prepEnv() {
 	// Increase maximum stack trace length.
 	// This helps diagnose infinite recursion bugs.
 	Error.stackTraceLimit = Infinity;
@@ -28,9 +28,9 @@ export function prepEnv() {
 
 	// Warm up systeminformation deltas, but ignore any errors caused by Jest, Windows, etc.
 	// https://github.com/sebhildebrandt/systeminformation#-additional-notes
-	promiseTry(() => si.fsStats()).catch(() => null);
-	promiseTry(() => si.disksIO()).catch(() => null);
-	promiseTry(() => si.networkStats()).catch(() => null);
+	await promiseTry(() => si.fsStats()).catch(() => null);
+	await promiseTry(() => si.disksIO()).catch(() => null);
+	await promiseTry(() => si.networkStats()).catch(() => null);
 
 	// Workaround certain 3rd-party bugs
 	process.on('uncaughtException', (err) => {
