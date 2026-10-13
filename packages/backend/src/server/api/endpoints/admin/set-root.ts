@@ -51,7 +51,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const newRootUser = await this.cacheService.findUserById(ps.userId);
 			const oldRootUser = await this.cacheService.findUserById(oldRootUserId);
 
-			await this.metaService.update({ rootUserId: ps.userId });
+			await this.metaService.update({ rootUserId: ps.userId }, {
+				moderator: me,
+			});
 
 			this.moderationLogService.log(me, 'setRoot', {
 				before: { userId: oldRootUserId, userUsername: oldRootUser.username },

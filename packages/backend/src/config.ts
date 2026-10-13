@@ -52,6 +52,7 @@ type Source = Partial<QueueConfig> & {
 	port?: number;
 	address?: string;
 	socket?: string;
+	protocol?: string;
 	chmodSocket?: string;
 	disableHsts?: boolean;
 	db: {
@@ -233,6 +234,7 @@ export type Config = QueueConfig & {
 	port: number;
 	address: string;
 	socket: string | undefined;
+	protocol: 'http1' | 'http2';
 	chmodSocket: string | undefined;
 	disableHsts: boolean | undefined;
 	db: {
@@ -442,6 +444,7 @@ export function loadConfig(logger?: Logger): Config {
 		address: config.address ?? '127.0.0.1',
 		socket: config.socket,
 		chmodSocket: config.chmodSocket,
+		protocol: config.protocol === 'http2' ? 'http2' : 'http1',
 		disableHsts: config.disableHsts,
 		host,
 		hostname,
@@ -659,7 +662,7 @@ function applyEnvOverrides(config: Source) {
 
 	// these are all the settings that can be overridden
 
-	_apply_top([['url', 'port', 'address', 'socket', 'chmodSocket', 'disableHsts', 'id', 'dbReplications', 'websocketCompression']]);
+	_apply_top([['url', 'port', 'address', 'socket', 'protocol', 'chmodSocket', 'disableHsts', 'id', 'dbReplications', 'websocketCompression']]);
 	_apply_top(['db', ['host', 'port', 'db', 'user', 'pass', 'slowQueryThreshold', 'disableCache']]);
 	_apply_top(['dbSlaves', Array.from((config.dbSlaves ?? []).keys()), ['host', 'port', 'db', 'user', 'pass']]);
 	_apply_top([

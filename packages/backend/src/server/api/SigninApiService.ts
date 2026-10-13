@@ -178,6 +178,8 @@ export class SigninApiService {
 		const same = await this.userAuthService.checkPassword(profile, password);
 
 		const fail = async (status?: number, failure?: { id: string; }) => {
+			delete request.headers.authorization;
+
 			// Append signin history
 			await this.signinsRepository.insert({
 				id: this.idService.gen(),

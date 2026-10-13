@@ -181,14 +181,24 @@ export class ApRendererService {
 	}
 
 	@bindThis
-	public renderDocument(file: MiDriveFile): IApDocument {
+	private commonDocumentFields(file: MiDriveFile): Partial<Omit<IApDocument, "type">> {
+		const props = this.driveFileEntityService.getPublicProperties(file);
 		return {
-			type: 'Document',
 			mediaType: file.webpublicType ?? file.type,
 			url: this.driveFileEntityService.getPublicUrl(file),
 			name: file.comment ?? undefined,
 			summary: file.comment ?? undefined,
 			sensitive: file.isSensitive,
+			width: props.width ?? undefined,
+			height: props.height ?? undefined
+		};
+	}
+
+	@bindThis
+	public renderDocument(file: MiDriveFile): IApDocument {
+		return {
+			type: 'Document',
+			...this.commonDocumentFields(file),
 		};
 	}
 
@@ -269,9 +279,7 @@ export class ApRendererService {
 	public renderImage(file: MiDriveFile): IApImage {
 		return {
 			type: 'Image',
-			url: this.driveFileEntityService.getPublicUrl(file),
-			sensitive: file.isSensitive,
-			name: file.comment ?? undefined,
+			...this.commonDocumentFields(file),
 		};
 	}
 
@@ -819,7 +827,7 @@ export class ApRendererService {
 
 		const keypair = await this.userKeypairService.getUserKeypair(user.id);
 
-		activity = await this.jsonLdService.signRsaSignature2017(activity, keypair.privateKey, `${this.config.url}/users/${user.id}#main-key`);
+		activity = await this.jsonLdService.use().signRsaSignature2017(activity, keypair.privateKey, `${this.config.url}/users/${user.id}#main-key`);
 
 		return activity;
 	}

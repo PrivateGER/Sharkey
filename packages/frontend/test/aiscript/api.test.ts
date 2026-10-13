@@ -14,8 +14,15 @@ import {
 	describe,
 	expect,
 	test,
-	vi
+	vi,
+	type Mock,
 } from 'vitest';
+import * as os from '@/os.js';
+import * as misskeyApi from '@/utility/misskey-api.js';
+
+// Hell
+const osMock = os as unknown as Record<keyof typeof os, Mock>;
+const misskeyApiMock = misskeyApi as unknown as Record<keyof typeof misskeyApi, Mock>;
 
 async function exe(script: string): Promise<values.Value[]> {
 	const outputs: values.Value[] = [];
@@ -45,34 +52,27 @@ vi.mock('@/i.js', () => {
 	};
 });
 
-const osMock = vi.hoisted(() => {
-	return {
-		inputText: vi.fn(),
-		alert: vi.fn(),
-		confirm: vi.fn(),
-	};
-});
+vi.mock(import('@/os.js'), () => ({
+	inputText: vi.fn(),
+	alert: vi.fn(),
+	confirm: vi.fn(),
+}));
 
-vi.mock('@/os.js', () => {
-	return osMock;
-});
-
-const misskeyApiMock = vi.hoisted(() => vi.fn());
-
-vi.mock('@/utility/misskey-api.js', () => {
-	return { misskeyApi: misskeyApiMock };
-});
+vi.mock('@/utility/misskey-api.js', () => ({
+	misskeyApi: vi.fn(),
+}));
 
 describe('AiScript common API', () => {
 	afterAll(() => {
 		vi.unstubAllGlobals();
 	});
 
-	describe('readline', () => {
-		afterEach(() => {
-			vi.restoreAllMocks();
-		});
+	afterEach(() => {
+		vi.resetAllMocks();
+		vi.restoreAllMocks();
+	});
 
+	describe('readline', () => {
 		test.sequential('ok', async () => {
 			osMock.inputText.mockImplementationOnce(async ({ title }) => {
 				expect(title).toBe('question');
@@ -266,7 +266,7 @@ describe('AiScript common API', () => {
 		});
 
 		test.sequential('successful', async () => {
-			misskeyApiMock.mockImplementationOnce(
+			misskeyApiMock.misskeyApi.mockImplementationOnce(
 				async (endpoint, data, token) => {
 					expect(endpoint).toBe('ping');
 					expect(data).toStrictEqual({});
@@ -280,11 +280,11 @@ describe('AiScript common API', () => {
 			expect(res).toStrictEqual(values.OBJ(new Map([
 				['pong', values.NUM(1735657200000)],
 			])));
-			expect(misskeyApiMock).toHaveBeenCalledOnce();
+			expect(misskeyApiMock.misskeyApi).toHaveBeenCalledOnce();
 		});
 
 		test.sequential('with token', async () => {
-			misskeyApiMock.mockImplementationOnce(
+			misskeyApiMock.misskeyApi.mockImplementationOnce(
 				async (endpoint, data, token) => {
 					expect(endpoint).toBe('ping');
 					expect(data).toStrictEqual({});
@@ -298,18 +298,18 @@ describe('AiScript common API', () => {
 			expect(res).toStrictEqual(values.OBJ(new Map([
 				['pong', values.NUM(1735657200000 )],
 			])));
-			expect(misskeyApiMock).toHaveBeenCalledOnce();
+			expect(misskeyApiMock.misskeyApi).toHaveBeenCalledOnce();
 		});
 
 		test.sequential('request failed', async () => {
-			misskeyApiMock.mockRejectedValueOnce('Not Found');
+			misskeyApiMock.misskeyApi.mockRejectedValueOnce('Not Found');
 			const [res] = await exe(`
 				<: Mk:api('this/endpoint/should/not/be/found', {})
 			`);
 			expect(res).toStrictEqual(
 				values.ERROR('request_failed', values.STR('Not Found'))
 			);
-			expect(misskeyApiMock).toHaveBeenCalledOnce();
+			expect(misskeyApiMock.misskeyApi).toHaveBeenCalledOnce();
 		});
 
 		test.sequential('invalid endpoint', async () => {
@@ -318,7 +318,7 @@ describe('AiScript common API', () => {
 			`)).rejects.toStrictEqual(
 				new errors.AiScriptRuntimeError('invalid endpoint'),
 			);
-			expect(misskeyApiMock).not.toHaveBeenCalled();
+			expect(misskeyApiMock.misskeyApi).not.toHaveBeenCalled();
 		});
 
 		test.sequential('missing param', async () => {
@@ -327,7 +327,7 @@ describe('AiScript common API', () => {
 			`)).rejects.toStrictEqual(
 				new errors.AiScriptRuntimeError('expected param'),
 			);
-			expect(misskeyApiMock).not.toHaveBeenCalled();
+			expect(misskeyApiMock.misskeyApi).not.toHaveBeenCalled();
 		});
 	});
 

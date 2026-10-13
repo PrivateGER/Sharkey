@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.userList }}</template>
 				<option v-for="list in userLists" :key="list.id" :value="list.id">{{ list.name }}</option>
 			</MkSelect>
-			<MkTextarea v-else-if="src === 'users' || src === 'users_blacklist'" v-model="users">
+			<MkTextarea v-else-if="src === 'users' || src === 'users_blacklist'" v-model="users" :spellcheck="false">
 				<template #label>{{ i18n.ts.users }}</template>
 				<template #caption>{{ i18n.ts.antennaUsersDescription }} <button class="_textButton" @click="addUser">{{ i18n.ts.addUser }}</button></template>
 			</MkTextarea>

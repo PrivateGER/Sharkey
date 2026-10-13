@@ -23,6 +23,7 @@ import MkSparkle from '@/components/MkSparkle.vue';
 import MkA from '@/components/global/MkA.vue';
 import { prefer } from '@/preferences.js';
 import { clamp } from '@@/js/math.js';
+import tinycolor from 'tinycolor2';
 
 function safeParseFloat(str: unknown): number | null {
 	if (typeof str !== 'string' || str === '') return null;
@@ -81,7 +82,10 @@ export default function MkMfm(props: MfmProps, { emit }: { emit: SetupContext<Mf
 
 	const validColor = (c: unknown): string | null => {
 		if (typeof c !== 'string') return null;
-		return c.match(/^[0-9a-f]{3,6}$/i) ? c : null;
+		const tc = tinycolor(c);
+		if (! tc.isValid()) return null;
+
+		return tc.toHex8();
 	};
 
 	const useAnim = props.isAnim ?? (prefer.s.advancedMfm && prefer.s.animatedMfm);

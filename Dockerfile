@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1.4
 
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=26-alpine3.24
 
 FROM node:${NODE_VERSION} as build
 
@@ -10,6 +10,7 @@ ENV PYTHONUNBUFFERED=1
 RUN apk add --update python3 && ln -sf python3 /usr/bin/python
 RUN apk add py3-pip py3-setuptools
 
+RUN npm install -g corepack@0.36.0
 RUN corepack enable
 
 WORKDIR /sharkey
@@ -40,6 +41,7 @@ ARG UID="991"
 ARG GID="991"
 
 RUN apk add ffmpeg tini jemalloc pixman pango cairo libpng librsvg font-noto font-noto-cjk font-noto-thai \
+  && npm install -g corepack@0.36.0 \
 	&& corepack enable \
 	&& addgroup -g "${GID}" sharkey \
 	&& adduser -D -u "${UID}" -G sharkey -h /sharkey sharkey \

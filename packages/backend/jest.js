@@ -3,17 +3,18 @@ import * as child_process from 'node:child_process';
 import * as path from 'node:path';
 import * as url from 'node:url';
 
-import semver from 'semver';
-
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// TODO: this wrapper script is no longer needed, and can be removed in a future PR.
+//   See megalodon and misskey-js package.json for example.
 
 const args = [];
 args.push(...[
 	'--experimental-require-module',
 	'--experimental-vm-modules',
 	'--experimental-import-meta-resolve',
-	...semver.satisfies(process.version, '>=26.0.0') ? ['--no-experimental-webstorage'] : [],
+	'--no-experimental-webstorage',
 	path.join(__dirname, 'node_modules/jest/bin/jest.js'),
 	...process.argv.slice(2),
 ]);

@@ -82,7 +82,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import tinycolor from 'tinycolor2';
 import { globalEvents } from '@/events.js';
-import { defaultIdlingRenderScheduler } from '@/utility/idle-render.js';
 
 // https://stackoverflow.com/questions/1878907/how-can-i-find-the-difference-between-two-angles
 const angleDiff = (a: number, b: number) => {
@@ -137,7 +136,6 @@ const texts = computed(() => {
 	return angles;
 });
 
-let enabled = true;
 const majorGraduationColor = ref<string>();
 //let minorGraduationColor = $ref<string>();
 const sHandColor = ref<string>();
@@ -170,16 +168,13 @@ function tick() {
 	mAngle.value = Math.PI * (m.value + s.value / 60) / 30;
 	if (sOneRound && sLine.value) { // 秒針が一周した際のアニメーションをよしなに処理する(これが無いと秒が59->0になったときに期待したアニメーションにならない)
 		sAngle.value = Math.PI * 60 / 30;
-		defaultIdlingRenderScheduler.delete(tick);
+
 		sLine.value.addEventListener('transitionend', () => {
 			disableSAnimate.value = true;
 			requestAnimationFrame(() => {
 				sAngle.value = 0;
 				requestAnimationFrame(() => {
 					disableSAnimate.value = false;
-					if (enabled) {
-						defaultIdlingRenderScheduler.add(tick);
-					}
 				});
 			});
 		}, { once: true });
@@ -205,14 +200,18 @@ function calcColors() {
 
 calcColors();
 
+let intervalId: number | null = null;
 onMounted(() => {
-	defaultIdlingRenderScheduler.add(tick);
+	if (intervalId) window.clearInterval(intervalId);
+	intervalId = window.setInterval(tick, 1000);
 	globalEvents.on('themeChanged', calcColors);
 });
 
 onBeforeUnmount(() => {
-	enabled = false;
-	defaultIdlingRenderScheduler.delete(tick);
+	if (intervalId) {
+		window.clearInterval(intervalId);
+		intervalId = null;
+	}
 	globalEvents.off('themeChanged', calcColors);
 });
 </script>

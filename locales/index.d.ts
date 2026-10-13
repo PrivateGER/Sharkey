@@ -7671,6 +7671,10 @@ export interface Locale extends ILocale {
              * Can view federation stats and details of remote instances
              */
             "canViewFederation": string;
+            /**
+             * Can fetch improved ListenBrainz metadata
+             */
+            "canFetchLBMetadata": string;
         };
         "_condition": {
             /**
@@ -9790,6 +9794,10 @@ export interface Locale extends ILocale {
          * ListenBrainz username
          */
         "listenbrainz": string;
+        /**
+         * Listening to…
+         */
+        "listeningTo": string;
     };
     "_exportOrImport": {
         /**
@@ -13707,6 +13715,18 @@ export interface Locale extends ILocale {
          */
         "manage": string;
     };
+    /**
+     * ListenBrainz Integration
+     */
+    "listenbrainzIntegration": string;
+    /**
+     * ListenBrainz User Token
+     */
+    "listenbrainzUserToken": string;
+    /**
+     * Having an user token allows Sharkey to query track metadata directly, improving reliability of cover art and links.
+     */
+    "listenbrainzUserTokenDescription": string;
     /**
      * Set the root user
      */

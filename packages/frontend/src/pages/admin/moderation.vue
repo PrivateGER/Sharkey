@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<i class="ti ti-alert-triangle"></i> {{ i18n.ts.bubbleTimelineMustBeEnabled }}
 						</div>
 
-						<MkTextarea v-model="bubbleTimeline">
+						<MkTextarea v-model="bubbleTimeline" :spellcheck="false">
 							<template #caption>{{ i18n.ts.bubbleTimelineDescription }}</template>
 						</MkTextarea>
 
@@ -48,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.trustedLinkUrlPatterns }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="trustedLinkUrlPatterns">
+						<MkTextarea v-model="trustedLinkUrlPatterns" :spellcheck="false">
 							<template #caption>{{ i18n.ts.trustedLinkUrlPatternsDescription }}</template>
 						</MkTextarea>
 
@@ -63,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.preservedUsernames }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="preservedUsernames">
+						<MkTextarea v-model="preservedUsernames" :spellcheck="false">
 							<template #caption>{{ i18n.ts.preservedUsernamesDescription }}</template>
 						</MkTextarea>
 						<MkButton primary @click="save_preservedUsernames">{{ i18n.ts.save }}</MkButton>
@@ -120,7 +120,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.hiddenTags }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="hiddenTags">
+						<MkTextarea v-model="hiddenTags" :spellcheck="false">
 							<template #caption>{{ i18n.ts.hiddenTagsDescription }}</template>
 						</MkTextarea>
 						<MkButton primary @click="save_hiddenTags">{{ i18n.ts.save }}</MkButton>
@@ -132,7 +132,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.silencedInstances }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="silencedHosts">
+						<MkTextarea v-model="silencedHosts" :spellcheck="false">
 							<template #caption>{{ i18n.ts.silencedInstancesDescription }}</template>
 						</MkTextarea>
 						<MkButton primary @click="save_silencedHosts">{{ i18n.ts.save }}</MkButton>
@@ -144,7 +144,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.mediaSilencedInstances }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="mediaSilencedHosts">
+						<MkTextarea v-model="mediaSilencedHosts" :spellcheck="false">
 							<template #caption>{{ i18n.ts.mediaSilencedInstancesDescription }}</template>
 						</MkTextarea>
 						<MkButton primary @click="save_mediaSilencedHosts">{{ i18n.ts.save }}</MkButton>
@@ -156,7 +156,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.blockedInstances }}</template>
 
 					<div class="_gaps">
-						<MkTextarea v-model="blockedHosts">
+						<MkTextarea v-model="blockedHosts" :spellcheck="false">
 							<template #caption>{{ i18n.ts.blockedInstancesDescription }}</template>
 						</MkTextarea>
 						<MkButton primary @click="save_blockedHosts">{{ i18n.ts.save }}</MkButton>

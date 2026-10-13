@@ -426,6 +426,15 @@ export default abstract class Chart<T extends Schema> implements IChart {
 			return;
 		}
 
+		// when saving, non-numeric data is passed through this function;
+		// the kind of strings we save into charts are (user|note) ids, IP
+		// addresses, and in general stuff that really shouldn't contain
+		// quotes or backslashes; so, to avoid any kind of SQL injection,
+		// we just strip those characters out
+		const cleanItem = (item: string): string => {
+			return item.replaceAll(/['\\"]/g, '');
+		};
+
 		// TODO: 前の時間のログがbufferにあった場合のハンドリング
 		// 例えば、save が20分ごとに行われるとして、前回行われたのは 01:50 だったとする。
 		// 次に save が行われるのは 02:10 ということになるが、もし 01:55 に新規ログが buffer に追加されたとすると、
@@ -460,9 +469,9 @@ export default abstract class Chart<T extends Schema> implements IChart {
 					if (v < 0) queryForDay[name] = () => `"${name}" - ${Math.abs(v)}`;
 				} else if (Array.isArray(v) && v.length > 0) { // ユニークインクリメント
 					const tempColumnName = UNIQUE_TEMP_COLUMN_PREFIX + k.replaceAll('.', COLUMN_DELIMITER) as string & keyof TempColumnsForUnique<T>;
-					// TODO: item をSQLエスケープ
-					const itemsForHour = v.filter(item => !(logHour[tempColumnName] as unknown as string[]).includes(item)).map(item => `"${item}"`);
-					const itemsForDay = v.filter(item => !(logDay[tempColumnName] as unknown as string[]).includes(item)).map(item => `"${item}"`);
+
+					const itemsForHour = v.map(cleanItem).filter(item => !(logHour[tempColumnName] as unknown as string[]).includes(item)).map(item => `"${item}"`);
+					const itemsForDay = v.map(cleanItem).filter(item => !(logDay[tempColumnName] as unknown as string[]).includes(item)).map(item => `"${item}"`);
 					if (itemsForHour.length > 0) queryForHour[tempColumnName] = () => `array_cat("${tempColumnName}", '{${itemsForHour.join(',')}}'::varchar[])`;
 					if (itemsForDay.length > 0) queryForDay[tempColumnName] = () => `array_cat("${tempColumnName}", '{${itemsForDay.join(',')}}'::varchar[])`;
 				}

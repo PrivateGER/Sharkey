@@ -3,21 +3,35 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { IEndpointMeta } from '@/server/api/endpoints.js';
+import type { Schema } from '@/misc/json-schema.js';
 import type { MiMeta } from '@/models/Meta.js';
-import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { MetaService } from '@/core/MetaService.js';
 import { instanceUnsignedFetchOptions } from '@/const.js';
-import { DI } from '@/di-symbols.js';
 
 export const meta = {
 	tags: ['admin'],
 
+	// Up to 10 calls, then 10/second
+	limit: {
+		type: 'bucket',
+		size: 10,
+		dripRate: 100,
+	},
+
+	// TODO: future optimization - extract MetaAdmin from admin/meta, move to MetaEntityService, and call from here.
+	// res: {
+	// 	type: 'object',
+	// 	nullable: false, optional: false,
+	// 	ref: 'MetaAdmin',
+	// },
+
 	requireCredential: true,
 	requireAdmin: true,
 	kind: 'write:admin:meta',
-} as const;
+} as const satisfies IEndpointMeta;
 
 export const paramDef = {
 	type: 'object',
@@ -112,6 +126,7 @@ export const paramDef = {
 		deeplFreeInstance: { type: 'string', nullable: true },
 		libreTranslateURL: { type: 'string', nullable: true },
 		libreTranslateKey: { type: 'string', nullable: true },
+		listenbrainzAuthKey: { type: 'string', nullable: true },
 		enableEmail: { type: 'boolean' },
 		email: { type: 'string', nullable: true },
 		smtpSecure: { type: 'boolean' },
@@ -230,16 +245,12 @@ export const paramDef = {
 		},
 	},
 	required: [],
-} as const;
+} as const satisfies Schema;
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
-		@Inject(DI.meta)
-		private readonly serverSettings: MiMeta,
-
-		private metaService: MetaService,
-		private moderationLogService: ModerationLogService,
+		private readonly metaService: MetaService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const set = {} as Partial<MiMeta>;
@@ -625,6 +636,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
+			if (ps.listenbrainzAuthKey !== undefined) {
+				set.listenbrainzAuthKey = ps.listenbrainzAuthKey || null;
+			}
+
 			if (ps.enableIpLogging !== undefined) {
 				set.enableIpLogging = ps.enableIpLogging;
 			}
@@ -795,36 +810,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				set.enableProxyAccount = ps.enableProxyAccount;
 			}
 
-			const before = Object.assign({}, this.serverSettings);
-			const after = await this.metaService.update(set);
-
-			this.moderationLogService.log(me, 'updateServerSettings', {
-				before: sanitize(before),
-				after: sanitize(after),
+			// Save changes
+			await this.metaService.update(set, {
+				moderator: me,
 			});
 		});
 	}
 }
-
-function sanitize(meta: Partial<MiMeta & OnApplicationShutdown & OnApplicationBootstrap>): Partial<MiMeta> {
-	meta = {
-		...meta,
-		hcaptchaSecretKey: '<redacted>',
-		mcaptchaSecretKey: '<redacted>',
-		recaptchaSecretKey: '<redacted>',
-		turnstileSecretKey: '<redacted>',
-		fcSecretKey: '<redacted>',
-		smtpPass: '<redacted>',
-		swPrivateKey: '<redacted>',
-		objectStorageAccessKey: '<redacted>',
-		objectStorageSecretKey: '<redacted>',
-		deeplAuthKey: '<redacted>',
-		libreTranslateKey: '<redacted>',
-		verifymailAuthKey: '<redacted>',
-		truemailAuthKey: '<redacted>',
-		onApplicationBootstrap: undefined,
-		onApplicationShutdown: undefined,
-	};
-	return meta;
-}
-

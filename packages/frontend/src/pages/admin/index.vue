@@ -104,7 +104,7 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 	title: i18n.ts.quickAction,
 	items: [{
 		type: 'button',
-		icon: 'ti ti-search',
+		icon: 'ti ti-world-search',
 		text: i18n.ts.lookup,
 		action: adminLookup,
 	}, ...(instance.disableRegistration ? [{

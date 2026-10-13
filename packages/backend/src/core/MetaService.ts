@@ -4,15 +4,16 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { IsNull, Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { InstancesRepository, MetasRepository } from '@/models/_.js';
 import type { MiMeta } from '@/models/Meta.js';
 import type { MiInstance } from '@/models/Instance.js';
+import type { MiLocalUser } from '@/models/User.js';
 import { diffArrays } from '@/misc/diff-arrays.js';
 import { bindThis } from '@/decorators.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 @Injectable()
 export class MetaService {
@@ -28,13 +29,24 @@ export class MetaService {
 
 		private readonly featuredService: FeaturedService,
 		private readonly internalEventService: InternalEventService,
+		private readonly moderationLogService: ModerationLogService,
 	) {}
 
 	@bindThis
-	public async update(data: Partial<MiMeta>): Promise<MiMeta> {
+	public async update(updates: Partial<MiMeta>, opts?: {
+		moderator?: MiLocalUser | null,
+	}): Promise<MiMeta> {
+		// Skip no-op changes
+		if (Object.keys(updates).length < 1 || Object.values(updates).every((v: unknown) => v === undefined)) {
+			return this.meta;
+		}
+
+		// Create before/after *copies*, without persisting anything
 		const before = Object.assign({}, this.meta);
-		await this.metasRepository.update({ id: before.id }, data);
-		const after = await this.metasRepository.findOneOrFail({ where: { id: Not(IsNull()) }, order: { id: 'DESC' } });
+		const after = Object.assign({}, this.meta, updates);
+
+		// Save to postgres
+		await this.metasRepository.update({ id: this.meta.id }, updates);
 
 		// Propagate changes to blockedHosts, silencedHosts, mediaSilencedHosts, federationInstances, and bubbleInstances to the relevant instance rows.
 		await this.persistBlocks(before, after);
@@ -42,11 +54,22 @@ export class MetaService {
 		// Propagate changes to hiddenTags
 		await this.persistTags(before, after);
 
-		// Propagate changes to other instances.
-		// (do this last to make sure listeners get the results of persistBlocks / persistTags)
-		await this.internalEventService.emit('metaUpdated', { before, after });
+		// Update local singleton
+		const updated = Object.assign(this.meta, updates);
 
-		return after;
+		await Promise.all([
+			// Propagate changes across the cluster
+			// (do this last to make sure listeners get the results of persistBlocks / persistTags)
+			this.internalEventService.emit('metaUpdated', { before, after }),
+
+			// Record changes to ModLogs
+			opts?.moderator != null && this.moderationLogService.log(opts.moderator, 'updateServerSettings', {
+				before: sanitize(before),
+				after: sanitize(after),
+			}),
+		]);
+
+		return updated;
 	}
 
 	@bindThis
@@ -102,4 +125,24 @@ export class MetaService {
 
 function genHostPattern(host: string): string {
 	return host.toLowerCase().split('').reverse().join('') + '.%';
+}
+
+function sanitize<T extends MiMeta>(meta: T): T {
+	return {
+		...meta,
+		hcaptchaSecretKey: '<redacted>',
+		mcaptchaSecretKey: '<redacted>',
+		recaptchaSecretKey: '<redacted>',
+		turnstileSecretKey: '<redacted>',
+		fcSecretKey: '<redacted>',
+		smtpPass: '<redacted>',
+		swPrivateKey: '<redacted>',
+		objectStorageAccessKey: '<redacted>',
+		objectStorageSecretKey: '<redacted>',
+		deeplAuthKey: '<redacted>',
+		libreTranslateKey: '<redacted>',
+		listenbrainzAuthKey: '<redacted>',
+		verifymailAuthKey: '<redacted>',
+		truemailAuthKey: '<redacted>',
+	};
 }

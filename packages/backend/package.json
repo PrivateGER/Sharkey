@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"engines": {
-		"node": ">=22.0.0"
+		"node": ">=26.0.0"
 	},
 	"scripts": {
 		"start": "node ./built/boot/entry.js",
@@ -192,7 +192,7 @@
 		"@types/jsonld": "1.5.15",
 		"@types/jsrsasign": "10.5.15",
 		"@types/mime-types": "3.0.1",
-		"@types/node": "22.18.1",
+		"@types/node": "26.6.2",
 		"@types/nodemailer": "7.0.11",
 		"@types/oauth": "0.9.6",
 		"@types/oauth2orize": "1.11.5",
