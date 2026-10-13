@@ -181,7 +181,7 @@ export class ApRendererService {
 	}
 
 	@bindThis
-	private commonDocumentFields(file: MiDriveFile): Partial<Omit<IApDocument,"type">> {
+	private commonDocumentFields(file: MiDriveFile): Partial<Omit<IApDocument, "type">> {
 		const props = this.driveFileEntityService.getPublicProperties(file);
 		return {
 			mediaType: file.webpublicType ?? file.type,
