@@ -127,6 +127,12 @@ backend_tests:
   script:
     - pnpm run --filter backend build:pre
     - pnpm run --filter backend build
+    - pnpm run --filter backend typecheck:scripts
+    - pnpm run --filter backend typecheck:backend
+    - pnpm run --filter backend typecheck:frontend
+    - pnpm run --filter backend typecheck:test
+    - pnpm run --filter backend typecheck:test-federation
+    - pnpm run --filter backend typecheck:test-server
     - pnpm run --filter backend migrate
     - pnpm run --filter backend test
   # Same as common, but MRs are only run if they modify the backend.
