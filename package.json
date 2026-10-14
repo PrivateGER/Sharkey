@@ -68,7 +68,7 @@
 		"@misskey-dev/eslint-plugin": "2.2.0",
 		"@types/ignore-walk": "4.0.3",
 		"@types/js-yaml": "4.0.9",
-		"@types/node": "22.18.1",
+		"@types/node": "26.6.5",
 		"@typescript-eslint/eslint-plugin": "8.57.1",
 		"@typescript-eslint/parser": "8.57.1",
 		"cross-env": "10.0.0",
