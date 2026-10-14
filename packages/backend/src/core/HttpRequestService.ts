@@ -78,6 +78,12 @@ declare module 'node:http' {
 	}
 }
 
+declare module 'node:https' {
+	interface Agent {
+		createConnection(options: net.NetConnectOpts, callback?: (err: Error | null, stream: net.Socket) => void): net.Socket;
+	}
+}
+
 class HttpRequestServiceAgent extends http.Agent {
 	constructor(
 		private config: Config,
