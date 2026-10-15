@@ -1,4 +1,4 @@
-import path from 'path';
+import * as path from 'path';
 import pluginVue from '@vitejs/plugin-vue';
 import { type UserConfig, defineConfig } from 'vite';
 import { pluginReplaceIcons } from 'frontend-shared/util/vite.replaceIcons.js';
