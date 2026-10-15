@@ -184,6 +184,9 @@ export function getConfig(): UserConfig {
 					manualChunks: {
 						vue: ['vue'],
 						photoswipe: ['photoswipe', 'photoswipe/lightbox', 'photoswipe/style.css'],
+						reversei: ['misskey-reversi'],
+						bubblegame: ['misskey-bubble-game'],
+						misskeyjs: ['misskey-js'],
 					},
 					chunkFileNames: process.env.NODE_ENV === 'production' ? '[hash:8].js' : '[name]-[hash:8].js',
 					assetFileNames: process.env.NODE_ENV === 'production' ? '[hash:8][extname]' : '[name]-[hash:8][extname]',
