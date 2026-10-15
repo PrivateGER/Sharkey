@@ -59,6 +59,9 @@ function toBase62(n: number): string {
 
 export function getConfig(): UserConfig {
 	return {
+		// Fix development mode: https://vite.dev/guide/env-and-mode#modes
+		mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
+
 		base: '/embed_vite/',
 
 		server: {
@@ -101,6 +104,7 @@ export function getConfig(): UserConfig {
 					api: 'modern-compiler',
 				},
 			},
+			devSourcemap: true,
 		},
 
 		define: {
@@ -148,6 +152,7 @@ export function getConfig(): UserConfig {
 			assetsDir: '.',
 			emptyOutDir: false,
 			sourcemap: process.env.NODE_ENV === 'development',
+			minify: process.env.NODE_ENV === 'development' ? false : undefined,
 			reportCompressedSize: false,
 
 			// https://vitejs.dev/guide/dep-pre-bundling.html#monorepos-and-linked-dependencies
