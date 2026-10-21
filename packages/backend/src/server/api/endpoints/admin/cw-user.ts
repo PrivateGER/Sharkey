@@ -9,6 +9,8 @@ import type { UsersRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
@@ -17,6 +19,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 	kind: 'write:admin:cw-user',
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: '79abc52f-72bf-4d3e-9339-7a94f04b5356',
+			kind: 'permission',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -37,9 +48,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly cacheService: CacheService,
 		private readonly moderationLogService: ModerationLogService,
 		private readonly internalEventService: InternalEventService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.cacheService.findUserById(ps.userId);
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
+			}
 
 			// Collapse empty strings to null
 			const newCW = ps.cw?.trim() || null;

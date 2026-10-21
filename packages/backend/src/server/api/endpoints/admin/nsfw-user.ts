@@ -9,6 +9,8 @@ import type { UserProfilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
@@ -17,6 +19,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 	kind: 'write:admin:nsfw-user',
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: '991f47fc-0c4b-42e1-8ef1-49e1d79599cb',
+			kind: 'permission',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -35,6 +46,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly moderationLogService: ModerationLogService,
 		private readonly cacheService: CacheService,
 		private readonly internalEventService: InternalEventService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const profile = await this.cacheService.userProfileCache.fetch(ps.userId);
@@ -42,6 +54,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (profile.alwaysMarkNsfw) return;
 
 			const user = await this.cacheService.findUserById(ps.userId);
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
+			}
 
 			await this.userProfilesRepository.update(user.id, {
 				alwaysMarkNsfw: true,

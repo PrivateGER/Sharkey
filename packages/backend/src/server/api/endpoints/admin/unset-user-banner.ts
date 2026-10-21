@@ -8,6 +8,8 @@ import type { UsersRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
@@ -16,6 +18,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 	kind: 'write:admin:unset-user-banner',
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: 'ab4f5d70-a3ff-4688-8631-f495b2cc23df',
+			kind: 'permission',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -35,12 +46,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 
 		private moderationLogService: ModerationLogService,
 		private readonly internalEventService: InternalEventService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.usersRepository.findOneBy({ id: ps.userId });
 
 			if (user == null) {
 				throw new Error('user not found');
+			}
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
 			}
 
 			if (user.bannerId == null) return;

@@ -9,6 +9,8 @@ import type { UsersRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 
 export const meta = {
@@ -17,6 +19,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 	kind: 'write:admin:reject-quotes',
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: '8ccda560-2b7c-4dfc-90c8-c75250f4c71f',
+			kind: 'permission',
+		},
+	},
 } as const;
 
 export const paramDef = {
@@ -37,9 +48,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private readonly cacheService: CacheService,
 		private readonly moderationLogService: ModerationLogService,
 		private readonly internalEventService: InternalEventService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const user = await this.cacheService.findUserById(ps.userId);
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
+			}
 
 			// Skip if there's nothing to do
 			if (user.rejectQuotes === ps.rejectQuotes) return;

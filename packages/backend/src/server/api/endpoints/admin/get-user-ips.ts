@@ -8,6 +8,9 @@ import type { UserIpsRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
+import { CacheService } from '@/core/CacheService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -15,6 +18,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 	kind: 'read:admin:user-ips',
+
+	errors: {
+		accessDenied: {
+			message: 'Access denied.',
+			code: 'ACCESS_DENIED',
+			id: 'b3f3a89c-d044-48c3-98eb-be2ae22cb934',
+			kind: 'permission',
+		},
+	},
 	res: {
 		type: 'array',
 		optional: false,
@@ -51,8 +63,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private userIpsRepository: UserIpsRepository,
 
 		private idService: IdService,
+		private readonly cacheService: CacheService,
+		private readonly roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			const user = await this.cacheService.findUserById(ps.userId);
+
+			if (!await this.roleService.isAdministrator(me) && await this.roleService.isModerator(user)) {
+				throw new ApiError(meta.errors.accessDenied);
+			}
+
 			const ips = await this.userIpsRepository.find({
 				where: { userId: ps.userId },
 				order: { id: 'DESC' },
