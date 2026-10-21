@@ -322,7 +322,13 @@ export class SignupApiService {
 	public async signupPending(request: FastifyRequest<{ Body: { code: string; } }>, reply: FastifyReply) {
 		const body = request.body;
 
-		const code = body['code'];
+		const code = body?.['code'];
+
+		// TypeORM silently drops `undefined`/`null` from `where` clauses, which would turn this
+		// lookup into "any pending signup" - reject anything that isn't a non-empty string.
+		if (typeof code !== 'string' || code.length === 0) {
+			throw new FastifyReplyError(400, 'INVALID_CODE');
+		}
 
 		try {
 			const pendingUser = await this.userPendingsRepository.findOneByOrFail({ code });
