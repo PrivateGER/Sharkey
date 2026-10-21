@@ -312,7 +312,12 @@ export class ApNoteService implements OnModuleInit {
 					this.logger.warn(`vote to expired poll from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 				} else if (index >= 0) {
 					this.logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
-					await this.pollService.vote(actor, reply, index);
+					try {
+						await this.pollService.vote(actor, reply, index);
+					} catch (err) {
+						this.logger.warn(`rejected vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}: ${renderInlineError(err)}`);
+						return null;
+					}
 
 					// リモートフォロワーにUpdate配信
 					trackPromise(this.pollService.deliverQuestionUpdate(reply));
@@ -493,7 +498,12 @@ export class ApNoteService implements OnModuleInit {
 					this.logger.warn(`vote to expired poll from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
 				} else if (index >= 0) {
 					this.logger.info(`vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}`);
-					await this.pollService.vote(actor, reply, index);
+					try {
+						await this.pollService.vote(actor, reply, index);
+					} catch (err) {
+						this.logger.warn(`rejected vote from AP: actor=${actor.username}@${actor.host}, note=${note.id}, choice=${name}: ${renderInlineError(err)}`);
+						return null;
+					}
 
 					// リモートフォロワーにUpdate配信
 					trackPromise(this.pollService.deliverQuestionUpdate(reply));
