@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { load as cheerio } from 'cheerio/slim';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { EnvService } from '@/global/EnvService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
@@ -35,6 +36,7 @@ export class WebfingerService {
 	constructor(
 		private httpRequestService: HttpRequestService,
 		private remoteLoggerService: RemoteLoggerService,
+		private readonly utilityService: UtilityService,
 
 		envService: EnvService,
 	) {
@@ -48,10 +50,30 @@ export class WebfingerService {
 	@bindThis
 	public async webfinger(query: string): Promise<IWebFinger> {
 		const hostMetaUrl = this.queryToHostMetaUrl(query);
-		const template = await this.fetchWebFingerTemplateFromHostMeta(hostMetaUrl) ?? this.queryToWebFingerTemplate(query);
+		const defaultTemplate = this.queryToWebFingerTemplate(query);
+		let template = await this.fetchWebFingerTemplateFromHostMeta(hostMetaUrl) ?? defaultTemplate;
+
+		// host-meta is served by the host we're asking about, so its template must stay on that host.
+		// Otherwise any server could redirect lookups for its users to a different server.
+		if (!this.isSameAuthority(template, defaultTemplate)) {
+			this.logger.warn(`Ignoring host-meta template for ${query}: ${template} points to a different host`);
+			template = defaultTemplate;
+		}
+
 		const url = this.genUrl(query, template);
 
 		return await this.httpRequestService.getJson<IWebFinger>(url, 'application/jrd+json, application/json');
+	}
+
+	@bindThis
+	private isSameAuthority(template: string, reference: string): boolean {
+		try {
+			const a = this.utilityService.punyHostPSLDomain(template.replace('{uri}', ''));
+			const b = this.utilityService.punyHostPSLDomain(reference.replace('{uri}', ''));
+			return a === b;
+		} catch {
+			return false;
+		}
 	}
 
 	@bindThis
