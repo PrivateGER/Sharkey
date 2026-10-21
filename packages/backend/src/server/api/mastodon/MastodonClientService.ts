@@ -4,7 +4,9 @@
  */
 
 import { Misskey } from 'megalodon';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { DI } from '@/di-symbols.js';
+import type { Config } from '@/config.js';
 import { MiLocalUser } from '@/models/User.js';
 import { AuthenticateService } from '@/server/api/AuthenticateService.js';
 import type { FastifyRequest } from 'fastify';
@@ -12,6 +14,9 @@ import type { FastifyRequest } from 'fastify';
 @Injectable()
 export class MastodonClientService {
 	constructor(
+		@Inject(DI.config)
+		private readonly config: Config,
+
 		private readonly authenticateService: AuthenticateService,
 	) {}
 
@@ -46,18 +51,28 @@ export class MastodonClientService {
 		accessToken = accessToken !== undefined ? accessToken : getAccessToken(authorization);
 
 		// TODO pass agent?
-		const baseUrl = this.getBaseUrl(request);
+		const baseUrl = this.getBaseUrl();
 		const userAgent = request.headers['user-agent'];
 		return new Misskey(baseUrl, accessToken, userAgent);
 	}
 
-	readonly getBaseUrl = getBaseUrl;
+	/**
+	 * Gets the base URL (origin) that server-side requests back into this instance's API should use.
+	 * This is deliberately taken from the configuration and not from the incoming request: with `trustProxy`
+	 * enabled, `request.host` comes from the client-controlled `X-Forwarded-Host` header, which would let a
+	 * caller point these internal requests at arbitrary hosts (SSRF).
+	 */
+	public getBaseUrl(): string {
+		return this.config.url;
+	}
 }
 
 /**
- * Gets the base URL (origin) of the incoming request
+ * Gets the base URL (origin) of the incoming request, as seen by the client.
+ * Only use this to build URLs that are sent back to the client (e.g. pagination links) - never for requests
+ * made by the server, since `request.host` is client-controlled when running behind a trusted proxy.
  */
-export function getBaseUrl(request: FastifyRequest): string {
+export function getRequestBaseUrl(request: FastifyRequest): string {
 	return `${request.protocol}://${request.host}`;
 }
 

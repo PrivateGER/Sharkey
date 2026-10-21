@@ -8,7 +8,7 @@ import { isAxiosError } from 'axios';
 import type Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { ApiError } from '@/server/api/error.js';
-import { getBaseUrl } from '@/server/api/mastodon/MastodonClientService.js';
+import { getRequestBaseUrl } from '@/server/api/mastodon/MastodonClientService.js';
 import { AuthenticationError } from '@/server/api/AuthenticateService.js';
 import type { FastifyRequest } from 'fastify';
 
@@ -42,7 +42,7 @@ export class MastodonLogger {
 
 function getPath(request: FastifyRequest): string {
 	try {
-		return new URL(request.url, getBaseUrl(request)).pathname;
+		return new URL(request.url, getRequestBaseUrl(request)).pathname;
 	} catch {
 		return request.url;
 	}
