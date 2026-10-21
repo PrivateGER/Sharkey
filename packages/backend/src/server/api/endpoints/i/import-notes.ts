@@ -72,7 +72,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const [file, policies] = await Promise.all([
-				this.driveFilesRepository.findOneBy({ id: ps.fileId }),
+				this.driveFilesRepository.findOneBy({ id: ps.fileId, userId: me.id }),
 				this.roleService.getUserPolicies(me),
 			]);
 
