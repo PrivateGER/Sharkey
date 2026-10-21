@@ -16,6 +16,7 @@ import { bindThis } from '@/decorators.js';
 import { isLocalUser } from '@/models/User.js';
 import { CacheService } from '@/core/CacheService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 
 @Injectable()
 export class PollService {
@@ -39,6 +40,7 @@ export class PollService {
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
 		private readonly cacheService: CacheService,
+		private readonly noteVisibilityService: NoteVisibilityService,
 	) {
 	}
 
@@ -51,8 +53,19 @@ export class PollService {
 		// Check whether is valid choice
 		if (poll.choices[choice] == null) throw new Error('invalid choice param');
 
-		// Check blocking
 		if (note.userId !== user.id) {
+			// Local-only notes never federate, so a remote user can't legitimately be voting on one.
+			if (note.localOnly && !isLocalUser(user)) {
+				throw new Error('cannot vote on a local-only note');
+			}
+
+			// Check visibility
+			const visibility = await this.noteVisibilityService.checkNoteVisibilityAsync(note, user.id);
+			if (!visibility.accessible) {
+				throw new Error('note is not visible to this user');
+			}
+
+			// Check blocking
 			const blocked = await this.userBlockingService.checkBlocked(note.userId, user.id);
 			if (blocked) {
 				throw new Error('blocked');

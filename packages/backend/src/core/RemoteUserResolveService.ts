@@ -89,11 +89,32 @@ export class RemoteUserResolveService {
 			}
 
 			this.logger.info(`Fetching new remote user ${chalk.magenta(acct)} from ${self.href}`);
-			return await this.apPersonService.createPerson(self.href);
+			const user = await this.apPersonService.createPerson(self.href);
+
+			// WebFinger is only trusted to answer for accounts on the host we asked. If it handed us an actor with a
+			// different name or host (e.g. a personal domain aliasing an account elsewhere), the actor's own host must
+			// confirm the mapping by resolving back to the same actor, otherwise any host could claim another server's user.
+			const { username, host } = this.utilityService.parseAcct(acct);
+			if (host == null || user.username.toLowerCase() !== username || !this.isSameAuthority(host, user.host)) {
+				const canonicalAcct = `${user.username.toLowerCase()}@${user.host}`;
+				const confirmed = await this.resolveSelf(canonicalAcct).then(self => self.href === user.uri).catch(() => false);
+				if (!confirmed) {
+					this.logger.warn(`Ignoring WebFinger response for ${chalk.magenta(acct)}: it resolved to ${canonicalAcct}, which did not confirm the alias.`);
+					return null;
+				}
+				this.logger.info(`Accepted WebFinger alias ${chalk.magenta(acct)} -> ${canonicalAcct}`);
+			}
+
+			return user;
 		} catch (err) {
 			this.logger.warn(`Failed to resolve user ${acct}: ${renderInlineError(err)}`);
 			return null;
 		}
+	}
+
+	@bindThis
+	private isSameAuthority(hostA: string, hostB: string): boolean {
+		return this.utilityService.punyHostPSLDomain(`https://${hostA}`) === this.utilityService.punyHostPSLDomain(`https://${hostB}`);
 	}
 
 	@bindThis

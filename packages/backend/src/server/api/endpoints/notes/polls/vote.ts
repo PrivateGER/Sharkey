@@ -16,6 +16,7 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CacheService } from '@/core/CacheService.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { ApiError } from '../../../error.js';
@@ -106,6 +107,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private userBlockingService: UserBlockingService,
 		private readonly timeService: TimeService,
 		private readonly cacheService: CacheService,
+		private readonly noteVisibilityService: NoteVisibilityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const createdAt = this.timeService.date;
@@ -115,6 +117,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (err.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 				throw err;
 			});
+
+			// Check visibility (before anything that would reveal details of a hidden note)
+			if (note.userId !== me.id) {
+				const visibility = await this.noteVisibilityService.checkNoteVisibilityAsync(note, me.id);
+				if (!visibility.accessible) {
+					throw new ApiError(meta.errors.noSuchNote);
+				}
+			}
 
 			if (!note.hasPoll) {
 				throw new ApiError(meta.errors.noPoll);

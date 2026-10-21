@@ -78,6 +78,21 @@ export class UtilityService {
 		return regexp.test(email);
 	}
 
+	/**
+	 * Checks whether `host` is, or is a subdomain of, any entry in `hostList`.
+	 * The host is matched both with and without its port, and with any trailing dot removed,
+	 * so `evil.example:8443` and `evil.example.` both match an entry of `evil.example`.
+	 */
+	@bindThis
+	public isHostInList(hostList: string[], host: string): boolean {
+		const full = host.toLowerCase().replace(/\.+(?=:|$)/, '');
+		const withoutPort = full.replace(/:\d+$/, '');
+		return hostList.some(entry => {
+			const x = entry.toLowerCase().replace(/\.+(?=:|$)/, '');
+			return `.${full}`.endsWith(`.${x}`) || `.${withoutPort}`.endsWith(`.${x}`);
+		});
+	}
+
 	public isBlockedHost(host: string | null): boolean;
 	public isBlockedHost(blockedHosts: string[], host: string | null): boolean;
 	@bindThis
@@ -86,7 +101,7 @@ export class UtilityService {
 		host = Array.isArray(blockedHostsOrHost) ? host : blockedHostsOrHost;
 
 		if (host == null) return false;
-		return blockedHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));
+		return this.isHostInList(blockedHosts, host);
 	}
 
 	public isSilencedHost(host: string | null): boolean;
@@ -97,7 +112,7 @@ export class UtilityService {
 		host = Array.isArray(silencedHostsOrHost) ? host : silencedHostsOrHost;
 
 		if (host == null) return false;
-		return silencedHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));
+		return this.isHostInList(silencedHosts, host);
 	}
 
 	public isMediaSilencedHost(host: string | null): boolean;
@@ -108,19 +123,19 @@ export class UtilityService {
 		host = Array.isArray(mediaSilencedHostsOrHost) ? host : mediaSilencedHostsOrHost;
 
 		if (host == null) return false;
-		return mediaSilencedHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));
+		return this.isHostInList(mediaSilencedHosts, host);
 	}
 
 	@bindThis
 	public isAllowListedHost(host: string | null): boolean {
 		if (host == null) return false;
-		return this.meta.federationHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));
+		return this.isHostInList(this.meta.federationHosts, host);
 	}
 
 	@bindThis
 	public isBubbledHost(host: string | null): boolean {
 		if (host == null) return false;
-		return this.meta.bubbleInstances.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`));
+		return this.isHostInList(this.meta.bubbleInstances, host);
 	}
 
 	@bindThis
@@ -178,7 +193,9 @@ export class UtilityService {
 		// the port off, and add it back later
 		const hostParts = host.toLowerCase().match(/^(.+?)(:.+)?$/);
 		if (!hostParts) return '';
-		const hostname = hostParts[1];
+		// A trailing dot denotes a fully-qualified name in DNS but resolves to the same host,
+		// so strip it to keep one canonical spelling (and to keep block lists effective).
+		const hostname = hostParts[1].replace(/\.+$/, '');
 		const port = hostParts[2] ?? '';
 
 		return domainToASCII(hostname) + port;
@@ -222,7 +239,7 @@ export class UtilityService {
 	public isFederationAllowedHost(host: string): boolean {
 		if (this.isSelfHost(host)) return true;
 		if (this.meta.federation === 'none') return false;
-		if (this.meta.federation === 'specified' && !this.meta.federationHosts.some(x => `.${host.toLowerCase()}`.endsWith(`.${x}`))) return false;
+		if (this.meta.federation === 'specified' && !this.isHostInList(this.meta.federationHosts, host)) return false;
 		if (this.isBlockedHost(this.meta.blockedHosts, host)) return false;
 
 		return true;

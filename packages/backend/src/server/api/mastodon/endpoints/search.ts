@@ -108,12 +108,15 @@ export class ApiSearchMastodon {
 		});
 
 		fastify.get<ApiSearchMastodonRoute>('/v1/trends/statuses', async (request, reply) => {
-			const baseUrl = this.clientService.getBaseUrl(request);
+			const baseUrl = this.clientService.getBaseUrl();
 			const res = await fetch(`${baseUrl}/api/notes/featured`,
 				{
 					method: 'POST',
 					headers: {
-						...request.headers as Record<string, string>,
+						// Only pass the caller's credentials and user agent - forwarding the whole header bag would let the
+						// client spoof X-Forwarded-* headers on this server-side request.
+						...(request.headers.authorization ? { 'Authorization': request.headers.authorization } : {}),
+						...(request.headers['user-agent'] ? { 'User-Agent': request.headers['user-agent'] } : {}),
 						'Accept': 'application/json',
 						'Content-Type': 'application/json',
 					},
@@ -131,12 +134,15 @@ export class ApiSearchMastodon {
 		});
 
 		fastify.get<ApiSearchMastodonRoute>('/v2/suggestions', async (request, reply) => {
-			const baseUrl = this.clientService.getBaseUrl(request);
+			const baseUrl = this.clientService.getBaseUrl();
 			const res = await fetch(`${baseUrl}/api/users`,
 				{
 					method: 'POST',
 					headers: {
-						...request.headers as Record<string, string>,
+						// Only pass the caller's credentials and user agent - forwarding the whole header bag would let the
+						// client spoof X-Forwarded-* headers on this server-side request.
+						...(request.headers.authorization ? { 'Authorization': request.headers.authorization } : {}),
+						...(request.headers['user-agent'] ? { 'User-Agent': request.headers['user-agent'] } : {}),
 						'Accept': 'application/json',
 						'Content-Type': 'application/json',
 					},

@@ -75,7 +75,72 @@ describe('UtilityService', () => {
 		});
 	});
 
+	describe('isBlockedHost', () => {
+		beforeEach(() => {
+			meta.blockedHosts = ['evil.example'];
+		});
+		test('exact', () => {
+			assert.equal(utilityService.isBlockedHost('evil.example'), true);
+		});
+		test('subdomain', () => {
+			assert.equal(utilityService.isBlockedHost('sub.evil.example'), true);
+		});
+		test('unrelated', () => {
+			assert.equal(utilityService.isBlockedHost('notevil.example'), false);
+			assert.equal(utilityService.isBlockedHost('evil.example.com'), false);
+		});
+		test('trailing dot', () => {
+			assert.equal(utilityService.isBlockedHost('evil.example.'), true);
+			assert.equal(utilityService.isBlockedHost('sub.evil.example.'), true);
+		});
+		test('non-default port', () => {
+			assert.equal(utilityService.isBlockedHost('evil.example:8443'), true);
+			assert.equal(utilityService.isBlockedHost('evil.example.:8443'), true);
+		});
+		test('port in block list entry', () => {
+			meta.blockedHosts = ['evil.example:8443'];
+			assert.equal(utilityService.isBlockedHost('evil.example:8443'), true);
+			assert.equal(utilityService.isBlockedHost('evil.example'), false);
+		});
+		test('case insensitive', () => {
+			assert.equal(utilityService.isBlockedHost('EVIL.Example'), true);
+		});
+		test('trailing dot in block list entry', () => {
+			meta.blockedHosts = ['evil.example.'];
+			assert.equal(utilityService.isBlockedHost('evil.example'), true);
+			assert.equal(utilityService.isBlockedHost('evil.example.'), true);
+			assert.equal(utilityService.isBlockedHost('evil.example:8443'), true);
+		});
+	});
+
+	describe('isFederationAllowedHost', () => {
+		test('blocked host variants are rejected', () => {
+			meta.blockedHosts = ['evil.example'];
+			assert.equal(utilityService.isFederationAllowedHost('evil.example'), false);
+			assert.equal(utilityService.isFederationAllowedHost('evil.example.'), false);
+			assert.equal(utilityService.isFederationAllowedHost('evil.example:8443'), false);
+			assert.equal(utilityService.isFederationAllowedHost('good.example'), true);
+		});
+		test('allow-list variants are accepted', () => {
+			meta.federation = 'specified';
+			meta.federationHosts = ['friend.example'];
+			assert.equal(utilityService.isFederationAllowedHost('friend.example'), true);
+			assert.equal(utilityService.isFederationAllowedHost('friend.example.'), true);
+			assert.equal(utilityService.isFederationAllowedHost('friend.example:8443'), true);
+			assert.equal(utilityService.isFederationAllowedHost('other.example'), false);
+		});
+	});
+
 	describe('toPuny', () => {
+		test('trailing dot is stripped', () => {
+			assert.equal(utilityService.toPuny('www.foo.com.'), 'www.foo.com');
+			assert.equal(utilityService.toPuny('www.foo.com.:3000'), 'www.foo.com:3000');
+		});
+		test('isUriLocal with trailing dot', () => {
+			assert.equal(utilityService.isUriLocal('https://example.com./users/x'), true);
+			assert.equal(utilityService.isUriLocal('https://example.com/users/x'), true);
+			assert.equal(utilityService.isUriLocal('https://other.com/users/x'), false);
+		});
 		test('without port ', () => {
 			assert.equal(utilityService.toPuny('www.foo.com'), 'www.foo.com');
 		});

@@ -424,7 +424,9 @@ export class ApRendererService {
 					if (inReplyToNote.uri) {
 						inReplyTo = inReplyToNote.uri;
 					} else {
-						if (dive) {
+						// Only inline a parent that is itself public and federable: this rendering can be fetched
+						// unsigned (e.g. via the featured collection), so a followers-only or direct parent must stay a URL.
+						if (dive && !inReplyToNote.localOnly && ['public', 'home'].includes(inReplyToNote.visibility)) {
 							inReplyTo = await this.renderNote(inReplyToNote, inReplyToUser, false);
 						} else {
 							inReplyTo = `${this.config.url}/notes/${inReplyToNote.id}`;

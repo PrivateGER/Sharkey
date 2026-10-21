@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { MiUser } from '@/models/User.js';
+import type { MiUser, MiRemoteUser } from '@/models/User.js';
 import type { RelaysRepository } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
 import { MemorySingleCache } from '@/misc/cache.js';
@@ -15,6 +15,7 @@ import { DI } from '@/di-symbols.js';
 import { deepClone } from '@/misc/clone.js';
 import { bindThis } from '@/decorators.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { UtilityService } from '@/core/UtilityService.js';
 import { CacheManagementService, ManagedMemorySingleCache } from '@/global/CacheManagementService.js';
 import type { IActivity } from '@/core/activitypub/type.js';
 import { LoggerService } from '@/core/LoggerService.js';
@@ -35,6 +36,7 @@ export class RelayService {
 		private queueService: QueueService,
 		private systemAccountService: SystemAccountService,
 		private apRendererService: ApRendererService,
+		private readonly utilityService: UtilityService,
 		private readonly loggerService: LoggerService,
 
 		cacheManagementService: CacheManagementService,
@@ -85,21 +87,53 @@ export class RelayService {
 	}
 
 	@bindThis
-	public async relayAccepted(id: string): Promise<string> {
-		const result = await this.relaysRepository.update(id, {
-			status: 'accepted',
-		});
+	public async isRelayActor(user: { id: MiUser['id'] }): Promise<boolean> {
+		const relayActor = await this.systemAccountService.fetch('relay');
+		return user.id === relayActor.id;
+	}
+
+	/**
+	 * Finds the relay with the given id, but only if `actor` (the remote actor answering our Follow)
+	 * belongs to the same authority as the relay's inbox.
+	 */
+	@bindThis
+	private async findRelayFor(id: string, actor: MiRemoteUser): Promise<MiRelay | null> {
+		const relay = await this.relaysRepository.findOneBy({ id });
+		if (relay == null) return null;
+
+		const relayAuthority = this.utilityService.punyHostPSLDomain(relay.inbox);
+		const actorAuthority = this.utilityService.punyHostPSLDomain(`https://${actor.host}`);
+		if (relayAuthority !== actorAuthority) return null;
+
+		return relay;
+	}
+
+	/**
+	 * Handles a remote Accept/Reject of one of our relay Follow requests.
+	 * @param id relay id taken from the Follow activity id
+	 * @param actor the remote actor that sent the Accept/Reject
+	 * @param follower the local user named as the Follow's actor; must be our relay system account
+	 */
+	@bindThis
+	private async setRelayStatus(id: string, actor: MiRemoteUser, follower: { id: MiUser['id'] }, status: 'accepted' | 'rejected'): Promise<string> {
+		const relay = await this.findRelayFor(id, actor);
+		if (relay == null) return `skip: relay ${id} not found or not answered by its own host`;
+
+		if (!await this.isRelayActor(follower)) return 'skip: relay response not addressed to the relay actor';
+
+		const result = await this.relaysRepository.update(relay.id, { status });
 
 		return JSON.stringify(result);
 	}
 
 	@bindThis
-	public async relayRejected(id: string): Promise<string> {
-		const result = await this.relaysRepository.update(id, {
-			status: 'rejected',
-		});
+	public async relayAccepted(id: string, actor: MiRemoteUser, follower: { id: MiUser['id'] }): Promise<string> {
+		return await this.setRelayStatus(id, actor, follower, 'accepted');
+	}
 
-		return JSON.stringify(result);
+	@bindThis
+	public async relayRejected(id: string, actor: MiRemoteUser, follower: { id: MiUser['id'] }): Promise<string> {
+		return await this.setRelayStatus(id, actor, follower, 'rejected');
 	}
 
 	@bindThis

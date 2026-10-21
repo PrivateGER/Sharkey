@@ -4,7 +4,7 @@
  */
 
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { getBaseUrl } from '@/server/api/mastodon/MastodonClientService.js';
+import { getRequestBaseUrl } from '@/server/api/mastodon/MastodonClientService.js';
 
 interface AnyEntity {
 	readonly id: string;
@@ -152,7 +152,7 @@ function createPaginationUrl(request: FastifyRequest, data: {
 	offset?: number;
 	limit?: number;
 }): string {
-	const baseUrl = getBaseUrl(request);
+	const baseUrl = getRequestBaseUrl(request);
 	const requestUrl = new URL(request.url, baseUrl);
 
 	// Remove any existing pagination
