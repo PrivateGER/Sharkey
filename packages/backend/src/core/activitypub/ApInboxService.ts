@@ -277,7 +277,9 @@ export class ApInboxService {
 		// relay
 		const match = activity.id?.match(/follow-relay\/(\w+)/);
 		if (match) {
-			return await this.relayService.relayAccepted(match[1]);
+			// RelayService verifies that the relay exists, that it is answered by its own host,
+			// and that the Follow being answered was sent by our relay actor.
+			return await this.relayService.relayAccepted(match[1], actor, follower);
 		}
 
 		await this.userFollowingService.acceptFollowRequest(actor, follower);
@@ -660,7 +662,9 @@ export class ApInboxService {
 		// relay
 		const match = activity.id?.match(/follow-relay\/(\w+)/);
 		if (match) {
-			return await this.relayService.relayRejected(match[1]);
+			// RelayService verifies that the relay exists, that it is answered by its own host,
+			// and that the Follow being answered was sent by our relay actor.
+			return await this.relayService.relayRejected(match[1], actor, follower);
 		}
 
 		await this.userFollowingService.remoteReject(actor, follower);
