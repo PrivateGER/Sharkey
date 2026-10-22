@@ -13,30 +13,48 @@ packages:
   - packages/stub
   - packages/sw
 
-ignorePatchFailures: false
+# https://pnpm.io/catalogs
+catalog:
+  "axios": "1.13.6"
+  "js-yaml": "4.1.1"
+  "file-type": "21.3.3"
 
-onlyBuiltDependencies:
-  - '@nestjs/core'
-  - '@parcel/watcher'
-  - '@sentry-internal/node-cpu-profiler'
-  - '@sentry/profiling-node'
-  - '@swc/core'
-  - '@tensorflow/tfjs-node'
-  - argon2
-  - bufferutil
-  - canvas
-  - core-js
-  - cypress
-  - esbuild
-  - msgpackr-extract
-  - msw
-  - nice-napi
-  - re2
-  - sharp
-  - unrs-resolver
-  - utf-8-validate
-  - v-code-diff
-  - vue-demi
+allowBuilds:
+  '@nestjs/core': true
+  '@parcel/watcher': true
+  '@sentry-internal/node-cpu-profiler': true
+  '@swc/core': true
+  argon2: true
+  bufferutil: true
+  canvas: true
+  core-js: true
+  cypress: true
+  esbuild: true
+  msgpackr-extract: true
+  msw: true
+  protobufjs: false
+  re2: true
+  sharp: true
+  unrs-resolver: true
+  utf-8-validate: true
+  v-code-diff: true
+  vue-demi: true
+
+# https://pnpm.io/settings#supportedarchitectures
+# slacc-linux-x64-musl@0.0.10 is published with the wrong metadata libc: ["glibc"], so pnpm 11
+# skips it on musl (Alpine, our Docker image) and the backend dies at boot with
+# "Cannot find module 'slacc-linux-x64-musl'". Also accepting glibc packages on musl hosts installs it.
+# On glibc hosts this changes nothing. Side effect on musl: glibc variants of other optional native
+# packages are installed too (unused, packages still load their musl builds).
+# Remove once slacc publishes its musl package with libc: ["musl"].
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - current
+  libc:
+    - current
+    - glibc
 
 # https://pnpm.io/settings#packageextensions
 packageExtensions:
@@ -50,15 +68,15 @@ overrides:
   # The versions here apply recursively through ALL dependencies.
   "chokidar": "5.0.0"
   "lodash": "4.17.23"
-  "axios": "1.13.6"
-  "js-yaml": "4.1.1"
+  "axios": "catalog:"
+  "js-yaml": "catalog:"
   "systeminformation": "5.31.4"
   "glob": "npm:fast-glob@3.3.3"
   "jws": "4.0.1"
   "body-parser": "2.2.2"
   "mdast-util-to-hast": "13.2.1"
   "multer": "2.1.1"
-  "file-type": "21.3.3"
+  "file-type": "catalog:"
   "undici": "7.24.5"
   "qs": "6.15.0"
   "minimatch": "8.0.7" # Note - this is still outdated, but we can't go further until eslint gets updated.
@@ -74,3 +92,6 @@ overrides:
   "parse5": "workspace:stub@*"
   "parse5-htmlparser2-tree-adapter": "workspace:stub@*"
   "parse5-parser-stream": "workspace:stub@*"
+  "aiscript-vscode>@aiscript-dev/aiscript-languageserver": "-"
+  "aiscript-vscode>vscode-languageclient": "-"
+

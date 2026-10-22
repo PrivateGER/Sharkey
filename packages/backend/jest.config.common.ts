@@ -3,6 +3,8 @@
 * https://jestjs.io/docs/en/configuration.html
 */
 
+import type { Config } from 'jest';
+
 export default {
 	// All imported modules in your tests should be mocked automatically
 	// automock: false,
@@ -23,7 +25,7 @@ export default {
 	collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts'],
 
 	// The directory where Jest should output its coverage files
-	coverageDirectory: "coverage",
+	coverageDirectory: 'coverage',
 
 	// An array of regexp pattern strings used to skip coverage collection
 	// coveragePathIgnorePatterns: [
@@ -31,7 +33,7 @@ export default {
 	// ],
 
 	// Indicates which provider should be used to instrument code for coverage
-	coverageProvider: "v8",
+	coverageProvider: 'v8',
 
 	// A list of reporter names that Jest uses when writing coverage reports
 	// coverageReporters: [
@@ -150,7 +152,7 @@ export default {
 	// snapshotSerializers: [],
 
 	// The test environment that will be used for testing
-	testEnvironment: "node",
+	testEnvironment: 'node',
 
 	// Options that will be passed to the testEnvironment
 	// testEnvironmentOptions: {},
@@ -183,7 +185,7 @@ export default {
 
 	// A map from regular expressions to paths to transformers
 	transform: {
-		"^.+\\.(t|j)sx?$": ["@swc/jest"],
+		'^.+\\.(t|j)sx?$': '@swc/jest',
 	},
 
 	// An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
@@ -216,4 +218,4 @@ export default {
 	workerIdleMemoryLimit: '1GiB', // Limit the worker to 1GB (GitHub Workflows dies at 2GB)
 
 	maxConcurrency: 32,
-};
+} satisfies Config;

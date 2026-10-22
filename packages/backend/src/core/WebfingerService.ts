@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { URL } from 'node:url';
 import { Injectable } from '@nestjs/common';
 import { load as cheerio } from 'cheerio/slim';
 import { HttpRequestService } from '@/core/HttpRequestService.js';

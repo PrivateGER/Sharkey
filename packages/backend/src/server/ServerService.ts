@@ -4,7 +4,8 @@
  */
 
 import cluster from 'node:cluster';
-import * as fs from 'node:fs';
+import * as nodeFS from 'node:fs/promises';
+import * as nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Inject, Injectable, type BeforeApplicationShutdown } from '@nestjs/common';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -39,13 +40,17 @@ import { OpenApiServerService } from './api/openapi/OpenApiServerService.js';
 import { MastodonApiServerService } from './api/mastodon/MastodonApiServerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import type { Server } from 'http';
+import type { Http2Server } from 'http2';
+
+export type AnyServer = Server | Http2Server;
 
 const _dirname = fileURLToPath(new URL('.', import.meta.url));
 
 @Injectable()
 export class ServerService implements BeforeApplicationShutdown {
 	private logger: Logger;
-	#fastify?: FastifyInstance;
+	#fastify?: FastifyInstance<AnyServer>;
 
 	constructor(
 		@Inject(DI.config)
@@ -89,11 +94,22 @@ export class ServerService implements BeforeApplicationShutdown {
 
 	@bindThis
 	public async launch(): Promise<void> {
-		const fastify = Fastify({
+		const fastifyConfig = {
 			trustProxy: true,
 			logger: false,
-		});
-		this.#fastify = fastify;
+		};
+
+		// Fuckery to deal with incorrect TypeScript types in Fastify.
+		// FastifyOptions union doesn't allow `http2: false` so TS won't allow the property to even be *defined* unless it's true.
+		this.#fastify = this.config.protocol === 'http2'
+			// Enable HTTP2 if enabled.
+			// This supports both encrypted and cleartext modes, but does *not* support protocol negotiation!
+			// https://fastify.dev/docs/latest/Reference/HTTP2/
+			? Fastify({ ...fastifyConfig, http2: true })
+			// Default will produce HTTP1.
+			: Fastify(fastifyConfig);
+
+		const fastify = this.#fastify;
 
 		// HSTS
 		// 6months (15552000sec)
@@ -298,15 +314,16 @@ export class ServerService implements BeforeApplicationShutdown {
 			}
 		});
 
-		if (this.config.socket) {
-			if (fs.existsSync(this.config.socket)) {
-				fs.unlinkSync(this.config.socket);
-			}
+		const socket = this.config.socket;
+		if (socket) {
+			await nodeFS.rm(socket, { force: true });
+			await nodeFS.mkdir(nodePath.dirname(socket), { recursive: true });
 
-			await fastify.listen({ path: this.config.socket });
+			// TODO ToC/ToU race condition
+			await fastify.listen({ path: socket });
 
 			if (this.config.chmodSocket) {
-				fs.chmodSync(this.config.socket!, this.config.chmodSocket);
+				await nodeFS.chmod(socket, this.config.chmodSocket);
 			}
 		} else {
 			await fastify.listen({ port: this.config.port, host: this.config.address });
@@ -329,7 +346,7 @@ export class ServerService implements BeforeApplicationShutdown {
 	/**
 	 * Get the Fastify instance for testing.
 	 */
-	public get fastify(): FastifyInstance {
+	public get fastify(): FastifyInstance<AnyServer> {
 		if (!this.#fastify) {
 			throw new Error('Cannot get fastify before starting server');
 		}

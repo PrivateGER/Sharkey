@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { URLSearchParams } from 'node:url';
 import * as nodemailer from 'nodemailer';
 import juice from 'juice';
 import { load as cheerio } from 'cheerio/slim';

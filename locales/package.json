@@ -9,7 +9,7 @@
 	},
 	"devDependencies": {
 		"@types/js-yaml": "4.0.9",
-		"js-yaml": "4.1.1",
+		"js-yaml": "catalog:",
 		"typescript": "5.9.3"
 	}
 }

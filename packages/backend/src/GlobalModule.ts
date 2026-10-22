@@ -25,21 +25,24 @@ import { createPostgresDataSource } from '@/postgres.js';
 import { TimeService, NativeTimeService } from '@/global/TimeService.js';
 import { EnvService } from '@/global/EnvService.js';
 import { CacheManagementService } from '@/global/CacheManagementService.js';
-import { InternalEventService } from '@/global/InternalEventService.js';
+import { InternalEventService, InternalEventTypes } from '@/global/InternalEventService.js';
 import { DependencyService } from '@/global/DependencyService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { IdService } from '@/core/IdService.js';
 import { repositoryProviders } from '@/models/RepositoryModule.js';
 import { DI } from './di-symbols.js';
 
-async function fetchMeta(metasRepository: MetasRepository, logger: Logger): Promise<MiMeta> {
-	let meta = await metasRepository.findOne({ where: { id: Not(IsNull()) }, order: { id: 'DESC' } });
+async function fetchMeta(metasRepository: MetasRepository, logger: Logger, id?: MiMeta['id']): Promise<MiMeta> {
+	let meta = await metasRepository.findOne({
+		where: { id: id ?? Not(IsNull()) },
+		order: { id: 'DESC' },
+	});
 
 	if (!meta) {
 		logger.info('Meta table is empty; populating with defaults.');
 
 		// No-op UPSERT to safely create the row
-		await metasRepository.upsert({ id: 'x' }, ['id']);
+		await metasRepository.upsert({ id: id ?? 'x' }, ['id']);
 		meta = await metasRepository.findOneOrFail({ where: { id: Not(IsNull()) }, order: { id: 'DESC' } });
 	}
 
@@ -287,16 +290,19 @@ export class GlobalModule implements OnModuleInit, OnApplicationShutdown {
 
 	@bindThis
 	public async onModuleInit(): Promise<void> {
-		// Begin meta sync
-		this.internalEventService.on('metaUpdated', this.onMetaUpdated);
+		// Begin meta sync (external only - internal changes are managed separately)
+		this.internalEventService.on('metaUpdated', this.onMetaUpdated, {
+			ignoreLocal: true,
+		});
 
 		this.logger.info(`Node ${this.nodeId} started in process ${process.pid}.`);
 	}
 
 	@bindThis
-	private async onMetaUpdated(): Promise<void> {
+	private async onMetaUpdated(body: InternalEventTypes['metaUpdated']): Promise<void> {
+		const newId = body.after.id;
 		const before = Object.assign({}, this.meta);
-		const after = await fetchMeta(this.metasRepository, this.logger);
+		const after = await fetchMeta(this.metasRepository, this.logger, newId);
 
 		Object.assign(this.meta, after);
 		this.logger.debug('Updated meta from remote change: ', { before, after });

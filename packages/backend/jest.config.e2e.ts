@@ -7,7 +7,7 @@ import base from './jest.config.common.ts';
 
 export default {
 	...base,
-	globalSetup: "<rootDir>/built-test/entry.js",
+	globalSetup: "<rootDir>/test/jest.setup.global.e2e.mjs",
 	setupFilesAfterEnv: ["<rootDir>/test/jest.setup.e2e.mjs"],
 	testMatch: [
 		"<rootDir>/test/e2e/**/*.ts",

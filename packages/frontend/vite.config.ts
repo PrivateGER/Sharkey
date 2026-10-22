@@ -1,4 +1,4 @@
-import path from 'path';
+import * as path from 'path';
 import pluginReplace from '@rollup/plugin-replace';
 import pluginVue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
@@ -9,7 +9,7 @@ import packageInfo from './package.json' with { type: 'json' };
 import pluginUnwindCssModuleClassName from './lib/rollup-plugin-unwind-css-module-class-name.js';
 import pluginJson5 from './vite.json5.js';
 import pluginCreateSearchIndex from './lib/vite-plugin-create-search-index.js';
-import type { UserConfig } from 'vite';
+import type { UserWorkspaceConfig as UserConfig } from 'vitest/config';
 import type { Options as SearchIndexOptions } from './lib/vite-plugin-create-search-index.js';
 
 const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json', '.json5', '.svg', '.sass', '.scss', '.css', '.vue', '.wasm'];
@@ -144,7 +144,6 @@ export function getConfig(): UserConfig {
 			},
 			preprocessorOptions: {
 				scss: {
-					// @ts-expect-error This produces an error, but all example code has it
 					api: 'modern-compiler',
 				},
 			},
@@ -214,6 +213,11 @@ export function getConfig(): UserConfig {
 
 		test: {
 			environment: 'happy-dom',
+			// https://github.com/vitest-dev/vitest/issues/8757#issuecomment-3523887616
+			// https://nodejs.org/api/cli.html#--no-experimental-webstorage
+			execArgv: [
+				'--no-experimental-webstorage',
+			],
 			deps: {
 				optimizer: {
 					web: {
@@ -229,6 +233,6 @@ export function getConfig(): UserConfig {
 	};
 }
 
-const config = defineConfig(({ command, mode }) => getConfig());
+const config = defineConfig(() => getConfig());
 
 export default config;

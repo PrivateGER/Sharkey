@@ -6,9 +6,6 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-// node-fetch only supports it's own Blob yet
-// https://github.com/node-fetch/node-fetch/pull/1664
-import { Blob } from 'node-fetch';
 import { MiUser } from '@/models/_.js';
 import { api, castAsError, initTestDb, post, signup, simpleGet, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
@@ -573,6 +570,7 @@ describe('Endpoints', () => {
 	describe('drive', () => {
 		test('ドライブ情報を取得できる', async () => {
 			await uploadFile(alice, {
+				// Native Blob: Node 26's FormData.append() stringifies node-fetch's Blob to "[object Blob]".
 				blob: new Blob([new Uint8Array(256)]),
 			});
 			await uploadFile(alice, {

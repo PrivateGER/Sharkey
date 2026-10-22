@@ -198,7 +198,7 @@ function chooseNewLike(ev: MouseEvent) {
 		os.apiWithDialog('admin/update-meta', {
 			defaultLike: emoji,
 		}).then(() => {
-			fetchInstance();
+			fetchInstance(true);
 			defaultLike.value = emoji as string;
 		});
 	});

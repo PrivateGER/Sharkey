@@ -9,7 +9,7 @@ import { basename, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { inspect } from 'node:util';
 import WebSocket, { ClientOptions } from 'ws';
-import fetch, { File, RequestInit, type Headers } from 'node-fetch';
+import fetch, { RequestInit, type Headers } from 'node-fetch';
 import { DataSource } from 'typeorm';
 import { load as cheerio } from 'cheerio/slim';
 import { type Response } from 'node-fetch';
@@ -316,6 +316,8 @@ export const uploadFile = async (user?: UserToken, { path, name, blob }: UploadO
 			? new URL(path)
 			: new URL(path, new URL('resources/', import.meta.url));
 
+	// Use the global (native) File and FormData. Node 26's FormData.append() only accepts native
+	// Blob/File values and turns a node-fetch (fetch-blob) File into the string "[object File]".
 	const formData = new FormData();
 	formData.append('file', blob ??
 		new File([await readFile(absPath)], basename(absPath.toString())));

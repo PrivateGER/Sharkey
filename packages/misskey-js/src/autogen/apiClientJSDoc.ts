@@ -5,7 +5,7 @@ declare module '../api.js' {
   export interface APIClient {
     /**
      * No description provided.
-     *
+     * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
      */
@@ -208,7 +208,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:approve-user*
      */
     request<E extends 'admin/approve-user', P extends Endpoints[E]['req']>(
@@ -406,7 +406,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *read:admin:emoji*
      */
     request<E extends 'admin/emoji-suggestions/list', P extends Endpoints[E]['req']>(
@@ -417,7 +417,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:emoji*
      */
     request<E extends 'admin/emoji-suggestions/reject', P extends Endpoints[E]['req']>(
@@ -428,7 +428,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:emoji*
      */
     request<E extends 'admin/emoji/add', P extends Endpoints[E]['req']>(
@@ -2296,7 +2296,7 @@ declare module '../api.js' {
 
     /**
      * Generate alt text for a drive file.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:drive*
      */
     request<E extends 'drive/files/generate-alt-text', P extends Endpoints[E]['req']>(
@@ -2450,7 +2450,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:drive*
      */
     request<E extends 'emoji-suggestions/create', P extends Endpoints[E]['req']>(
@@ -2461,7 +2461,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *read:drive*
      */
     request<E extends 'emoji-suggestions/list', P extends Endpoints[E]['req']>(
@@ -2472,7 +2472,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'emoji/list-remote', P extends Endpoints[E]['req']>(
@@ -2483,7 +2483,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'emojis', P extends Endpoints[E]['req']>(
@@ -4748,7 +4748,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     *
+     * 
      * **Credential required**: *No*
      */
     request<E extends 'username/available', P extends Endpoints[E]['req']>(

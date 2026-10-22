@@ -121,7 +121,7 @@ export class MastodonApiServerService {
 			}
 
 			const buffer = await multipartData.toBuffer();
-			const file = new File([buffer], multipartData.fieldname, {
+			const file = new File([buffer as Buffer<ArrayBuffer>], multipartData.fieldname, {
 				type: multipartData.mimetype,
 			});
 			const client = this.clientService.getClient(_request);
@@ -137,7 +137,7 @@ export class MastodonApiServerService {
 				return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'No image' });
 			}
 			const buffer = await multipartData.toBuffer();
-			const file = new File([buffer], multipartData.fieldname, {
+			const file = new File([buffer as Buffer<ArrayBuffer>], multipartData.fieldname, {
 				type: multipartData.mimetype,
 			});
 

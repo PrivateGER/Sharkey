@@ -1,5 +1,5 @@
-import fs from 'node:fs';
-import yaml from 'js-yaml';
+import * as fs from 'node:fs';
+import * as yaml from 'js-yaml';
 
 /** @typedef {import('./index.d.ts').ILocale} ILocale */
 /** @typedef {import('./index.d.ts').ParameterizedString} ParameterizedString */

@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div data-cy-mkw-digitalClock class="_monospace" :class="[$style.root, { _panel: !widgetProps.transparent }]" :style="{ fontSize: `${widgetProps.fontSize}em` }">
 	<div v-if="widgetProps.showLabel" :class="$style.label">{{ tzAbbrev }}</div>
 	<div>
-		<MkDigitalClock :showMs="widgetProps.showMs" :offset="tzOffset"/>
+		<MkDigitalClock :offset="tzOffset"/>
 	</div>
 	<div v-if="widgetProps.showLabel" :class="$style.label">{{ tzOffsetLabel }}</div>
 </div>
@@ -32,10 +32,6 @@ const widgetPropsDef = {
 		type: 'number' as const,
 		default: 1.5,
 		step: 0.1,
-	},
-	showMs: {
-		type: 'boolean' as const,
-		default: true,
 	},
 	showLabel: {
 		type: 'boolean' as const,

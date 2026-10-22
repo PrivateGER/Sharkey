@@ -4,7 +4,6 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { randomString } from '../../../../../utils.js';
 import { CoreModule } from '@/core/CoreModule.js';
@@ -19,7 +18,7 @@ import { IdService } from '@/core/IdService.js';
 
 describe('/drive/files/create', () => {
 	let module: TestingModule;
-	let server: FastifyInstance;
+	let server: InstanceType<typeof ServerService>['fastify'];
 	let roleService: RoleService;
 	let idService: IdService;
 
