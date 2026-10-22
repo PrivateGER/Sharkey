@@ -611,6 +611,33 @@ describe('Endpoints', () => {
 			assert.strictEqual(res.body!.name, 'Belmond.png.jpg');
 		});
 
+		test('does not store the API token or cookies in requestHeaders when IP logging is on', async () => {
+			// alice is the first account, so she is root and can read requestHeaders of bob's files.
+			const enable = await api('admin/update-meta', { enableIpLogging: true }, alice);
+			assert.strictEqual(enable.status, 204);
+			try {
+				// bearer: the token goes in "Authorization: Bearer", as Mastodon API media uploads do.
+				const res = await uploadFile({ ...bob, bearer: true });
+				assert.strictEqual(res.status, 200);
+				assert.ok(res.body);
+
+				const show = await api('admin/drive/show-file', { fileId: res.body.id }, alice);
+				assert.strictEqual(show.status, 200);
+				// requestHeaders is returned to moderators but is not part of the declared response schema.
+				const requestHeaders = (show.body as { requestHeaders?: Record<string, unknown> | null }).requestHeaders;
+				// Headers are still logged, which proves IP logging was on for this upload...
+				assert.ok(requestHeaders);
+				assert.ok(Object.keys(requestHeaders).length > 0);
+				// ...but no credential header is kept, and the token appears nowhere.
+				const names = Object.keys(requestHeaders).map(name => name.toLowerCase());
+				assert.ok(!names.includes('authorization'), `authorization header was stored: ${names.join(', ')}`);
+				assert.ok(!names.includes('cookie'));
+				assert.ok(!JSON.stringify(requestHeaders).includes(bob.token));
+			} finally {
+				await api('admin/update-meta', { enableIpLogging: false }, alice);
+			}
+		});
+
 		test('ファイル無しで怒られる', async () => {
 			// @ts-expect-error params must not be empty
 			const res = await api('drive/files/create', {}, alice);
