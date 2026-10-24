@@ -132,5 +132,7 @@ RUN corepack install
 
 ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 ENV NODE_ENV=production
+# Inside a container the reverse proxy is never on loopback, so listen on all interfaces unless the config says otherwise.
+ENV MISSKEY_ADDRESS=0.0.0.0
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["pnpm", "run", "migrateandstart"]

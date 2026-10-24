@@ -522,7 +522,9 @@ export function loadConfig(logger?: Logger): Config {
 		setupPassword: config.setupPassword,
 		url: url.origin,
 		port: config.port ?? parseInt(process.env.PORT ?? '3000', 10),
-		address: config.address ?? '127.0.0.1',
+		// Loopback is the safe default on a bare host. Container images set MISSKEY_ADDRESS=0.0.0.0 so that existing
+		// deployments whose mounted config predates the `address` option keep accepting proxied traffic.
+		address: config.address ?? (process.env.MISSKEY_ADDRESS || '127.0.0.1'),
 		socket: config.socket,
 		chmodSocket: config.chmodSocket,
 		protocol: config.protocol === 'http2' ? 'http2' : 'http1',
