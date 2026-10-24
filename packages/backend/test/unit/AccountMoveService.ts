@@ -8,7 +8,6 @@ process.env.NODE_ENV = 'test';
 import { Test } from '@nestjs/testing';
 import { In } from 'typeorm';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from '@jest/globals';
-import { FakeCacheManagementService } from '../misc/FakeCacheManagementService.js';
 import type { TestingModule } from '@nestjs/testing';
 import { GlobalModule } from '@/GlobalModule.js';
 import { CoreModule } from '@/core/CoreModule.js';
@@ -27,7 +26,7 @@ describe('AccountMoveService', () => {
 	let idService: IdService;
 	let usersRepository: UsersRepository;
 	let renoteMutingsRepository: RenoteMutingsRepository;
-	let cacheManagementService: FakeCacheManagementService;
+	let cacheManagementService: CacheManagementService;
 	const createdUserIds: string[] = [];
 
 	async function createUser(): Promise<MiUser> {
@@ -43,6 +42,7 @@ describe('AccountMoveService', () => {
 	}
 
 	beforeAll(async () => {
+		// These tests check that cached relationships are updated, so they need the real caches with their real lifetimes.
 		app = await Test
 			.createTestingModule({
 				imports: [
@@ -50,7 +50,6 @@ describe('AccountMoveService', () => {
 					CoreModule,
 				],
 			})
-			.overrideProvider(CacheManagementService).useClass(FakeCacheManagementService)
 			.compile();
 
 		await app.init();
@@ -61,7 +60,7 @@ describe('AccountMoveService', () => {
 		idService = app.get(IdService);
 		usersRepository = app.get<UsersRepository>(DI.usersRepository);
 		renoteMutingsRepository = app.get<RenoteMutingsRepository>(DI.renoteMutingsRepository);
-		cacheManagementService = app.get<FakeCacheManagementService>(CacheManagementService);
+		cacheManagementService = app.get(CacheManagementService);
 	});
 
 	afterAll(async () => {
