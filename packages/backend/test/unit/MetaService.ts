@@ -68,6 +68,7 @@ describe('MetaService', () => {
 	beforeEach(async () => {
 		const delta = {
 			name: 'initial name',
+			description: 'initial description',
 			blockedHosts: [],
 			silencedHosts: [],
 			mediaSilencedHosts: [],
@@ -106,6 +107,63 @@ describe('MetaService', () => {
 		expect(message).toBeDefined();
 		expect(message!.before.name).toBe('initial name');
 		expect(message!.after.name).toBe('updated name');
+	});
+
+	it('should emit the persisted settings rather than the local snapshot', async () => {
+		// Another process changes a column that this process has not seen yet.
+		await metasRepository.update({ id: meta.id }, { description: 'changed elsewhere' });
+
+		let message: InternalEventTypes['metaUpdated'] | undefined = undefined;
+		internalEventService.once('metaUpdated', (body: InternalEventTypes['metaUpdated']) => {
+			message = body;
+		});
+
+		await metaService.update({ name: 'local name' });
+
+		expect(message).toBeDefined();
+		expect(message!.before.description).toBe('initial description');
+		expect(message!.after.name).toBe('local name');
+		expect(message!.after.description).toBe('changed elsewhere');
+		expect(meta.description).toBe('changed elsewhere');
+	});
+
+	it('should not let a slow earlier update overwrite a later one', async () => {
+		// Park the first update inside persistTags, after it has already written to the database.
+		// Only the update that adds the 'slow' tag is parked, so the order is deterministic.
+		let release: (() => void) | undefined;
+		featuredService.removeHashtagsFromRanking.mockImplementation(added => {
+			if (!added.includes('slow')) return Promise.resolve();
+			return new Promise<void>(resolve => {
+				release = resolve;
+			});
+		});
+
+		const slow = metaService.update({ name: 'slow name', hiddenTags: ['slow'] });
+		while (release == null) {
+			await new Promise(resolve => setTimeout(resolve, 5));
+		}
+
+		// A second save starts, and gets a chance to finish, while the first one is still parked.
+		const fast = metaService.update({ name: 'fast name' });
+		await Promise.race([fast, new Promise(resolve => setTimeout(resolve, 200))]);
+
+		release();
+		await Promise.all([slow, fast]);
+
+		const persisted = await metasRepository.findOneByOrFail({ id: meta.id });
+		expect(persisted.name).toBe('fast name');
+		expect(meta.name).toBe('fast name');
+	});
+
+	it('should keep accepting updates after one fails', async () => {
+		// An unknown column makes TypeORM reject the update before anything is written.
+		await expect(metaService.update({ notAColumn: 'x' } as unknown as Partial<MiMeta>)).rejects.toThrow();
+
+		await metaService.update({ name: 'after failure' });
+
+		const persisted = await metasRepository.findOneByOrFail({ id: meta.id });
+		expect(persisted.name).toBe('after failure');
+		expect(meta.name).toBe('after failure');
 	});
 
 	it('should persist blockedHosts', async () => {

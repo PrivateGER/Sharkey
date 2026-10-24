@@ -1,5 +1,7 @@
 url: https://${HOST}/
 port: 3000
+# The nginx container proxies to this container, so listen on all interfaces.
+address: '0.0.0.0'
 db:
   host: db.${HOST}
   port: 5432

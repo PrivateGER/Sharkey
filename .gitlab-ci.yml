@@ -58,7 +58,7 @@ build: &build
   <<: *common
   stage: build
   image:
-    name: docker.io/node:22
+    name: docker.io/node:26
     pull_policy: if-not-present
   variables:
     POSTGRES_PASSWORD: 'ci'
@@ -70,6 +70,7 @@ build: &build
     - 'echo "clusterLimit: $(nproc)" >> .config/ci.yml'
     - cp .config/ci.yml .config/default.yml
     - cp .config/ci.yml .config/test.yml
+    - npm install -g corepack@0.36.0
     - corepack enable
     - corepack install
     - git submodule update --init
@@ -126,6 +127,12 @@ backend_tests:
   script:
     - pnpm run --filter backend build:pre
     - pnpm run --filter backend build
+    - pnpm run --filter backend typecheck:scripts
+    - pnpm run --filter backend typecheck:backend
+    - pnpm run --filter backend typecheck:frontend
+    - pnpm run --filter backend typecheck:test
+    - pnpm run --filter backend typecheck:test-federation
+    - pnpm run --filter backend typecheck:test-server
     - pnpm run --filter backend migrate
     - pnpm run --filter backend test
   # Same as common, but MRs are only run if they modify the backend.

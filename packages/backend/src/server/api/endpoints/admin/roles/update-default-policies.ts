@@ -68,16 +68,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw e;
 			}
 
-			const before = Object.assign({}, this.serverSettings);
 			const after = await this.metaService.update({
 				policies: ps.policies,
+			}, {
+				moderator: me,
 			});
 
 			await this.internalEventService.emit('policiesUpdated', after.policies);
-			this.moderationLogService.log(me, 'updateServerSettings', {
-				before: before.policies,
-				after: after.policies,
-			});
 		});
 	}
 }

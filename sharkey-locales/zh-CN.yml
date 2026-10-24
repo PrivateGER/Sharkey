@@ -378,7 +378,6 @@ _moderationLogTypes:
   removeRelay: "移除了一个中继"
   restartMigration: "为一个用户重启了迁移"
   setRoot: "设定了根 (root) 用户"
-
 _mfm:
   uncommonFeature: "这不是一个广泛传播的功能，它可能无法在其它的联邦宇宙应用程序上正常显示（包括其它 Misskey 分支）"
   intro: "MFM 是一种在 Misskey，Sharkey，Firefish，Akkoma 和其它更多地方使用的标记语言。在此处，你可以查看可用的 MFM 语法的列表。"
@@ -487,9 +486,7 @@ _externalNavigationWarning:
   title: "打开外部网站"
   description: "离开 {host}，然后打开外部网站"
   trustThisDomain: "在本设备上永久信任该网站"
-
 remoteFollowersWarning: "远程用户的活动记录可能不完整或已过时"
-
 _auth:
   allowed: "已允许"
 _announcement:
@@ -503,14 +500,11 @@ _announcement:
 _deck:
   _columns:
     following: "关注中"
-
 selectFollowRelationship: "选择一个关注关系……"
-
 schedulePost: "定时发布帖子"
 schedulePostList: "定时发布帖子列表"
 postOn: "在何时发出"
 scheduledNotes: "定时发布的帖子"
-
 _permissions:
   "write:admin:approve-user": "批准新用户申请"
   "write:admin:decline-user": "拒绝新用户申请"
@@ -526,10 +520,8 @@ _permissions:
   "write:notes-schedule": "创建或删除定时帖子"
   "read:admin:abuse-report:notification-recipient": "读取接收举报通知的用户"
   "write:admin:abuse-report:notification-recipient": "修改接收举报通知的用户"
-
 robotsTxt: "自定义 robots.txt"
 robotsTxtDescription: "向此处增加内容，会覆盖 Sharkey 默认附带的 robots.txt。"
-
 defaultCW: "新帖子的默认内容警告"
 defaultCWDescription: "此处的内容会作为内容警告，自动附加到所有新的贴文和回复。"
 defaultCWPriority: "自动内容警告优先级"
@@ -539,12 +531,10 @@ _defaultCWPriority:
   parent: "使用继承（使用继承来的内容警告，忽略默认的内容警告）"
   defaultParent: "先默认再继承（使用默认的内容警告，然后将继承的内容警告添加到后面）"
   parentDefault: "先继承再默认（使用继承的内容警告，然后将默认的内容警告添加到后面）"
-
 genKeys: "生成密钥"
 _genKeysDialog:
   text: "你确定要生成新的密钥吗？对于已经启用的用户来说，推送通知会停止。"
   title: "生成新的密钥"
-
 _noteSearch:
   newestToOldest: "从新到旧排序"
   fileType: "文件类型"
@@ -555,9 +545,7 @@ _noteSearch:
     audio: "音频"
     module: "模块"
     flash: "Flash"
-
 id: "ID"
-
 mandatoryCW: "强制内容警告"
 mandatoryCWDescription: "为这个用户的所有发帖增加一个内容警告。强制的内容警告会像「敏感词」一样呈现，来将它们和作者自己的内容警告区别开。"
 mandatoryCWForNote: "强制内容警告"
@@ -567,11 +555,9 @@ mandatoryCWForInstanceDescription: "为这个实例的所有帖子增加一个�
 fetchLinkedNote: "拉取链接到的帖子"
 showTranslationButtonInNoteFooter: "向帖子菜单中添加「翻译」按钮"
 translationFailed: "翻译帖子失败。请稍后再试，或者联系管理员取得帮助。"
-
 _processErrors:
   quoteUnavailable: "处理引用失败。这个帖子可能缺少上下文。"
   attachmentFailed: "一个或多个媒体附件加载失败，暂时无法显示。"
-
 authorizedFetchSection: "受信任的拉取"
 authorizedFetchLabel: "允许未签名的 ActivityPub 请求："
 authorizedFetchDescription: "这个设置会影响来自远程请求的策略，即远程实例或用户在不认证身份的情况下，尝试访问你的内容时的处理方式。如果关闭，任何远程用户都能访问你的用户资料和帖子——那些被屏蔽或断开联合的也是如此。"
@@ -586,20 +572,15 @@ _authorizedFetchValueDescription:
   essential: "允许部分未签名的请求。考虑到较老的实例软件，只暴露最少必须的账户元数据来进行联合，对于「从不」和「总是」是一个折中的方案。"
   staff: "使用服务器管理员所推荐的「{value}」默认设置。"
 authorizedFetchLegacyWarning: "配置中的属性「checkActivityPubGetSignature」已过时，由新的「受信任的拉取」设置取代。请从你的配置文件中移除它。"
-
 _followRequest:
   recieved: "已收到的请求"
   sent: "已发送的请求"
-
 deleted: "已删除"
-
 enableProxyAccount: "启用代理账户。"
 enableProxyAccountDescription: "如果禁用，代理账户将不会被使用。用户列表仅会包含来自本地或关注中的用户的帖子。"
-
 _confirmPollEdit:
   title: 你确定要编辑这个投票吗
   text: 编辑投票会导致其失去所有已经收到的投票
-
 wordMuteTestLabel: "测试规则"
 wordMuteTestDescription: "在此处输入一些文本，来测试你的文本规则。如果匹配到了目标文本，那么会展示在下面。"
 wordMuteTestTest: "测试"
@@ -607,20 +588,16 @@ wordMuteTestMatch: "匹配到的词：{words}"
 wordMuteTestNoResults: "暂时没有结果。输入一些文本然后点击「测试」来检查它。"
 wordMuteTestNoMatch: "文本并未匹配到任何规则。"
 wordMuteWarning: "所有敏感词都是*大小写敏感*的，并且会匹配任何子字符串（包括更长的词或名字的一部分）。你可以使用正则表达式，来更精确地控制。"
-
 bubbleTimeline: "精选 (Bubble) 时间线"
 bubbleTimelineDescription: "选择这个时间线应该展示的服务器。"
 bubbleTimelineMustBeEnabled: "注意：精选时间线默认隐藏，可以从「角色」页面开启它。"
-
 popularUsersGlobal: "全局热门用户"
 popularUsersLocal: "{name} 上的热门用户"
-
 pollsOnLocal: "{name} 上的热门投票"
 pollsOnRemote: "全局热门投票"
 pollsExpired: "最近截止的投票"
 trendingPollsDisabled: "本服务器已禁用热门投票。"
 trendingPollsDisabledLogIn: "请登录后查看热门投票。"
-
 silenced: "已静音"
 totalFollowers: "总计关注者"
 totalFollowing: "总计关注中"
@@ -635,17 +612,13 @@ ipTip: "该 IP 地址首次使用的日期。"
 rolePeriod: "时间段"
 roleAssigned: "已分配"
 roleAutomatic: "自动角色"
-
 translationTimeoutLabel: "翻译超时"
 translationTimeoutCaption: "翻译 API 请求的超时时长，以毫秒计算。"
-
 staffNotes: "管理组帖子"
 instanceIconAlt: "{name} 的图标"
-
 attributionDomains: "域名归属"
 attributionDomainsDescription: "一个域名列表，当展示链接预览时，提示网站上的内容归属于你，用换行分隔。任何子域名也是如此。你的网页中应该包含以下内容："
 writtenBy: "由 {user} 创作"
-
 followingPub: "关注中 (Pub)"
 followersSub: "关注者 (Sub)"
 wellKnownResources: "Well-known 资源"
@@ -658,20 +631,15 @@ bubble: "精选 (Bubble)"
 verified: "已认证"
 notVerified: "未认证"
 hibernated: "已停用"
-
 keepCwDescription: "当回应一个包含内容警告 (CW) 的帖子时，自动在回复中使用相同的内容警告。"
 keepCwDisabled: "禁用（不复制内容警告）"
 keepCwEnabled: "启用（按原样复制内容警告）"
 keepCwPrependRe: "启用（按原样复制内容警告，并在开头附加「RE:」）"
-
 noteFooterLabel: "帖子控制"
-
 rawUserDescription: "以原始形式打包的用户数据。这些字段的大部分都是公开的，可被所有用户查看。"
 rawInfoDescription: "以原始形式呈现的扩展用户数据。这些字段是私有的，只能被管理员查看。"
 rawApDescription: "以原始形式呈现 ActivityPub 用户数据。这些字段是公开的，可被其它实例访问。"
-
 signupReason: "注册理由"
-
 clearCachedFilesOptions:
   title: "删除所有缓存的远程文件"
   olderThan: "仅删除以下时间之前的文件："
@@ -681,11 +649,8 @@ clearCachedFilesOptions:
   oneYear: "一年"
   keepFilesInUse: "不要删除用作头像的文件"
   keepFilesInUseDescription: "这个操作需要更佳复杂的数据库请求，你可能需要在配置文件中，增大 db.extra.statement_timeout 的值"
-
 customFontSize: "自定义文本大小"
-
 hideAds: "隐藏广告"
-
 permissionsDescription: "拥有这个访问令牌的应用程序无法访问 API，除了下方的功能。"
 adminPermissionsDescription: "拥有这个访问令牌的应用程序没有管理员权限，除了下方的功能。"
 sharedAccount: "共享账户"
@@ -723,7 +688,6 @@ grantSharedAccessSuccess2: "已对 {num} 个用户授予共享访问权限。"
 tokenHasNoPermissionsConfirm: "你确定你要创建一个访问令牌，但是不添加权限吗？"
 enableAllRead: "启用所有只读权限"
 enableAllWrite: "启用所有写入权限"
-
 newAccount: "新账户"
 alsoKnownAs: "账户别名"
 accountMigratedAt: "已迁移于"
@@ -732,12 +696,10 @@ accountMigrationUri: "迁移 URI"
 restartMigration: "重新启动账户迁移"
 restartMigrationDescription: "最近一次账户迁移尝试于 {date}。如果迁移失败或者数据不完整，你可以点击这个按钮来重启迁移。"
 restartMigrationConfirm: "你确定要重启这个账户迁移过程吗？"
-
 backgroundQueue: "后台队列"
 _header:
   browse: "浏览"
   manage: "管理"
-
 setRootUser: "设定根 (root) 用户"
 setRootUserWarning: "你现在已经是根 (root) 用户了；你可以把它交给别人。如果你想在这么做之后继续当管理员，你应该在移交<em>之前</em>，通过「角色」给自己添加管理员权限"
 previousRootUser: "先前的根用户"

@@ -4,7 +4,6 @@
  */
 
 import * as crypto from 'node:crypto';
-import { URL } from 'node:url';
 import { Inject, Injectable } from '@nestjs/common';
 import { load as cheerio } from 'cheerio/slim';
 import { DI } from '@/di-symbols.js';
