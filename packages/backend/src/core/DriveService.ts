@@ -49,6 +49,7 @@ import { CacheService } from '@/core/CacheService.js';
 import { BunnyService } from '@/core/BunnyService.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { withSpan } from '@/core/PostHogTracing.js';
+import { redactRequestHeaders } from '@/misc/redact-request-headers.js';
 import { LoggerService } from './LoggerService.js';
 
 type AddFileArgs = {
@@ -628,7 +629,8 @@ export class DriveService {
 		file.blurhash = info.blurhash ?? null;
 		file.isLink = isLink;
 		file.requestIp = requestIp;
-		file.requestHeaders = requestHeaders;
+		// Never persist credentials (API tokens, session cookies), whichever path the file came from.
+		file.requestHeaders = redactRequestHeaders(requestHeaders);
 		file.maybeSensitive = info.sensitive;
 		file.maybePorn = info.porn;
 		file.isSensitive = user

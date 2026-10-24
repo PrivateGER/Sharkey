@@ -6,9 +6,6 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-// node-fetch only supports it's own Blob yet
-// https://github.com/node-fetch/node-fetch/pull/1664
-import { Blob } from 'node-fetch';
 import { MiUser } from '@/models/_.js';
 import { api, castAsError, initTestDb, post, signup, simpleGet, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
@@ -573,6 +570,7 @@ describe('Endpoints', () => {
 	describe('drive', () => {
 		test('ドライブ情報を取得できる', async () => {
 			await uploadFile(alice, {
+				// Native Blob: Node 26's FormData.append() stringifies node-fetch's Blob to "[object Blob]".
 				blob: new Blob([new Uint8Array(256)]),
 			});
 			await uploadFile(alice, {
@@ -611,6 +609,33 @@ describe('Endpoints', () => {
 			assert.strictEqual(res.status, 200);
 			assert.strictEqual(typeof res.body === 'object' && !Array.isArray(res.body), true);
 			assert.strictEqual(res.body!.name, 'Belmond.png.jpg');
+		});
+
+		test('does not store the API token or cookies in requestHeaders when IP logging is on', async () => {
+			// alice is the first account, so she is root and can read requestHeaders of bob's files.
+			const enable = await api('admin/update-meta', { enableIpLogging: true }, alice);
+			assert.strictEqual(enable.status, 204);
+			try {
+				// bearer: the token goes in "Authorization: Bearer", as Mastodon API media uploads do.
+				const res = await uploadFile({ ...bob, bearer: true });
+				assert.strictEqual(res.status, 200);
+				assert.ok(res.body);
+
+				const show = await api('admin/drive/show-file', { fileId: res.body.id }, alice);
+				assert.strictEqual(show.status, 200);
+				// requestHeaders is returned to moderators but is not part of the declared response schema.
+				const requestHeaders = (show.body as { requestHeaders?: Record<string, unknown> | null }).requestHeaders;
+				// Headers are still logged, which proves IP logging was on for this upload...
+				assert.ok(requestHeaders);
+				assert.ok(Object.keys(requestHeaders).length > 0);
+				// ...but no credential header is kept, and the token appears nowhere.
+				const names = Object.keys(requestHeaders).map(name => name.toLowerCase());
+				assert.ok(!names.includes('authorization'), `authorization header was stored: ${names.join(', ')}`);
+				assert.ok(!names.includes('cookie'));
+				assert.ok(!JSON.stringify(requestHeaders).includes(bob.token));
+			} finally {
+				await api('admin/update-meta', { enableIpLogging: false }, alice);
+			}
 		});
 
 		test('ファイル無しで怒られる', async () => {

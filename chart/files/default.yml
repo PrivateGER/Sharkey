@@ -100,21 +100,30 @@
 
 # The port that your Sharkey server should listen on.
 port: 3000
-# the address to bind to, defaults to "every address"
-# address: '0.0.0.0'
 
-# but we should not listen to "every address" because we really want
-# to only be contactable from the reverse proxy, so we suggest:
-address: '127.0.0.1'
+# Network address to listen on.
+# The default value listens to the local IPv4 loopback address, which is the most secure option and suitable for most typical deployments.
+# Docker-based deployments should use '0.0.0.0' instead, as the reverse-proxy runs on a separate machine and Docker itself acts as a simple firewall.
+# Do not change this without a firewall to prevent unauthorized access!
+address: '0.0.0.0'
 
 # You can also use UNIX domain socket.
 # socket: /path/to/sharkey.sock
 # chmodSocket: '777'
 
+# Network protocol to use.
+# Options: "http1", "http2"
+# protocol: 'http1'
+
 #   ┌──────────────────────────┐
 #───┘ PostgreSQL configuration └────────────────────────────────
 
 db:
+  # Network hostname, IP address, or UNIX socket to the PostgreSQL server.
+  # Note: if using a UNIX socket, then this should be the absolute path to PostgreSQL's socket *directory* - not the actual socket itself!
+  #   The PG client library insists on constructing the socket filename manually, and will crash if you attempt to specify the full path directly.
+  #   If multiple PG servers exist on the same machine, then the "port" option will be used to map the correct socket filename.
+  #   See also: https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-UNIX-SOCKET-DIRECTORIES
   host: localhost
   port: 5432
 
@@ -165,60 +174,78 @@ redis:
   host: localhost
   port: 6379
   #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+  ## You can use a UNIX socket for improved performance and security.
+  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+  #path: "/var/run/redis/redis.sock"
   #pass: example-pass
   #prefix: example-prefix
   #db: 1
-  # You can specify more ioredis options...
+  ## You can specify more ioredis options...
   #username: example-username
 
 #redisForPubsub:
 #  host: localhost
 #  port: 6379
 #  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  ## You can use a UNIX socket for improved performance and security.
+#  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+#  #path: "/var/run/redis/redis.sock"
 #  #pass: example-pass
 #  #prefix: example-prefix
 #  #db: 1
-#  # You can specify more ioredis options...
+#  ## You can specify more ioredis options...
 #  #username: example-username
 
 #redisForJobQueue:
 #  host: localhost
 #  port: 6379
 #  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  ## You can use a UNIX socket for improved performance and security.
+#  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+#  #path: "/var/run/redis/redis.sock"
 #  #pass: example-pass
 #  #prefix: example-prefix
 #  #db: 1
-#  # You can specify more ioredis options...
+#  ## You can specify more ioredis options...
 #  #username: example-username
 
 #redisForTimelines:
 #  host: localhost
 #  port: 6379
 #  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  ## You can use a UNIX socket for improved performance and security.
+#  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+#  #path: "/var/run/redis/redis.sock"
 #  #pass: example-pass
 #  #prefix: example-prefix
 #  #db: 1
-#  # You can specify more ioredis options...
+#  ## You can specify more ioredis options...
 #  #username: example-username
 
 #redisForReactions:
 #  host: localhost
 #  port: 6379
 #  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  ## You can use a UNIX socket for improved performance and security.
+#  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+#  #path: "/var/run/redis/redis.sock"
 #  #pass: example-pass
 #  #prefix: example-prefix
 #  #db: 1
-#  # You can specify more ioredis options...
+#  ## You can specify more ioredis options...
 #  #username: example-username
 
 #redisForRateLimit:
 #  host: localhost
 #  port: 6379
 #  #family: 0  # 0=Both, 4=IPv4, 6=IPv6
+#  ## You can use a UNIX socket for improved performance and security.
+#  ## Make sure to comment out the "host", "port", and "family" lines before using this option.
+#  #path: "/var/run/redis/redis.sock"
 #  #pass: example-pass
 #  #prefix: example-prefix
 #  #db: 1
-#  # You can specify more ioredis options...
+#  ## You can specify more ioredis options...
 #  #username: example-username
 
 #   ┌───────────────────────────────┐

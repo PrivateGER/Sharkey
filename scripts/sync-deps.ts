@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import nodePath from 'node:path';
-import nodeFs from 'node:fs/promises';
+import * as nodePath from 'node:path';
+import * as nodeFs from 'node:fs/promises';
 
 /*
  * Configuration

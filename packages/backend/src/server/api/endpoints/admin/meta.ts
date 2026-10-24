@@ -20,6 +20,13 @@ export const meta = {
 	requireAdmin: true,
 	kind: 'read:admin:meta',
 
+	// Up to 20 calls, then 20/second
+	limit: {
+		type: 'bucket',
+		size: 20,
+		dripRate: 50,
+	},
+
 	res: {
 		type: 'object',
 		optional: false, nullable: false,

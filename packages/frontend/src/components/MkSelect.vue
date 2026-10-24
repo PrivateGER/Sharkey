@@ -101,19 +101,27 @@ const focus = () => container.value?.focus();
 
 // このコンポーネントが作成された時、非表示状態である場合がある
 // 非表示状態だと要素の幅などは0になってしまうので、定期的に計算する
-useInterval(() => {
+const needToDo = (slots.prefix ? 1 : 0) +
+	 (slots.suffix ? 1 : 0);
+const stopWhenComputed = useInterval(() => {
 	if (inputEl.value == null) return;
+
+	let done = 0;
 
 	if (prefixEl.value) {
 		if (prefixEl.value.offsetWidth) {
 			inputEl.value.style.paddingLeft = prefixEl.value.offsetWidth + 'px';
+			++done;
 		}
 	}
 	if (suffixEl.value) {
 		if (suffixEl.value.offsetWidth) {
 			inputEl.value.style.paddingRight = suffixEl.value.offsetWidth + 'px';
+			++done;
 		}
 	}
+
+	if (done >= needToDo) stopWhenComputed?.();
 }, 100, {
 	immediate: true,
 	afterMounted: true,

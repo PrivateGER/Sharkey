@@ -5,6 +5,7 @@
 		// Checking
 		"noImplicitAny": false,
 		"allowImportingTsExtensions": true,
+		"allowSyntheticDefaultImports": false,
 
 		// Output
 		"noEmit": true

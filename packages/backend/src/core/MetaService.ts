@@ -4,15 +4,16 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { IsNull, Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { InstancesRepository, MetasRepository } from '@/models/_.js';
 import type { MiMeta } from '@/models/Meta.js';
 import type { MiInstance } from '@/models/Instance.js';
+import type { MiLocalUser } from '@/models/User.js';
 import { diffArrays } from '@/misc/diff-arrays.js';
 import { bindThis } from '@/decorators.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
+import { ModerationLogService } from '@/core/ModerationLogService.js';
 
 @Injectable()
 export class MetaService {
@@ -28,13 +29,44 @@ export class MetaService {
 
 		private readonly featuredService: FeaturedService,
 		private readonly internalEventService: InternalEventService,
+		private readonly moderationLogService: ModerationLogService,
 	) {}
 
+	/**
+	 * Tail of the in-process update chain.
+	 * Updates are serialized so that a slow save (e.g. one that touches many instance rows) cannot finish after a
+	 * later save and overwrite the local singleton with its older values.
+	 *
+	 * The chain is held while the 'metaUpdated' event is emitted, so a listener of that event must never await
+	 * update() itself: it would wait for its own emit to finish and deadlock.
+	 */
+	private updateChain: Promise<unknown> = Promise.resolve();
+
 	@bindThis
-	public async update(data: Partial<MiMeta>): Promise<MiMeta> {
+	public update(updates: Partial<MiMeta>, opts?: {
+		moderator?: MiLocalUser | null,
+	}): Promise<MiMeta> {
+		const result = this.updateChain.then(() => this.doUpdate(updates, opts));
+		// Keep the chain alive even if this update fails.
+		this.updateChain = result.catch(() => null);
+		return result;
+	}
+
+	@bindThis
+	private async doUpdate(updates: Partial<MiMeta>, opts?: {
+		moderator?: MiLocalUser | null,
+	}): Promise<MiMeta> {
+		// Skip no-op changes
+		if (Object.keys(updates).length < 1 || Object.values(updates).every((v: unknown) => v === undefined)) {
+			return this.meta;
+		}
+
+		// Create before/after *copies*, without persisting anything
 		const before = Object.assign({}, this.meta);
-		await this.metasRepository.update({ id: before.id }, data);
-		const after = await this.metasRepository.findOneOrFail({ where: { id: Not(IsNull()) }, order: { id: 'DESC' } });
+		const after = Object.assign({}, this.meta, updates);
+
+		// Save to postgres
+		await this.metasRepository.update({ id: this.meta.id }, updates);
 
 		// Propagate changes to blockedHosts, silencedHosts, mediaSilencedHosts, federationInstances, and bubbleInstances to the relevant instance rows.
 		await this.persistBlocks(before, after);
@@ -42,11 +74,28 @@ export class MetaService {
 		// Propagate changes to hiddenTags
 		await this.persistTags(before, after);
 
-		// Propagate changes to other instances.
-		// (do this last to make sure listeners get the results of persistBlocks / persistTags)
-		await this.internalEventService.emit('metaUpdated', { before, after });
+		// Update local singleton from the database, not from `updates`, so that the in-memory copy matches whatever
+		// was persisted, including changes made by other processes since `before` was captured.
+		const persisted = await this.metasRepository.findOneByOrFail({ id: this.meta.id });
+		const updated = Object.assign(this.meta, persisted);
 
-		return after;
+		// Listeners such as S3Service rebuild their state from `after` directly, so send them the persisted row rather
+		// than the local snapshot: other processes may have changed other columns since `before` was captured.
+		const snapshot = Object.assign({}, persisted);
+
+		await Promise.all([
+			// Propagate changes across the cluster
+			// (do this last to make sure listeners get the results of persistBlocks / persistTags)
+			this.internalEventService.emit('metaUpdated', { before, after: snapshot }),
+
+			// Record changes to ModLogs
+			opts?.moderator != null && this.moderationLogService.log(opts.moderator, 'updateServerSettings', {
+				before: sanitize(before),
+				after: sanitize(after),
+			}),
+		]);
+
+		return updated;
 	}
 
 	@bindThis
@@ -102,4 +151,24 @@ export class MetaService {
 
 function genHostPattern(host: string): string {
 	return host.toLowerCase().split('').reverse().join('') + '.%';
+}
+
+function sanitize<T extends MiMeta>(meta: T): T {
+	return {
+		...meta,
+		hcaptchaSecretKey: '<redacted>',
+		mcaptchaSecretKey: '<redacted>',
+		recaptchaSecretKey: '<redacted>',
+		turnstileSecretKey: '<redacted>',
+		fcSecretKey: '<redacted>',
+		smtpPass: '<redacted>',
+		swPrivateKey: '<redacted>',
+		objectStorageAccessKey: '<redacted>',
+		objectStorageSecretKey: '<redacted>',
+		deeplAuthKey: '<redacted>',
+		libreTranslateKey: '<redacted>',
+		listenbrainzAuthKey: '<redacted>',
+		verifymailAuthKey: '<redacted>',
+		truemailAuthKey: '<redacted>',
+	};
 }

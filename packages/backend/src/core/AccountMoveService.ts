@@ -10,7 +10,7 @@ import { bindThis } from '@/decorators.js';
 import { DI } from '@/di-symbols.js';
 import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import { isLocalUser } from '@/models/User.js';
-import type { BlockingsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, UserListMembershipsRepository, UsersRepository, NoteScheduleRepository, MiNoteSchedule } from '@/models/_.js';
+import type { BlockingsRepository, FollowingsRepository, InstancesRepository, MiMeta, MutingsRepository, UserListMembershipsRepository, UsersRepository, NoteScheduleRepository, MiNoteSchedule, RenoteMutingsRepository } from '@/models/_.js';
 import type { Queues, RelationshipJobData, ThinUser } from '@/queue/types.js';
 
 import { IdService } from '@/core/IdService.js';
@@ -71,6 +71,9 @@ export class AccountMoveService {
 
 		@Inject(DI.noteScheduleRepository)
 		private noteScheduleRepository: NoteScheduleRepository,
+
+		@Inject(DI.renoteMutingsRepository)
+		private renoteMutingsRepository: RenoteMutingsRepository,
 
 		@Inject('queue:scheduleNotePost')
 		private readonly scheduleNotePostQueue: Queues['scheduleNotePost'],
@@ -173,6 +176,8 @@ export class AccountMoveService {
 			.catch(err => this.logger.warn(`Error copying blockings in migration ${src.id} (@${src.usernameLower}@${src.host ?? this.config.host}) to ${dst.id} (@${dst.usernameLower}@${dst.host ?? this.config.host}): ${renderInlineError(err)}`));
 		await this.copyMutings(src, dst)
 			.catch(err => this.logger.warn(`Error copying mutings in migration ${src.id} (@${src.usernameLower}@${src.host ?? this.config.host}) to ${dst.id} (@${dst.usernameLower}@${dst.host ?? this.config.host}): ${renderInlineError(err)}`));
+		await this.copyRenoteMutings(src, dst)
+			.catch(err => this.logger.warn(`Error copying renote mutings in migration ${src.id} (@${src.usernameLower}@${src.host ?? this.config.host}) to ${dst.id} (@${dst.usernameLower}@${dst.host ?? this.config.host}): ${renderInlineError(err)}`));
 		await this.deleteScheduledNotes(src)
 			.catch(err => this.logger.warn(`Error deleting scheduled notes in migration ${src.id} (@${src.usernameLower}@${src.host ?? this.config.host}) to ${dst.id} (@${dst.usernameLower}@${dst.host ?? this.config.host}): ${renderInlineError(err)}`));
 		await this.copyRoles(src, dst)
@@ -266,6 +271,44 @@ export class AccountMoveService {
 
 		const arrayToInsert = Array.from(newMutings.entries()).map(entry => ({ ...entry[1], id: entry[0] }));
 		await this.mutingsRepository.insert(arrayToInsert);
+	}
+
+	@bindThis
+	public async copyRenoteMutings(src: ThinUser, dst: ThinUser): Promise<void> {
+		const oldMutings = await this.renoteMutingsRepository.findBy({
+			muteeId: src.id,
+		});
+		if (oldMutings.length === 0) return;
+
+		const existingMutingsMuterUserIds = await this.renoteMutingsRepository.findBy(
+			{ muteeId: dst.id },
+		).then(mutings => mutings.map(muting => muting.muterId));
+
+		const newMutings: Map<string, { muterId: string; muteeId: string }> = new Map();
+
+		const genId = (): string => {
+			let id: string;
+			do {
+				id = this.idService.gen();
+			} while (newMutings.has(id));
+			return id;
+		};
+		for (const muting of oldMutings) {
+			if (existingMutingsMuterUserIds.includes(muting.muterId)) continue; // skip if already muted
+			newMutings.set(genId(), {
+				...muting,
+				muteeId: dst.id,
+			});
+		}
+
+		const arrayToInsert = Array.from(newMutings.entries()).map(entry => ({ ...entry[1], id: entry[0] }));
+		await this.renoteMutingsRepository.insert(arrayToInsert);
+
+		// Update cached relationships, same as UserRenoteMutingService.mute does.
+		// Without this the copied mutes would not take effect until the relationship cache expires.
+		for (const muting of arrayToInsert) {
+			await this.internalEventService.emit('muteRenotes', { muterId: muting.muterId, muteeId: muting.muteeId });
+		}
 	}
 
 	@bindThis

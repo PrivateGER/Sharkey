@@ -13,11 +13,11 @@ import {
 	type Plugin,
 	type PluginOption
 } from 'vite';
-import fs from 'node:fs';
+import * as fs from 'node:fs';
 import fastGlob from 'fast-glob';
 import JSON5 from 'json5';
 import MagicString, { SourceMap } from 'magic-string';
-import path from 'node:path'
+import * as path from 'node:path';
 import { hash, toBase62 } from '../vite.config.js';
 import { minimatch } from 'minimatch';
 import {
