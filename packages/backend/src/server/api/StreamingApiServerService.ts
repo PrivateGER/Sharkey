@@ -40,7 +40,7 @@ import {
 } from './stream/Connection.js';
 import { ChannelsService } from './stream/ChannelsService.js';
 import type * as http from 'node:http';
-import type * as http2 from 'node:http2';
+import type * as net from 'node:net';
 import type stream from 'node:stream';
 
 interface ClientState {
@@ -115,7 +115,7 @@ export class StreamingApiServerService implements BeforeApplicationShutdown {
 	}
 
 	@bindThis
-	public attach(server: http.Server | http2.Http2Server): void {
+	public attach(server: net.Server): void {
 		if (this.isAttached) {
 			throw new IdentifiableError(errorCodes.assertionFailed, 'Attempting to connect StreamingApiServerService to multiple HTTP servers');
 		}

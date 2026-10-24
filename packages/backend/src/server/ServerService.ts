@@ -42,6 +42,7 @@ import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { InternalEventService } from '@/global/InternalEventService.js';
 import type { Server } from 'http';
 import type { Http2Server } from 'http2';
+import { DualProtocolServer } from '@/server/DualProtocolServer.js';
 
 export type AnyServer = Server | Http2Server;
 
@@ -103,9 +104,14 @@ export class ServerService implements BeforeApplicationShutdown {
 		// FastifyOptions union doesn't allow `http2: false` so TS won't allow the property to even be *defined* unless it's true.
 		this.#fastify = this.config.protocol === 'http2'
 			// Enable HTTP2 if enabled.
-			// This supports both encrypted and cleartext modes, but does *not* support protocol negotiation!
+			// Fastify's own HTTP/2 server would be h2c-only: no HTTP/1.1 clients and no WebSocket upgrades for /streaming.
+			// DualProtocolServer sniffs each connection and serves both HTTP/1.1 and h2c on the same port.
 			// https://fastify.dev/docs/latest/Reference/HTTP2/
-			? Fastify({ ...fastifyConfig, http2: true })
+			? Fastify({
+				...fastifyConfig,
+				http2: true,
+				serverFactory: (handler, opts) => new DualProtocolServer(handler, opts) as unknown as Http2Server,
+			})
 			// Default will produce HTTP1.
 			: Fastify(fastifyConfig);
 
