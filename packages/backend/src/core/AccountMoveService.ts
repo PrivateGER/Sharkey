@@ -303,6 +303,12 @@ export class AccountMoveService {
 
 		const arrayToInsert = Array.from(newMutings.entries()).map(entry => ({ ...entry[1], id: entry[0] }));
 		await this.renoteMutingsRepository.insert(arrayToInsert);
+
+		// Update cached relationships, same as UserRenoteMutingService.mute does.
+		// Without this the copied mutes would not take effect until the relationship cache expires.
+		for (const muting of arrayToInsert) {
+			await this.internalEventService.emit('muteRenotes', { muterId: muting.muterId, muteeId: muting.muteeId });
+		}
 	}
 
 	@bindThis
