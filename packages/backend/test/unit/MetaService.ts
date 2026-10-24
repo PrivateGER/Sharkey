@@ -68,6 +68,7 @@ describe('MetaService', () => {
 	beforeEach(async () => {
 		const delta = {
 			name: 'initial name',
+			description: 'initial description',
 			blockedHosts: [],
 			silencedHosts: [],
 			mediaSilencedHosts: [],
@@ -106,6 +107,24 @@ describe('MetaService', () => {
 		expect(message).toBeDefined();
 		expect(message!.before.name).toBe('initial name');
 		expect(message!.after.name).toBe('updated name');
+	});
+
+	it('should emit the persisted settings rather than the local snapshot', async () => {
+		// Another process changes a column that this process has not seen yet.
+		await metasRepository.update({ id: meta.id }, { description: 'changed elsewhere' });
+
+		let message: InternalEventTypes['metaUpdated'] | undefined = undefined;
+		internalEventService.once('metaUpdated', (body: InternalEventTypes['metaUpdated']) => {
+			message = body;
+		});
+
+		await metaService.update({ name: 'local name' });
+
+		expect(message).toBeDefined();
+		expect(message!.before.description).toBe('initial description');
+		expect(message!.after.name).toBe('local name');
+		expect(message!.after.description).toBe('changed elsewhere');
+		expect(meta.description).toBe('changed elsewhere');
 	});
 
 	it('should not let a slow earlier update overwrite a later one', async () => {

@@ -79,10 +79,14 @@ export class MetaService {
 		const persisted = await this.metasRepository.findOneByOrFail({ id: this.meta.id });
 		const updated = Object.assign(this.meta, persisted);
 
+		// Listeners such as S3Service rebuild their state from `after` directly, so send them the persisted row rather
+		// than the local snapshot: other processes may have changed other columns since `before` was captured.
+		const snapshot = Object.assign({}, persisted);
+
 		await Promise.all([
 			// Propagate changes across the cluster
 			// (do this last to make sure listeners get the results of persistBlocks / persistTags)
-			this.internalEventService.emit('metaUpdated', { before, after }),
+			this.internalEventService.emit('metaUpdated', { before, after: snapshot }),
 
 			// Record changes to ModLogs
 			opts?.moderator != null && this.moderationLogService.log(opts.moderator, 'updateServerSettings', {
