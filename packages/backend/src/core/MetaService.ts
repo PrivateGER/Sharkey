@@ -32,8 +32,28 @@ export class MetaService {
 		private readonly moderationLogService: ModerationLogService,
 	) {}
 
+	/**
+	 * Tail of the in-process update chain.
+	 * Updates are serialized so that a slow save (e.g. one that touches many instance rows) cannot finish after a
+	 * later save and overwrite the local singleton with its older values.
+	 *
+	 * The chain is held while the 'metaUpdated' event is emitted, so a listener of that event must never await
+	 * update() itself: it would wait for its own emit to finish and deadlock.
+	 */
+	private updateChain: Promise<unknown> = Promise.resolve();
+
 	@bindThis
-	public async update(updates: Partial<MiMeta>, opts?: {
+	public update(updates: Partial<MiMeta>, opts?: {
+		moderator?: MiLocalUser | null,
+	}): Promise<MiMeta> {
+		const result = this.updateChain.then(() => this.doUpdate(updates, opts));
+		// Keep the chain alive even if this update fails.
+		this.updateChain = result.catch(() => null);
+		return result;
+	}
+
+	@bindThis
+	private async doUpdate(updates: Partial<MiMeta>, opts?: {
 		moderator?: MiLocalUser | null,
 	}): Promise<MiMeta> {
 		// Skip no-op changes
@@ -54,8 +74,10 @@ export class MetaService {
 		// Propagate changes to hiddenTags
 		await this.persistTags(before, after);
 
-		// Update local singleton
-		const updated = Object.assign(this.meta, updates);
+		// Update local singleton from the database, not from `updates`, so that the in-memory copy matches whatever
+		// was persisted, including changes made by other processes since `before` was captured.
+		const persisted = await this.metasRepository.findOneByOrFail({ id: this.meta.id });
+		const updated = Object.assign(this.meta, persisted);
 
 		await Promise.all([
 			// Propagate changes across the cluster
