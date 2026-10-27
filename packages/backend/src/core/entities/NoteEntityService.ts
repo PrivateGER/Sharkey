@@ -195,6 +195,7 @@ export class NoteEntityService implements OnModuleInit {
 			packedNote.reactionEmojis = {};
 			packedNote.reactions = {};
 			packedNote.isHidden = true;
+			packedNote.updatedAt = undefined;
 			// TODO: hiddenReason みたいなのを提供しても良さそう
 		}
 	}
