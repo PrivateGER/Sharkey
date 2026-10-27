@@ -111,7 +111,7 @@ export class ExportClipsProcessorService {
 			});
 
 			if (clips.length === 0) {
-				job.updateProgress(100);
+				job.updateProgress(1);
 				break;
 			}
 
