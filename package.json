@@ -8,20 +8,6 @@
 		"url": "https://activitypub.software/TransFem-org/Sharkey.git"
 	},
 	"packageManager": "pnpm@11.17.0+sha512.cca3cea332ad254bb84145f966d19f4879615210346fc92c79a047f23a0d7b3cca3c3792f0076ba1f1831d277efbcf0a9119b31a9a60eca7fb3d6231f331ef72",
-	"workspaces": [
-		"locales",
-		"packages/backend",
-		"packages/frontend",
-		"packages/frontend-embed",
-		"packages/frontend-shared",
-		"packages/megalodon",
-		"packages/misskey-bubble-game",
-		"packages/misskey-js",
-		"packages/misskey-reversi",
-		"packages/shared",
-		"packages/stub",
-		"packages/sw"
-	],
 	"private": true,
 	"scripts": {
 		"rebuild": "pnpm run clean-all && pnpm i && git submodule update --init && pnpm run build-misskey-js-with-types && pnpm run build",
@@ -62,28 +48,27 @@
 		"js-yaml": "catalog:"
 	},
 	"optionalDependencies": {
-		"cypress": "15.3.0"
+		"cypress": "15.21.1"
 	},
 	"devDependencies": {
-		"@misskey-dev/eslint-plugin": "2.2.0",
+		"@misskey-dev/eslint-plugin": "2.2.1",
 		"@types/ignore-walk": "4.0.3",
-		"@types/js-yaml": "4.0.9",
-		"@types/node": "26.6.5",
-		"@typescript-eslint/eslint-plugin": "8.57.1",
-		"@typescript-eslint/parser": "8.57.1",
-		"cross-env": "10.0.0",
-		"cssnano": "7.1.1",
-		"esbuild": "0.27.4",
-		"eslint": "9.39.4",
-		"execa": "9.6.0",
-		"fast-glob": "3.3.3",
-		"globals": "16.4.0",
-		"ignore-walk": "8.0.0",
+		"@types/node": "catalog:",
+		"@typescript-eslint/eslint-plugin": "catalog:",
+		"@typescript-eslint/parser": "catalog:",
+		"cross-env": "10.1.0",
+		"cssnano": "9.8.0",
+		"esbuild": "0.28.2",
+		"eslint": "catalog:",
+		"execa": "catalog:",
+		"fast-glob": "catalog:",
+		"globals": "17.13.0",
+		"ignore-walk": "9.0.0",
 		"ncp": "2.0.0",
-		"postcss": "8.5.23",
+		"postcss": "8.5.30",
 		"start-server-and-test": "2.1.3",
-		"tar": "7.5.11",
-		"terser": "5.44.0",
-		"typescript": "5.9.3"
+		"tar": "7.5.22",
+		"terser": "5.51.2",
+		"typescript": "catalog:"
 	}
 }

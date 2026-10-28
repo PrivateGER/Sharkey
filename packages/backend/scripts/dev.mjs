@@ -32,7 +32,7 @@ async function killProc() {
 	if (backendProcess) {
 		backendProcess.catch(() => {}); // backendProcess.kill()によって発生する例外を無視するためにcatch()を呼び出す
 		backendProcess.kill();
-		await new Promise(resolve => backendProcess?.on('exit', resolve))
+		await new Promise(resolve => backendProcess?.nodeChildProcess.on('exit', resolve))
 			.finally(() => backendProcess = undefined);
 	}
 }
@@ -46,9 +46,11 @@ async function killProc() {
 			'--exec', 'pnpm', 'run', 'build',
 		],
 		{
-			stdio: [process.stdin, process.stdout, process.stderr, 'ipc'],
-			serialization: "json",
+			stdio: [process.stdin, process.stdout, process.stderr],
+			serialization: 'json',
+			ipc: true,
 		})
+		.nodeChildProcess
 		.on('message', /** @param {{type: string}} message */ async (message) => {
 			if (message.type === 'exit') {
 				// かならずbuild->build-assetsの順番で呼び出したいので、

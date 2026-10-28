@@ -76,7 +76,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					score: 'DESC',
 				},
 				take: 10,
-				relations: ['user'],
+				relations: {
+					user: true,
+				},
 			});
 
 			const users = await this.userEntityService.packMany(records.map(r => r.user!), me);

@@ -8,7 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { In, IsNull, MoreThan, Not } from 'typeorm';
 import { format as dateFormat } from 'date-fns';
 import mime from 'mime-types';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { DI } from '@/di-symbols.js';
 import type { AntennasRepository, BlockingsRepository, DriveFilesRepository, FollowingsRepository, MiBlocking, MiFollowing, MiMuting, MiNote, MiNoteFavorite, MiPoll, MiUser, MutingsRepository, NoteFavoritesRepository, NotesRepository, PollsRepository, SigninsRepository, UserListMembershipsRepository, UserListsRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
@@ -608,7 +608,11 @@ export class ExportAccountDataProcessorService {
 				order: {
 					id: 1,
 				},
-				relations: ['note', 'note.user'],
+				relations: {
+					note: {
+						user: true,
+					},
+				},
 			}) as (MiNoteFavorite & { note: MiNote & { user: MiUser } })[];
 
 			if (favorites.length === 0) {
@@ -731,7 +735,8 @@ export class ExportAccountDataProcessorService {
 		await new Promise<void>(async (resolve) => {
 			const [archivePath, archiveCleanup] = await createTemp();
 			const archiveStream = fs.createWriteStream(archivePath);
-			const archive = archiver('zip', {
+			const archive = new ZipArchive({
+				// TODO doesn't level 0 mean "disable compression"???
 				zlib: { level: 0 },
 			});
 			archiveStream.on('close', async () => {

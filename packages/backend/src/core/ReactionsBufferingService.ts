@@ -73,9 +73,10 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 		deltas: Record<string, number>;
 		pairs: ([MiUser['id'], string])[];
 	}> {
+		// string casts avoid a known typings error that will be fixed in ioredis 6.0.1: https://github.com/redis/ioredis/pull/2163
 		const pipeline = this.redisForReactions.pipeline();
 		pipeline.hgetall(`${REDIS_DELTA_PREFIX}:${noteId}`);
-		pipeline.zrange(`${REDIS_PAIR_PREFIX}:${noteId}`, 0, -1);
+		pipeline.zrange(`${REDIS_PAIR_PREFIX}:${noteId}`, 0, -1 as unknown as string);
 		const results = await pipeline.exec();
 
 		const resultDeltas = results![0][1] as Record<string, string>;
@@ -104,10 +105,11 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 			pairs: ([MiUser['id'], string])[];
 		}>();
 
+		// string casts avoid a known typings error that will be fixed in ioredis 6.0.1: https://github.com/redis/ioredis/pull/2163
 		const pipeline = this.redisForReactions.pipeline();
 		for (const noteId of noteIds) {
 			pipeline.hgetall(`${REDIS_DELTA_PREFIX}:${noteId}`);
-			pipeline.zrange(`${REDIS_PAIR_PREFIX}:${noteId}`, 0, -1);
+			pipeline.zrange(`${REDIS_PAIR_PREFIX}:${noteId}`, 0, -1 as unknown as string);
 		}
 		const results = await pipeline.exec();
 

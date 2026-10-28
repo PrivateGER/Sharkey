@@ -45,7 +45,7 @@ export class GetterService {
 
 	@bindThis
 	public async getNoteWithUser(noteId: MiNote['id']) {
-		const note = await this.notesRepository.findOne({ where: { id: noteId }, relations: ['user'] });
+		const note = await this.notesRepository.findOne({ where: { id: noteId }, relations: { user: true } });
 
 		if (note == null) {
 			throw new IdentifiableError('9725d0ce-ba28-4dde-95a7-2cbb2c15de24', `Note ${noteId} does not exist`);

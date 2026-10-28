@@ -38,7 +38,10 @@ export class InviteCodeEntityService {
 			where: {
 				id: src,
 			},
-			relations: ['createdBy', 'usedBy'],
+			relations: {
+				createdBy: true,
+				usedBy: true,
+			},
 		});
 
 		// noinspection ES6MissingAwait

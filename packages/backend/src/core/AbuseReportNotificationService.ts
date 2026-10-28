@@ -5,7 +5,6 @@
 
 import { Inject, Injectable, type OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { Brackets, In, IsNull, Not } from 'typeorm';
-import sanitizeHtml from 'sanitize-html';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -121,6 +120,9 @@ export class AbuseReportNotificationService implements OnModuleInit, OnApplicati
 		if (recipientEMailAddresses.length <= 0) {
 			return;
 		}
+
+		// Lazy-import to fix jest error about require(esm) cycles
+		const { default: sanitizeHtml } = await import('sanitize-html');
 
 		for (const mailAddress of recipientEMailAddresses) {
 			await Promise.all(

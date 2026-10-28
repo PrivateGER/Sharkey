@@ -344,7 +344,7 @@ export class CacheService implements OnApplicationShutdown {
 		this.userListFavoritesCache = cacheManagementService.createQuantumKVCache<Set<string>>('userListFavorites', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async userId => {
-				const favorites = await this.userListFavoritesRepository.find({ where: { userId }, select: ['userListId'] });
+				const favorites = await this.userListFavoritesRepository.find({ where: { userId }, select: { userListId: true } });
 				return new Set(favorites.map(favorites => favorites.userListId));
 			},
 			// no optionalFetcher needed
@@ -363,7 +363,7 @@ export class CacheService implements OnApplicationShutdown {
 		this.listUserFavoritesCache = cacheManagementService.createQuantumKVCache<Set<string>>('listUserFavorites', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async userListId => {
-				const favorites = await this.userListFavoritesRepository.find({ where: { userListId }, select: ['userId'] });
+				const favorites = await this.userListFavoritesRepository.find({ where: { userListId }, select: { userId: true } });
 				return new Set(favorites.map(favorite => favorite.userId));
 			},
 			// no optionalFetcher needed
@@ -422,7 +422,7 @@ export class CacheService implements OnApplicationShutdown {
 		this.userFollowingChannelsCache = this.cacheManagementService.createQuantumKVCache<Set<string>>('userFollowingChannels', {
 			lifetime: 1000 * 60 * 30, // 30m
 			fetcher: async (followerId) => {
-				const followings = await this.channelFollowingsRepository.find({ where: { followerId: followerId }, select: ['followeeId'] });
+				const followings = await this.channelFollowingsRepository.find({ where: { followerId: followerId }, select: { followeeId: true } });
 				return new Set(followings.map(following => following.followeeId));
 			},
 			// no optionalFetcher needed

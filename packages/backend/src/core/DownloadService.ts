@@ -8,7 +8,6 @@ import * as stream from 'node:stream/promises';
 import { Inject, Injectable } from '@nestjs/common';
 import chalk from 'chalk';
 import got, * as Got from 'got';
-import { parse } from 'content-disposition';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
@@ -51,6 +50,9 @@ export class DownloadService {
 
 		const urlObj = new URL(url);
 		let filename = urlObj.pathname.split('/').pop() ?? 'untitled';
+
+		// Lazy-import to fix jest error about require(esm) cycles
+		const { parse } = await import('content-disposition');
 
 		const req = got.stream(url, {
 			headers: {

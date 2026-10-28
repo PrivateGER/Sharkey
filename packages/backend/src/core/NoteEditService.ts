@@ -813,7 +813,9 @@ export class NoteEditService implements OnApplicationShutdown {
 				where: {
 					followeeId: note.channelId,
 				},
-				select: ['followerId'],
+				select: {
+					followerId: true,
+				},
 			});
 
 			for (const channelFollowing of channelFollowings) {
@@ -832,7 +834,10 @@ export class NoteEditService implements OnApplicationShutdown {
 						followerHost: IsNull(),
 						isFollowerHibernated: false,
 					},
-					select: ['followerId', 'withReplies'],
+					select: {
+						followerId: true,
+						withReplies: true,
+					},
 				}),
 				this.cacheService.userListMembershipsCache.fetch(user.id).then(ms => ms.values().toArray()),
 			]);
