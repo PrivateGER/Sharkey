@@ -379,10 +379,10 @@ export function loadConfig(logger?: Logger): Config {
 
 	const frontendManifestExists = fs.existsSync(_dirname + '/../../../built/_frontend_vite_/manifest.json');
 	const frontendEmbedManifestExists = fs.existsSync(_dirname + '/../../../built/_frontend_embed_vite_/manifest.json');
-	const frontendManifest = frontendManifestExists ?
+	const frontendManifest = process.env.NODE_ENV !== 'development' && frontendManifestExists ?
 		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_vite_/manifest.json`, 'utf-8'))
 		: { 'src/_boot_.ts': { file: 'src/_boot_.ts' } };
-	const frontendEmbedManifest = frontendEmbedManifestExists ?
+	const frontendEmbedManifest = process.env.NODE_ENV !== 'development' && frontendEmbedManifestExists ?
 		JSON.parse(fs.readFileSync(`${_dirname}/../../../built/_frontend_embed_vite_/manifest.json`, 'utf-8'))
 		: { 'src/boot.ts': { file: 'src/boot.ts' } };
 

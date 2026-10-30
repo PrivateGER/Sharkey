@@ -19,18 +19,19 @@ import type { AnyRequest, Endpoint, Request, Response } from '@/utility/misskey-
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
-import MkPostFormDialog from '@/components/MkPostFormDialog.vue';
-import MkWaitingDialog from '@/components/MkWaitingDialog.vue';
-import MkPageWindow from '@/components/MkPageWindow.vue';
-import MkToast from '@/components/MkToast.vue';
-import MkDialog from '@/components/MkDialog.vue';
-import MkPopupMenu from '@/components/MkPopupMenu.vue';
-import MkContextMenu from '@/components/MkContextMenu.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { focusParent } from '@/utility/focus.js';
+
+const MkPostFormDialog = defineAsyncComponent(() => import('@/components/MkPostFormDialog.vue'));
+const MkWaitingDialog = defineAsyncComponent(() => import('@/components/MkWaitingDialog.vue'));
+const MkPageWindow = defineAsyncComponent(() => import('@/components/MkPageWindow.vue'));
+const MkToast = defineAsyncComponent(() => import('@/components/MkToast.vue'));
+const MkDialog = defineAsyncComponent(() => import('@/components/MkDialog.vue'));
+const MkPopupMenu = defineAsyncComponent(() => import('@/components/MkPopupMenu.vue'));
+const MkContextMenu = defineAsyncComponent(() => import('@/components/MkContextMenu.vue'));
 
 export const openingWindowsCount = ref(0);
 
