@@ -102,7 +102,7 @@ definePage(() => ({
 						<template #header>
 							<i class="ph-eye ph-bold"></i> Generated Alt Text
 						</template>
-						<p>AI-powered alt text generation using vision models. Automatically generate descriptive alt text for images to improve accessibility and save time.</p>
+						<p>AI-powered alt text generation using vision models. Automatically generate descriptive alt text for images to improve accessibility and save time. For screenshots and other text-heavy images, "Transcribe text only" copies the text exactly, without describing the image.</p>
 					</MkContainer>
 
 					<MkContainer :naked="true" :thin="true">

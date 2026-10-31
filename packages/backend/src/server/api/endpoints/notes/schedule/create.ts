@@ -25,7 +25,7 @@ import { QueueService } from '@/core/QueueService.js';
 import { IdService } from '@/core/IdService.js';
 import { MiScheduleNoteType } from '@/models/NoteSchedule.js';
 import { RoleService } from '@/core/RoleService.js';
-import { PostHogService } from '@/core/PostHogService.js';
+import { PostHogService, attachmentAltTextProperties } from '@/core/PostHogService.js';
 import { TimeService } from '@/global/TimeService.js';
 import { ApiError } from '../../../error.js';
 
@@ -375,6 +375,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						visibility: note.visibility,
 						local_only: note.localOnly,
 						has_attachments: files.length > 0,
+						...attachmentAltTextProperties(files),
 						has_poll: note.poll != null,
 						has_content_warning: note.cw != null,
 						is_reply: note.reply != null,

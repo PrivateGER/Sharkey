@@ -14,6 +14,7 @@ Displays a note in the Sharkey style. Used to show the "main" note in a given co
 	:withHardMute="withHardMute"
 	:class="[$style.root, { [$style.showActionsOnlyHover]: prefer.s.showNoteActionsOnlyHover, [$style.skipRender]: prefer.s.skipNoteRender }]"
 	:tabindex="isDeleted ? '-1' : '0'"
+	data-note-nav
 	@expandMute="n => emit('expandMute', n)"
 >
 	<SkNoteSub v-if="appearNote.reply" v-show="!renoteCollapsed && !inReplyToCollapsed" :note="appearNote.reply" :class="$style.replyTo" @expandMute="n => emit('expandMute', n)"/>
@@ -220,7 +221,7 @@ import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { instance, policies } from '@/instance.js';
-import { focusPrev, focusNext } from '@/utility/focus.js';
+import { focusAdjacent } from '@/utility/focus.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
 import { prefer } from '@/preferences.js';
 import { setupNoteViewInterruptors } from '@/plugin.js';
@@ -343,25 +344,40 @@ const keymap = {
 		if (renoteCollapsed.value) return;
 		galleryEl.value?.openGallery();
 	},
-	'v|enter': () => {
-		if (renoteCollapsed.value) {
-			renoteCollapsed.value = false;
-		} else if (appearNote.value.cw != null) {
-			showContent.value = !showContent.value;
-		} else if (isLong) {
-			collapsed.value = !collapsed.value;
-		}
+	'v|enter': {
+		// Enter on a focused button or link inside the note activates that control instead
+		onlyOnSelf: true,
+		callback: () => {
+			if (renoteCollapsed.value) {
+				renoteCollapsed.value = false;
+			} else if (appearNote.value.cw != null) {
+				showContent.value = !showContent.value;
+			} else if (isLong) {
+				collapsed.value = !collapsed.value;
+			}
+		},
 	},
 	'esc': {
 		allowRepeat: true,
 		callback: () => blur(),
 	},
-	'up|k|shift+tab': {
+	'up|k': {
 		allowRepeat: true,
 		callback: () => focusBefore(),
 	},
-	'down|j|tab': {
+	'down|j': {
 		allowRepeat: true,
+		callback: () => focusAfter(),
+	},
+	// From a control inside the note, Tab moves through the note's controls natively
+	'shift+tab': {
+		allowRepeat: true,
+		onlyOnSelf: true,
+		callback: () => focusBefore(),
+	},
+	'tab': {
+		allowRepeat: true,
+		onlyOnSelf: true,
 		callback: () => focusAfter(),
 	},
 } as const satisfies Keymap;
@@ -824,12 +840,13 @@ function blur() {
 	rootEl.value?.blur();
 }
 
+// Notes are usually wrapped per list item (with ads in between), so siblings aren't the adjacent notes
 function focusBefore() {
-	focusPrev(rootEl.value);
+	focusAdjacent(rootEl.value, '[data-note-nav]', 'prev');
 }
 
 function focusAfter() {
-	focusNext(rootEl.value);
+	focusAdjacent(rootEl.value, '[data-note-nav]', 'next');
 }
 
 function readPromo() {

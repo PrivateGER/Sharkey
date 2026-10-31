@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</video>
 		<i class="ti ti-eye-off" :class="$style.hide" @click="hide = true"></i>
 		<div :class="$style.indicators">
-			<div v-if="video.comment" :class="$style.indicator" @cilick.stop>ALT</div>
+			<button v-if="video.comment" class="_button" :class="[$style.indicator, $style.altButton]" :title="i18n.ts.showAltText" :aria-label="i18n.ts.showAltText" @click.stop="showAltText">ALT</button>
 			<div v-if="video.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation" @click.stop="hide = true"></i></div>
 		</div>
 	</div>
@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<i class="ti ti-eye-off" :class="$style.hide" @click="hide = true"></i>
 		<div :class="$style.indicators">
-			<div v-if="video.comment" :class="$style.indicator">ALT</div>
+			<button v-if="video.comment" class="_button" :class="[$style.indicator, $style.altButton]" :title="i18n.ts.showAltText" :aria-label="i18n.ts.showAltText" @click.stop="showAltText">ALT</button>
 			<div v-if="video.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation"></i></div>
 		</div>
 		<div :class="$style.videoControls" @click.self="togglePlayPause">
@@ -194,6 +194,11 @@ async function show() {
 
 // Menu
 const menuShowing = ref(false);
+
+function showAltText() {
+	if (!props.video.comment) return;
+	os.alert({ type: 'info', title: i18n.ts.caption, text: props.video.comment, plain: true, textCopyable: true });
+}
 
 function showMenu(ev: MouseEvent) {
 	const menu: MenuItem[] = [
@@ -556,8 +561,11 @@ onDeactivated(() => {
 	top: 10px;
 	left: 10px;
 	pointer-events: none;
-	opacity: .5;
 	gap: 6px;
+
+	> button {
+		pointer-events: auto;
+	}
 }
 
 .indicator {
@@ -569,6 +577,20 @@ onDeactivated(() => {
 	font-weight: bold;
 	font-size: 0.8em;
 	padding: 2px 5px;
+	opacity: .5;
+}
+
+// Interactive, unlike the other indicators: fully opaque, with a touch-sized hit area around the small badge.
+// Doubled class so it also wins over the second .indicator block below.
+.indicator.altButton {
+	position: relative;
+	opacity: 1;
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset: -12px -8px;
+	}
 }
 
 .hide {
@@ -757,7 +779,6 @@ onDeactivated(() => {
 	position: absolute;
 	top: 10px;
 	left: 10px;
-	opacity: .5;
 	gap: 6px;
 }
 
@@ -770,5 +791,6 @@ onDeactivated(() => {
 	font-weight: bold;
 	font-size: 0.8em;
 	padding: 2px 5px;
+	opacity: .5;
 }
 </style>

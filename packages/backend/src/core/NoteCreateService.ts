@@ -35,7 +35,7 @@ import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
-import { PostHogService } from '@/core/PostHogService.js';
+import { PostHogService, attachmentAltTextProperties } from '@/core/PostHogService.js';
 import { HashtagService } from '@/core/HashtagService.js';
 import { AntennaService } from '@/core/AntennaService.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -482,6 +482,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					visibility: note.visibility,
 					local_only: note.localOnly,
 					has_attachments: note.fileIds.length > 0,
+					...attachmentAltTextProperties(data.files ?? []),
 					has_poll: note.hasPoll,
 					has_content_warning: note.cw != null,
 					is_reply: note.replyId != null,

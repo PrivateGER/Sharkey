@@ -81,7 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="maxTextLength - textLength < 100" :class="['_acrylic', $style.textCount, { [$style.textOver]: textLength > maxTextLength }]">{{ maxTextLength - textLength }}</div>
 	</div>
 	<input v-show="withHashtags" ref="hashtagsInputEl" v-model="hashtags" :class="$style.hashtags" :placeholder="i18n.ts.hashtags" list="hashtags">
-	<XPostFormAttaches v-model="files" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName" @replaceFile="replaceFile"/>
+	<XPostFormAttaches ref="attachesEl" v-model="files" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName" @replaceFile="replaceFile"/>
 	<MkPollEditor v-if="poll" v-model="poll" @destroyed="poll = null"/>
 	<MkScheduleEditor v-if="scheduleNote" v-model="scheduleNote" @destroyed="scheduleNote = null"/>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="text" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
@@ -184,6 +184,7 @@ const cwInputEl = useTemplateRef('cwInputEl');
 const hashtagsInputEl = useTemplateRef('hashtagsInputEl');
 const visibilityButton = useTemplateRef('visibilityButton');
 const otherSettingsButton = useTemplateRef('otherSettingsButton');
+const attachesEl = useTemplateRef('attachesEl');
 
 const posting = ref(false);
 const posted = ref(false);
@@ -894,15 +895,19 @@ async function post(ev?: MouseEvent) {
 	if (prefer.s.warnMissingAltText) {
 		const filesData = toRaw(files.value);
 
-		const isMissingAltText = filesData.filter(
-			file => file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')
-		).some(file => !file.comment);
+		const fileMissingAltText = filesData.find(
+			file => (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')) && !file.comment,
+		);
 
-		if (isMissingAltText) {
+		if (fileMissingAltText) {
 			const { canceled, result } = await os.actions({
 				type: 'warning',
 				text: i18n.ts.thisPostIsMissingAltText,
 				actions: [{
+					value: 'describe',
+					text: i18n.ts.describeFile,
+					primary: true,
+				}, {
 					value: 'cancel',
 					text: i18n.ts.thisPostIsMissingAltTextCancel,
 				}, {
@@ -912,6 +917,12 @@ async function post(ev?: MouseEvent) {
 			});
 
 			if (canceled) return;
+			if (result === 'describe') {
+				// files.value holds reactive proxies; the editor updates the file's comment in place
+				const file = files.value.find(x => x.id === fileMissingAltText.id);
+				if (file) attachesEl.value?.describe(file);
+				return;
+			}
 			if (result === 'cancel') return;
 		}
 	}

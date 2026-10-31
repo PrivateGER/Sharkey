@@ -16,6 +16,7 @@ import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { EnvService } from '@/global/EnvService.js';
 import { flushPostHogTracing, startPostHogTracing } from '@/core/PostHogTracing.js';
+import type { MiDriveFile } from '@/models/DriveFile.js';
 
 type PostHogPropertyValue = string | number | boolean | null | undefined | PostHogPropertyValue[] | { [key: string]: PostHogPropertyValue };
 
@@ -29,6 +30,15 @@ export type PostHogContext = {
 
 /** First-party path that relays browser analytics to `posthog.host` (PostHogProxyServerService). */
 export const postHogProxyPath = '/ph';
+
+/** How many of a note's attachments are media, and how many of those have no alt text. */
+export function attachmentAltTextProperties(files: readonly Pick<MiDriveFile, 'type' | 'comment'>[]): PostHogProperties {
+	const media = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/'));
+	return {
+		media_count: media.length,
+		media_missing_alt_text_count: media.filter(file => !file.comment?.trim()).length,
+	};
+}
 
 /**
  * Owns the instance's PostHog clients. Capturing is a no-op when `posthog` is not configured.
