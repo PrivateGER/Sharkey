@@ -35,7 +35,7 @@ import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
-import { PostHogService } from '@/core/PostHogService.js';
+import { PostHogService, attachmentAltTextProperties } from '@/core/PostHogService.js';
 import { QueueService } from '@/core/QueueService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
@@ -611,6 +611,7 @@ export class NoteEditService implements OnApplicationShutdown {
 					visibility: edited.visibility,
 					local_only: edited.localOnly,
 					has_attachments: edited.fileIds.length > 0,
+					...attachmentAltTextProperties(data.files ?? []),
 					has_poll: edited.hasPoll,
 					has_content_warning: edited.cw != null,
 					is_reply: edited.replyId != null,
