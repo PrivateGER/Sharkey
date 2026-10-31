@@ -139,13 +139,15 @@ export function capturePostHogEvent(event: string, properties?: Record<string, s
 	client?.capture(event, properties);
 }
 
+export type AltTextMode = 'describe' | 'ocr';
 /** How the confirmed alt text relates to an AI generation in the caption dialog. */
-export type GeneratedAltText = { edited: boolean; modelType: 'fast' | 'quality' | 'experimental' };
+export type GeneratedAltText = { edited: boolean; modelType: 'fast' | 'quality' | 'experimental'; mode: AltTextMode; fileId: string };
 
 /** Call once the caption has been persisted, so failed saves aren't counted. */
 export function captureAltTextApplied(generated: GeneratedAltText | null): void {
 	if (generated === null) return;
-	capturePostHogEvent('alt_text_applied', { edited: generated.edited, model_type: generated.modelType });
+	// file_id matches the `alt-text:<fileId>` session of the backend's $ai_generation events
+	capturePostHogEvent('alt_text_applied', { edited: generated.edited, model_type: generated.modelType, mode: generated.mode, file_id: generated.fileId });
 }
 
 export function resetPostHog(): void {

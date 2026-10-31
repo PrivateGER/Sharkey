@@ -13334,7 +13334,7 @@ export interface Locale extends ILocale {
      */
     "generatedAltTextSuccess": string;
     /**
-     * Vision Model
+     * Model
      */
     "altTextModel": string;
     /**
@@ -13353,6 +13353,66 @@ export interface Locale extends ILocale {
      * Video is too long (max 1 minute)
      */
     "videoTooLong": string;
+    /**
+     * Transcribe text only
+     */
+    "transcribeTextOnly": string;
+    /**
+     * Describe
+     */
+    "altTextDescribe": string;
+    /**
+     * Text only
+     */
+    "altTextTextOnly": string;
+    /**
+     * No text found in the image
+     */
+    "noTextFoundInImage": string;
+    /**
+     * Describing the image…
+     */
+    "altTextStatusDescribingImage": string;
+    /**
+     * Describing the video…
+     */
+    "altTextStatusDescribingVideo": string;
+    /**
+     * Reading the text…
+     */
+    "altTextStatusReadingText": string;
+    /**
+     * Usually takes up to {seconds} seconds
+     */
+    "altTextGenerationTakes": ParameterizedString<"seconds">;
+    /**
+     * Too many generations. Try again in {seconds} seconds.
+     */
+    "altTextRateLimited": ParameterizedString<"seconds">;
+    /**
+     * The file couldn't be uploaded, so no alt text was generated.
+     */
+    "altTextUploadFailed": string;
+    /**
+     * Restore previous text
+     */
+    "restorePreviousAltText": string;
+    /**
+     * Show alt text
+     */
+    "showAltText": string;
+    /**
+     * No alt text
+     */
+    "mediaLacksAltText": string;
+    /**
+     * {n} characters over the limit
+     */
+    "altTextOverLimit": ParameterizedString<"n">;
+    /**
+     * The alt text is too long to save. Shorten it first.
+     */
+    "altTextTooLong": string;
     /**
      * Default content warning for new posts
      */
