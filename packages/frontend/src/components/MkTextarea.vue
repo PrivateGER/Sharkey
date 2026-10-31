@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_selectable">
-	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
+	<div :id="labelId" :class="$style.label" @click="focus"><slot name="label"></slot></div>
 	<div :class="{ [$style.disabled]: disabled, [$style.focused]: focused, [$style.tall]: tall, [$style.pre]: pre }" style="position: relative;">
 		<textarea
 			ref="inputEl"
@@ -19,13 +19,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:pattern="pattern"
 			:autocomplete="autocomplete"
 			:spellcheck="spellcheck"
+			:aria-labelledby="$slots.label ? labelId : undefined"
+			:aria-describedby="$slots.caption ? captionId : undefined"
+			:aria-invalid="error || undefined"
 			@focus="focused = true"
 			@blur="focused = false"
 			@keydown="onKeydown($event)"
 			@input="onInput"
 		></textarea>
 	</div>
-	<div :class="$style.caption"><slot name="caption"></slot></div>
+	<div :id="captionId" :class="$style.caption"><slot name="caption"></slot></div>
 	<button v-if="mfmPreview" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
 	<div v-if="mfmPreview" v-show="preview" v-panel :class="$style.mfmPreview">
 		<Mfm :text="v" :isBlock="true" />
@@ -36,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef, useId } from 'vue';
 import { debounce } from 'throttle-debounce';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
@@ -60,6 +63,8 @@ const props = withDefaults(defineProps<{
 	code?: boolean;
 	tall?: boolean;
 	pre?: boolean;
+	/** Marks the value as invalid for assistive technology; describe the problem in the caption slot */
+	error?: boolean;
 }>(), {
 	spellcheck: true,
 });
@@ -79,6 +84,8 @@ const invalid = ref(false);
 const filled = computed(() => v.value !== '' && v.value != null);
 const inputEl = useTemplateRef('inputEl');
 const preview = ref(false);
+const labelId = useId();
+const captionId = useId();
 let autocompleteWorker: Autocomplete | null = null;
 
 const focus = () => inputEl.value?.focus();

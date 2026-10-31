@@ -5,17 +5,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
+	<div :id="labelId" :class="$style.label" @click="focus"><slot name="label"></slot></div>
 	<div
 		ref="container"
 		tabindex="0"
+		role="button"
+		aria-haspopup="menu"
+		:aria-expanded="opening"
+		:aria-disabled="disabled || undefined"
+		:aria-labelledby="`${labelId} ${prefixId} ${valueId}`"
 		:class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused || opening }]"
 		@focus="focused = true"
 		@blur="focused = false"
 		@mousedown.prevent="show"
 		@keydown.space.enter="show"
 	>
-		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
+		<div :id="prefixId" ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
 		<div
 			ref="inputEl"
 			v-adaptive-border
@@ -28,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@mousedown.prevent="() => {}"
 			@keydown.prevent="() => {}"
 		>
-			<div style="pointer-events: none;">{{ currentValueText ?? '' }}</div>
+			<div :id="valueId" style="pointer-events: none;">{{ currentValueText ?? '' }}</div>
 			<div style="display: none;">
 				<slot></slot>
 			</div>
@@ -56,7 +61,7 @@ export type MkSelectItem<T extends string | number | null | boolean = string | n
 </script>
 
 <script lang="ts" setup generic="T extends string | number | null | boolean = string | number | null">
-import { onMounted, nextTick, ref, watch, computed, toRefs, useSlots } from 'vue';
+import { onMounted, nextTick, ref, watch, computed, toRefs, useSlots, useId } from 'vue';
 import { useInterval } from '@@/js/use-interval.js';
 import type { VNode, VNodeChild } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
@@ -92,6 +97,9 @@ const inputEl = ref<HTMLObjectElement | null>(null);
 const prefixEl = ref<HTMLElement | null>(null);
 const suffixEl = ref<HTMLElement | null>(null);
 const container = ref<HTMLElement | null>(null);
+const labelId = useId();
+const prefixId = useId();
+const valueId = useId();
 const height =
 	props.small ? 33 :
 	props.large ? 39 :
