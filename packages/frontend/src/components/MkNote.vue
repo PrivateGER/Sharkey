@@ -359,23 +359,13 @@ const keymap = {
 		allowRepeat: true,
 		callback: () => blur(),
 	},
+	// Tab is left to the browser so it moves through the note's controls; j/k move between notes
 	'up|k': {
 		allowRepeat: true,
 		callback: () => focusBefore(),
 	},
 	'down|j': {
 		allowRepeat: true,
-		callback: () => focusAfter(),
-	},
-	// From a control inside the note, Tab moves through the note's controls natively
-	'shift+tab': {
-		allowRepeat: true,
-		onlyOnSelf: true,
-		callback: () => focusBefore(),
-	},
-	'tab': {
-		allowRepeat: true,
-		onlyOnSelf: true,
 		callback: () => focusAfter(),
 	},
 } as const satisfies Keymap;
