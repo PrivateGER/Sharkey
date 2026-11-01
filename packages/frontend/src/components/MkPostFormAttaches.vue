@@ -123,7 +123,7 @@ async function rename(file) {
 	});
 }
 
-async function describe(file: Misskey.entities.DriveFile) {
+function describe(file: Misskey.entities.DriveFile) {
 	if (mock) return;
 
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkFileCaptionEditWindow.vue')), {
@@ -214,6 +214,10 @@ function showFileMenu(file: Misskey.entities.DriveFile, ev: MouseEvent | Keyboar
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target).then(() => menuShowing = false);
 	menuShowing = true;
 }
+
+defineExpose({
+	describe,
+});
 </script>
 
 <style lang="scss" module>

@@ -29002,6 +29002,11 @@ export interface operations {
                      * @enum {string}
                      */
                     modelType?: 'fast' | 'quality' | 'experimental';
+                    /**
+                     * @default describe
+                     * @enum {string}
+                     */
+                    mode?: 'describe' | 'ocr';
                 };
             };
         };

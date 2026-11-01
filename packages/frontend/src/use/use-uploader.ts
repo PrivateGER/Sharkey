@@ -662,10 +662,23 @@ export function useUploader(options: {
 		item.preprocessedFile = markRaw(preprocessedFile);
 	}
 
-	async function ensureUploaded(item: UploaderItem): Promise<Misskey.entities.DriveFile> {
-		if (item.uploaded == null) await uploadOne(item);
-		if (item.uploaded == null) throw new Error('Failed to upload file');
-		return item.uploaded;
+	// Shared so that generating again after cancelling in the alt text editor waits for the same upload
+	const pendingUploads = new Map<string, Promise<Misskey.entities.DriveFile>>();
+
+	function ensureUploaded(item: UploaderItem): Promise<Misskey.entities.DriveFile> {
+		if (item.uploaded != null) return Promise.resolve(item.uploaded);
+
+		let pending = pendingUploads.get(item.id);
+		if (pending == null) {
+			pending = uploadOne(item).then(() => {
+				if (item.uploaded == null) throw new Error('Failed to upload file');
+				return item.uploaded;
+			}).finally(() => {
+				pendingUploads.delete(item.id);
+			});
+			pendingUploads.set(item.id, pending);
+		}
+		return pending;
 	}
 
 	function editCaption(item: UploaderItem) {

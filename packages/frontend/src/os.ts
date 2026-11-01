@@ -246,6 +246,7 @@ export function alert(props: {
 	title?: string;
 	text?: string;
 	textCopyable?: boolean;
+	plain?: boolean;
 }): Promise<void> {
 	return new Promise(resolve => {
 		const { dispose } = popup(MkDialog, props, {

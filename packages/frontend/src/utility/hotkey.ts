@@ -12,6 +12,11 @@ type CallbackFunction = (ev: KeyboardEvent) => unknown;
 type CallbackObject = {
 	callback: CallbackFunction;
 	allowRepeat?: boolean;
+	/**
+	 * Only handle the key while the element the hotkey is bound to has focus itself,
+	 * so focused controls inside it (buttons, links) keep native Enter/Space/Tab behavior.
+	 */
+	onlyOnSelf?: boolean;
 };
 
 type Pattern = {
@@ -59,6 +64,7 @@ export const makeHotkey = (keymap: Keymap) => {
 			if (getHTMLElementOrNull(window.document.activeElement)?.isContentEditable) return;
 		}
 		for (const action of actions) {
+			if (action.options.onlyOnSelf && ev.target !== ev.currentTarget) continue;
 			if (matchPatterns(ev, action)) {
 				ev.preventDefault();
 				ev.stopPropagation();
@@ -99,6 +105,7 @@ const parseCallback = (rawCallback: Keymap[keyof Keymap]) => {
 const parseOptions = (rawCallback: Keymap[keyof Keymap]) => {
 	const defaultOptions = {
 		allowRepeat: false,
+		onlyOnSelf: false,
 	} as const satisfies Action['options'];
 	if (typeof rawCallback === 'object') {
 		const { callback, ...rawOptions } = rawCallback;
@@ -156,8 +163,9 @@ const parseKeyCode = (input?: string | null) => {
 	if (input == null) return [];
 	const raw = getValueByKey(KEY_ALIASES, input);
 	if (raw == null) return [input];
-	if (typeof raw === 'string') return [trimLower(raw)];
-	return raw.map(trimLower);
+	// Aliases are exact KeyboardEvent.key values, so they're only lowercased; trimming would turn ' ' (space) into ''
+	if (typeof raw === 'string') return [raw.toLowerCase()];
+	return raw.map(key => key.toLowerCase());
 };
 
 const getValueByKey = <

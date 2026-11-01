@@ -430,10 +430,14 @@ const keymap = {
 		}
 	},
 	'o': () => galleryEl.value?.openGallery(),
-	'v|enter': () => {
-		if (appearNote.value.cw != null) {
-			showContent.value = !showContent.value;
-		}
+	'v|enter': {
+		// Enter on a focused button or link inside the note activates that control instead
+		onlyOnSelf: true,
+		callback: () => {
+			if (appearNote.value.cw != null) {
+				showContent.value = !showContent.value;
+			}
+		},
 	},
 	'esc': {
 		allowRepeat: true,

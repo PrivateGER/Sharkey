@@ -141,10 +141,14 @@ const keymap = {
 			}
 		},
 	},
-	'space': () => {
-		if (hasFocus()) {
-			togglePlayPause();
-		}
+	'space': {
+		// Space on a focused control inside the player activates that control instead
+		onlyOnSelf: true,
+		callback: () => {
+			if (hasFocus()) {
+				togglePlayPause();
+			}
+		},
 	},
 } as const satisfies Keymap;
 

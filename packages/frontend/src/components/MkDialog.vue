@@ -22,8 +22,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<header v-if="title" :class="$style.title" class="_selectable"><Mfm :text="title"/></header>
 		<div v-if="text" :class="[$style.text, textCopyable && $style.textCopyable]" class="_selectable">
-			<Mfm :text="text" :isBlock="true" :plain="plain"/>
-			<button v-if="textCopyable" :class="$style.copyButton" @click.stop="copyToClipboard(text)"><i class="ti ti-copy"></i></button>
+			<!-- Plain text is shown verbatim, including line breaks, rather than parsed as MFM -->
+			<div v-if="plain" :class="$style.plainText">{{ text }}</div>
+			<Mfm v-else :text="text" :isBlock="true"/>
+			<button v-if="textCopyable" :class="$style.copyButton" :title="i18n.ts.copy" :aria-label="i18n.ts.copy" @click.stop="copyToClipboard(text)"><i class="ti ti-copy"></i></button>
 		</div>
 		<MkInput v-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" @keydown="onInputKeydown">
 			<template v-if="input.type === 'password'" #prefix><i class="ti ti-lock"></i></template>
@@ -215,6 +217,15 @@ function onInputKeydown(evt: KeyboardEvent) {
 
 .text {
 	margin: 16px 0 0 0;
+}
+
+.plainText {
+	min-width: 0;
+	max-height: 50vh;
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	text-align: start;
 }
 
 .textCopyable {

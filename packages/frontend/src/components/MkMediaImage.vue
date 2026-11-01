@@ -41,9 +41,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-else-if="controls">
 		<div :class="$style.indicators">
 			<div v-if="['image/gif', 'image/apng'].includes(image.type)" :class="$style.indicator" @click.stop>GIF</div>
-			<div v-if="image.comment" :class="$style.indicator" @click.stop>ALT</div>
+			<button v-if="image.comment" class="_button" :class="[$style.indicator, $style.altButton]" :title="i18n.ts.showAltText" :aria-label="i18n.ts.showAltText" @click.stop="showAltText">ALT</button>
 			<div v-if="image.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation" @click.stop="hide = true"></i></div>
-			<div v-if="!image.comment" :class="$style.indicator" title="Image lacks descriptive text"><i class="ph-pencil-simple ph-bold ph-lg-off" @click.stop></i></div>
+			<div v-if="!image.comment" :class="$style.indicator" :title="i18n.ts.mediaLacksAltText"><i class="ph-pencil-simple-slash ph-bold ph-lg" @click.stop></i></div>
 		</div>
 		<button :class="$style.menu" class="_button" @click.stop="showMenu"><i class="ti ti-dots" style="vertical-align: middle;"></i></button>
 		<i class="ti ti-eye-off" :class="$style.hide" @click.stop="hide = true"></i>
@@ -111,6 +111,11 @@ watch(() => props.image, () => {
 	deep: true,
 	immediate: true,
 });
+
+function showAltText() {
+	if (!props.image.comment) return;
+	os.alert({ type: 'info', title: i18n.ts.caption, text: props.image.comment, plain: true, textCopyable: true });
+}
 
 function showMenu(ev: MouseEvent) {
 	const menuItems: MenuItem[] = [];
@@ -286,7 +291,6 @@ html[data-color-scheme=light] .visible {
 	position: absolute;
 	top: 10px;
 	left: 10px;
-	opacity: .5;
 	gap: 6px;
 }
 
@@ -299,5 +303,18 @@ html[data-color-scheme=light] .visible {
 	font-weight: bold;
 	font-size: 0.8em;
 	padding: 2px 5px;
+	opacity: .5;
+}
+
+// Interactive, unlike the other indicators: fully opaque, with a touch-sized hit area around the small badge
+.altButton {
+	position: relative;
+	opacity: 1;
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset: -12px -8px;
+	}
 }
 </style>

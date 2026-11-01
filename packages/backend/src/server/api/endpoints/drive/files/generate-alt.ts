@@ -49,6 +49,12 @@ export const meta = {
 			code: 'VIDEO_TOO_LONG',
 			id: 'e30b9ece-76f8-44eb-a04c-d3b936037429',
 		},
+
+		textOnlyNotSupportedForVideo: {
+			message: 'Text-only transcription is only available for images.',
+			code: 'TEXT_ONLY_NOT_SUPPORTED_FOR_VIDEO',
+			id: '5b0f6a3c-8a5e-4d6b-9a57-0f7d2c4e1b93',
+		},
 	},
 
 	res: {
@@ -71,6 +77,8 @@ export const paramDef = {
 	properties: {
 		fileId: { type: 'string', format: 'misskey:id' },
 		modelType: { type: 'string', enum: ['fast', 'quality', 'experimental'], default: 'fast' },
+		/** `ocr` only transcribes the text in an image, without describing it. */
+		mode: { type: 'string', enum: ['describe', 'ocr'], default: 'describe' },
 	},
 	required: ['fileId'],
 } as const;
@@ -102,6 +110,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			if (isVideo) {
+				if (ps.mode === 'ocr') {
+					throw new ApiError(meta.errors.textOnlyNotSupportedForVideo);
+				}
+
 				const duration = file.properties.duration;
 				if (duration == null || duration > 60) {
 					throw new ApiError(meta.errors.videoTooLong);
@@ -120,7 +132,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const systemPrompt = isVideo
 				? 'Generate concise, descriptive, and accessible alt text for the following video, which is a description for people who can\'t see it. Focus on describing the sequence of events, actions, movements, and any important visual or auditory elements. Mention any text shown on screen. Only return the alt text and ensure the description is concise.'
-				: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.';
+				: ps.mode === 'ocr'
+					? 'Transcribe all text visible in the following image exactly as written, keeping its original language, line breaks and reading order. Return only the transcribed text. Do not describe, explain, summarize, translate, or comment on the image or the text, and do not add labels, quotation marks, or formatting. If the image contains no legible text, return an empty response.'
+					: 'Generate concise, descriptive, and accessible alt text, which is a description for people who can\'t see the following image. Focus on clearly conveying the key visual elements, context, and emotions of the image while considering the intended audience. Type out any text contained. Only return the alt text and ensure the description is concise.';
 
 			const mediaContent = isVideo
 				? { type: 'video_url' as const, video_url: { url: file.url } }
@@ -146,6 +160,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					$ai_is_error: outcome.isError,
 					media_type: isVideo ? 'video' : 'image',
 					model_type: modelType,
+					mode: ps.mode,
 				});
 			};
 
@@ -153,6 +168,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				model: selectedModel,
 				model_type: modelType,
 				media_type: isVideo ? 'video' : 'image',
+				mode: ps.mode,
 			}, () => client.chat.completions.create({
 				model: selectedModel,
 				messages: [
@@ -181,9 +197,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.generationFailed);
 			}
 
-			return {
-				text: response.choices[0].message.content ?? '',
-			};
+			const text = response.choices[0].message.content ?? '';
+			if (ps.mode === 'ocr') {
+				// Asked for an empty response when there is no text, models sometimes return only invisible characters (e.g. U+200E)
+				return { text: /^[\s\p{Cf}]*$/u.test(text) ? '' : text.trim() };
+			}
+
+			return { text };
 		});
 	}
 }

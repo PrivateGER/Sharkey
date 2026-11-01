@@ -4,7 +4,7 @@
  */
 
 import { getScrollPosition, getScrollContainer, getStickyBottom, getStickyTop } from '@@/js/scroll.js';
-import { getElementOrNull, getNodeOrNull } from '@/utility/get-dom-node-or-null.js';
+import { getNodeOrNull } from '@/utility/get-dom-node-or-null.js';
 
 type MaybeHTMLElement = EventTarget | Node | Element | HTMLElement;
 
@@ -26,24 +26,20 @@ export const isFocusable = (input: MaybeHTMLElement | null | undefined): input i
 	return true;
 };
 
-export const focusPrev = (input: MaybeHTMLElement | null | undefined, self = false, scroll = true) => {
-	const element = self ? input : getElementOrNull(input)?.previousElementSibling;
-	if (element == null) return;
-	if (isFocusable(element)) {
-		focusOrScroll(element, scroll);
-	} else {
-		focusPrev(element, false, scroll);
-	}
-};
-
-export const focusNext = (input: MaybeHTMLElement | null | undefined, self = false, scroll = true) => {
-	const element = self ? input : getElementOrNull(input)?.nextElementSibling;
-	if (element == null) return;
-	if (isFocusable(element)) {
-		focusOrScroll(element, scroll);
-	} else {
-		focusNext(element, false, scroll);
-	}
+/**
+ * Focuses the nearest focusable element matching `selector` before or after `input` in document order,
+ * within the same scroll container. Unlike sibling-based navigation, this works when each list item
+ * is wrapped in its own container (e.g. a timeline note followed by an ad).
+ */
+export const focusAdjacent = (input: HTMLElement | null | undefined, selector: string, direction: 'prev' | 'next', scroll = true) => {
+	if (input == null) return;
+	const scope = getScrollContainer(input.parentElement) ?? window.document.documentElement;
+	const candidates = Array.from(scope.querySelectorAll(selector));
+	const index = candidates.indexOf(input);
+	if (index === -1) return;
+	const ahead = direction === 'next' ? candidates.slice(index + 1) : candidates.slice(0, index).reverse();
+	const target = ahead.find(isFocusable);
+	if (target != null) focusOrScroll(target, scroll);
 };
 
 export const focusParent = (input: MaybeHTMLElement | null | undefined, self = false, scroll = true) => {
