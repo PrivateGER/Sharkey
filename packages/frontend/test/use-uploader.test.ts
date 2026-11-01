@@ -9,9 +9,11 @@ import { cleanup, render } from '@testing-library/vue';
 import type * as Misskey from 'misskey-js';
 import { useUploader } from '@/use/use-uploader.js';
 
+type EditorProps = { prepareFile: () => Promise<Misskey.entities.DriveFile> };
+
 const mocks = vi.hoisted(() => ({
 	uploadFile: vi.fn(),
-	popup: vi.fn(() => ({ dispose: vi.fn() })),
+	popup: vi.fn((_component: unknown, _props: EditorProps, _events?: unknown) => ({ dispose: vi.fn() })),
 }));
 
 vi.mock('@/utility/drive.js', () => ({
@@ -39,8 +41,10 @@ function inSetup<T>(build: () => T): T {
 }
 
 test('generating alt text again while the file is still uploading reuses that upload', async () => {
-	const upload = Promise.withResolvers<Misskey.entities.DriveFile>();
-	mocks.uploadFile.mockImplementation(() => ({ filePromise: upload.promise, abort: vi.fn() }));
+	// Promise.withResolvers isn't in the frontend's TS lib yet
+	let finishUpload: (file: Misskey.entities.DriveFile) => void = () => {};
+	const pendingUpload = new Promise<Misskey.entities.DriveFile>(resolve => { finishUpload = resolve; });
+	mocks.uploadFile.mockImplementation(() => ({ filePromise: pendingUpload, abort: vi.fn() }));
 
 	const uploader = inSetup(() => useUploader());
 	uploader.addFiles([new File(['hello'], 'notes.txt', { type: 'text/plain' })]);
@@ -48,13 +52,13 @@ test('generating alt text again while the file is still uploading reuses that up
 
 	uploader.editCaption(uploader.items.value[0]);
 	await nextTick();
-	const { prepareFile } = mocks.popup.mock.calls[0][1] as { prepareFile: () => Promise<Misskey.entities.DriveFile> };
+	const { prepareFile } = mocks.popup.mock.calls[0][1];
 
 	// The editor's first generation is cancelled mid-upload, then the user generates again
 	const first = prepareFile();
 	const second = prepareFile();
 
-	upload.resolve({ id: 'file1' } as Misskey.entities.DriveFile);
+	finishUpload({ id: 'file1' } as Misskey.entities.DriveFile);
 
 	await expect(first).resolves.toMatchObject({ id: 'file1' });
 	await expect(second).resolves.toMatchObject({ id: 'file1' });
@@ -72,7 +76,7 @@ test('a failed upload can be retried from the alt text editor', async () => {
 
 	uploader.editCaption(uploader.items.value[0]);
 	await nextTick();
-	const { prepareFile } = mocks.popup.mock.calls[0][1] as { prepareFile: () => Promise<Misskey.entities.DriveFile> };
+	const { prepareFile } = mocks.popup.mock.calls[0][1];
 
 	await expect(prepareFile()).rejects.toThrow();
 	await expect(prepareFile()).resolves.toMatchObject({ id: 'file1' });
