@@ -286,9 +286,12 @@ export class ReactionService implements OnModuleInit {
 		// リアクションされたユーザーがローカルユーザーなら通知を作成
 		if (note.userHost === null) {
 			const threadId = note.threadId ?? note.id;
-			const isThreadMuted = await this.cacheService.threadMutingsCache.fetch(note.userId).then(ms => ms.has(threadId));
+			const [isThreadMuted, isNoteMuted] = await Promise.all([
+				this.cacheService.threadMutingsCache.fetch(note.userId).then(ms => ms.has(threadId)),
+				this.cacheService.noteMutingsCache.fetch(note.userId).then(ms => ms.has(note.id)),
+			]);
 
-			if (!isThreadMuted) {
+			if (!isThreadMuted && !isNoteMuted) {
 				this.notificationService.createNotification(note.userId, 'reaction', {
 					noteId: note.id,
 					reaction: reaction,
