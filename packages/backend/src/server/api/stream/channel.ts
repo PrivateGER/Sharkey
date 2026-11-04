@@ -108,13 +108,11 @@ export abstract class NoteChannel extends Channel {
 
 	/**
 	 * Prepares a note before it gets sent to the client.
-	 * @param opts.includeSilenced Keep notes that are only silenced (mutes, silenced authors, replies hidden by follow settings), dropping only inaccessible ones.
 	 * @returns A packed note, or `null` if the note shouldn't be seen by the user
 	 * who owns this connection, for whatever reason.
 	 */
 	@bindThis
-	protected async prepareNote(note: Packed<'Note'>, opts: { filters?: NoteVisibilityFilters, includeSilenced?: boolean } = {}): Promise<Packed<'Note'> | null> {
-		const { filters, includeSilenced = false } = opts;
+	protected async prepareNote(note: Packed<'Note'>, filters?: NoteVisibilityFilters): Promise<Packed<'Note'> | null> {
 		const { accessible, silence } = await this.noteVisibilityService.checkNoteVisibilityAsync(note, this.user, {
 			filters,
 			hint: {
@@ -125,7 +123,7 @@ export abstract class NoteChannel extends Channel {
 		});
 
 		// Skip notes that the user can't or shouldn't access
-		if (!accessible || (silence && !includeSilenced)) {
+		if (!accessible || silence) {
 			return null;
 		}
 

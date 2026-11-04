@@ -47,9 +47,9 @@ class MainChannel extends NoteChannel {
 				}
 
 				if (data.body.note) {
-					// Timeline silencing (e.g. replies from users followed without replies) doesn't apply to
-					// notifications; i/notifications lists them, and mutes were already applied when creating them.
-					const preparedNote = await this.prepareNote(data.body.note, { includeSilenced: true });
+					// i/notifications lists notifications for replies in others' threads and posts by silenced
+					// authors, so only timeline-specific hiding is relaxed here; mutes still apply.
+					const preparedNote = await this.prepareNote(data.body.note, { includeReplies: true, includeSilencedAuthor: true });
 					if (!preparedNote) return;
 
 					data.body.note = preparedNote;
