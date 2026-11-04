@@ -47,7 +47,9 @@ class MainChannel extends NoteChannel {
 				}
 
 				if (data.body.note) {
-					const preparedNote = await this.prepareNote(data.body.note);
+					// Timeline silencing (e.g. replies from users followed without replies) doesn't apply to
+					// notifications; i/notifications lists them, and mutes were already applied when creating them.
+					const preparedNote = await this.prepareNote(data.body.note, { includeSilenced: true });
 					if (!preparedNote) return;
 
 					data.body.note = preparedNote;

@@ -52,7 +52,7 @@ class HomeTimelineChannel extends NoteChannel {
 			if (!isMe && !(await this.cacheService.getUserRelation(userId, note.userId)).isFollowing) return;
 		}
 
-		const preparedNote = await this.prepareNote(note, { excludeRepliesToInaccessible: true });
+		const preparedNote = await this.prepareNote(note, { filters: { excludeRepliesToInaccessible: true } });
 		if (preparedNote) {
 			this.send('note', preparedNote);
 		}
