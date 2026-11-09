@@ -135,10 +135,23 @@ export class StreamingApiServerService implements BeforeApplicationShutdown {
 
 	@bindThis
 	private async onServerUpgrade(request: http.IncomingMessage, socket: stream.Duplex, head: Buffer): Promise<void> {
+		// The HTTP server removes its own "error" listener before emitting "upgrade", and ws doesn't attach one until handleUpgrade.
+		// We have to cover the gap ourselves, or a client that resets the connection during authentication will kill the process.
+		const onSocketError = (error: unknown) => {
+			this.logger.debug(`Socket error during streaming upgrade: ${renderInlineError(error)}`);
+			socket.destroy();
+		};
+		socket.on('error', onSocketError);
+
 		const authResult = await this.authenticateServerUpgrade(request);
+
+		// Bail if the client disconnected while we were authenticating.
+		if (socket.destroyed) return;
 
 		// Step 2: pass Upgrade from HTTPS to WS.
 		// This will either bail (applying dieInstantly) or pass forward the connected websocket.
+		// ws attaches its own "error" listener synchronously, so ours is no longer needed.
+		socket.off('error', onSocketError);
 		this.wss.handleUpgrade(request, socket, head, async (ws) => {
 			// Special handler to hard-terminate the connection if it fails during initialization.
 			const onWsInitError = (error: unknown) => {
