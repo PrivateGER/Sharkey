@@ -165,7 +165,7 @@ export class StreamingApiServerService implements BeforeApplicationShutdown {
 				if (authResult.result) {
 					await this.onWsUpgrade(request, ws, authResult.result);
 				} else {
-					ws.close(authResult.error[0], authResult.error[1]);
+					ws.close(authResult.error.code, authResult.error.message);
 				}
 			} catch (err) {
 				onWsInitError(err);
