@@ -88,6 +88,11 @@ export function getErrorException(error: unknown): Error | null {
 		return null;
 	}
 
+	// So is an ApiError with a 4xx status. The response hook already logs those at debug level.
+	if (error instanceof ApiError && error.httpStatusCode != null && error.httpStatusCode >= 400 && error.httpStatusCode <= 499) {
+		return null;
+	}
+
 	return error;
 }
 
