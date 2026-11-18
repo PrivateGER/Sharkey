@@ -97,8 +97,15 @@ export class ApiStatusMastodon {
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const { data } = await client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query));
-			const ancestors = await promiseMap(data.ancestors, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
-			const descendants = await promiseMap(data.descendants, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
+
+			// The native API sometimes returns thread notes that the Mastodon visibility rules hide.
+			// Leave those out, instead of failing the whole thread.
+			const convertVisible = async (status: Entity.Status) => {
+				const note = await this.mastodonDataService.getNote(status.id, me);
+				return note ? await this.mastoConverters.convertStatus(status, me, { note }) : null;
+			};
+			const ancestors = (await promiseMap(data.ancestors, convertVisible, { limiter: 4 })).filter(status => status != null);
+			const descendants = (await promiseMap(data.descendants, convertVisible, { limiter: 4 })).filter(status => status != null);
 			const response = { ancestors, descendants };
 
 			return reply.send(response);
