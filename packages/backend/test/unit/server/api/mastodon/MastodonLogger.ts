@@ -4,7 +4,8 @@
  */
 
 import { ApiError } from '@/server/api/error.js';
-import { getErrorException } from '@/server/api/mastodon/MastodonLogger.js';
+import { AuthenticationError } from '@/server/api/AuthenticateService.js';
+import { getErrorData, getErrorException, getErrorStatus } from '@/server/api/mastodon/MastodonLogger.js';
 
 describe('getErrorException', () => {
 	it('should not treat a client ApiError as a server exception', () => {
@@ -39,5 +40,20 @@ describe('getErrorException', () => {
 		const error = new TypeError('boom');
 
 		expect(getErrorException(error)).toBe(error);
+	});
+});
+
+describe('a rejected token', () => {
+	const error = new AuthenticationError('invalid signature');
+
+	it('should be reported as unauthorized', () => {
+		expect(getErrorStatus(error)).toBe(401);
+	});
+
+	it('should not expose the internal reason', () => {
+		const data = getErrorData(error);
+
+		expect(data.error).toBe('AUTHENTICATION_FAILED');
+		expect(data.error_description).not.toContain('invalid signature');
 	});
 });

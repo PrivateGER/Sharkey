@@ -107,6 +107,14 @@ export function getErrorData(error: unknown): MastodonError {
 		};
 	}
 
+	// Same response as the native API gives for a rejected token.
+	if (error instanceof AuthenticationError) {
+		return {
+			error: 'AUTHENTICATION_FAILED',
+			error_description: 'Authentication failed. Please ensure your token is correct.',
+		};
+	}
+
 	if (error instanceof ApiError) {
 		return convertApiError(error);
 	}
@@ -199,6 +207,10 @@ function convertMastodonError(error: MastodonError): MastodonError {
 }
 
 export function getErrorStatus(error: unknown): number {
+	if (error instanceof AuthenticationError) {
+		return 401;
+	}
+
 	if (error && typeof(error) === 'object') {
 		// Axios wraps errors from the backend
 		if ('response' in error && typeof (error.response) === 'object' && error.response) {
