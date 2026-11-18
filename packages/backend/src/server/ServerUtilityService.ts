@@ -108,7 +108,8 @@ export class ServerUtilityService {
 
 	@bindThis
 	public addCORS(fastify: FastifyInstance) {
-		fastify.addHook('preHandler', (_, reply, done) => {
+		// Set as early as possible, so that web-based clients can also read responses that are rejected before the handler runs.
+		fastify.addHook('onRequest', (_, reply, done) => {
 			// Allow web-based clients to connect from other origins.
 			reply.header('Access-Control-Allow-Origin', '*');
 
