@@ -4,7 +4,7 @@ import * as OAuth from './oauth.js'
 import { type Response } from './response.js'
 import * as Entity from './entity.js'
 import { type MegalodonInterface, NoImplementedError, ArgumentError, UnexpectedError } from './megalodon.js'
-import type { AxiosAdapter } from 'axios'
+import { isAxiosError, type AxiosAdapter } from 'axios'
 import { UnknownNotificationTypeError } from './notification.js'
 
 export default class Misskey implements MegalodonInterface {
@@ -1520,11 +1520,17 @@ export default class Misskey implements MegalodonInterface {
 
   /**
    * Calls a native endpoint that takes a note and returns nothing, then returns the note in its new state.
+   * @param alreadyInState native error code that means the note already was in the requested state
    */
-  private async updateStatusState(endpoint: string, id: string): Promise<Response<Entity.Status>> {
-    await this.client.post<{}>(endpoint, {
-      noteId: id
-    })
+  private async updateStatusState(endpoint: string, id: string, alreadyInState?: string): Promise<Response<Entity.Status>> {
+    try {
+      await this.client.post<{}>(endpoint, {
+        noteId: id
+      })
+    } catch (err) {
+      // Mastodon clients expect these calls to succeed when there is nothing left to change.
+      if (!alreadyInState || !isAxiosError(err) || err.response?.data?.error?.code !== alreadyInState) throw err
+    }
     return this.client
       .post<MisskeyAPI.Entity.Note>('/api/notes/show', {
         noteId: id
@@ -1536,14 +1542,14 @@ export default class Misskey implements MegalodonInterface {
    * POST /api/notes/favorites/create
    */
   public async bookmarkStatus(id: string): Promise<Response<Entity.Status>> {
-    return this.updateStatusState('/api/notes/favorites/create', id)
+    return this.updateStatusState('/api/notes/favorites/create', id, 'ALREADY_FAVORITED')
   }
 
   /**
    * POST /api/notes/favorites/delete
    */
   public async unbookmarkStatus(id: string): Promise<Response<Entity.Status>> {
-    return this.updateStatusState('/api/notes/favorites/delete', id)
+    return this.updateStatusState('/api/notes/favorites/delete', id, 'NOT_FAVORITED')
   }
 
   /**

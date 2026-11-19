@@ -188,6 +188,16 @@ describe('Mastodon API', () => {
 			assert.strictEqual(unmuted.status, 200);
 			assert.strictEqual(unmuted.body.muted, false);
 		});
+
+		test('repeating a bookmark, an unbookmark or a mute still succeeds', async () => {
+			const note = await post(bob, { text: 'tapped twice' });
+
+			for (const action of ['bookmark', 'bookmark', 'unbookmark', 'unbookmark', 'mute', 'mute', 'unmute', 'unmute']) {
+				const res = await masto('POST', `v1/statuses/${note.id}/${action}`, alice);
+
+				assert.strictEqual(res.status, 200, action);
+			}
+		});
 	});
 
 	describe('filters', () => {
