@@ -191,6 +191,7 @@ describe('Mastodon API', () => {
 			const report = reports.body.find(r => r.targetUserId === alice.id && r.reporterId === bob.id);
 			assert.ok(report?.comment.includes('please look at this'));
 			assert.ok(report?.comment.includes(`/notes/${note.id}`));
+			assert.ok(report?.comment.includes('spam'));
 		});
 
 		test('a report without a comment is accepted', async () => {
@@ -200,6 +201,34 @@ describe('Mastodon API', () => {
 
 			const reports = await api('admin/abuse-user-reports', {}, alice);
 			assert.ok(reports.body.some(r => r.targetUserId === bob.id && r.reporterId === alice.id));
+		});
+
+		test('an app that may only report can report', async () => {
+			const reporter = { token: await createAppToken(bob, ['write:report-abuse']) };
+
+			const res = await masto('POST', 'v1/reports', reporter, { account_id: alice.id, comment: 'from a narrow app' });
+
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(res.body.target_account.username, 'alice');
+		});
+
+		test('a report with more statuses than fit is sent with as many as fit', async () => {
+			const statusIds = Array.from({ length: 30 }, (_, index) => `note${index}`.padEnd(16, 'x'));
+
+			const res = await masto('POST', 'v1/reports', alice, {
+				account_id: bob.id,
+				status_ids: statusIds,
+				comment: 'many statuses '.repeat(70),
+			});
+
+			assert.strictEqual(res.status, 200);
+			assert.ok(res.body.status_ids.length > 0 && res.body.status_ids.length < statusIds.length, String(res.body.status_ids.length));
+			assert.deepStrictEqual(res.body.status_ids, statusIds.slice(0, res.body.status_ids.length));
+
+			const reports = await api('admin/abuse-user-reports', {}, alice);
+			const report = reports.body.find(r => r.comment.startsWith('many statuses'));
+			assert.ok(report && report.comment.length <= 2048);
+			assert.ok(report.comment.includes(`${statusIds.length - res.body.status_ids.length} more notes`));
 		});
 	});
 
@@ -218,6 +247,15 @@ describe('Mastodon API', () => {
 			assert.strictEqual(unbookmarked.status, 200);
 			assert.strictEqual(unbookmarked.body.bookmarked, false);
 			assert.deepStrictEqual((await masto('GET', 'v1/bookmarks', alice)).body, []);
+		});
+
+		test('a status the caller may not see can be neither bookmarked nor muted', async () => {
+			const note = await post(bob, { text: 'for followers', visibility: 'followers' });
+
+			assert.strictEqual((await masto('POST', `v1/statuses/${note.id}/bookmark`, alice)).status, 404);
+			assert.strictEqual((await masto('POST', `v1/statuses/${note.id}/mute`, alice)).status, 404);
+			assert.deepStrictEqual((await masto('GET', 'v1/bookmarks', alice)).body, []);
+			assert.strictEqual((await masto('GET', `v1/statuses/${note.id}`, bob)).body.muted, false);
 		});
 
 		test('a muted conversation is reported as muted until it is unmuted', async () => {
@@ -260,9 +298,11 @@ describe('Mastodon API', () => {
 			try {
 				const address = provider.address();
 				assert.ok(address && typeof address === 'object');
+				assert.strictEqual((await masto('GET', 'v2/instance', alice)).body.configuration.translation.enabled, false);
 				await api('admin/update-meta', { libreTranslateURL: `http://127.0.0.1:${address.port}/translate` }, alice);
 				// The generated type of this parameter has no policies in it.
 				await api('admin/roles/update-default-policies', { policies: { canUseTranslator: true } as unknown as Record<string, never> }, alice);
+				assert.strictEqual((await masto('GET', 'v2/instance', alice)).body.configuration.translation.enabled, true);
 				const note = await post(bob, { text: 'Guten Morgen' });
 
 				const res = await masto('POST', `v1/statuses/${note.id}/translate`, alice, { lang: 'en' });
@@ -347,6 +387,16 @@ describe('Mastodon API', () => {
 
 			assert.strictEqual((await masto('POST', 'v1/markers', readOnly, { home: { last_read_id: 'x' } })).status, 403);
 			assert.strictEqual((await masto('GET', both)).status, 401);
+		});
+
+		test('a suspended user can no longer read or save positions', async () => {
+			const carol = await signup({ username: 'carol' });
+			assert.strictEqual((await masto('POST', 'v1/markers', carol, { home: { last_read_id: 'before' } })).status, 200);
+
+			await api('admin/suspend-user', { userId: carol.id }, alice);
+
+			assert.strictEqual((await masto('GET', both, carol)).status, 403);
+			assert.strictEqual((await masto('POST', 'v1/markers', carol, { home: { last_read_id: 'after' } })).status, 403);
 		});
 	});
 
