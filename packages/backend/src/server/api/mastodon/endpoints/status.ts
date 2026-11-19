@@ -413,6 +413,18 @@ export class ApiStatusMastodon {
 			return reply.send(response);
 		});
 
+		fastify.post<{ Params: { id?: string }, Body?: { lang?: string } }>('/v1/statuses/:id/translate', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const { client, me } = await this.clientService.getAuthClient(_request);
+			const note = await this.mastodonDataService.requireNote(_request.params.id, me);
+			const lang = _request.body?.lang ?? 'en';
+			const data = await client.translateStatus(note.id, lang);
+			const response = this.mastoConverters.convertTranslation(note, lang, data.data);
+
+			return reply.send(response);
+		});
+
 		fastify.delete<{ Params: { id?: string } }>('/v1/statuses/:id', async (_request, reply) => {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 

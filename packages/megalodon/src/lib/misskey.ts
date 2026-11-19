@@ -1571,6 +1571,17 @@ export default class Misskey implements MegalodonInterface {
   }
 
   /**
+   * POST /api/notes/translate
+   * @returns nothing when the note has no text
+   */
+  public async translateStatus(id: string, lang: string): Promise<Response<{ sourceLang?: string; text?: string }>> {
+    return this.client.post<{ sourceLang?: string; text?: string }>('/api/notes/translate', {
+      noteId: id,
+      targetLang: lang
+    })
+  }
+
+  /**
    * POST /api/i/pin
    */
   public async pinStatus(id: string): Promise<Response<Entity.Status>> {

@@ -6,7 +6,9 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
+import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { api, host, post, react, relativeFetch, signup, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
@@ -232,6 +234,41 @@ describe('Mastodon API', () => {
 				const res = await masto('POST', `v1/statuses/${note.id}/${action}`, alice);
 
 				assert.strictEqual(res.status, 200, action);
+			}
+		});
+
+		test('a translation comes from the configured provider', async () => {
+			const requests: { q: string, target: string }[] = [];
+			const provider = createServer((req, res) => {
+				let body = '';
+				req.on('data', chunk => body += chunk);
+				req.on('end', () => {
+					requests.push(JSON.parse(body));
+					res.setHeader('Content-Type', 'application/json');
+					res.end(JSON.stringify({ translatedText: 'Good morning', detectedLanguage: { language: 'de', confidence: 99 } }));
+				});
+			});
+			provider.listen(0, '127.0.0.1');
+			await once(provider, 'listening');
+
+			try {
+				const address = provider.address();
+				assert.ok(address && typeof address === 'object');
+				await api('admin/update-meta', { libreTranslateURL: `http://127.0.0.1:${address.port}/translate` }, alice);
+				// The generated type of this parameter has no policies in it.
+				await api('admin/roles/update-default-policies', { policies: { canUseTranslator: true } as unknown as Record<string, never> }, alice);
+				const note = await post(bob, { text: 'Guten Morgen' });
+
+				const res = await masto('POST', `v1/statuses/${note.id}/translate`, alice, { lang: 'en' });
+
+				assert.strictEqual(res.status, 200);
+				assert.ok(res.body.content.includes('Good morning'), res.body.content);
+				assert.strictEqual(res.body.language, 'en');
+				assert.strictEqual(res.body.detected_source_language, 'German');
+				assert.strictEqual(res.body.provider, 'LibreTranslate');
+				assert.deepStrictEqual(requests.map(request => [request.q, request.target]), [['Guten Morgen', 'en']]);
+			} finally {
+				provider.close();
 			}
 		});
 	});
