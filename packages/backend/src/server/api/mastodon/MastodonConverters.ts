@@ -146,7 +146,7 @@ export class MastodonConverters {
 		};
 	}
 
-	public async convertAccount(account: Entity.Account | MiUser): Promise<MastodonEntity.Account> {
+	public async convertAccount(account: { id: string }): Promise<MastodonEntity.Account> {
 		const [user, profile] = await Promise.all([
 			this.getterService.getUser(account.id),
 			this.cacheService.userProfileCache.fetchMaybe(account.id),

@@ -935,11 +935,20 @@ export default class Misskey implements MegalodonInterface {
       rule_ids?: Array<number>
     }
   ): Promise<Response<Entity.Report>> {
-    // The native report has no field for the reported notes or the category, so they go into the comment.
-    const comment = [
-      options.comment.trim() || `(no comment; reported as "${options.category}")`,
-      ...(options.status_ids ?? []).map(id => `Note: ${this.baseUrl}/notes/${id}`)
+    // The native report only has a comment, so the category and the reported notes go into it.
+    const head = [options.comment.trim() || '(no comment)']
+    if (options.category !== 'other') head.push(`Category: ${options.category}`)
+
+    // The native comment is limited to 2048 characters. Leave out the notes that don't fit, rather than lose the report.
+    const notes = options.status_ids ?? []
+    const compose = (included: number) => [
+      ...head,
+      ...notes.slice(0, included).map(id => `Note: ${this.baseUrl}/notes/${id}`),
+      ...(included < notes.length ? [`(${notes.length - included} more notes were reported, but did not fit)`] : [])
     ].join('\n')
+    let included = notes.length
+    while (included > 0 && compose(included).length > 2048) included--
+    const comment = compose(included)
     return this.client
       .post<{}>('/api/users/report-abuse', {
         userId: account_id,
@@ -954,7 +963,7 @@ export default class Misskey implements MegalodonInterface {
             comment: options.comment,
             category: options.category,
             forwarded: false,
-            status_ids: options.status_ids ?? null,
+            status_ids: options.status_ids ? notes.slice(0, included) : null,
             rule_ids: null
           }
         })
