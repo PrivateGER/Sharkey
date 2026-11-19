@@ -245,6 +245,16 @@ describe('Mastodon API', () => {
 			assert.strictEqual(res.status, 200);
 			assert.deepStrictEqual(res.body.map((rule: { text: string }) => rule.text), ['be kind', 'no spam']);
 		});
+
+		test('extended description is the server\'s about text', async () => {
+			await api('admin/update-meta', { about: '<p>About this server</p>' }, alice);
+
+			const res = await masto('GET', 'v1/instance/extended_description');
+
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(res.body.content, '<p>About this server</p>');
+			assert.ok(!Number.isNaN(Date.parse(res.body.updated_at)), res.body.updated_at);
+		});
 	});
 
 	describe('filters', () => {

@@ -12,6 +12,7 @@ import { MastodonConverters } from '@/server/api/mastodon/MastodonConverters.js'
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { InstanceStatsService } from '@/core/InstanceStatsService.js';
 import { RoleService } from '@/core/RoleService.js';
+import { TimeService } from '@/global/TimeService.js';
 import type { FastifyInstance } from 'fastify';
 import type { MastodonEntity } from 'megalodon';
 
@@ -28,6 +29,7 @@ export class ApiInstanceMastodon {
 		private readonly clientService: MastodonClientService,
 		private readonly roleService: RoleService,
 		private readonly instanceStatsService: InstanceStatsService,
+		private readonly timeService: TimeService,
 	) {}
 
 	public register(fastify: FastifyInstance): void {
@@ -97,6 +99,14 @@ export class ApiInstanceMastodon {
 			const data = await client.getInstance();
 
 			return reply.send(data.data.rules ?? []);
+		});
+
+		fastify.get('/v1/instance/extended_description', async (_request, reply) => {
+			return reply.send({
+				// The time of the last change is not recorded.
+				updated_at: this.timeService.date.toISOString(),
+				content: this.meta.about || this.meta.description || '',
+			});
 		});
 
 		fastify.get('/v2/instance', async (_request, reply) => {
