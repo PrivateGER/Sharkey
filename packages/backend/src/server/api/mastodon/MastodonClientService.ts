@@ -13,6 +13,9 @@ import type { FastifyRequest } from 'fastify';
 
 @Injectable()
 export class MastodonClientService {
+	// A request is authenticated once, however often the rate limiter and the handler ask.
+	private readonly requestAuths = new WeakMap<FastifyRequest, { accessToken: string | null, me: Promise<MiLocalUser | null> }>();
+
 	constructor(
 		@Inject(DI.config)
 		private readonly config: Config,
@@ -39,8 +42,17 @@ export class MastodonClientService {
 	public async getAuth(request: FastifyRequest, accessToken?: string | null): Promise<MiLocalUser | null> {
 		const authorization = request.headers.authorization;
 		accessToken = accessToken !== undefined ? accessToken : getAccessToken(authorization);
-		const [me] = await this.authenticateService.authenticate(accessToken);
-		return me;
+
+		let auth = this.requestAuths.get(request);
+		if (!auth || auth.accessToken !== accessToken) {
+			auth = {
+				accessToken,
+				me: this.authenticateService.authenticate(accessToken).then(([me]) => me),
+			};
+			this.requestAuths.set(request, auth);
+		}
+
+		return await auth.me;
 	}
 
 	/**
