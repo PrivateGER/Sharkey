@@ -13,9 +13,6 @@ import { MastodonClientService } from '../MastodonClientService.js';
 import type { FastifyInstance } from 'fastify';
 
 interface ApiNotifyMastodonRoute {
-	Params: {
-		id?: string,
-	},
 	Querystring: TimelineArgs,
 }
 
@@ -47,32 +44,6 @@ export class ApiNotificationsMastodon {
 
 			attachMinMaxPagination(request, reply, response);
 			return reply.send(response);
-		});
-
-		fastify.get<ApiNotifyMastodonRoute & { Params: { id?: string } }>('/v1/notification/:id', async (_request, reply) => {
-			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
-
-			const { client, me } = await this.clientService.getAuthClient(_request);
-			const data = await client.getNotification(_request.params.id);
-			const response = await this.mastoConverters.convertNotification(data.data, me);
-
-			// Notifications for inaccessible notes will be null and should be ignored
-			if (!response) {
-				return reply.code(404).send({
-					error: 'NOT_FOUND',
-				});
-			}
-
-			return reply.send(response);
-		});
-
-		fastify.post<ApiNotifyMastodonRoute & { Params: { id?: string } }>('/v1/notification/:id/dismiss', async (_request, reply) => {
-			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
-
-			const client = this.clientService.getClient(_request);
-			const data = await client.dismissNotification(_request.params.id);
-
-			return reply.send(data.data);
 		});
 
 		fastify.post<ApiNotifyMastodonRoute>('/v1/notifications/clear', async (_request, reply) => {
