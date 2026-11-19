@@ -6,6 +6,8 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { api, post, react, relativeFetch, signup } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
@@ -104,5 +106,26 @@ describe('Mastodon API', () => {
 			assert.strictEqual(res.status, 200);
 			assert.ok(Array.isArray(res.body));
 		});
+	});
+
+	describe('media', () => {
+		for (const path of ['v1/media', 'v2/media']) {
+			test(`${path} stores the uploaded file`, async () => {
+				const image = await readFile(fileURLToPath(new URL('../resources/192.jpg', import.meta.url)));
+				const form = new FormData();
+				form.append('file', new File([image], 'picture.jpg', { type: 'image/jpeg' }));
+				form.append('description', 'a test picture');
+
+				const res = await masto('POST', path, alice, form);
+
+				assert.strictEqual(res.status, 200);
+				assert.strictEqual(res.body.type, 'image');
+				assert.strictEqual(res.body.description, 'a test picture');
+
+				const stored = await api('drive/files/show', { fileId: res.body.id }, alice);
+				assert.strictEqual(stored.body.size, image.length);
+				assert.strictEqual(stored.body.name, 'picture.jpg');
+			});
+		}
 	});
 });

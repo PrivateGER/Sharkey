@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { openAsBlob } from 'node:fs';
 import { Injectable } from '@nestjs/common';
 import { bindThis } from '@/decorators.js';
 import { promiseMap } from '@/misc/promise-map.js';
@@ -21,7 +22,7 @@ import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from './argsUtils.js';
 import { convertAnnouncement, convertAttachment, MastodonConverters, convertRelationship } from './MastodonConverters.js';
 import type { Entity } from 'megalodon';
-import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 
 @Injectable()
 export class MastodonApiServerService {
@@ -114,18 +115,15 @@ export class MastodonApiServerService {
 			return reply.send(data.data);
 		});
 
-		fastify.post('/v1/media', async (_request, reply) => {
+		fastify.post<{ Body: { description?: string; focus?: string } }>('/v1/media', async (_request, reply) => {
 			const multipartData = _request.savedRequestFiles?.[0];
 			if (!multipartData) {
 				return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'No image' });
 			}
 
-			const buffer = await multipartData.toBuffer();
-			const file = new File([buffer as Buffer<ArrayBuffer>], multipartData.fieldname, {
-				type: multipartData.mimetype,
-			});
+			const file = await readUpload(multipartData);
 			const client = this.clientService.getClient(_request);
-			const data = await client.uploadMedia(file);
+			const data = await client.uploadMedia(file, _request.body);
 			const response = convertAttachment(data.data as Entity.Attachment);
 
 			return reply.send(response);
@@ -136,11 +134,8 @@ export class MastodonApiServerService {
 			if (!multipartData) {
 				return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'No image' });
 			}
-			const buffer = await multipartData.toBuffer();
-			const file = new File([buffer as Buffer<ArrayBuffer>], multipartData.fieldname, {
-				type: multipartData.mimetype,
-			});
 
+			const file = await readUpload(multipartData);
 			const client = this.clientService.getClient(_request);
 			const data = await client.uploadMedia(file, _request.body);
 			const response = convertAttachment(data.data as Entity.Attachment);
@@ -283,4 +278,13 @@ export class MastodonApiServerService {
 
 		done();
 	}
+}
+
+/**
+ * Loads an upload from the temporary file that the multipart hook stored it in.
+ * The upload's own stream is spent by then, so reading it from the part yields nothing.
+ */
+async function readUpload(upload: NonNullable<FastifyRequest['savedRequestFiles']>[number]): Promise<File> {
+	const blob = await openAsBlob(upload.filepath, { type: upload.mimetype });
+	return new File([blob], upload.filename || 'file', { type: upload.mimetype });
 }
