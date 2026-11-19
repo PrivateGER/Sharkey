@@ -376,6 +376,21 @@ describe('Mastodon API', () => {
 			assert.deepStrictEqual(removed.body.emoji_reactions, []);
 		});
 
+		test('reacting again keeps the reaction, and another emoji replaces it', async () => {
+			const note = await post(bob, { text: 'one reaction each' });
+			const react = async (emoji: string) => await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent(emoji)}`, alice);
+			const names = (res: { body: { emoji_reactions: { name: string, count: number }[] } }) => res.body.emoji_reactions.map(reaction => [reaction.name, reaction.count]);
+
+			await react('👍');
+			const repeated = await react('👍');
+			assert.strictEqual(repeated.status, 200);
+			assert.deepStrictEqual(names(repeated), [['👍', 1]]);
+
+			const replaced = await react('🎉');
+			assert.strictEqual(replaced.status, 200);
+			assert.deepStrictEqual(names(replaced), [['🎉', 1]]);
+		});
+
 		test('nodeinfo announces the Pleroma reaction routes', async () => {
 			const res = await relativeFetch('nodeinfo/2.1');
 			const nodeinfo = await res.json() as { metadata: { features: string[] } };
