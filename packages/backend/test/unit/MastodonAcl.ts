@@ -115,7 +115,11 @@ describe('Mastodon compatibility ACLs', () => {
 			getStatusContext: jest.fn(async () => ({
 				data: {
 					ancestors: [{ id: 'visible-parent' }, { id: 'hidden-parent' }],
-					descendants: [{ id: 'hidden-reply' }, { id: 'visible-reply' }],
+					descendants: [
+						{ id: 'hidden-reply' },
+						{ id: 'reply-quoting-hidden', reblog: { id: 'hidden-quoted' } },
+						{ id: 'visible-reply' },
+					],
 				},
 			})),
 		};
@@ -128,10 +132,11 @@ describe('Mastodon compatibility ACLs', () => {
 				return note;
 			},
 		};
-		// Like the real converter, this needs the note behind the status and fails without it.
+		// Like the real converter, this needs the note behind the status and the note it quotes, and fails without them.
 		const mastoConverters = {
-			convertStatus: async (status: { id: string }, _me: unknown, hints?: { note?: { id: string } }) => {
+			convertStatus: async (status: { id: string, reblog?: { id: string } }, _me: unknown, hints?: { note?: { id: string } }) => {
 				const note = hints?.note ?? await mastodonDataService.requireNote(status.id);
+				if (status.reblog) await mastodonDataService.requireNote(status.reblog.id);
 				return { id: note.id };
 			},
 		};
