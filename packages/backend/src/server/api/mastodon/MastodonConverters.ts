@@ -346,7 +346,7 @@ export class MastodonConverters {
 			application: null, //FIXME
 			language: null, //FIXME
 			pinned: false, //FIXME
-			bookmarked: false, //FIXME
+			bookmarked: status.bookmarked,
 			quote_id: isQuote ? status.reblog?.id : undefined,
 			quote: isQuote ? this.convertReblog(status.reblog, me) : null,
 			reactions: status.emoji_reactions,

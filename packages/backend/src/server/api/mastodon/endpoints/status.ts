@@ -338,6 +338,27 @@ export class ApiStatusMastodon {
 
 			return reply.send(response);
 		});
+
+		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/mute', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const { client, me } = await this.clientService.getAuthClient(_request);
+			const data = await client.muteStatus(_request.params.id);
+			const response = await this.mastoConverters.convertStatus(data.data, me);
+
+			return reply.send(response);
+		});
+
+		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/unmute', async (_request, reply) => {
+			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
+
+			const { client, me } = await this.clientService.getAuthClient(_request);
+			const data = await client.unmuteStatus(_request.params.id);
+			const response = await this.mastoConverters.convertStatus(data.data, me);
+
+			return reply.send(response);
+		});
+
 		fastify.post<{ Params: { id?: string } }>('/v1/statuses/:id/pin', async (_request, reply) => {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 

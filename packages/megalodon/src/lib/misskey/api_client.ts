@@ -263,7 +263,7 @@ export namespace Converter {
 			favourites_count: getTotalReactions(n.reactions),
 			reblogged: false,
 			favourited: !!n.myReaction,
-			muted: false,
+			muted: n.isMutingThread ?? false,
 			sensitive: Array.isArray(n.files) ? n.files.some(f => f.isSensitive) : false,
 			spoiler_text: n.cw ? n.cw : '',
 			visibility: visibility(n.visibility),
@@ -276,7 +276,7 @@ export namespace Converter {
 			language: null,
 			pinned: null,
 			emoji_reactions: typeof n.reactions === 'object' ? mapReactions(n.reactions, n.reactionEmojis, n.myReaction) : [],
-			bookmarked: false,
+			bookmarked: n.isFavorited ?? false,
 			quote: n.renote && n.text ? note(n.renote, n.user.host ? n.user.host : host ? host : null) : null
 		}
 	}

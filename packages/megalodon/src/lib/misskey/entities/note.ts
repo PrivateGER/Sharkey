@@ -31,4 +31,6 @@ export interface Note {
 	poll?: Poll
 	mentions?: Array<string>
 	myReaction?: string
+	isFavorited?: boolean
+	isMutingThread?: boolean
 }

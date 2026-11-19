@@ -158,4 +158,35 @@ describe('Mastodon API', () => {
 			assert.deepStrictEqual(res.body.map((list: { title: string }) => list.title), ['with bob']);
 		});
 	});
+
+	describe('statuses', () => {
+		test('a bookmark shows on the status and in the bookmark list until it is removed', async () => {
+			const note = await post(bob, { text: 'worth keeping' });
+
+			const bookmarked = await masto('POST', `v1/statuses/${note.id}/bookmark`, alice);
+			assert.strictEqual(bookmarked.status, 200);
+			assert.strictEqual(bookmarked.body.bookmarked, true);
+			assert.strictEqual((await masto('GET', `v1/statuses/${note.id}`, alice)).body.bookmarked, true);
+			assert.strictEqual((await masto('GET', `v1/statuses/${note.id}`, bob)).body.bookmarked, false);
+			assert.deepStrictEqual((await masto('GET', 'v1/bookmarks', alice)).body.map((status: { id: string }) => status.id), [note.id]);
+
+			const unbookmarked = await masto('POST', `v1/statuses/${note.id}/unbookmark`, alice);
+			assert.strictEqual(unbookmarked.status, 200);
+			assert.strictEqual(unbookmarked.body.bookmarked, false);
+			assert.deepStrictEqual((await masto('GET', 'v1/bookmarks', alice)).body, []);
+		});
+
+		test('a muted conversation is reported as muted until it is unmuted', async () => {
+			const note = await post(bob, { text: 'a noisy thread' });
+
+			const muted = await masto('POST', `v1/statuses/${note.id}/mute`, alice);
+			assert.strictEqual(muted.status, 200);
+			assert.strictEqual(muted.body.muted, true);
+			assert.strictEqual((await masto('GET', `v1/statuses/${note.id}`, bob)).body.muted, false);
+
+			const unmuted = await masto('POST', `v1/statuses/${note.id}/unmute`, alice);
+			assert.strictEqual(unmuted.status, 200);
+			assert.strictEqual(unmuted.body.muted, false);
+		});
+	});
 });

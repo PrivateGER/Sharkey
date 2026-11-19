@@ -1518,32 +1518,46 @@ export default class Misskey implements MegalodonInterface {
       .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
-  public async bookmarkStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
+  /**
+   * Calls a native endpoint that takes a note and returns nothing, then returns the note in its new state.
+   */
+  private async updateStatusState(endpoint: string, id: string): Promise<Response<Entity.Status>> {
+    await this.client.post<{}>(endpoint, {
+      noteId: id
     })
+    return this.client
+      .post<MisskeyAPI.Entity.Note>('/api/notes/show', {
+        noteId: id
+      })
+      .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
-  public async unbookmarkStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/notes/favorites/create
+   */
+  public async bookmarkStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/favorites/create', id)
   }
 
-  public async muteStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/notes/favorites/delete
+   */
+  public async unbookmarkStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/favorites/delete', id)
   }
 
-  public async unmuteStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/notes/thread-muting/create
+   */
+  public async muteStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/thread-muting/create', id)
+  }
+
+  /**
+   * POST /api/notes/thread-muting/delete
+   */
+  public async unmuteStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/thread-muting/delete', id)
   }
 
   /**
