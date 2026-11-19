@@ -23,8 +23,8 @@ function normalizeQuery(data: Record<string, unknown>) {
 	return querystring.parse(str);
 }
 
-// The characters a custom emoji may be named with, as checked when one is added, and the server of a remote one.
-const customEmojiName = /^[\p{Letter}\p{Number}\p{Mark}_+-]+(@[\w.-]+)?$/u;
+// The characters a custom emoji may be named with, as checked when one is added.
+const customEmojiName = /^[\p{Letter}\p{Number}\p{Mark}_+-]+$/u;
 
 /**
  * Apps name a custom emoji by its bare shortcode. The native API wants it between colons, and takes anything it does
