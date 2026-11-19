@@ -184,6 +184,15 @@ describe('Mastodon API', () => {
 			assert.ok(report?.comment.includes('please look at this'));
 			assert.ok(report?.comment.includes(`/notes/${note.id}`));
 		});
+
+		test('a report without a comment is accepted', async () => {
+			const res = await masto('POST', 'v1/reports', alice, { account_id: bob.id });
+
+			assert.strictEqual(res.status, 200);
+
+			const reports = await api('admin/abuse-user-reports', {}, alice);
+			assert.ok(reports.body.some(r => r.targetUserId === bob.id && r.reporterId === alice.id));
+		});
 	});
 
 	describe('statuses', () => {
