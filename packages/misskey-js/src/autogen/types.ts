@@ -30930,6 +30930,7 @@ export interface operations {
                     subscribing?: boolean | null;
                     publishing?: boolean | null;
                     nsfw?: boolean | null;
+                    mandatoryCW?: boolean | null;
                     bubble?: boolean | null;
                     /** @default 30 */
                     limit?: number;
@@ -50366,9 +50367,11 @@ export interface operations {
                     /** @default 10 */
                     limit?: number;
                     page?: number;
-                    /** @default [
+                    /**
+                     * @default [
                      *       "-id"
-                     *     ] */
+                     *     ]
+                     */
                     sortKeys?: ('+id' | '-id' | '+updatedAt' | '-updatedAt' | '+name' | '-name' | '+host' | '-host' | '+uri' | '-uri' | '+publicUrl' | '-publicUrl' | '+type' | '-type' | '+aliases' | '-aliases' | '+category' | '-category' | '+license' | '-license' | '+isSensitive' | '-isSensitive' | '+localOnly' | '-localOnly' | '+roleIdsThatCanBeUsedThisEmojiAsReaction' | '-roleIdsThatCanBeUsedThisEmojiAsReaction')[];
                 };
             };

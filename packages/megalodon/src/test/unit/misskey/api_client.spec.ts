@@ -161,16 +161,18 @@ describe('api_client', () => {
       ]
 
       const reactions = MisskeyAPI.Converter.reactions(misskeyReactions)
-      expect(reactions).toEqual([
+      expect(reactions.map(({ accounts, ...reaction }) => ({ ...reaction, accountIds: accounts?.map(account => account.id) }))).toEqual([
         {
           count: 3,
           me: false,
-          name: '❤'
+          name: '❤',
+          accountIds: ['81u70uwsja', '81u70uwsja', '81u70uwsja']
         },
         {
           count: 1,
           me: false,
-          name: '☺'
+          name: '☺',
+          accountIds: ['81u70uwsja']
         }
       ])
     })

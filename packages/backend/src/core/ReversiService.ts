@@ -92,7 +92,7 @@ export class ReversiService {
 					{ id: MoreThan(this.idService.gen(this.timeService.now - 1000 * 60 * 3)), user1Id: me.id, user2Id: targetUser.id, isStarted: false },
 					{ id: MoreThan(this.idService.gen(this.timeService.now - 1000 * 60 * 3)), user1Id: targetUser.id, user2Id: me.id, isStarted: false },
 				],
-				relations: ['user1', 'user2'],
+				relations: { user1: true, user2: true },
 				order: { id: 'DESC' },
 			});
 			if (games.length > 0) {
@@ -139,7 +139,7 @@ export class ReversiService {
 					{ id: MoreThan(this.idService.gen(this.timeService.now - 1000 * 60 * 3)), user1Id: me.id, isStarted: false },
 					{ id: MoreThan(this.idService.gen(this.timeService.now - 1000 * 60 * 3)), user2Id: me.id, isStarted: false },
 				],
-				relations: ['user1', 'user2'],
+				relations: { user1: true, user2: true },
 				order: { id: 'DESC' },
 			});
 			if (games.length > 0) {
@@ -166,10 +166,11 @@ export class ReversiService {
 		}
 		//#endregion
 
+		// string casts avoid a known typings error that will be fixed in ioredis 6.0.1: https://github.com/redis/ioredis/pull/2163
 		const matchings = await this.redisClient.zrange(
 			'reversi:matchAny',
 			0,
-			2, // 自分自身のIDが入っている場合もあるので2つ取得
+			2 as unknown as string, // 自分自身のIDが入っている場合もあるので2つ取得
 			'REV');
 
 		const items = matchings.filter(id => !id.startsWith(me.id));
@@ -284,7 +285,7 @@ export class ReversiService {
 			bw: 'random',
 			isLlotheo: false,
 			noIrregularRules: options.noIrregularRules,
-		}, { relations: ['user1', 'user2'] });
+		}, { relations: { user1: true, user2: true } });
 		this.cacheGame(game);
 
 		const packed = await this.reversiGameEntityService.packDetail(game);
@@ -599,7 +600,7 @@ export class ReversiService {
 		} else {
 			const game = await this.reversiGamesRepository.findOne({
 				where: { id },
-				relations: ['user1', 'user2'],
+				relations: { user1: true, user2: true },
 			});
 			if (game == null) return null;
 

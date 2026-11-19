@@ -247,7 +247,7 @@ export class FileServerService {
 				reply.header('Content-Type', FILE_TYPE_BROWSERSAFE.includes(image.type) ? image.type : 'application/octet-stream');
 				reply.header('Cache-Control', 'max-age=31536000, immutable');
 				reply.header('Content-Disposition',
-					contentDisposition(
+					await contentDisposition(
 						'inline',
 						correctFilename(file.filename, image.ext),
 					),
@@ -263,7 +263,7 @@ export class FileServerService {
 
 				reply.header('Content-Type', FILE_TYPE_BROWSERSAFE.includes(file.mime) ? file.mime : 'application/octet-stream');
 				reply.header('Cache-Control', 'max-age=31536000, immutable');
-				reply.header('Content-Disposition', contentDisposition('inline', filename));
+				reply.header('Content-Disposition', await contentDisposition('inline', filename));
 
 				if (file.file.size > 0) {
 					reply.header('Accept-Ranges', 'bytes');
@@ -293,7 +293,7 @@ export class FileServerService {
 				reply.header('Content-Type', FILE_TYPE_BROWSERSAFE.includes(file.file.type) ? file.file.type : 'application/octet-stream');
 				reply.header('Content-Length', file.file.size);
 				reply.header('Cache-Control', 'max-age=31536000, immutable');
-				reply.header('Content-Disposition', contentDisposition('inline', file.filename));
+				reply.header('Content-Disposition', await contentDisposition('inline', file.filename));
 
 				if (file.file.size > 0) {
 					reply.header('Accept-Ranges', 'bytes');
@@ -505,7 +505,7 @@ export class FileServerService {
 			reply.header('Content-Type', image.type);
 			reply.header('Cache-Control', 'max-age=31536000, immutable');
 			reply.header('Content-Disposition',
-				contentDisposition(
+				await contentDisposition(
 					'inline',
 					correctFilename(file.filename, image.ext),
 				),

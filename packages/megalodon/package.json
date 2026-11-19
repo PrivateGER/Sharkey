@@ -39,20 +39,23 @@
 	"homepage": "https://github.com/h3poteto/megalodon#readme",
 	"dependencies": {
 		"axios": "catalog:",
-		"dayjs": "1.11.18",
+		"dayjs": "1.11.23",
 		"oauth": "0.10.2"
 	},
 	"devDependencies": {
-		"@jest/globals": "30.2.0",
-		"@types/jest": "30.0.0",
-		"@types/node": "26.6.2",
+		"@jest/globals": "catalog:",
+		"@types/jest": "catalog:",
+		"@types/node": "catalog:",
 		"@types/oauth": "0.9.6",
-		"jest": "30.2.0",
-		"jest-mock": "30.2.0",
-		"jest-worker": "30.1.0",
-		"ts-jest": "29.4.5",
+		"@typescript-eslint/eslint-plugin": "catalog:",
+		"@typescript-eslint/parser": "catalog:",
+		"eslint": "catalog:",
+		"jest": "catalog:",
+		"jest-mock": "catalog:",
+		"jest-worker": "catalog:",
+		"ts-jest": "catalog:",
 		"ts-node": "10.9.2",
-		"typescript": "5.9.3"
+		"typescript": "catalog:"
 	},
 	"sideEffects": false
 }

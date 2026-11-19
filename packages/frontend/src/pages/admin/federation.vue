@@ -19,9 +19,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<option value="federating">{{ i18n.ts.federating }}</option>
 						<option value="subscribing">{{ i18n.ts.subscribing }}</option>
 						<option value="publishing">{{ i18n.ts.publishing }}</option>
+						<option value="bubble">{{ i18n.ts.bubble }}</option>
 						<option value="suspended">{{ i18n.ts.suspended }}</option>
 						<option value="blocked">{{ i18n.ts.blocked }}</option>
 						<option value="silenced">{{ i18n.ts.silence }}</option>
+						<option value="mandatoryCW">{{ i18n.ts.mandatoryCW }}</option>
 						<option value="notResponding">{{ i18n.ts.notResponding }}</option>
 					</MkSelect>
 					<MkSelect v-model="sort">
@@ -83,6 +85,8 @@ const pagination = {
 			state.value === 'blocked' ? { blocked: true } :
 			state.value === 'silenced' ? { silenced: true } :
 			state.value === 'notResponding' ? { notResponding: true } :
+			state.value === 'bubble' ? { bubble: true } :
+			state.value === 'mandatoryCW' ? { mandatoryCW: true } :
 			{}),
 	})),
 };

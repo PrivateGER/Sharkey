@@ -20,18 +20,26 @@ import type { CompressionLevel, UploaderFeatures } from '@/use/use-uploader.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
-import MkPostFormDialog from '@/components/MkPostFormDialog.vue';
-import MkWaitingDialog from '@/components/MkWaitingDialog.vue';
-import MkPageWindow from '@/components/MkPageWindow.vue';
-import MkToast from '@/components/MkToast.vue';
-import MkDialog from '@/components/MkDialog.vue';
-import MkPopupMenu from '@/components/MkPopupMenu.vue';
-import MkContextMenu from '@/components/MkContextMenu.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { focusParent } from '@/utility/focus.js';
+
+const MkPostFormDialog = defineAsyncComponent(() => import('@/components/MkPostFormDialog.vue'));
+const MkWaitingDialog = defineAsyncComponent(() => import('@/components/MkWaitingDialog.vue'));
+const MkPageWindow = defineAsyncComponent(() => import('@/components/MkPageWindow.vue'));
+const MkToast = defineAsyncComponent(() => import('@/components/MkToast.vue'));
+const MkDialog = defineAsyncComponent(() => import('@/components/MkDialog.vue'));
+const MkPopupMenu = defineAsyncComponent(() => import('@/components/MkPopupMenu.vue'));
+const MkContextMenu = defineAsyncComponent(() => import('@/components/MkContextMenu.vue'));
+
+// Until the async wrapper has resolved, it mounts MkPostForm after the tap has ended, and iOS then won't open the keyboard on focus().
+let preloadedPostFormDialog: typeof MkPostFormDialog | null = null;
+
+export async function preloadPostFormDialog(): Promise<void> {
+	preloadedPostFormDialog ??= (await import('@/components/MkPostFormDialog.vue')).default;
+}
 
 export const openingWindowsCount = ref(0);
 
@@ -838,7 +846,7 @@ export function post(props: PostFormProps = {}): Promise<void | boolean> {
 		//       Vueが渡されたコンポーネントに内部的に__propsというプロパティを生やす影響で、
 		//       複数のpost formを開いたときに場合によってはエラーになる
 		//       もちろん複数のpost formを開けること自体Misskeyサイドのバグなのだが
-		const { dispose } = popup(MkPostFormDialog, props, {
+		const { dispose } = popup(preloadedPostFormDialog ?? MkPostFormDialog, props, {
 			closed: (cancelled) => {
 				resolve(cancelled);
 				dispose();

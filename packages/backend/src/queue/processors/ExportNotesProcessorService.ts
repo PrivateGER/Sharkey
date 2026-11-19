@@ -72,7 +72,7 @@ class NoteStream extends ReadableStream<Record<string, unknown>> {
 				});
 
 				if (notes.length === 0) {
-					job.updateProgress(100);
+					job.updateProgress(1);
 					controller.close();
 				}
 

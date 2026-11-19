@@ -5,10 +5,17 @@
 
 import * as assert from 'assert';
 import httpSignature from '@peertube/http-signature';
+import { Response } from 'node-fetch';
 
 import { genRsaKeyPair } from '@/misc/gen-key-pair.js';
-import { ApRequestCreator } from '@/core/activitypub/ApRequestService.js';
+import { ApRequestCreator, ApRequestService } from '@/core/activitypub/ApRequestService.js';
 import { IObject } from '@/core/activitypub/type.js';
+import type { Config } from '@/config.js';
+import type { UserKeypairService } from '@/core/UserKeypairService.js';
+import type { HttpRequestService } from '@/core/HttpRequestService.js';
+import type { LoggerService } from '@/core/LoggerService.js';
+import type { ApUtilityService } from '@/core/activitypub/ApUtilityService.js';
+import type { TimeService } from '@/global/TimeService.js';
 
 export const buildParsedSignature = (signingString: string, signature: string, algorithm: string) => {
 	return {
@@ -62,6 +69,32 @@ describe('ap-request', () => {
 
 		const result = httpSignature.verifySignature(parsed, keypair.publicKey);
 		assert.deepStrictEqual(result, true);
+	});
+
+	test('signedGet resolves a relative redirect against the URL that sent it', async () => {
+		const keypair = await genRsaKeyPair();
+		const requested: string[] = [];
+		const responses = [
+			new Response(null, { status: 302, headers: { Location: '/users/alice' } }),
+			new Response(JSON.stringify({ type: 'Person' }), { headers: { 'Content-Type': 'application/activity+json' } }),
+		];
+		const service = new ApRequestService(
+			{ url: 'https://local.example' } as Config,
+			{ getUserKeypair: async () => keypair } as unknown as UserKeypairService,
+			{
+				send: async (url: string) => {
+					requested.push(url);
+					return responses.shift();
+				},
+			} as unknown as HttpRequestService,
+			{ getLogger: () => null } as unknown as LoggerService,
+			{} as ApUtilityService,
+			{ now: Date.now() } as TimeService,
+		);
+
+		await service.signedGet('https://remote.example/@alice', { id: 'x' }, true);
+
+		assert.deepStrictEqual(requested, ['https://remote.example/@alice', 'https://remote.example/users/alice']);
 	});
 
 	/*

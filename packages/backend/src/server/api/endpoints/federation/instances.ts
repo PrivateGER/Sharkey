@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { InstancesRepository } from '@/models/_.js';
 import { InstanceEntityService } from '@/core/entities/InstanceEntityService.js';
+import { RoleService } from '@/core/RoleService.js';
 import { MetaService } from '@/core/MetaService.js';
 import { DI } from '@/di-symbols.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
@@ -47,7 +48,8 @@ export const paramDef = {
 		federating: { type: 'boolean', nullable: true },
 		subscribing: { type: 'boolean', nullable: true },
 		publishing: { type: 'boolean', nullable: true },
-		nsfw: { type: 'boolean', nullable: true },
+		nsfw: { type: 'boolean', nullable: true }, // only for back-compat, same as mandatoryCW
+		mandatoryCW: { type: 'boolean', nullable: true },
 		bubble: { type: 'boolean', nullable: true },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 30 },
 		offset: { type: 'integer', default: 0 },
@@ -83,6 +85,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private instancesRepository: InstancesRepository,
 
 		private instanceEntityService: InstanceEntityService,
+		private roleService: RoleService,
 		private metaService: MetaService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -107,10 +110,24 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				default: query.orderBy('instance.id', 'DESC'); break;
 			}
 
+			// convert old `nsfw` query into newer `mandatoryCW` query
+			if (typeof ps.nsfw === 'boolean') {
+				if (typeof ps.mandatoryCW !== 'boolean') {
+					ps.mandatoryCW = ps.nsfw;
+				}
+				delete ps.nsfw;
+			}
+
 			if (me == null) {
 				ps.blocked = false;
 				ps.suspended = false;
 				ps.silenced = false;
+				ps.mandatoryCW = false;
+			}
+
+			const policies = await this.roleService.getUserPolicies(me);
+			if (!policies.btlAvailable && !(await this.roleService.isAdministrator(me))) {
+				delete ps.bubble;
 			}
 
 			if (typeof ps.blocked === 'boolean') {
@@ -131,17 +148,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (typeof ps.suspended === 'boolean') {
 				if (ps.suspended) {
-					query.andWhere('instance.suspensionState != \'none\'');
+					query.andWhere('instance.suspensionState = \'manuallySuspended\'');
 				} else {
-					query.andWhere('instance.suspensionState = \'none\'');
+					query.andWhere('instance.suspensionState != \'manuallySuspended\'');
 				}
 			}
 
-			if (typeof ps.nsfw === 'boolean') {
-				if (ps.nsfw) {
-					query.andWhere('instance.isNSFW = TRUE');
+			if (typeof ps.mandatoryCW === 'boolean') {
+				if (ps.mandatoryCW) {
+					query.andWhere('instance.mandatoryCW IS NOT NULL');
 				} else {
-					query.andWhere('instance.isNSFW = FALSE');
+					query.andWhere('instance.mandatoryCW IS NULL');
 				}
 			}
 

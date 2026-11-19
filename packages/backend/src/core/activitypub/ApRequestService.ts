@@ -20,6 +20,7 @@ import { validateContentTypeSetAsActivityPub } from '@/core/activitypub/misc/val
 import type { IObject, IObjectWithId } from './type.js';
 import type { Cheerio, CheerioAPI } from 'cheerio/slim';
 import type { AnyNode } from 'domhandler';
+import { StatusError } from '@/misc/status-error.js';
 
 type Request = {
 	url: string;
@@ -194,23 +195,41 @@ export class ApRequestService {
 		const _followAlternate = followAlternate ?? true;
 		const keypair = await this.userKeypairService.getUserKeypair(user.id);
 
-		const req = ApRequestCreator.createSignedGet({
-			key: {
-				privateKeyPem: keypair.privateKey,
-				keyId: `${this.config.url}/users/${user.id}#main-key`,
-			},
-			url,
-			additionalHeaders: {
-			},
-			now: this.timeService.now,
-		});
+		const actuallyGet = async (thisUrl, maxTries) => {
+			const req = ApRequestCreator.createSignedGet({
+				key: {
+					privateKeyPem: keypair.privateKey,
+					keyId: `${this.config.url}/users/${user.id}#main-key`,
+				},
+				url: thisUrl,
+				additionalHeaders: {
+				},
+				now: this.timeService.now,
+			});
 
-		const res = await this.httpRequestService.send(url, {
-			method: req.request.method,
-			headers: req.request.headers,
-		}, {
-			throwErrorWhenResponseNotOk: true,
-		});
+			const res = await this.httpRequestService.send(thisUrl, {
+				method: req.request.method,
+				headers: req.request.headers,
+			}, {
+				throwErrorWhenResponseNotOk: true,
+				followRedirects: false,
+			});
+
+			if (res.ok) return res;
+
+			const location = res.headers.get('location');
+			if (res.status > 300 && res.status < 309 && location) {
+				if (maxTries <= 1) {
+					throw new StatusError(`too many redirects from ${url}, stopping at ${thisUrl}`, res.status, res.statusText);
+				}
+				// Redirects are followed by hand so each hop is re-signed, and fetch leaves a relative Location unresolved.
+				return await actuallyGet(new URL(location, thisUrl).href, maxTries - 1);
+			}
+
+			throw new StatusError(`request error from ${url} (redirected to ${thisUrl})`, res.status, res.statusText);
+		};
+
+		const res = await actuallyGet(url, 3); // 3 redirects should be plenty
 
 		//#region リクエスト先がhtmlかつactivity+jsonへのalternate linkタグがあるとき
 		const contentType = res.headers.get('content-type');

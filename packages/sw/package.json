@@ -13,19 +13,19 @@
 		"lint": "pnpm typecheck && pnpm eslint"
 	},
 	"dependencies": {
+		"frontend-shared": "workspace:*",
 		"idb-keyval": "6.2.2",
 		"locales": "workspace:*",
-		"misskey-js": "workspace:*",
-		"frontend-shared": "workspace:*"
+		"misskey-js": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/node": "26.6.2",
-		"@typescript-eslint/parser": "8.57.1",
-		"@typescript/lib-webworker": "npm:@types/serviceworker@0.0.153",
-		"esbuild": "0.27.4",
-		"eslint-plugin-import": "2.32.0",
-		"nodemon": "3.1.10",
-		"typescript": "5.9.3"
+		"@types/node": "catalog:",
+		"@typescript-eslint/parser": "catalog:",
+		"@typescript/lib-webworker": "npm:@types/serviceworker@0.0.203",
+		"esbuild": "0.28.2",
+		"eslint-plugin-import": "catalog:",
+		"nodemon": "3.1.14",
+		"typescript": "catalog:"
 	},
 	"type": "module"
 }

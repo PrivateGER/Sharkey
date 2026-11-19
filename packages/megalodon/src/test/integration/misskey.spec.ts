@@ -11,8 +11,6 @@ import axios, {
 } from 'axios'
 import { jest } from '@jest/globals';
 
-jest.mock('axios')
-
 const user: MisskeyEntity.User = {
   id: '1',
   name: 'test_user',
@@ -135,6 +133,9 @@ jest.spyOn(axios.CancelToken, 'source').mockImplementation(() => {
       throwIfRequested: () => {},
       promise: new Promise<never>(() => {}),
 			reason: undefined,
+			subscribe: () => {},
+			unsubscribe: () => {},
+			toAbortSignal: () => new AbortController().signal,
     },
 		cancel: () => {},
   } satisfies CancelTokenSource;

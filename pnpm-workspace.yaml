@@ -15,14 +15,38 @@ packages:
 
 # https://pnpm.io/catalogs
 catalog:
-  "axios": "1.13.6"
-  "js-yaml": "4.1.1"
-  "file-type": "21.3.3"
+  "@jest/globals": "30.5.2"
+  "@types/jest": "30.0.0"
+  "@types/node": "26.6.5"
+  "@typescript-eslint/eslint-plugin": "8.71.2"
+  "@typescript-eslint/parser": "8.71.2"
+  "axios": "1.20.0"
+  "eslint": "9.39.5"
+  "eslint-plugin-import": "2.32.0"
+  "execa": "10.1.1"
+  "fast-glob": "3.3.3"
+  "file-type": "22.1.1"
+  "jest": "30.5.2"
+  "jest-environment-node": "30.5.2"
+  "jest-mock": "30.5.2"
+  "jest-worker": "30.5.1"
+  "jest-fetch-mock": "4.2.0"
+  "jest-websocket-mock": "2.5.0"
+  "js-yaml": "5.4.3"
+  "nodemon": "3.1.14"
+  "rollup": "4.63.6" # Do not update! Later versions will break Vite - https://activitypub.software/TransFem-org/Sharkey/-/merge_requests/1337#note_21422
+  "sanitize-html": "2.18.0"
+  "sharp": "0.35.5"
+  "systeminformation": "5.33.15"
+  "ts-jest": "29.4.14"
+  "tsc-alias": "1.9.7"
+  "typescript": "5.9.3"
+  "uuid": "14.0.3"
 
 allowBuilds:
-  '@nestjs/core': true
+  # Needed to build/download native components
   '@parcel/watcher': true
-  '@sentry-internal/node-cpu-profiler': true
+  '@sentry/node-cpu-profiler': true
   '@swc/core': true
   argon2: true
   bufferutil: true
@@ -31,30 +55,17 @@ allowBuilds:
   cypress: true
   esbuild: true
   msgpackr-extract: true
-  msw: true
   protobufjs: false
   re2: true
   sharp: true
   unrs-resolver: true
   utf-8-validate: true
+  # Needed because these packages do install-time Vue version selection.
   v-code-diff: true
   vue-demi: true
-
-# https://pnpm.io/settings#supportedarchitectures
-# slacc-linux-x64-musl@0.0.10 is published with the wrong metadata libc: ["glibc"], so pnpm 11
-# skips it on musl (Alpine, our Docker image) and the backend dies at boot with
-# "Cannot find module 'slacc-linux-x64-musl'". Also accepting glibc packages on musl hosts installs it.
-# On glibc hosts this changes nothing. Side effect on musl: glibc variants of other optional native
-# packages are installed too (unused, packages still load their musl builds).
-# Remove once slacc publishes its musl package with libc: ["musl"].
-supportedArchitectures:
-  os:
-    - current
-  cpu:
-    - current
-  libc:
-    - current
-    - glibc
+  # False positives - no build scripts in package code
+  '@nestjs/core': false
+  msw: false
 
 # https://pnpm.io/settings#packageextensions
 packageExtensions:
@@ -64,25 +75,14 @@ packageExtensions:
 
 # https://pnpm.io/settings#overrides
 overrides:
-  # Overrides for vulnerable / buggy nested deps.
-  # The versions here apply recursively through ALL dependencies.
-  "chokidar": "5.0.0"
-  "lodash": "4.17.23"
-  "axios": "catalog:"
-  "js-yaml": "catalog:"
-  "systeminformation": "5.31.4"
+  # Use drop-in compatible fast-glob everywhere
   "glob": "npm:fast-glob@3.3.3"
-  "jws": "4.0.1"
-  "body-parser": "2.2.2"
-  "mdast-util-to-hast": "13.2.1"
-  "multer": "2.1.1"
-  "file-type": "catalog:"
-  "undici": "7.24.5"
-  "qs": "6.15.0"
-  "minimatch": "8.0.7" # Note - this is still outdated, but we can't go further until eslint gets updated.
-  "diff": "5.2.2" # Note - this is still outdated, but we can't go further until v-code-diff gets updated.
-  "bn.js": "5.2.3" # Note - can remove override once web-push package is updated.
-  "fast-xml-parser": "5.5.8" # Note - can remove override once the @aws-sdk packages are updated.
+
+  # Prevent silent downgrade to vulnerable version of sharp
+  "@misskey-dev/sharp-read-bmp>sharp": "catalog:"
+
+  # Fix incorrect peer-dependency specifier (requests 5.x instead of 5+)
+  "typeorm>ioredis": "6.0.0"
 
   # Stubs and disabled packages.
   # If an unused dependency is never loaded, then use version "-".
@@ -95,3 +95,9 @@ overrides:
   "aiscript-vscode>@aiscript-dev/aiscript-languageserver": "-"
   "aiscript-vscode>vscode-languageclient": "-"
 
+  # re2 lists node-gyp as a production dependency, which brings it into the actual application runtime for no reason.
+  # Note: node-gyp is still required at install time under certain environments, so it's mirrored into backend.devDependencies to make sure it works.
+  "re2>node-gyp": "-"
+
+# Prompt before auto-generating an exception
+minimumReleaseAgeStrict: true

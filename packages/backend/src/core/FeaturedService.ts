@@ -62,11 +62,12 @@ export class FeaturedService {
 		const currentWindow = this.getCurrentWindow(windowRange);
 		const previousWindow = currentWindow - 1;
 
+		// string casts avoid a known typings error that will be fixed in ioredis 6.0.1: https://github.com/redis/ioredis/pull/2163
 		const redisPipeline = this.redisClient.pipeline();
 		redisPipeline.zrange(
-			`${name}:${currentWindow}`, 0, threshold, 'REV', 'WITHSCORES');
+			`${name}:${currentWindow}`, 0, threshold as unknown as string, 'REV', 'WITHSCORES');
 		redisPipeline.zrange(
-			`${name}:${previousWindow}`, 0, threshold, 'REV', 'WITHSCORES');
+			`${name}:${previousWindow}`, 0, threshold as unknown as string, 'REV', 'WITHSCORES');
 		const [currentRankingResult, previousRankingResult] = await redisPipeline.exec().then(result => result ? result.map(r => (r[1] ?? []) as string[]) : [[], []]);
 
 		const ranking = new Map<string, number>();

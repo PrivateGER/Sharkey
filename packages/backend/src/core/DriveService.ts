@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import { Inject, Injectable } from '@nestjs/common';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import { sharpBmp } from '@misskey-dev/sharp-read-bmp';
 import { IsNull } from 'typeorm';
 import { DeleteObjectCommandInput, PutObjectCommandInput, NoSuchKey } from '@aws-sdk/client-s3';
@@ -352,7 +352,7 @@ export class DriveService {
 			};
 		}
 
-		let img: sharp.Sharp | null = null;
+		let img: Sharp | null = null;
 		let satisfyWebpublic: boolean;
 		let isAnimated: boolean;
 
@@ -436,7 +436,7 @@ export class DriveService {
 			CacheControl: 'max-age=31536000, immutable',
 		} as PutObjectCommandInput;
 
-		if (filename) params.ContentDisposition = contentDisposition(
+		if (filename) params.ContentDisposition = await contentDisposition(
 			'inline',
 			// 拡張子からContent-Typeを設定してそうな挙動を示すオブジェクトストレージ (upcloud?) も存在するので、
 			// 許可されているファイル形式でしか拡張子をつけない
