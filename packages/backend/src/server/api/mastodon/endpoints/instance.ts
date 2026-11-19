@@ -219,7 +219,9 @@ export class ApiInstanceMastodon {
 						max_reactions: 1,
 					},
 					translation: {
-						enabled: false,
+						enabled: roles.canUseTranslator && (
+							!!this.meta.deeplAuthKey || (this.meta.deeplFreeMode && !!this.meta.deeplFreeInstance) || !!this.meta.libreTranslateURL
+						),
 					},
 					timelines_access: {
 						live_feeds: {
