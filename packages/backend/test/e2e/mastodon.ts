@@ -227,6 +227,17 @@ describe('Mastodon API', () => {
 		});
 	});
 
+	describe('instance', () => {
+		test('rules list the server rules', async () => {
+			await api('admin/update-meta', { serverRules: ['be kind', 'no spam'] }, alice);
+
+			const res = await masto('GET', 'v1/instance/rules');
+
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(res.body.map((rule: { text: string }) => rule.text), ['be kind', 'no spam']);
+		});
+	});
+
 	describe('filters', () => {
 		for (const path of ['v1/filters', 'v2/filters']) {
 			test(`${path} is an empty list`, async () => {

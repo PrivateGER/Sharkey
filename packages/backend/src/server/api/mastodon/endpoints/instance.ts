@@ -92,6 +92,13 @@ export class ApiInstanceMastodon {
 			return reply.send(response);
 		});
 
+		fastify.get('/v1/instance/rules', async (_request, reply) => {
+			const client = this.clientService.getClient(_request);
+			const data = await client.getInstance();
+
+			return reply.send(data.data.rules ?? []);
+		});
+
 		fastify.get('/v2/instance', async (_request, reply) => {
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const [data, contact, roles, instanceStats] = await Promise.all([
