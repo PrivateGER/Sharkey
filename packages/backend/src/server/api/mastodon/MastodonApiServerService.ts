@@ -285,6 +285,34 @@ export class MastodonApiServerService {
 		});
 		//#endregion
 
+		fastify.post<{
+			Body: {
+				account_id?: string,
+				status_ids?: string | string[],
+				'status_ids[]'?: string | string[],
+				comment?: string,
+				category?: string,
+			},
+		}>('/v1/reports', async (_request, reply) => {
+			const body = _request.body;
+			if (!body.account_id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required payload "account_id"' });
+
+			const client = this.clientService.getClient(_request);
+			const account = await client.getAccount(body.account_id);
+			const data = await client.report(body.account_id, {
+				comment: body.comment ?? '',
+				category: body.category === 'spam' || body.category === 'violation' ? body.category : 'other',
+				status_ids: [body.status_ids ?? body['status_ids[]'] ?? []].flat(),
+			});
+			const response = {
+				...data.data,
+				created_at: new Date().toISOString(),
+				target_account: await this.mastoConverters.convertAccount(account.data),
+			};
+
+			return reply.send(response);
+		});
+
 		fastify.put<{
 			Params: {
 				id?: string,

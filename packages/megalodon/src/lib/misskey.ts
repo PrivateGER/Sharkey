@@ -935,11 +935,15 @@ export default class Misskey implements MegalodonInterface {
       rule_ids?: Array<number>
     }
   ): Promise<Response<Entity.Report>> {
-    const category: Entity.Category = 'other'
+    // The native report has no field for the reported notes or the category, so they go into the comment.
+    const comment = [
+      options.comment.trim() || `(no comment; reported as "${options.category}")`,
+      ...(options.status_ids ?? []).map(id => `Note: ${this.baseUrl}/notes/${id}`)
+    ].join('\n')
     return this.client
       .post<{}>('/api/users/report-abuse', {
         userId: account_id,
-        comment: options.comment
+        comment
       })
       .then(res => {
         return Object.assign(res, {
@@ -948,9 +952,9 @@ export default class Misskey implements MegalodonInterface {
             action_taken: false,
             action_taken_at: null,
             comment: options.comment,
-            category: category,
+            category: options.category,
             forwarded: false,
-            status_ids: null,
+            status_ids: options.status_ids ?? null,
             rule_ids: null
           }
         })

@@ -163,6 +163,27 @@ describe('Mastodon API', () => {
 			assert.strictEqual(res.status, 200);
 			assert.deepStrictEqual(res.body.map((list: { title: string }) => list.title), ['with bob']);
 		});
+
+		test('a report reaches the moderators with the reported status', async () => {
+			const note = await post(alice, { text: 'something reportable' });
+
+			const res = await masto('POST', 'v1/reports', bob, {
+				account_id: alice.id,
+				status_ids: [note.id],
+				comment: 'please look at this',
+				category: 'spam',
+			});
+
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(res.body.target_account.username, 'alice');
+			assert.strictEqual(res.body.category, 'spam');
+
+			// alice signed up first, which makes her the administrator.
+			const reports = await api('admin/abuse-user-reports', {}, alice);
+			const report = reports.body.find(r => r.targetUserId === alice.id && r.reporterId === bob.id);
+			assert.ok(report?.comment.includes('please look at this'));
+			assert.ok(report?.comment.includes(`/notes/${note.id}`));
+		});
 	});
 
 	describe('statuses', () => {
