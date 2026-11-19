@@ -2602,10 +2602,15 @@ export default class Misskey implements MegalodonInterface {
       .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
+  /**
+   * POST /api/notes/reactions
+   * @returns the latest 100 reactions, grouped by emoji, each with the accounts that reacted
+   */
   public async getEmojiReactions(id: string): Promise<Response<Array<Entity.Reaction>>> {
     return this.client
       .post<Array<MisskeyAPI.Entity.Reaction>>('/api/notes/reactions', {
-        noteId: id
+        noteId: id,
+        limit: 100
       })
       .then(res => ({
         ...res,

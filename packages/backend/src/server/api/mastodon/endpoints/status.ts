@@ -448,6 +448,53 @@ export class ApiStatusMastodon {
 			return reply.send(response);
 		});
 
+		// Pleroma's routes for reactions, which some apps use rather than the two above.
+		// https://docs.akkoma.dev/stable/development/API/pleroma_api/#emoji-reactions
+		fastify.put<{ Params: { id: string, emoji: string } }>('/v1/pleroma/statuses/:id/reactions/:emoji', async (request, reply) => {
+			const { client, me } = await this.clientService.getAuthClient(request);
+			// A custom emoji may arrive as its bare shortcode, while the native API wants it between colons.
+			const emoji = /^[\w+-]+(@[\w.-]+)?$/.test(request.params.emoji) ? `:${request.params.emoji}:` : request.params.emoji;
+			const data = await client.createEmojiReaction(request.params.id, emoji);
+			const response = await this.mastoConverters.convertStatus(data.data, me);
+
+			return reply.send(response);
+		});
+
+		fastify.delete<{ Params: { id: string, emoji: string } }>('/v1/pleroma/statuses/:id/reactions/:emoji', async (request, reply) => {
+			const { client, me } = await this.clientService.getAuthClient(request);
+			const data = await client.deleteEmojiReaction(request.params.id, request.params.emoji);
+			const response = await this.mastoConverters.convertStatus(data.data, me);
+
+			return reply.send(response);
+		});
+
+		for (const path of ['/v1/pleroma/statuses/:id/reactions', '/v1/pleroma/statuses/:id/reactions/:emoji']) {
+			fastify.get<{ Params: { id: string, emoji?: string } }>(path, async (request, reply) => {
+				const client = this.clientService.getClient(request);
+				// The status knows every reaction and its count. Who reacted is only known for the latest reactions.
+				const [status, latest] = await Promise.all([
+					client.getStatus(request.params.id),
+					client.getEmojiReactions(request.params.id),
+				]);
+
+				const wanted = request.params.emoji?.replace(/^:|:$/g, '');
+				const response = await promiseMap(
+					status.data.emoji_reactions.filter(reaction => wanted == null || reaction.name === wanted),
+					async reaction => ({
+						...reaction,
+						accounts: await promiseMap(
+							latest.data.find(group => group.name === reaction.name)?.accounts ?? [],
+							async account => await this.mastoConverters.convertAccount(account),
+							{ limiter: 4 },
+						),
+					}),
+					{ limiter: 2 },
+				);
+
+				return reply.send(response);
+			});
+		}
+
 		fastify.post<{ Params: { id?: string }, Body?: { lang?: string } }>('/v1/statuses/:id/translate', async (_request, reply) => {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 

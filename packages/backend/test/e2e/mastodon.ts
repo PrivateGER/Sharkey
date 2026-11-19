@@ -355,6 +355,33 @@ describe('Mastodon API', () => {
 				provider.close();
 			}
 		});
+
+		test('a reaction made the Pleroma way shows on the status and names who reacted', async () => {
+			const note = await post(bob, { text: 'react to me' });
+			const reactions = `v1/pleroma/statuses/${note.id}/reactions`;
+
+			const reacted = await masto('PUT', `${reactions}/${encodeURIComponent('👍')}`, alice);
+			assert.strictEqual(reacted.status, 200);
+			assert.deepStrictEqual(reacted.body.emoji_reactions.map((reaction: { name: string, count: number, me: boolean }) => [reaction.name, reaction.count, reaction.me]), [['👍', 1, true]]);
+
+			// bob looks at who reacted to his own note.
+			const listed = await masto('GET', reactions, bob);
+			assert.strictEqual(listed.status, 200);
+			assert.deepStrictEqual(listed.body.map((reaction: { name: string, count: number, me: boolean, accounts: { username: string }[] }) => [reaction.name, reaction.count, reaction.me, reaction.accounts.map(account => account.username)]), [['👍', 1, false, ['alice']]]);
+			assert.strictEqual((await masto('GET', `${reactions}/${encodeURIComponent('👍')}`, bob)).body.length, 1);
+			assert.deepStrictEqual((await masto('GET', `${reactions}/${encodeURIComponent('🎉')}`, bob)).body, []);
+
+			const removed = await masto('DELETE', `${reactions}/${encodeURIComponent('👍')}`, alice);
+			assert.strictEqual(removed.status, 200);
+			assert.deepStrictEqual(removed.body.emoji_reactions, []);
+		});
+
+		test('nodeinfo announces the Pleroma reaction routes', async () => {
+			const res = await relativeFetch('nodeinfo/2.1');
+			const nodeinfo = await res.json() as { metadata: { features: string[] } };
+
+			assert.ok(nodeinfo.metadata.features.includes('pleroma_emoji_reactions'));
+		});
 	});
 
 	describe('instance', () => {

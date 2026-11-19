@@ -354,6 +354,7 @@ export class MastodonConverters {
 			quote_id: isQuote ? status.reblog?.id : undefined,
 			quote: isQuote ? this.convertReblog(status.reblog, me) : null,
 			reactions: status.emoji_reactions,
+			emoji_reactions: status.emoji_reactions,
 		});
 	}
 
