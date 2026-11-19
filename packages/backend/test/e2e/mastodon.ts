@@ -297,6 +297,21 @@ describe('Mastodon API', () => {
 			assert.strictEqual((await masto('GET', `v1/statuses/${note.id}`, bob)).body.muted, false);
 		});
 
+		test('the edit history of a status hidden from signed-out readers is hidden from them too', async () => {
+			const erin = await signup({ username: 'erin' });
+			await api('i/update', { requireSigninToViewContents: true }, erin);
+			const note = await post(erin, { text: 'first draft' });
+			await api('notes/edit', { editId: note.id, text: 'second draft' }, erin);
+
+			const signedIn = await masto('GET', `v1/statuses/${note.id}/history`, alice);
+			assert.strictEqual(signedIn.status, 200);
+			assert.notDeepStrictEqual(signedIn.body, []);
+
+			const signedOut = await masto('GET', `v1/statuses/${note.id}/history`);
+			assert.strictEqual(signedOut.status, 200);
+			assert.deepStrictEqual(signedOut.body, []);
+		});
+
 		test('a muted conversation is reported as muted until it is unmuted', async () => {
 			const note = await post(bob, { text: 'a noisy thread' });
 

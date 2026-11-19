@@ -26,6 +26,7 @@ import { appendContentWarning } from '@/misc/append-content-warning.js';
 import { isRenote } from '@/misc/is-renote.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { promiseMap } from '@/misc/promise-map.js';
+import { NoteVisibilityService } from '@/core/NoteVisibilityService.js';
 
 // Missing from Megalodon apparently
 // https://docs.joinmastodon.org/entities/StatusEdit/
@@ -74,6 +75,7 @@ export class MastodonConverters {
 		private readonly federatedInstanceService: FederatedInstanceService,
 		private readonly utilityService: UtilityService,
 		private readonly cacheService: CacheService,
+		private readonly noteVisibilityService: NoteVisibilityService,
 	) {}
 
 	private encode(u: MiUser, m: IMentionedRemoteUsers): MastodonEntity.Mention {
@@ -208,6 +210,11 @@ export class MastodonConverters {
 	public async getEdits(id: string, me: MiLocalUser | null): Promise<StatusEdit[]> {
 		const note = await this.mastodonDataService.getNote(id, me);
 		if (!note) {
+			return [];
+		}
+
+		const visibility = await this.noteVisibilityService.checkNoteVisibilityAsync(note, me);
+		if (!visibility.accessible || visibility.redact) {
 			return [];
 		}
 
