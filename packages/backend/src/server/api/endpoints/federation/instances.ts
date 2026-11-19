@@ -148,7 +148,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (typeof ps.suspended === 'boolean') {
 				if (ps.suspended) {
-					query.andWhere('instance.suspensionState == \'manuallySuspended\'');
+					query.andWhere('instance.suspensionState = \'manuallySuspended\'');
 				} else {
 					query.andWhere('instance.suspensionState != \'manuallySuspended\'');
 				}
