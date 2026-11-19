@@ -19,10 +19,23 @@ import { ApiTimelineMastodon } from '@/server/api/mastodon/endpoints/timeline.js
 import { ApiSearchMastodon } from '@/server/api/mastodon/endpoints/search.js';
 import { ApiError } from '@/server/api/error.js';
 import { ServerUtilityService } from '@/server/ServerUtilityService.js';
+import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
+import { getIpHash } from '@/misc/get-ip-hash.js';
+import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
+import type { BucketRateLimit, Keyed } from '@/misc/rate-limit-utils.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from './argsUtils.js';
 import { convertAnnouncement, convertAttachment, MastodonConverters, convertRelationship } from './MastodonConverters.js';
 import type { Entity } from 'megalodon';
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
+
+// Mastodon's own budget: a burst of 300 requests that refills at 300 per 5 minutes.
+// https://docs.joinmastodon.org/api/rate-limits/
+const mastodonApiLimit: Keyed<BucketRateLimit> = {
+	key: 'mastodon-api',
+	type: 'bucket',
+	size: 300,
+	dripRate: 1000,
+};
 
 @Injectable()
 export class MastodonApiServerService {
@@ -39,6 +52,7 @@ export class MastodonApiServerService {
 		private readonly apiStatusMastodon: ApiStatusMastodon,
 		private readonly apiTimelineMastodon: ApiTimelineMastodon,
 		private readonly serverUtilityService: ServerUtilityService,
+		private readonly rateLimiterService: SkRateLimiterService,
 	) {}
 
 	@bindThis
@@ -80,6 +94,25 @@ export class MastodonApiServerService {
 			// Prevent cache
 			reply.header('Cache-Control', 'private, max-age=0, must-revalidate');
 			done();
+		});
+
+		// The native rate limits only apply once a handler calls back into the native API, which is after it has queried the database.
+		// Those calls also arrive from this server, so the native limits can't tell unauthenticated clients apart.
+		fastify.addHook('onRequest', async (request, reply) => {
+			// A bad token is rejected by the handler; until then the client is limited by IP like any other anonymous one.
+			const me = await this.clientService.getAuth(request).catch(() => null);
+			const info = await this.rateLimiterService.limit(mastodonApiLimit, me ?? getIpHash(request.ip));
+
+			sendRateLimitHeaders(reply, info);
+
+			if (info.blocked) {
+				throw new ApiError({
+					message: 'Rate limit exceeded. Please try again later.',
+					code: 'RATE_LIMIT_EXCEEDED',
+					id: 'd5826d14-3982-4d2e-8011-b9e9f02499ef',
+					httpStatusCode: 429,
+				}, info);
+			}
 		});
 
 		// External endpoints

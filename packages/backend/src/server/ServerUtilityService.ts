@@ -108,18 +108,19 @@ export class ServerUtilityService {
 
 	@bindThis
 	public addCORS(fastify: FastifyInstance) {
-		fastify.addHook('preHandler', (_, reply, done) => {
+		// Set as early as possible, so that web-based clients can also read responses that are rejected before the handler runs.
+		fastify.addHook('onRequest', (_, reply, done) => {
 			// Allow web-based clients to connect from other origins.
 			reply.header('Access-Control-Allow-Origin', '*');
 
 			// Mastodon uses all types of request methods.
 			reply.header('Access-Control-Allow-Methods', '*');
 
-			// Allow web-based clients to access Link header - required for mastodon pagination.
+			// Allow web-based clients to access the Link header (required for mastodon pagination) and the rate limit headers.
 			// https://stackoverflow.com/a/54928828
 			// https://docs.joinmastodon.org/api/guidelines/#pagination
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers
-			reply.header('Access-Control-Expose-Headers', 'Link');
+			reply.header('Access-Control-Expose-Headers', 'Link, Retry-After, X-RateLimit-Clear, X-RateLimit-Remaining, X-RateLimit-Reset');
 
 			// Cache to avoid extra pre-flight requests
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Max-Age
