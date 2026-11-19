@@ -11,7 +11,7 @@ import { common } from './common.js';
 import type { Component } from 'vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import { i18n } from '@/i18n.js';
-import { alert, confirm, popup, post } from '@/os.js';
+import { alert, confirm, popup, post, preloadPostFormDialog } from '@/os.js';
 import { useStream } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
@@ -66,6 +66,7 @@ export async function mainBoot() {
 
 	reactionPicker.init();
 	emojiPicker.init();
+	if ($i) preloadPostFormDialog();
 
 	if (isClientUpdated && $i) {
 		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUpdated.vue')), {}, {

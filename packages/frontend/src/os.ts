@@ -34,6 +34,13 @@ const MkDialog = defineAsyncComponent(() => import('@/components/MkDialog.vue'))
 const MkPopupMenu = defineAsyncComponent(() => import('@/components/MkPopupMenu.vue'));
 const MkContextMenu = defineAsyncComponent(() => import('@/components/MkContextMenu.vue'));
 
+// Until the async wrapper has resolved, it mounts MkPostForm after the tap has ended, and iOS then won't open the keyboard on focus().
+let preloadedPostFormDialog: typeof MkPostFormDialog | null = null;
+
+export async function preloadPostFormDialog(): Promise<void> {
+	preloadedPostFormDialog ??= (await import('@/components/MkPostFormDialog.vue')).default;
+}
+
 export const openingWindowsCount = ref(0);
 
 export type ApiWithDialogCustomErrors = Record<string, { title?: string; text: string; }>;
@@ -839,7 +846,7 @@ export function post(props: PostFormProps = {}): Promise<void | boolean> {
 		//       Vueが渡されたコンポーネントに内部的に__propsというプロパティを生やす影響で、
 		//       複数のpost formを開いたときに場合によってはエラーになる
 		//       もちろん複数のpost formを開けること自体Misskeyサイドのバグなのだが
-		const { dispose } = popup(MkPostFormDialog, props, {
+		const { dispose } = popup(preloadedPostFormDialog ?? MkPostFormDialog, props, {
 			closed: (cancelled) => {
 				resolve(cancelled);
 				dispose();
