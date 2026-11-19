@@ -8,12 +8,14 @@ import { MastodonClientService } from '@/server/api/mastodon/MastodonClientServi
 import { RegistryApiService } from '@/core/RegistryApiService.js';
 import { TimeService } from '@/global/TimeService.js';
 import type { MiLocalUser } from '@/models/User.js';
+import { ApiError } from '@/server/api/error.js';
+import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { attachMinMaxPagination } from '@/server/api/mastodon/pagination.js';
 import { promiseMap } from '@/misc/promise-map.js';
 import { convertList, MastodonConverters } from '../MastodonConverters.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from '../argsUtils.js';
 import type { Entity } from 'megalodon';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 const markerTimelines = ['home', 'notifications'] as const;
 type MarkerTimeline = typeof markerTimelines[number];
@@ -36,6 +38,7 @@ export class ApiTimelineMastodon {
 		private readonly mastoConverters: MastodonConverters,
 		private readonly registryApiService: RegistryApiService,
 		private readonly timeService: TimeService,
+		private readonly serverUtilityService: ServerUtilityService,
 	) {}
 
 	public register(fastify: FastifyInstance): void {
@@ -176,8 +179,7 @@ export class ApiTimelineMastodon {
 		});
 
 		fastify.get<{ Querystring: { timeline?: string | string[] } }>('/v1/markers', async (request, reply) => {
-			const me = await this.authorize(request, reply, 'read:account');
-			if (!me) return reply;
+			const me = await this.authorize(request, 'read:account');
 
 			const requested = [request.query.timeline ?? []].flat();
 			const response: Partial<Record<MarkerTimeline, Marker>> = {};
@@ -192,8 +194,7 @@ export class ApiTimelineMastodon {
 		});
 
 		fastify.post<{ Body?: Record<string, { last_read_id?: unknown } | string | undefined> }>('/v1/markers', async (request, reply) => {
-			const me = await this.authorize(request, reply, 'write:account');
-			if (!me) return reply;
+			const me = await this.authorize(request, 'write:account');
 
 			const response: Partial<Record<MarkerTimeline, Marker>> = {};
 			for (const timeline of markerTimelines) {
@@ -217,23 +218,25 @@ export class ApiTimelineMastodon {
 	}
 
 	/**
-	 * Gets the user of a request that may use a permission, and otherwise answers the request with the reason.
-	 * These routes store data themselves, so the native API is not there to check the app's permissions.
+	 * Gets the user of a request, who must be signed in with an account in good standing and through an app that has the permission.
+	 * These routes store data themselves, so the native API is not there to check any of that.
 	 */
-	private async authorize(request: FastifyRequest, reply: FastifyReply, permission: string): Promise<MiLocalUser | null> {
+	private async authorize(request: FastifyRequest, permission: string): Promise<MiLocalUser> {
 		const { me, token } = await this.clientService.getAuthWithToken(request);
 
-		if (!me) {
-			reply.code(401).send({ error: 'The access token is invalid' });
-			return null;
+		const accountError = this.serverUtilityService.assertClientUser(me);
+		if (accountError || !me) {
+			throw new ApiError(accountError);
 		}
 
 		if (token && !token.permission.includes(permission)) {
-			reply.code(403).send({
-				error: 'PERMISSION_DENIED',
-				error_description: 'Your app does not have the necessary permissions to use this endpoint.',
+			throw new ApiError({
+				message: 'Your app does not have the necessary permissions to use this endpoint.',
+				code: 'PERMISSION_DENIED',
+				kind: 'permission',
+				id: '1370e5b7-d4eb-4566-bb1d-7748ee6a1838',
+				httpStatusCode: 403,
 			});
-			return null;
 		}
 
 		return me;
