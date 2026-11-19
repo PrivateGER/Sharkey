@@ -217,11 +217,13 @@ export class ApRequestService {
 
 			if (res.ok) return res;
 
-			if (res.status > 300 && res.status < 309 && res.headers.get('location')) {
+			const location = res.headers.get('location');
+			if (res.status > 300 && res.status < 309 && location) {
 				if (maxTries <= 1) {
 					throw new StatusError(`too many redirects from ${url}, stopping at ${thisUrl}`, res.status, res.statusText);
 				}
-				return await actuallyGet(res.headers.get('location'), maxTries - 1);
+				// Redirects are followed by hand so each hop is re-signed, and fetch leaves a relative Location unresolved.
+				return await actuallyGet(new URL(location, thisUrl).href, maxTries - 1);
 			}
 
 			throw new StatusError(`request error from ${url} (redirected to ${thisUrl})`, res.status, res.statusText);
