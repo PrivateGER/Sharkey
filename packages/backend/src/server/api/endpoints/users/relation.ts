@@ -161,7 +161,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				: await this.cacheService.getUserRelation(me, ps.userId).then(rel => [rel]);
 
 			return relations.map(rel => ({
-				id: rel.userId,
+				id: rel.targetUserId,
 				isFollowing: !!rel.isFollowing,
 				hasPendingFollowRequestFromYou: rel.isFollowing === Requested,
 				hasPendingFollowRequestToYou: rel.isFollowed === Requested,
