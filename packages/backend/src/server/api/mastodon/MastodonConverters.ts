@@ -13,7 +13,7 @@ import { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
 import type { MiMeta, NoteEditsRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
-import { CustomEmojiService } from '@/core/CustomEmojiService.js';
+import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { IdService } from '@/core/IdService.js';
 import type { Packed } from '@/misc/json-schema.js';
@@ -414,13 +414,18 @@ export class MastodonConverters {
 	 * together with the address of its image.
 	 */
 	private async convertReactionEmoji(reaction: string): Promise<{ emoji: string, emoji_url?: string }> {
-		const custom = reaction.match(/^:([^:]+):$/);
+		const custom = reaction.match(/^:([^@:\s]+)(?:@([^:\s]+))?:$/);
 		if (!custom) return { emoji: reaction };
 
+		// A local custom emoji is marked with "@.", which other software does not know.
+		const name = custom[1];
+		const host = custom[2] as string | undefined;
+		const isLocal = host == null || host === '.';
+		const emoji = await this.customEmojiService.emojisByKeyCache.fetchMaybe(encodeEmojiKey({ name, host: isLocal ? null : host }));
+
 		return {
-			// A local custom emoji is marked with "@.", which other software does not know.
-			emoji: `:${custom[1].replace(/@\.$/, '')}:`,
-			emoji_url: await this.customEmojiService.populateEmoji(custom[1], this.config.host) ?? undefined,
+			emoji: isLocal ? `:${name}:` : `:${name}@${host}:`,
+			emoji_url: emoji ? (emoji.publicUrl || emoji.originalUrl) : undefined,
 		};
 	}
 

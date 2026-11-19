@@ -9,6 +9,7 @@ import * as assert from 'assert';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { api, createAppToken, host, post, react, relativeFetch, signup, uploadFile, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
@@ -391,23 +392,43 @@ describe('Mastodon API', () => {
 			assert.deepStrictEqual(names(replaced), [['🎉', 1]]);
 		});
 
+		test('a custom emoji named by its bare shortcode is used for the reaction, whatever script the name is in', async () => {
+			for (const name of ['plainblob', 'ねこ']) {
+				await api('admin/emoji/add', { name, fileId: (await uploadFile(alice)).body!.id }, alice);
+			}
+			const note = await post(bob, { text: 'custom reactions' });
+			const names = (res: { body: { emoji_reactions: { name: string }[] } }) => res.body.emoji_reactions.map(reaction => reaction.name);
+
+			// The two ways apps react: glitch-soc's route, then Pleroma's.
+			assert.deepStrictEqual(names(await masto('POST', `v1/statuses/${note.id}/react/plainblob`, alice)), ['plainblob']);
+			assert.deepStrictEqual(names(await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent('ねこ')}`, alice)), ['ねこ']);
+
+			// A keycap emoji is made of characters a shortcode may have too, and must stay an emoji.
+			assert.deepStrictEqual(names(await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent('1\ufe0f\u20e3')}`, alice)), ['1\u20e3']);
+		});
+
 		test('a reaction notification names the emoji, and shows its picture when it is a custom one', async () => {
 			const picture = await uploadFile(alice);
-			await api('admin/emoji/add', { name: 'testblob', fileId: picture.body!.id }, alice);
+			await api('admin/emoji/add', { name: 'blob+', fileId: picture.body!.id }, alice);
 			const note = await post(alice, { text: 'react to this' });
 			const carla = await signup({ username: 'carla' });
 
 			await api('notes/reactions/create', { noteId: note.id, reaction: '👍' }, bob);
-			await api('notes/reactions/create', { noteId: note.id, reaction: ':testblob:' }, carla);
+			await api('notes/reactions/create', { noteId: note.id, reaction: ':blob+:' }, carla);
 
-			const res = await masto('GET', 'v1/notifications', alice);
-			const reactions = res.body.filter((notification: { type: string, status?: { id: string } }) => notification.type === 'reaction' && notification.status?.id === note.id);
-			const byAccount = Object.fromEntries(reactions.map((notification: { account: { username: string }, emoji: string, emoji_url?: string }) => [notification.account.username, notification]));
+			// The notification is written after the reaction has been answered, so it can take a moment to show.
+			let byAccount: Record<string, { emoji: string, emoji_url?: string } | undefined> = {};
+			for (let attempt = 0; attempt < 30 && !(byAccount.bob && byAccount.carla); attempt++) {
+				if (attempt > 0) await sleep(100);
+				const res = await masto('GET', 'v1/notifications', alice);
+				const reactions = res.body.filter((notification: { type: string, status?: { id: string } }) => notification.type === 'reaction' && notification.status?.id === note.id);
+				byAccount = Object.fromEntries(reactions.map((notification: { account: { username: string } }) => [notification.account.username, notification]));
+			}
 
-			assert.strictEqual(byAccount.bob.emoji, '👍');
-			assert.strictEqual(byAccount.bob.emoji_url, undefined);
-			assert.strictEqual(byAccount.carla.emoji, ':testblob:');
-			assert.match(byAccount.carla.emoji_url, /^https?:\/\//);
+			assert.strictEqual(byAccount.bob?.emoji, '👍');
+			assert.strictEqual(byAccount.bob?.emoji_url, undefined);
+			assert.strictEqual(byAccount.carla?.emoji, ':blob+:');
+			assert.match(byAccount.carla?.emoji_url ?? '', /^https?:\/\//);
 		});
 
 		test('nodeinfo announces the Pleroma reaction routes', async () => {

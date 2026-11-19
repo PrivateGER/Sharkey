@@ -23,6 +23,19 @@ function normalizeQuery(data: Record<string, unknown>) {
 	return querystring.parse(str);
 }
 
+// The characters a custom emoji may be named with, as checked when one is added, and the server of a remote one.
+const customEmojiName = /^[\p{Letter}\p{Number}\p{Mark}_+-]+(@[\w.-]+)?$/u;
+
+/**
+ * Apps name a custom emoji by its bare shortcode. The native API wants it between colons, and takes anything it does
+ * not know for the default reaction. Emoji are told apart first: some, such as 1️⃣, are made of characters that a
+ * shortcode may have too.
+ */
+function toNativeReaction(emoji: string): string {
+	if (emojiRegexAtStartToEnd.test(emoji)) return emoji;
+	return customEmojiName.test(emoji) ? `:${emoji}:` : emoji;
+}
+
 @Injectable()
 export class ApiStatusMastodon {
 	constructor(
@@ -431,7 +444,7 @@ export class ApiStatusMastodon {
 			if (!_request.params.name) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "name"' });
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
-			const data = await client.createEmojiReaction(_request.params.id, _request.params.name);
+			const data = await client.createEmojiReaction(_request.params.id, toNativeReaction(_request.params.name));
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
 			return reply.send(response);
@@ -452,9 +465,7 @@ export class ApiStatusMastodon {
 		// https://docs.akkoma.dev/stable/development/API/pleroma_api/#emoji-reactions
 		fastify.put<{ Params: { id: string, emoji: string } }>('/v1/pleroma/statuses/:id/reactions/:emoji', async (request, reply) => {
 			const { client, me } = await this.clientService.getAuthClient(request);
-			// A custom emoji may arrive as its bare shortcode, while the native API wants it between colons.
-			const emoji = /^[\w+-]+(@[\w.-]+)?$/.test(request.params.emoji) ? `:${request.params.emoji}:` : request.params.emoji;
-			const data = await client.createEmojiReaction(request.params.id, emoji);
+			const data = await client.createEmojiReaction(request.params.id, toNativeReaction(request.params.emoji));
 			const response = await this.mastoConverters.convertStatus(data.data, me);
 
 			return reply.send(response);
