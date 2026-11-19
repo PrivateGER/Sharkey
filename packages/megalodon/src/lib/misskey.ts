@@ -289,6 +289,20 @@ export default class Misskey implements MegalodonInterface {
   }
 
   /**
+   * POST /api/users/show
+   * @param acct `username` for a local account, `username@host` for a remote one. A leading `@` is ignored.
+   */
+  public async lookupAccount(acct: string): Promise<Response<Entity.Account>> {
+    const [username, host] = acct.replace(/^@/, '').split('@')
+    return this.client
+      .post<MisskeyAPI.Entity.UserDetail>('/api/users/show', {
+        username,
+        host: host || null
+      })
+      .then(res => ({ ...res, data: MisskeyAPI.Converter.userDetail(res.data, this.baseUrl) }))
+  }
+
+  /**
    * POST /api/users/notes
    */
   public async getAccountStatuses(

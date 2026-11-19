@@ -8,7 +8,7 @@ process.env.NODE_ENV = 'test';
 import * as assert from 'assert';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { api, post, react, relativeFetch, signup } from '../utils.js';
+import { api, host, post, react, relativeFetch, signup, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
 type User = misskey.entities.SignupResponse;
@@ -127,5 +127,24 @@ describe('Mastodon API', () => {
 				assert.strictEqual(stored.body.name, 'picture.jpg');
 			});
 		}
+	});
+
+	describe('accounts', () => {
+		test('lookup finds a local account by its exact name', async () => {
+			for (const acct of ['alice', '@alice', `alice@${host}`]) {
+				const res = await masto('GET', `v1/accounts/lookup?acct=${encodeURIComponent(acct)}`);
+
+				assert.strictEqual(res.status, 200, acct);
+				assert.strictEqual(res.body.id, alice.id, acct);
+			}
+		});
+
+		test('lookup answers 404 for a name nobody has', async () => {
+			for (const acct of ['ali', 'nobody_here']) {
+				const res = await masto('GET', `v1/accounts/lookup?acct=${acct}`);
+
+				assert.strictEqual(res.status, 404, acct);
+			}
+		});
 	});
 });

@@ -141,10 +141,10 @@ export class ApiAccountMastodon {
 			if (!_request.query.acct) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required property "acct"' });
 
 			const client = this.clientService.getClient(_request);
-			const data = await client.search(_request.query.acct, { type: 'accounts' });
-			const profile = await this.cacheService.userProfileCache.fetchMaybe(data.data.accounts[0].id);
-			data.data.accounts[0].fields = profile?.fields.map(f => ({ ...f, verified_at: null })) ?? [];
-			const response = await this.mastoConverters.convertAccount(data.data.accounts[0]);
+			const data = await client.lookupAccount(_request.query.acct);
+			const profile = await this.cacheService.userProfileCache.fetchMaybe(data.data.id);
+			data.data.fields = profile?.fields.map(f => ({ ...f, verified_at: null })) ?? [];
+			const response = await this.mastoConverters.convertAccount(data.data);
 
 			return reply.send(response);
 		});
