@@ -5,18 +5,37 @@
 
 import { Injectable } from '@nestjs/common';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
+import { RegistryApiService } from '@/core/RegistryApiService.js';
+import { TimeService } from '@/global/TimeService.js';
+import type { MiLocalUser } from '@/models/User.js';
 import { attachMinMaxPagination } from '@/server/api/mastodon/pagination.js';
 import { promiseMap } from '@/misc/promise-map.js';
 import { convertList, MastodonConverters } from '../MastodonConverters.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from '../argsUtils.js';
 import type { Entity } from 'megalodon';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+
+const markerTimelines = ['home', 'notifications'] as const;
+type MarkerTimeline = typeof markerTimelines[number];
+
+interface Marker {
+	last_read_id: string;
+	version: number;
+	updated_at: string;
+}
+
+// Markers are kept in the user's registry under a domain of their own.
+// The native registry API keeps a separate one per app, but a read position is meant to follow the user from app to app.
+const markerDomain = 'mastodon';
+const markerScope = ['markers'];
 
 @Injectable()
 export class ApiTimelineMastodon {
 	constructor(
 		private readonly clientService: MastodonClientService,
 		private readonly mastoConverters: MastodonConverters,
+		private readonly registryApiService: RegistryApiService,
+		private readonly timeService: TimeService,
 	) {}
 
 	public register(fastify: FastifyInstance): void {
@@ -155,5 +174,68 @@ export class ApiTimelineMastodon {
 
 			return reply.send({});
 		});
+
+		fastify.get<{ Querystring: { timeline?: string | string[] } }>('/v1/markers', async (request, reply) => {
+			const me = await this.authorize(request, reply, 'read:account');
+			if (!me) return reply;
+
+			const requested = [request.query.timeline ?? []].flat();
+			const response: Partial<Record<MarkerTimeline, Marker>> = {};
+			for (const timeline of markerTimelines) {
+				if (!requested.includes(timeline)) continue;
+
+				const item = await this.registryApiService.getItem(me.id, markerDomain, markerScope, timeline);
+				if (item) response[timeline] = item.value;
+			}
+
+			return reply.send(response);
+		});
+
+		fastify.post<{ Body?: Record<string, { last_read_id?: unknown } | string | undefined> }>('/v1/markers', async (request, reply) => {
+			const me = await this.authorize(request, reply, 'write:account');
+			if (!me) return reply;
+
+			const response: Partial<Record<MarkerTimeline, Marker>> = {};
+			for (const timeline of markerTimelines) {
+				// JSON bodies nest the ID, form bodies arrive with the brackets still in the key.
+				const nested = request.body?.[timeline];
+				const lastReadId = typeof nested === 'object' ? nested.last_read_id : request.body?.[`${timeline}[last_read_id]`];
+				if (typeof lastReadId !== 'string' || lastReadId === '') continue;
+
+				const previous = await this.registryApiService.getItem(me.id, markerDomain, markerScope, timeline);
+				const marker: Marker = {
+					last_read_id: lastReadId,
+					version: typeof previous?.value?.version === 'number' ? previous.value.version + 1 : 0,
+					updated_at: this.timeService.date.toISOString(),
+				};
+				await this.registryApiService.set(me.id, markerDomain, markerScope, timeline, marker);
+				response[timeline] = marker;
+			}
+
+			return reply.send(response);
+		});
+	}
+
+	/**
+	 * Gets the user of a request that may use a permission, and otherwise answers the request with the reason.
+	 * These routes store data themselves, so the native API is not there to check the app's permissions.
+	 */
+	private async authorize(request: FastifyRequest, reply: FastifyReply, permission: string): Promise<MiLocalUser | null> {
+		const { me, token } = await this.clientService.getAuthWithToken(request);
+
+		if (!me) {
+			reply.code(401).send({ error: 'The access token is invalid' });
+			return null;
+		}
+
+		if (token && !token.permission.includes(permission)) {
+			reply.code(403).send({
+				error: 'PERMISSION_DENIED',
+				error_description: 'Your app does not have the necessary permissions to use this endpoint.',
+			});
+			return null;
+		}
+
+		return me;
 	}
 }

@@ -9,6 +9,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { MiLocalUser } from '@/models/User.js';
+import type { MiAccessToken } from '@/models/AccessToken.js';
 import { AuthenticateService } from '@/server/api/AuthenticateService.js';
 import type { AxiosAdapter, RawAxiosResponseHeaders } from 'axios';
 import type { FastifyRequest, InjectOptions } from 'fastify';
@@ -16,7 +17,7 @@ import type { FastifyRequest, InjectOptions } from 'fastify';
 @Injectable()
 export class MastodonClientService {
 	// A request is authenticated once, however often the rate limiter and the handler ask.
-	private readonly requestAuths = new WeakMap<FastifyRequest, { accessToken: string | null, me: Promise<MiLocalUser | null> }>();
+	private readonly requestAuths = new WeakMap<FastifyRequest, { accessToken: string | null, result: Promise<[MiLocalUser | null, MiAccessToken | null]> }>();
 
 	constructor(
 		@Inject(DI.config)
@@ -42,6 +43,20 @@ export class MastodonClientService {
 	 * Gets the authenticated client user for a request.
 	 */
 	public async getAuth(request: FastifyRequest, accessToken?: string | null): Promise<MiLocalUser | null> {
+		const [me] = await this.authenticate(request, accessToken);
+		return me;
+	}
+
+	/**
+	 * Gets the authenticated client user for a request, and the token of the app they use.
+	 * There is no token when the user is signed in with their own native token, which may do anything.
+	 */
+	public async getAuthWithToken(request: FastifyRequest): Promise<{ me: MiLocalUser | null, token: MiAccessToken | null }> {
+		const [me, token] = await this.authenticate(request);
+		return { me, token };
+	}
+
+	private authenticate(request: FastifyRequest, accessToken?: string | null): Promise<[MiLocalUser | null, MiAccessToken | null]> {
 		const authorization = request.headers.authorization;
 		accessToken = accessToken !== undefined ? accessToken : getAccessToken(authorization);
 
@@ -49,12 +64,12 @@ export class MastodonClientService {
 		if (!auth || auth.accessToken !== accessToken) {
 			auth = {
 				accessToken,
-				me: this.authenticateService.authenticate(accessToken).then(([me]) => me),
+				result: this.authenticateService.authenticate(accessToken),
 			};
 			this.requestAuths.set(request, auth);
 		}
 
-		return await auth.me;
+		return auth.result;
 	}
 
 	/**
