@@ -10,20 +10,21 @@ import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { api, host, post, react, relativeFetch, signup, userList } from '../utils.js';
+import { api, createAppToken, host, post, react, relativeFetch, signup, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
 type User = misskey.entities.SignupResponse;
 
-async function masto(method: string, path: string, user?: User, body?: Record<string, unknown> | FormData) {
+async function masto(method: string, path: string, user?: { token: string }, body?: Record<string, unknown> | FormData | URLSearchParams) {
+	const encoded = body instanceof FormData || body instanceof URLSearchParams;
 	const headers: Record<string, string> = {};
 	if (user) headers['Authorization'] = `Bearer ${user.token}`;
-	if (body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+	if (body && !encoded) headers['Content-Type'] = 'application/json';
 
 	const res = await relativeFetch(`api/${path}`, {
 		method,
 		headers,
-		body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+		body: encoded ? body : body ? JSON.stringify(body) : undefined,
 	});
 	const text = await res.text();
 
@@ -50,6 +51,11 @@ describe('Mastodon API', () => {
 
 			assert.strictEqual(res.status, 200);
 			assert.strictEqual(typeof res.body.title, 'string');
+		});
+
+		test('accepts a trailing slash on the path', async () => {
+			assert.strictEqual((await masto('GET', 'v1/instance/')).status, 200);
+			assert.strictEqual((await masto('GET', 'v2/instance/?local=true')).status, 200);
 		});
 
 		test('carries the caller\'s credentials', async () => {
@@ -291,6 +297,43 @@ describe('Mastodon API', () => {
 			assert.strictEqual(res.status, 200);
 			assert.strictEqual(res.body.content, '<p>About this server</p>');
 			assert.ok(!Number.isNaN(Date.parse(res.body.updated_at)), res.body.updated_at);
+		});
+	});
+
+	describe('markers', () => {
+		const both = 'v1/markers?timeline[]=home&timeline[]=notifications';
+
+		test('a saved position is returned, with a version that counts the saves', async () => {
+			assert.deepStrictEqual((await masto('GET', both, bob)).body, {});
+
+			const first = await masto('POST', 'v1/markers', bob, { home: { last_read_id: 'first' } });
+			assert.strictEqual(first.status, 200);
+			assert.strictEqual(first.body.home.last_read_id, 'first');
+			assert.strictEqual(first.body.home.version, 0);
+
+			const second = await masto('POST', 'v1/markers', bob, new URLSearchParams({ 'home[last_read_id]': 'second' }));
+			assert.strictEqual(second.body.home.last_read_id, 'second');
+			assert.strictEqual(second.body.home.version, 1);
+
+			const stored = await masto('GET', both, bob);
+			assert.deepStrictEqual(Object.keys(stored.body), ['home']);
+			assert.deepStrictEqual(stored.body.home, second.body.home);
+			assert.deepStrictEqual((await masto('GET', 'v1/markers?timeline[]=notifications', bob)).body, {});
+		});
+
+		test('a position follows the user to another app, but not to another user', async () => {
+			await masto('POST', 'v1/markers', alice, { notifications: { last_read_id: 'seen' } });
+			const app = { token: await createAppToken(alice, ['read:account']) };
+
+			assert.strictEqual((await masto('GET', both, app)).body.notifications.last_read_id, 'seen');
+			assert.strictEqual((await masto('GET', both, bob)).body.notifications, undefined);
+		});
+
+		test('an app needs the permission to save, and a caller needs to be signed in', async () => {
+			const readOnly = { token: await createAppToken(alice, ['read:account']) };
+
+			assert.strictEqual((await masto('POST', 'v1/markers', readOnly, { home: { last_read_id: 'x' } })).status, 403);
+			assert.strictEqual((await masto('GET', both)).status, 401);
 		});
 	});
 
