@@ -239,6 +239,35 @@ describe('Mastodon API', () => {
 
 			assert.strictEqual(res.status, 401);
 		}, 2000);
+
+		test('following, muting and blocking answer with the relationship to that account', async () => {
+			const dave = await signup({ username: 'dave' });
+			const steps = [
+				['follow', 'following', true],
+				['unfollow', 'following', false],
+				['mute', 'muting', true],
+				['unmute', 'muting', false],
+				['block', 'blocking', true],
+				['unblock', 'blocking', false],
+			] as const;
+
+			for (const [action, field, expected] of steps) {
+				const res = await masto('POST', `v1/accounts/${dave.id}/${action}`, alice);
+
+				assert.strictEqual(res.status, 200, action);
+				assert.strictEqual(res.body.id, dave.id, action);
+				assert.strictEqual(res.body[field], expected, action);
+			}
+
+			const relationships = await masto('GET', `v1/accounts/relationships?id[]=${bob.id}&id[]=${dave.id}`, alice);
+			assert.deepStrictEqual(relationships.body.map((relationship: { id: string }) => relationship.id).toSorted(), [bob.id, dave.id].toSorted());
+		});
+
+		test('a request without a body is one without parameters', async () => {
+			const res = await masto('POST', 'v1/reports', alice);
+
+			assert.strictEqual(res.status, 400);
+		});
 	});
 
 	describe('statuses', () => {
