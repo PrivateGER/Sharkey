@@ -366,8 +366,10 @@ export class ApiStatusMastodon {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
-			const data = await client.bookmarkStatus(_request.params.id);
-			const response = await this.mastoConverters.convertStatus(data.data, me);
+			// The native API would bookmark a note that the user can't see.
+			const note = await this.mastodonDataService.requireNote(_request.params.id, me);
+			const data = await client.bookmarkStatus(note.id);
+			const response = await this.mastoConverters.convertStatus(data.data, me, { note });
 
 			return reply.send(response);
 		});
@@ -386,8 +388,10 @@ export class ApiStatusMastodon {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
-			const data = await client.muteStatus(_request.params.id);
-			const response = await this.mastoConverters.convertStatus(data.data, me);
+			// The native API would mute the thread of a note that the user can't see.
+			const note = await this.mastodonDataService.requireNote(_request.params.id, me);
+			const data = await client.muteStatus(note.id);
+			const response = await this.mastoConverters.convertStatus(data.data, me, { note });
 
 			return reply.send(response);
 		});
