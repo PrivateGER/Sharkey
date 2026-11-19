@@ -230,6 +230,15 @@ describe('Mastodon API', () => {
 			assert.ok(report && report.comment.length <= 2048);
 			assert.ok(report.comment.includes(`${statusIds.length - res.body.status_ids.length} more notes`));
 		});
+
+		test('a very long list of statuses does not hold the server up', async () => {
+			// Nearly as many as fit in a request body. Composing the comment once took time that grew with the square of this.
+			const statusIds = Array.from({ length: 40000 }, (_, index) => `note${index}`.padEnd(16, 'x'));
+
+			const res = await masto('POST', 'v1/reports', undefined, { account_id: bob.id, status_ids: statusIds });
+
+			assert.strictEqual(res.status, 401);
+		}, 2000);
 	});
 
 	describe('statuses', () => {

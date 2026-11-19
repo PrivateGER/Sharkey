@@ -936,19 +936,29 @@ export default class Misskey implements MegalodonInterface {
     }
   ): Promise<Response<Entity.Report>> {
     // The native report only has a comment, so the category and the reported notes go into it.
-    const head = [options.comment.trim() || '(no comment)']
-    if (options.category !== 'other') head.push(`Category: ${options.category}`)
+    const lines = [options.comment.trim() || '(no comment)']
+    if (options.category !== 'other') lines.push(`Category: ${options.category}`)
 
     // The native comment is limited to 2048 characters. Leave out the notes that don't fit, rather than lose the report.
+    // The list comes from the caller and can be very long, so it is walked once and only as far as there is room.
+    const maxLength = 2048
     const notes = options.status_ids ?? []
-    const compose = (included: number) => [
-      ...head,
-      ...notes.slice(0, included).map(id => `Note: ${this.baseUrl}/notes/${id}`),
-      ...(included < notes.length ? [`(${notes.length - included} more notes were reported, but did not fit)`] : [])
-    ].join('\n')
-    let included = notes.length
-    while (included > 0 && compose(included).length > 2048) included--
-    const comment = compose(included)
+    const omitted = (count: number) => `(${count} more notes were reported, but did not fit)`
+    let length = lines.join('\n').length
+    let included = 0
+    for (const id of notes) {
+      const line = `Note: ${this.baseUrl}/notes/${id}`
+      // Every note but the last must leave room to say that others were left out.
+      const reserved = included === notes.length - 1 ? 0 : 1 + omitted(notes.length).length
+      if (length + 1 + line.length + reserved > maxLength) break
+      lines.push(line)
+      length += 1 + line.length
+      included++
+    }
+    if (included < notes.length && length + 1 + omitted(notes.length - included).length <= maxLength) {
+      lines.push(omitted(notes.length - included))
+    }
+    const comment = lines.join('\n')
     return this.client
       .post<{}>('/api/users/report-abuse', {
         userId: account_id,
