@@ -117,7 +117,7 @@
 		"estree-walker": "3.0.3",
 		"execa": "catalog:",
 		"fast-glob": "catalog:",
-		"happy-dom": "21.0.1",
+		"happy-dom": "21.0.4",
 		"intersection-observer": "0.12.2",
 		"magic-string": "1.4.3",
 		"micromatch": "4.0.8",

@@ -53,7 +53,7 @@
 		"eslint-plugin-vue": "10.11.1",
 		"estree-walker": "3.0.3",
 		"fast-glob": "catalog:",
-		"happy-dom": "21.0.1",
+		"happy-dom": "21.0.4",
 		"intersection-observer": "0.12.2",
 		"micromatch": "4.0.8",
 		"msw": "3.0.3",
