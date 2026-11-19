@@ -146,5 +146,16 @@ describe('Mastodon API', () => {
 				assert.strictEqual(res.status, 404, acct);
 			}
 		});
+
+		test('lists names the caller\'s lists that contain the account', async () => {
+			const withBob = await userList(alice, { name: 'with bob' });
+			await userList(alice, { name: 'without bob' });
+			await api('users/lists/push', { listId: withBob.id, userId: bob.id }, alice);
+
+			const res = await masto('GET', `v1/accounts/${bob.id}/lists`, alice);
+
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(res.body.map((list: { title: string }) => list.title), ['with bob']);
+		});
 	});
 });
