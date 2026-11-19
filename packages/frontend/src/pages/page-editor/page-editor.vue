@@ -60,11 +60,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, provide, watch, ref } from 'vue';
+import { computed, provide, watch, ref, defineAsyncComponent } from 'vue';
 import * as Misskey from 'misskey-js';
 import { v4 as uuid } from 'uuid';
 import { url } from '@@/js/config.js';
-import XBlocks from './page-editor.blocks.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -77,6 +76,8 @@ import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import { mainRouter } from '@/router.js';
 import { getPageBlockList } from '@/pages/page-editor/common.js';
+
+const XBlocks = defineAsyncComponent(() => import('./page-editor.blocks.vue'));
 
 const props = defineProps<{
 	initPageId?: string;

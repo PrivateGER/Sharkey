@@ -93,11 +93,15 @@ export class ExportFavoritesProcessorService {
 					order: {
 						id: 1,
 					},
-					relations: ['note', 'note.user'],
+					relations: {
+						note: {
+							user: true,
+						},
+					},
 				}) as (MiNoteFavorite & { note: MiNote & { user: MiUser } })[];
 
 				if (favorites.length === 0) {
-					job.updateProgress(100);
+					job.updateProgress(1);
 					break;
 				}
 

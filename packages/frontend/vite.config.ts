@@ -88,6 +88,9 @@ export function toBase62(n: number): string {
 
 export function getConfig(): UserConfig {
 	return {
+		// Fix development mode: https://vite.dev/guide/env-and-mode#modes
+		mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
+
 		base: '/vite/',
 
 		server: {
@@ -147,6 +150,7 @@ export function getConfig(): UserConfig {
 					api: 'modern-compiler',
 				},
 			},
+			devSourcemap: true,
 		},
 
 		define: {
@@ -180,6 +184,9 @@ export function getConfig(): UserConfig {
 					manualChunks: {
 						vue: ['vue'],
 						photoswipe: ['photoswipe', 'photoswipe/lightbox', 'photoswipe/style.css'],
+						reversei: ['misskey-reversi'],
+						bubblegame: ['misskey-bubble-game'],
+						misskeyjs: ['misskey-js'],
 					},
 					chunkFileNames: process.env.NODE_ENV === 'production' ? '[hash:8].js' : '[name]-[hash:8].js',
 					assetFileNames: process.env.NODE_ENV === 'production' ? '[hash:8][extname]' : '[name]-[hash:8][extname]',
@@ -199,6 +206,7 @@ export function getConfig(): UserConfig {
 			assetsDir: '.',
 			emptyOutDir: false,
 			sourcemap: true,
+			minify: process.env.NODE_ENV === 'development' ? false : undefined,
 			reportCompressedSize: false,
 
 			// https://vitejs.dev/guide/dep-pre-bundling.html#monorepos-and-linked-dependencies
@@ -220,7 +228,7 @@ export function getConfig(): UserConfig {
 			],
 			deps: {
 				optimizer: {
-					web: {
+					client: {
 						include: [
 							// XXX: misskey-dev/browser-image-resizer has no "type": "module"
 							'browser-image-resizer',

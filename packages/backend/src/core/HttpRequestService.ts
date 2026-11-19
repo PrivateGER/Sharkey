@@ -26,6 +26,7 @@ import type { Socket } from 'node:net';
 
 export type HttpRequestSendOptions = {
 	throwErrorWhenResponseNotOk: boolean;
+	followRedirects?: boolean;
 	validators?: ((res: Response) => void)[];
 };
 
@@ -347,10 +348,12 @@ export class HttpRequestService {
 		} = {},
 		extra: HttpRequestSendOptions = {
 			throwErrorWhenResponseNotOk: true,
+			followRedirects: true,
 			validators: [],
 		},
 	): Promise<Response> {
 		const timeout = args.timeout ?? 5000;
+		const followRedirects = extra.followRedirects ?? true;
 
 		const parsedUrl = new URL(url);
 		const allowHttp = args.allowHttp || await isPrivateUrl(parsedUrl, this.lookup);
@@ -373,10 +376,15 @@ export class HttpRequestService {
 			size: args.size ?? 10 * 1024 * 1024,
 			agent: (url) => this.getAgentByUrl(url, false, isLocalAddressAllowed),
 			signal: controller.signal,
+			redirect: followRedirects ? 'follow' : 'manual',
 		});
 
 		if (!res.ok && extra.throwErrorWhenResponseNotOk) {
-			throw new StatusError(`request error from ${url}`, res.status, res.statusText);
+			// is the response "not ok" because it's a redirect that we
+			// didn't follow? don't error out!
+			if (followRedirects || !(res.status >= 300 && res.status <= 399)) {
+				throw new StatusError(`request error from ${url}`, res.status, res.statusText);
+			}
 		}
 
 		if (res.ok) {

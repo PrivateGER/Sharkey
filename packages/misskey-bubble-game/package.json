@@ -27,21 +27,22 @@
 	},
 	"devDependencies": {
 		"@types/matter-js": "0.20.2",
-		"@types/node": "26.6.2",
+		"@types/node": "catalog:",
 		"@types/seedrandom": "3.0.8",
-		"@typescript-eslint/eslint-plugin": "8.57.1",
-		"@typescript-eslint/parser": "8.57.1",
-		"esbuild": "0.27.4",
-		"execa": "9.6.0",
+		"@typescript-eslint/eslint-plugin": "catalog:",
+		"@typescript-eslint/parser": "catalog:",
+		"esbuild": "0.28.2",
+		"eslint": "catalog:",
+		"execa": "catalog:",
 		"fast-glob": "3.3.3",
-		"nodemon": "3.1.10",
-		"typescript": "5.9.3"
+		"nodemon": "3.1.14",
+		"typescript": "catalog:"
 	},
 	"files": [
 		"built"
 	],
 	"dependencies": {
-		"eventemitter3": "5.0.1",
+		"eventemitter3": "5.0.4",
 		"matter-js": "0.20.0",
 		"seedrandom": "3.0.5"
 	}

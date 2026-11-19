@@ -229,22 +229,26 @@ export class ClientServerService {
 		});
 
 		//#region vite assets
-		if (this.config.frontendEmbedManifestExists) {
+		if (this.envService.env.NODE_ENV !== 'development') {
 			fastify.register((fastify, options, done) => {
-				fastify.register(fastifyStatic, {
-					root: frontendViteOut,
-					prefix: '/vite/',
-					maxAge: ms('30 days'),
-					immutable: true,
-					decorateReply: false,
-				});
-				fastify.register(fastifyStatic, {
-					root: frontendEmbedViteOut,
-					prefix: '/embed_vite/',
-					maxAge: ms('30 days'),
-					immutable: true,
-					decorateReply: false,
-				});
+				if (this.config.frontendManifestExists) {
+					fastify.register(fastifyStatic, {
+						root: frontendViteOut,
+						prefix: '/vite/',
+						maxAge: ms('30 days'),
+						immutable: true,
+						decorateReply: false,
+					});
+				}
+				if (this.config.frontendEmbedManifestExists) {
+					fastify.register(fastifyStatic, {
+						root: frontendEmbedViteOut,
+						prefix: '/embed_vite/',
+						maxAge: ms('30 days'),
+						immutable: true,
+						decorateReply: false,
+					});
+				}
 				fastify.addHook('onRequest', handleRequestRedirectToOmitSearch);
 				done();
 			});

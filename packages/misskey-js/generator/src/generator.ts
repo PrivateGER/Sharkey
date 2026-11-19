@@ -1,4 +1,9 @@
-import assert from 'assert';
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+import { strict as assert } from 'node:assert';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { toPascal } from 'ts-case-convert';
 import * as OpenAPIParser from '@readme/openapi-parser';

@@ -138,7 +138,10 @@ class DeliverManager {
 						{ followerSharedInbox: Not(IsNull()), isFollowerHibernated: false },
 						{ followeeSharedInbox: Not(IsNull()), isFollowerHibernated: false },
 					],
-					select: ['followerSharedInbox', 'followeeSharedInbox'],
+					select: {
+						followerSharedInbox: true,
+						followeeSharedInbox: true,
+					},
 				});
 
 				return followings.map(f => ({

@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { IsNull, Not, type DataSource } from 'typeorm';
-import { MeiliSearch } from 'meilisearch';
+import { Meilisearch } from 'meilisearch';
 import type { MiMeta } from '@/models/Meta.js';
 import type { MetasRepository } from '@/models/_.js';
 import type { Logger } from '@/logger.js';
@@ -72,7 +72,7 @@ const $meilisearch: Provider = {
 				throw new Error('MeiliSearch is enabled but no configuration is provided');
 			}
 
-			return new MeiliSearch({
+			return new Meilisearch({
 				host: `${config.meilisearch.ssl ? 'https' : 'http'}://${config.meilisearch.host}:${config.meilisearch.port}`,
 				apiKey: config.meilisearch.apiKey,
 			});

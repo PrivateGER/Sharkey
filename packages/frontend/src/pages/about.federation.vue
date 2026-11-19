@@ -18,10 +18,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<option value="federating">{{ i18n.ts.federating }}</option>
 				<option value="subscribing">{{ i18n.ts.subscribing }}</option>
 				<option value="publishing">{{ i18n.ts.publishing }}</option>
-				<option value="bubble">Bubble</option>
+				<option v-if="isAvailableBasicTimeline('bubble')" value="bubble">{{ i18n.ts.bubble }}</option>
 				<option v-if="$i" value="suspended">{{ i18n.ts.suspended }}</option>
 				<option v-if="$i" value="silenced">{{ i18n.ts.silence }}</option>
 				<option v-if="$i" value="blocked">{{ i18n.ts.blocked }}</option>
+				<option v-if="$i" value="mandatoryCW">{{ i18n.ts.mandatoryCW }}</option>
 				<option value="notResponding">{{ i18n.ts.notResponding }}</option>
 			</MkSelect>
 			<MkSelect v-model="sort">
@@ -62,6 +63,7 @@ import MkInstanceCardMini from '@/components/MkInstanceCardMini.vue';
 import FormSplit from '@/components/form/split.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i';
+import { isAvailableBasicTimeline } from '@/timelines.js';
 
 const host = ref('');
 const state = ref('federating');
@@ -83,6 +85,7 @@ const pagination = {
 			state.value === 'silenced' ? { silenced: true } :
 			state.value === 'notResponding' ? { notResponding: true } :
 			state.value === 'bubble' ? { bubble: true } :
+			state.value === 'mandatoryCW' ? { mandatoryCW: true } :
 			{}),
 	})),
 } satisfies Paging;

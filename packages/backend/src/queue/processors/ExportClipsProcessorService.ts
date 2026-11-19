@@ -113,7 +113,7 @@ export class ExportClipsProcessorService {
 			});
 
 			if (clips.length === 0) {
-				job.updateProgress(100);
+				job.updateProgress(1);
 				break;
 			}
 
@@ -153,7 +153,11 @@ export class ExportClipsProcessorService {
 				order: {
 					id: 1,
 				},
-				relations: ['note', 'note.user'],
+				relations: {
+					note: {
+						user: true,
+					},
+				},
 			}) as (MiClipNote & { note: MiNote & { user: MiUser } })[];
 
 			if (clipNotes.length === 0) {
