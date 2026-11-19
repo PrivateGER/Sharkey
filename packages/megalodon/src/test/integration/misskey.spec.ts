@@ -11,8 +11,6 @@ import axios, {
 } from 'axios'
 import { jest } from '@jest/globals';
 
-jest.mock('axios')
-
 const user: MisskeyEntity.User = {
   id: '1',
   name: 'test_user',
