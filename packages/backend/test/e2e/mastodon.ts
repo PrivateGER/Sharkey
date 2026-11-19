@@ -298,6 +298,19 @@ describe('Mastodon API', () => {
 			assert.strictEqual(res.body.content, '<p>About this server</p>');
 			assert.ok(!Number.isNaN(Date.parse(res.body.updated_at)), res.body.updated_at);
 		});
+
+		test('activity reports twelve weeks of whole numbers, newest first', async () => {
+			const res = await masto('GET', 'v1/instance/activity');
+
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(res.body.length, 12);
+			for (const [index, week] of res.body.entries()) {
+				assert.strictEqual(Number(week.week), Number(res.body[0].week) - index * 7 * 24 * 60 * 60);
+				for (const key of ['statuses', 'logins', 'registrations']) {
+					assert.match(week[key], /^\d+$/, key);
+				}
+			}
+		});
 	});
 
 	describe('markers', () => {
