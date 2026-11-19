@@ -64,6 +64,12 @@ export class MastodonApiServerService {
 		this.serverUtilityService.addCORS(fastify);
 		this.serverUtilityService.addFlattenedQueryType(fastify);
 
+		// A client may send no body at all when every parameter is optional. The handlers read their parameters from an object either way.
+		fastify.addHook('preValidation', (request, _reply, done) => {
+			request.body ??= {};
+			done();
+		});
+
 		// Convert JS exceptions into error responses
 		fastify.setErrorHandler((error, request, reply) => {
 			const data = getErrorData(error);
