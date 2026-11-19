@@ -20,6 +20,7 @@ import { ApiSearchMastodon } from '@/server/api/mastodon/endpoints/search.js';
 import { ApiError } from '@/server/api/error.js';
 import { ServerUtilityService } from '@/server/ServerUtilityService.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
+import { TimeService } from '@/global/TimeService.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
 import { sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import type { BucketRateLimit, Keyed } from '@/misc/rate-limit-utils.js';
@@ -53,6 +54,7 @@ export class MastodonApiServerService {
 		private readonly apiTimelineMastodon: ApiTimelineMastodon,
 		private readonly serverUtilityService: ServerUtilityService,
 		private readonly rateLimiterService: SkRateLimiterService,
+		private readonly timeService: TimeService,
 	) {}
 
 	@bindThis
@@ -306,7 +308,7 @@ export class MastodonApiServerService {
 			});
 			const response = {
 				...data.data,
-				created_at: new Date().toISOString(),
+				created_at: this.timeService.date.toISOString(),
 				target_account: await this.mastoConverters.convertAccount(account.data),
 			};
 
