@@ -41,6 +41,7 @@ describe('Mastodon compatibility ACLs', () => {
 			{} as any,
 			{ getAuthClient: jest.fn(async () => ({ client, me })) } as any,
 			mastodonDataService as any,
+			{} as any,
 		);
 
 		service.register(fastify as any);
@@ -145,6 +146,7 @@ describe('Mastodon compatibility ACLs', () => {
 			mastoConverters as never,
 			{ getAuthClient: async () => ({ client, me: null }) } as never,
 			mastodonDataService as never,
+			{ requestAutomatic: async () => {}, findInProgress: async () => null } as never,
 		);
 
 		service.register(fastify as never);

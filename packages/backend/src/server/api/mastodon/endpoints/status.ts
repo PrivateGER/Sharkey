@@ -13,6 +13,7 @@ import { getNoteSummary } from '@/misc/get-note-summary.js';
 import { isPureRenote } from '@/misc/is-renote.js';
 import { promiseMap } from '@/misc/promise-map.js';
 import { ApiError } from '@/server/api/error.js';
+import { ReplyBackfillService } from '@/core/ReplyBackfillService.js';
 import { convertAttachment, convertPoll, MastodonConverters } from '../MastodonConverters.js';
 import type { Entity } from 'megalodon';
 import type { FastifyInstance } from 'fastify';
@@ -28,6 +29,7 @@ export class ApiStatusMastodon {
 		private readonly mastoConverters: MastodonConverters,
 		private readonly clientService: MastodonClientService,
 		private readonly mastodonDataService: MastodonDataService,
+		private readonly replyBackfillService: ReplyBackfillService,
 	) {}
 
 	public register(fastify: FastifyInstance): void {
@@ -97,7 +99,11 @@ export class ApiStatusMastodon {
 			if (!_request.params.id) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required parameter "id"' });
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
-			const { data } = await client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query));
+			const [{ data }] = await Promise.all([
+				client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query)),
+				// As in the native client, a signed-in viewer makes the server look for replies it has not fetched yet.
+				me ? this.replyBackfillService.requestAutomatic(_request.params.id, me) : null,
+			]);
 
 			// The native API sometimes returns thread notes that the Mastodon visibility rules hide, or that quote or boost such a note.
 			// Leave those out, instead of failing the whole thread.
@@ -113,7 +119,32 @@ export class ApiStatusMastodon {
 			const descendants = (await promiseMap(data.descendants, convertVisible, { limiter: 4 })).filter(status => status != null);
 			const response = { ancestors, descendants };
 
+			// Tell the client when replies are still being fetched, and how to ask whether that has finished.
+			const backfill = await this.replyBackfillService.findInProgress([_request.params.id, ...data.ancestors.map(status => status.id)]);
+			if (backfill) {
+				reply.header('Mastodon-Async-Refresh', `id="${backfill.noteId}-${backfill.backfillId}", retry=5`);
+			}
+
 			return reply.send(response);
+		});
+
+		fastify.get<{ Params: { id?: string } }>('/v1_alpha/async_refreshes/:id', async (_request, reply) => {
+			const me = await this.clientService.getAuth(_request);
+			if (!me) return reply.code(401).send({ error: 'The access token is invalid' });
+
+			// The ID is the one that the thread context announced: the note, then its backfill.
+			const [noteId, backfillId] = (_request.params.id ?? '').split('-');
+			if (!noteId || !backfillId) return reply.code(404).send({ error: 'Record not found' });
+
+			const running = await this.replyBackfillService.isInProgress(noteId, backfillId);
+
+			return reply.send({
+				async_refresh: {
+					id: _request.params.id,
+					status: running ? 'running' : 'finished',
+					result_count: null,
+				},
+			});
 		});
 
 		fastify.get<{ Params: { id?: string } }>('/v1/statuses/:id/history', async (_request, reply) => {

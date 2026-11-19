@@ -202,6 +202,24 @@ export class ReplyBackfillService {
 		}
 	}
 
+	/**
+	 * Finds a backfill that is pending or running for one of the notes.
+	 * @param noteIds notes to check, in order of preference
+	 */
+	@bindThis
+	public async findInProgress(noteIds: MiNote['id'][]): Promise<{ noteId: MiNote['id'], backfillId: string } | null> {
+		const backfillIds = await this.getMany(noteIds.map(id => this.inProgressKey(id)));
+		for (const [index, backfillId] of backfillIds.entries()) {
+			if (backfillId != null) return { noteId: noteIds[index], backfillId };
+		}
+		return null;
+	}
+
+	@bindThis
+	public async isInProgress(noteId: MiNote['id'], backfillId: string): Promise<boolean> {
+		return await this.redisClient.get(this.inProgressKey(noteId)) === backfillId;
+	}
+
 	private async getSkipReason(note: MiNote, host: string): Promise<string | null> {
 		// Remote servers only expose public replies, and only for public notes.
 		if (note.visibility !== 'public' && note.visibility !== 'home') return 'is not public';
