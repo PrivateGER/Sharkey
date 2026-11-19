@@ -10,7 +10,7 @@ import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { api, createAppToken, host, post, react, relativeFetch, signup, userList } from '../utils.js';
+import { api, createAppToken, host, post, react, relativeFetch, signup, uploadFile, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
 type User = misskey.entities.SignupResponse;
@@ -389,6 +389,25 @@ describe('Mastodon API', () => {
 			const replaced = await react('🎉');
 			assert.strictEqual(replaced.status, 200);
 			assert.deepStrictEqual(names(replaced), [['🎉', 1]]);
+		});
+
+		test('a reaction notification names the emoji, and shows its picture when it is a custom one', async () => {
+			const picture = await uploadFile(alice);
+			await api('admin/emoji/add', { name: 'testblob', fileId: picture.body!.id }, alice);
+			const note = await post(alice, { text: 'react to this' });
+			const carla = await signup({ username: 'carla' });
+
+			await api('notes/reactions/create', { noteId: note.id, reaction: '👍' }, bob);
+			await api('notes/reactions/create', { noteId: note.id, reaction: ':testblob:' }, carla);
+
+			const res = await masto('GET', 'v1/notifications', alice);
+			const reactions = res.body.filter((notification: { type: string, status?: { id: string } }) => notification.type === 'reaction' && notification.status?.id === note.id);
+			const byAccount = Object.fromEntries(reactions.map((notification: { account: { username: string }, emoji: string, emoji_url?: string }) => [notification.account.username, notification]));
+
+			assert.strictEqual(byAccount.bob.emoji, '👍');
+			assert.strictEqual(byAccount.bob.emoji_url, undefined);
+			assert.strictEqual(byAccount.carla.emoji, ':testblob:');
+			assert.match(byAccount.carla.emoji_url, /^https?:\/\//);
 		});
 
 		test('nodeinfo announces the Pleroma reaction routes', async () => {

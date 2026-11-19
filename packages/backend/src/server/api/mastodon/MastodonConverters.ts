@@ -405,6 +405,22 @@ export class MastodonConverters {
 			id: notification.id,
 			status,
 			type: convertNotificationType(notification.type as Entity.NotificationType),
+			...(notification.emoji ? await this.convertReactionEmoji(notification.emoji) : {}),
+		};
+	}
+
+	/**
+	 * Names the emoji of a reaction for a notification: the emoji itself, or for a custom emoji its shortcode between colons
+	 * together with the address of its image.
+	 */
+	private async convertReactionEmoji(reaction: string): Promise<{ emoji: string, emoji_url?: string }> {
+		const custom = reaction.match(/^:([^:]+):$/);
+		if (!custom) return { emoji: reaction };
+
+		return {
+			// A local custom emoji is marked with "@.", which other software does not know.
+			emoji: `:${custom[1].replace(/@\.$/, '')}:`,
+			emoji_url: await this.customEmojiService.populateEmoji(custom[1], this.config.host) ?? undefined,
 		};
 	}
 
