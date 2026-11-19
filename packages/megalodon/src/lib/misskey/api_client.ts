@@ -1,4 +1,4 @@
-import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosAdapter, type AxiosResponse, type AxiosRequestConfig } from 'axios'
 import dayjs from 'dayjs'
 
 import { DEFAULT_UA } from '../default.js'
@@ -547,17 +547,20 @@ export class Client implements Interface {
 	private baseUrl: string
 	private userAgent: string
 	private abortController: AbortController
+	private adapter?: AxiosAdapter
 
 	/**
 	 * @param baseUrl hostname or base URL
 	 * @param accessToken access token from OAuth2 authorization
 	 * @param userAgent UserAgent is specified in header on request.
+	 * @param adapter Replaces the HTTP transport, e.g. to dispatch requests without a network connection.
 	 */
-	constructor(baseUrl: string, accessToken: string | null, userAgent: string = DEFAULT_UA) {
+	constructor(baseUrl: string, accessToken: string | null, userAgent: string = DEFAULT_UA, adapter?: AxiosAdapter) {
 		this.accessToken = accessToken
 		this.baseUrl = baseUrl
 		this.userAgent = userAgent
 		this.abortController = new AbortController();
+		this.adapter = adapter
 	}
 
 	/**
@@ -577,6 +580,7 @@ export class Client implements Interface {
 			maxContentLength: Infinity,
 			maxBodyLength: Infinity,
 			signal: this.abortController.signal,
+			adapter: this.adapter,
 		}
 		return axios.get<T>(this.baseUrl + path, options).then((resp: AxiosResponse<T>) => {
 			const res: Response<T> = {
@@ -608,6 +612,7 @@ export class Client implements Interface {
 			maxContentLength: Infinity,
 			maxBodyLength: Infinity,
 			signal: this.abortController.signal,
+			adapter: this.adapter,
 		}
 
 		return axios.post<T>(this.baseUrl + path, params, options).then((resp: AxiosResponse<T>) => {

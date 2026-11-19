@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import axios, { AxiosError } from 'axios';
 import { Misskey } from 'megalodon';
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { MiLocalUser } from '@/models/User.js';
 import { AuthenticateService } from '@/server/api/AuthenticateService.js';
-import type { FastifyRequest } from 'fastify';
+import type { AxiosAdapter, RawAxiosResponseHeaders } from 'axios';
+import type { FastifyRequest, InjectOptions } from 'fastify';
 
 @Injectable()
 export class MastodonClientService {
@@ -50,17 +52,15 @@ export class MastodonClientService {
 		const authorization = request.headers.authorization;
 		accessToken = accessToken !== undefined ? accessToken : getAccessToken(authorization);
 
-		// TODO pass agent?
 		const baseUrl = this.getBaseUrl();
 		const userAgent = request.headers['user-agent'];
-		return new Misskey(baseUrl, accessToken, userAgent);
+		return new Misskey(baseUrl, accessToken, userAgent, createInProcessAdapter(request));
 	}
 
 	/**
-	 * Gets the base URL (origin) that server-side requests back into this instance's API should use.
+	 * Gets the base URL (origin) of this instance, which megalodon uses to build links and to address the native API.
 	 * This is deliberately taken from the configuration and not from the incoming request: with `trustProxy`
-	 * enabled, `request.host` comes from the client-controlled `X-Forwarded-Host` header, which would let a
-	 * caller point these internal requests at arbitrary hosts (SSRF).
+	 * enabled, `request.host` comes from the client-controlled `X-Forwarded-Host` header.
 	 */
 	public getBaseUrl(): string {
 		return this.config.url;
@@ -83,4 +83,55 @@ export function getRequestBaseUrl(request: FastifyRequest): string {
 function getAccessToken(authorization: string | undefined): string | null {
 	const accessTokenArr = authorization?.split(' ') ?? [null];
 	return accessTokenArr[accessTokenArr.length - 1];
+}
+
+/**
+ * Makes megalodon's requests to the native API reach this server's own router directly, without a network connection.
+ * The native API sees the address of the original client, so its rate limits apply to that client.
+ */
+function createInProcessAdapter(request: FastifyRequest): AxiosAdapter {
+	return async config => {
+		const url = new URL(axios.getUri(config));
+
+		const headers: Record<string, string> = {};
+		for (const [name, value] of Object.entries(config.headers.toJSON())) {
+			if (value != null) headers[name.toLowerCase()] = String(value);
+		}
+
+		let payload: string | Buffer | undefined = config.data;
+		if (config.data instanceof FormData) {
+			// The multipart boundary is only known once the form is encoded.
+			const encoded = new Response(config.data);
+			headers['content-type'] = encoded.headers.get('content-type') ?? 'multipart/form-data';
+			payload = Buffer.from(await encoded.arrayBuffer());
+		}
+
+		const res = await request.server.inject({
+			method: (config.method ?? 'get').toUpperCase() as InjectOptions['method'],
+			url: url.pathname + url.search,
+			headers,
+			payload,
+			remoteAddress: request.ip,
+		});
+
+		const response = {
+			data: res.payload,
+			status: res.statusCode,
+			statusText: res.statusMessage,
+			headers: res.headers as RawAxiosResponseHeaders,
+			config,
+		};
+
+		if (!config.validateStatus || config.validateStatus(res.statusCode)) {
+			return response;
+		}
+
+		throw new AxiosError(
+			`Request failed with status code ${res.statusCode}`,
+			res.statusCode >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST,
+			config,
+			null,
+			response,
+		);
+	};
 }

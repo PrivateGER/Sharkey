@@ -4,6 +4,7 @@ import * as OAuth from './oauth.js'
 import { type Response } from './response.js'
 import * as Entity from './entity.js'
 import { type MegalodonInterface, NoImplementedError, ArgumentError, UnexpectedError } from './megalodon.js'
+import type { AxiosAdapter } from 'axios'
 import { UnknownNotificationTypeError } from './notification.js'
 
 export default class Misskey implements MegalodonInterface {
@@ -14,11 +15,13 @@ export default class Misskey implements MegalodonInterface {
    * @param baseUrl hostname or base URL
    * @param accessToken access token from OAuth2 authorization
    * @param userAgent UserAgent is specified in header on request.
+   * @param adapter Replaces the HTTP transport, e.g. to dispatch requests without a network connection.
    */
   constructor(
     baseUrl: string,
     accessToken: string | null = null,
     userAgent: string | null = DEFAULT_UA,
+    adapter?: AxiosAdapter,
   ) {
     let token: string = ''
     if (accessToken) {
@@ -28,7 +31,7 @@ export default class Misskey implements MegalodonInterface {
     if (userAgent) {
       agent = userAgent
     }
-    this.client = new MisskeyAPI.Client(baseUrl, token, agent)
+    this.client = new MisskeyAPI.Client(baseUrl, token, agent, adapter)
     this.baseUrl = baseUrl
   }
 
@@ -1106,6 +1109,30 @@ export default class Misskey implements MegalodonInterface {
     return this.client
       .post<Array<MisskeyAPI.Entity.UserDetail>>('/api/users/recommendation', params)
       .then(res => ({ ...res, data: res.data.map(u => MisskeyAPI.Converter.userDetail(u)) }))
+  }
+
+  /**
+   * POST /api/users
+   */
+  public async getPopularAccounts(options?: { limit?: number; offset?: number }): Promise<Response<Array<Entity.Account>>> {
+    return this.client
+      .post<Array<MisskeyAPI.Entity.UserDetail>>('/api/users', {
+        limit: options?.limit ?? 20,
+        offset: options?.offset,
+        origin: 'local',
+        sort: '+follower',
+        state: 'alive'
+      })
+      .then(res => ({ ...res, data: res.data.map(u => MisskeyAPI.Converter.userDetail(u, this.baseUrl)) }))
+  }
+
+  /**
+   * POST /api/notes/featured
+   */
+  public async getTrendingStatuses(): Promise<Response<Array<Entity.Status>>> {
+    return this.client
+      .post<Array<MisskeyAPI.Entity.Note>>('/api/notes/featured', {})
+      .then(res => ({ ...res, data: res.data.map(n => MisskeyAPI.Converter.note(n, this.baseUrl)) }))
   }
 
   // ======================================
