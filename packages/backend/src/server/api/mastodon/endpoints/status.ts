@@ -12,6 +12,7 @@ import { MastodonDataService } from '@/server/api/mastodon/MastodonDataService.j
 import { getNoteSummary } from '@/misc/get-note-summary.js';
 import { isPureRenote } from '@/misc/is-renote.js';
 import { promiseMap } from '@/misc/promise-map.js';
+import { ApiError } from '@/server/api/error.js';
 import { convertAttachment, convertPoll, MastodonConverters } from '../MastodonConverters.js';
 import type { Entity } from 'megalodon';
 import type { FastifyInstance } from 'fastify';
@@ -97,8 +98,19 @@ export class ApiStatusMastodon {
 
 			const { client, me } = await this.clientService.getAuthClient(_request);
 			const { data } = await client.getStatusContext(_request.params.id, parseTimelineArgs(_request.query));
-			const ancestors = await promiseMap(data.ancestors, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
-			const descendants = await promiseMap(data.descendants, async (status: Entity.Status) => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
+
+			// The native API sometimes returns thread notes that the Mastodon visibility rules hide, or that quote or boost such a note.
+			// Leave those out, instead of failing the whole thread.
+			const convertVisible = async (status: Entity.Status) => {
+				try {
+					return await this.mastoConverters.convertStatus(status, me);
+				} catch (err) {
+					if (err instanceof ApiError && err.code === 'NO_SUCH_NOTE') return null;
+					throw err;
+				}
+			};
+			const ancestors = (await promiseMap(data.ancestors, convertVisible, { limiter: 4 })).filter(status => status != null);
+			const descendants = (await promiseMap(data.descendants, convertVisible, { limiter: 4 })).filter(status => status != null);
 			const response = { ancestors, descendants };
 
 			return reply.send(response);
