@@ -441,9 +441,6 @@ export function convertAttachment(attachment: Entity.Attachment): MastodonEntity
 		} : null,
 	};
 }
-export function convertFilter(filter: Entity.Filter): MastodonEntity.Filter {
-	return simpleConvert(filter);
-}
 export function convertList(list: Entity.List): MastodonEntity.List {
 	return {
 		id: list.id,

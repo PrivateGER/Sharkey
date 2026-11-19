@@ -189,4 +189,21 @@ describe('Mastodon API', () => {
 			assert.strictEqual(unmuted.body.muted, false);
 		});
 	});
+
+	describe('filters', () => {
+		for (const path of ['v1/filters', 'v2/filters']) {
+			test(`${path} is an empty list`, async () => {
+				const res = await masto('GET', path, alice);
+
+				assert.strictEqual(res.status, 200);
+				assert.deepStrictEqual(res.body, []);
+			});
+
+			test(`${path} needs credentials`, async () => {
+				const res = await masto('GET', path);
+
+				assert.strictEqual(res.status, 401);
+			});
+		}
+	});
 });
