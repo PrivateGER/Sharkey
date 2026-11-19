@@ -147,6 +147,12 @@ describe('Mastodon API', () => {
 			}
 		});
 
+		test('lookup answers 404 for a remote account that cannot be resolved', async () => {
+			const res = await masto('GET', `v1/accounts/lookup?acct=${encodeURIComponent('nobody@example.invalid')}`);
+
+			assert.strictEqual(res.status, 404);
+		});
+
 		test('lists names the caller\'s lists that contain the account', async () => {
 			const withBob = await userList(alice, { name: 'with bob' });
 			await userList(alice, { name: 'without bob' });

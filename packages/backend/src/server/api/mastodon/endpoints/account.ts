@@ -6,6 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { parseTimelineArgs, TimelineArgs, toBoolean } from '@/server/api/mastodon/argsUtils.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
+import { getErrorData } from '@/server/api/mastodon/MastodonLogger.js';
 import { CacheService } from '@/core/CacheService.js';
 import { DriveService } from '@/core/DriveService.js';
 import { DI } from '@/di-symbols.js';
@@ -141,7 +142,13 @@ export class ApiAccountMastodon {
 			if (!_request.query.acct) return reply.code(400).send({ error: 'BAD_REQUEST', error_description: 'Missing required property "acct"' });
 
 			const client = this.clientService.getClient(_request);
-			const data = await client.lookupAccount(_request.query.acct);
+			const data = await client.lookupAccount(_request.query.acct).catch(err => {
+				// A remote account that can't be resolved is simply not found; the native API reports that as a server error.
+				if (getErrorData(err).error === 'FAILED_TO_RESOLVE_REMOTE_USER') return null;
+				throw err;
+			});
+			if (!data) return reply.code(404).send({ error: 'Record not found' });
+
 			const profile = await this.cacheService.userProfileCache.fetchMaybe(data.data.id);
 			data.data.fields = profile?.fields.map(f => ({ ...f, verified_at: null })) ?? [];
 			const response = await this.mastoConverters.convertAccount(data.data);
