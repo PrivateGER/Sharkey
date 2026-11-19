@@ -11,7 +11,7 @@ import { MfmService } from '@/core/MfmService.js';
 import type { Config } from '@/config.js';
 import { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
-import type { NoteEditsRepository } from '@/models/_.js';
+import type { MiMeta, NoteEditsRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
@@ -57,6 +57,9 @@ export class MastodonConverters {
 	constructor(
 		@Inject(DI.config)
 		private readonly config: Config,
+
+		@Inject(DI.meta)
+		private readonly meta: MiMeta,
 
 		@Inject(DI.noteEditsRepository)
 		private readonly noteEditsRepository: NoteEditsRepository,
@@ -143,7 +146,7 @@ export class MastodonConverters {
 		};
 	}
 
-	public async convertAccount(account: Entity.Account | MiUser): Promise<MastodonEntity.Account> {
+	public async convertAccount(account: { id: string }): Promise<MastodonEntity.Account> {
 		const [user, profile] = await Promise.all([
 			this.getterService.getUser(account.id),
 			this.cacheService.userProfileCache.fetchMaybe(account.id),
@@ -347,11 +350,33 @@ export class MastodonConverters {
 			application: null, //FIXME
 			language: null, //FIXME
 			pinned: false, //FIXME
-			bookmarked: false, //FIXME
+			bookmarked: status.bookmarked,
 			quote_id: isQuote ? status.reblog?.id : undefined,
 			quote: isQuote ? this.convertReblog(status.reblog, me) : null,
 			reactions: status.emoji_reactions,
 		});
+	}
+
+	/**
+	 * @param language the language that was asked for
+	 * @param translation what the native API returned, which is nothing for a note without text
+	 */
+	public convertTranslation(note: MiNote, language: string, translation: { sourceLang?: string, text?: string }) {
+		const text = translation.text ?? '';
+		const source = translation.sourceLang ?? '';
+		const usesDeepl = !!this.meta.deeplAuthKey || (this.meta.deeplFreeMode && !!this.meta.deeplFreeInstance);
+
+		return {
+			content: this.mfmService.toMastoApiHtml(mfm.parse(text), JSON.parse(note.mentionedRemoteUsers)) ?? escapeMFM(text),
+			// Only the text is translated.
+			spoiler_text: note.cw ?? '',
+			language,
+			media_attachments: [],
+			poll: null,
+			// DeepL names the language by its upper-case code, which Mastodon wants in lower case. The other providers return its English name.
+			detected_source_language: source.length <= 3 ? source.toLowerCase() : source,
+			provider: usesDeepl ? 'DeepL.com' : 'LibreTranslate',
+		};
 	}
 
 	public async convertConversation(conversation: Entity.Conversation, me: MiLocalUser | null): Promise<MastodonEntity.Conversation> {
@@ -441,9 +466,6 @@ export function convertAttachment(attachment: Entity.Attachment): MastodonEntity
 			aspect,
 		} : null,
 	};
-}
-export function convertFilter(filter: Entity.Filter): MastodonEntity.Filter {
-	return simpleConvert(filter);
 }
 export function convertList(list: Entity.List): MastodonEntity.List {
 	return {

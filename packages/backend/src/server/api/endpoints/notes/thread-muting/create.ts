@@ -75,12 +75,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			*/
 
 			const threadId = note.threadId ?? note.id;
-			await this.noteThreadMutingsRepository.insert({
+			// Muting a thread that is already muted is not an error.
+			await this.noteThreadMutingsRepository.createQueryBuilder().insert().values({
 				id: this.idService.gen(),
 				threadId: ps.noteOnly ? note.id : threadId,
 				userId: me.id,
 				isPostMute: ps.noteOnly,
-			});
+			}).orIgnore().execute();
 
 			await Promise.all([
 				this.cacheService.threadMutingsCache.refresh(me.id),

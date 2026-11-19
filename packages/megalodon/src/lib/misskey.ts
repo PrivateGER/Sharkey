@@ -4,6 +4,7 @@ import * as OAuth from './oauth.js'
 import { type Response } from './response.js'
 import * as Entity from './entity.js'
 import { type MegalodonInterface, NoImplementedError, ArgumentError, UnexpectedError } from './megalodon.js'
+import { isAxiosError, type AxiosAdapter } from 'axios'
 import { UnknownNotificationTypeError } from './notification.js'
 
 export default class Misskey implements MegalodonInterface {
@@ -14,11 +15,13 @@ export default class Misskey implements MegalodonInterface {
    * @param baseUrl hostname or base URL
    * @param accessToken access token from OAuth2 authorization
    * @param userAgent UserAgent is specified in header on request.
+   * @param adapter Replaces the HTTP transport, e.g. to dispatch requests without a network connection.
    */
   constructor(
     baseUrl: string,
     accessToken: string | null = null,
     userAgent: string | null = DEFAULT_UA,
+    adapter?: AxiosAdapter,
   ) {
     let token: string = ''
     if (accessToken) {
@@ -28,7 +31,7 @@ export default class Misskey implements MegalodonInterface {
     if (userAgent) {
       agent = userAgent
     }
-    this.client = new MisskeyAPI.Client(baseUrl, token, agent)
+    this.client = new MisskeyAPI.Client(baseUrl, token, agent, adapter)
     this.baseUrl = baseUrl
   }
 
@@ -286,6 +289,20 @@ export default class Misskey implements MegalodonInterface {
   }
 
   /**
+   * POST /api/users/show
+   * @param acct `username` for a local account, `username@host` for a remote one. A leading `@` is ignored.
+   */
+  public async lookupAccount(acct: string): Promise<Response<Entity.Account>> {
+    const [username, host] = acct.replace(/^@/, '').split('@')
+    return this.client
+      .post<MisskeyAPI.Entity.UserDetail>('/api/users/show', {
+        username,
+        host: host || null
+      })
+      .then(res => ({ ...res, data: MisskeyAPI.Converter.userDetail(res.data, this.baseUrl) }))
+  }
+
+  /**
    * POST /api/users/notes
    */
   public async getAccountStatuses(
@@ -470,11 +487,13 @@ export default class Misskey implements MegalodonInterface {
     })
   }
 
-  public async getAccountLists(_id: string): Promise<Response<Array<Entity.List>>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/users/lists/list
+   */
+  public async getAccountLists(id: string): Promise<Response<Array<Entity.List>>> {
+    return this.client
+      .post<Array<MisskeyAPI.Entity.List>>('/api/users/lists/list', {})
+      .then(res => ({ ...res, data: res.data.filter(l => l.userIds.includes(id)).map(l => MisskeyAPI.Converter.list(l)) }))
   }
 
   public async getIdentityProof(_id: string): Promise<Response<Array<Entity.IdentityProof>>> {
@@ -916,11 +935,34 @@ export default class Misskey implements MegalodonInterface {
       rule_ids?: Array<number>
     }
   ): Promise<Response<Entity.Report>> {
-    const category: Entity.Category = 'other'
+    // The native report only has a comment, so the category and the reported notes go into it.
+    const lines = [options.comment.trim() || '(no comment)']
+    if (options.category !== 'other') lines.push(`Category: ${options.category}`)
+
+    // The native comment is limited to 2048 characters. Leave out the notes that don't fit, rather than lose the report.
+    // The list comes from the caller and can be very long, so it is walked once and only as far as there is room.
+    const maxLength = 2048
+    const notes = options.status_ids ?? []
+    const omitted = (count: number) => `(${count} more notes were reported, but did not fit)`
+    let length = lines.join('\n').length
+    let included = 0
+    for (const id of notes) {
+      const line = `Note: ${this.baseUrl}/notes/${id}`
+      // Every note but the last must leave room to say that others were left out.
+      const reserved = included === notes.length - 1 ? 0 : 1 + omitted(notes.length).length
+      if (length + 1 + line.length + reserved > maxLength) break
+      lines.push(line)
+      length += 1 + line.length
+      included++
+    }
+    if (included < notes.length && length + 1 + omitted(notes.length - included).length <= maxLength) {
+      lines.push(omitted(notes.length - included))
+    }
+    const comment = lines.join('\n')
     return this.client
       .post<{}>('/api/users/report-abuse', {
         userId: account_id,
-        comment: options.comment
+        comment
       })
       .then(res => {
         return Object.assign(res, {
@@ -929,9 +971,9 @@ export default class Misskey implements MegalodonInterface {
             action_taken: false,
             action_taken_at: null,
             comment: options.comment,
-            category: category,
+            category: options.category,
             forwarded: false,
-            status_ids: null,
+            status_ids: options.status_ids ? notes.slice(0, included) : null,
             rule_ids: null
           }
         })
@@ -1106,6 +1148,30 @@ export default class Misskey implements MegalodonInterface {
     return this.client
       .post<Array<MisskeyAPI.Entity.UserDetail>>('/api/users/recommendation', params)
       .then(res => ({ ...res, data: res.data.map(u => MisskeyAPI.Converter.userDetail(u)) }))
+  }
+
+  /**
+   * POST /api/users
+   */
+  public async getPopularAccounts(options?: { limit?: number; offset?: number }): Promise<Response<Array<Entity.Account>>> {
+    return this.client
+      .post<Array<MisskeyAPI.Entity.UserDetail>>('/api/users', {
+        limit: options?.limit ?? 20,
+        offset: options?.offset,
+        origin: 'local',
+        sort: '+follower',
+        state: 'alive'
+      })
+      .then(res => ({ ...res, data: res.data.map(u => MisskeyAPI.Converter.userDetail(u, this.baseUrl)) }))
+  }
+
+  /**
+   * POST /api/notes/featured
+   */
+  public async getTrendingStatuses(): Promise<Response<Array<Entity.Status>>> {
+    return this.client
+      .post<Array<MisskeyAPI.Entity.Note>>('/api/notes/featured', {})
+      .then(res => ({ ...res, data: res.data.map(n => MisskeyAPI.Converter.note(n, this.baseUrl)) }))
   }
 
   // ======================================
@@ -1475,31 +1541,62 @@ export default class Misskey implements MegalodonInterface {
       .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
-  public async bookmarkStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * Calls a native endpoint that takes a note and returns nothing, then returns the note in its new state.
+   * @param alreadyInState native error code that means the note already was in the requested state
+   */
+  private async updateStatusState(endpoint: string, id: string, alreadyInState?: string): Promise<Response<Entity.Status>> {
+    try {
+      await this.client.post<{}>(endpoint, {
+        noteId: id
+      })
+    } catch (err) {
+      // Mastodon clients expect these calls to succeed when there is nothing left to change.
+      if (!alreadyInState || !isAxiosError(err) || err.response?.data?.error?.code !== alreadyInState) throw err
+    }
+    return this.client
+      .post<MisskeyAPI.Entity.Note>('/api/notes/show', {
+        noteId: id
+      })
+      .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
-  public async unbookmarkStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/notes/favorites/create
+   */
+  public async bookmarkStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/favorites/create', id, 'ALREADY_FAVORITED')
   }
 
-  public async muteStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
-    })
+  /**
+   * POST /api/notes/favorites/delete
+   */
+  public async unbookmarkStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/favorites/delete', id, 'NOT_FAVORITED')
   }
 
-  public async unmuteStatus(_id: string): Promise<Response<Entity.Status>> {
-    return new Promise((_, reject) => {
-      const err = new NoImplementedError('misskey does not support')
-      reject(err)
+  /**
+   * POST /api/notes/thread-muting/create
+   */
+  public async muteStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/thread-muting/create', id)
+  }
+
+  /**
+   * POST /api/notes/thread-muting/delete
+   */
+  public async unmuteStatus(id: string): Promise<Response<Entity.Status>> {
+    return this.updateStatusState('/api/notes/thread-muting/delete', id)
+  }
+
+  /**
+   * POST /api/notes/translate
+   * @returns nothing when the note has no text
+   */
+  public async translateStatus(id: string, lang: string): Promise<Response<{ sourceLang?: string; text?: string }>> {
+    return this.client.post<{ sourceLang?: string; text?: string }>('/api/notes/translate', {
+      noteId: id,
+      targetLang: lang
     })
   }
 

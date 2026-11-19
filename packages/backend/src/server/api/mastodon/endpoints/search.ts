@@ -9,7 +9,6 @@ import { attachMinMaxPagination, attachOffsetPagination } from '@/server/api/mas
 import { promiseMap } from '@/misc/promise-map.js';
 import { MastodonConverters } from '../MastodonConverters.js';
 import { parseTimelineArgs, TimelineArgs, toBoolean, toInt } from '../argsUtils.js';
-import { ApiError } from '../../error.js';
 import type { FastifyInstance } from 'fastify';
 import type { Entity } from 'megalodon';
 
@@ -108,56 +107,19 @@ export class ApiSearchMastodon {
 		});
 
 		fastify.get<ApiSearchMastodonRoute>('/v1/trends/statuses', async (request, reply) => {
-			const baseUrl = this.clientService.getBaseUrl();
-			const res = await fetch(`${baseUrl}/api/notes/featured`,
-				{
-					method: 'POST',
-					headers: {
-						// Only pass the caller's credentials and user agent - forwarding the whole header bag would let the
-						// client spoof X-Forwarded-* headers on this server-side request.
-						...(request.headers.authorization ? { 'Authorization': request.headers.authorization } : {}),
-						...(request.headers['user-agent'] ? { 'User-Agent': request.headers['user-agent'] } : {}),
-						'Accept': 'application/json',
-						'Content-Type': 'application/json',
-					},
-					body: '{}',
-				});
-
-			await verifyResponse(res);
-
-			const data = await res.json() as Entity.Status[];
-			const me = await this.clientService.getAuth(request);
-			const response = await promiseMap(data, async status => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
+			const { client, me } = await this.clientService.getAuthClient(request);
+			const data = await client.getTrendingStatuses();
+			const response = await promiseMap(data.data, async status => await this.mastoConverters.convertStatus(status, me), { limiter: 4 });
 
 			attachMinMaxPagination(request, reply, response);
 			return reply.send(response);
 		});
 
 		fastify.get<ApiSearchMastodonRoute>('/v2/suggestions', async (request, reply) => {
-			const baseUrl = this.clientService.getBaseUrl();
-			const res = await fetch(`${baseUrl}/api/users`,
-				{
-					method: 'POST',
-					headers: {
-						// Only pass the caller's credentials and user agent - forwarding the whole header bag would let the
-						// client spoof X-Forwarded-* headers on this server-side request.
-						...(request.headers.authorization ? { 'Authorization': request.headers.authorization } : {}),
-						...(request.headers['user-agent'] ? { 'User-Agent': request.headers['user-agent'] } : {}),
-						'Accept': 'application/json',
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						limit: parseTimelineArgs(request.query).limit ?? 20,
-						origin: 'local',
-						sort: '+follower',
-						state: 'alive',
-					}),
-				});
-
-			await verifyResponse(res);
-
-			const data = await res.json() as Entity.Account[];
-			const response = await promiseMap(data, async entry => ({
+			const client = this.clientService.getClient(request);
+			const { limit, offset } = parseTimelineArgs(request.query);
+			const data = await client.getPopularAccounts({ limit, offset });
+			const response = await promiseMap(data.data, async entry => ({
 				source: 'global',
 				account: await this.mastoConverters.convertAccount(entry),
 			}), {
@@ -168,30 +130,4 @@ export class ApiSearchMastodon {
 			return reply.send(response);
 		});
 	}
-}
-
-async function verifyResponse(res: Response): Promise<void> {
-	if (res.ok) return;
-
-	const text = await res.text();
-
-	if (res.headers.get('content-type') === 'application/json') {
-		try {
-			const json = JSON.parse(text);
-
-			if (json && typeof(json) === 'object') {
-				json.httpStatusCode = res.status;
-				return json;
-			}
-		} catch { /* ignore */ }
-	}
-
-	// Response is not a JSON object; treat as string
-	throw new ApiError({
-		code: 'INTERNAL_ERROR',
-		message: text || 'Internal error occurred. Please contact us if the error persists.',
-		id: '5d37dbcb-891e-41ca-a3d6-e690c97775ac',
-		kind: 'server',
-		httpStatusCode: res.status,
-	});
 }

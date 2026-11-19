@@ -4,19 +4,37 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { IsNull, MoreThanOrEqual } from 'typeorm';
 import { FILE_TYPE_BROWSERSAFE } from '@/const.js';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
-import type { MiMeta } from '@/models/_.js';
+import type { MiMeta, UsersRepository } from '@/models/_.js';
 import { MastodonConverters } from '@/server/api/mastodon/MastodonConverters.js';
 import { MastodonClientService } from '@/server/api/mastodon/MastodonClientService.js';
 import { InstanceStatsService } from '@/core/InstanceStatsService.js';
 import { RoleService } from '@/core/RoleService.js';
+import { TimeService } from '@/global/TimeService.js';
+import { CacheManagementService, type ManagedMemorySingleCache } from '@/global/CacheManagementService.js';
+import NotesChart from '@/core/chart/charts/notes.js';
+import UsersChart from '@/core/chart/charts/users.js';
+import ActiveUsersChart from '@/core/chart/charts/active-users.js';
+import { activityDays, daysOfActivityWeek, estimateWeeklyActiveUsers, sum } from '@/server/api/mastodon/activity.js';
 import type { FastifyInstance } from 'fastify';
 import type { MastodonEntity } from 'megalodon';
 
+interface ActivityWeek {
+	week: string;
+	statuses: string;
+	logins: string;
+	registrations: string;
+}
+
+const day = 1000 * 60 * 60 * 24;
+
 @Injectable()
 export class ApiInstanceMastodon {
+	private readonly activityCache: ManagedMemorySingleCache<ActivityWeek[]>;
+
 	constructor(
 		@Inject(DI.meta)
 		private readonly meta: MiMeta,
@@ -24,11 +42,21 @@ export class ApiInstanceMastodon {
 		@Inject(DI.config)
 		private readonly config: Config,
 
+		@Inject(DI.usersRepository)
+		private readonly usersRepository: UsersRepository,
+
 		private readonly mastoConverters: MastodonConverters,
 		private readonly clientService: MastodonClientService,
 		private readonly roleService: RoleService,
 		private readonly instanceStatsService: InstanceStatsService,
-	) {}
+		private readonly timeService: TimeService,
+		private readonly notesChart: NotesChart,
+		private readonly usersChart: UsersChart,
+		private readonly activeUsersChart: ActiveUsersChart,
+		cacheManagementService: CacheManagementService,
+	) {
+		this.activityCache = cacheManagementService.createMemorySingleCache<ActivityWeek[]>('mastodonActivity', 1000 * 60 * 60); // 1h
+	}
 
 	public register(fastify: FastifyInstance): void {
 		fastify.get('/v1/instance', async (_request, reply) => {
@@ -90,6 +118,25 @@ export class ApiInstanceMastodon {
 			};
 
 			return reply.send(response);
+		});
+
+		fastify.get('/v1/instance/rules', async (_request, reply) => {
+			const client = this.clientService.getClient(_request);
+			const data = await client.getInstance();
+
+			return reply.send(data.data.rules ?? []);
+		});
+
+		fastify.get('/v1/instance/extended_description', async (_request, reply) => {
+			return reply.send({
+				// The time of the last change is not recorded.
+				updated_at: this.timeService.date.toISOString(),
+				content: this.meta.about || this.meta.description || '',
+			});
+		});
+
+		fastify.get('/v1/instance/activity', async (_request, reply) => {
+			return reply.send(await this.activityCache.fetch(() => this.getActivity()));
 		});
 
 		fastify.get('/v2/instance', async (_request, reply) => {
@@ -172,7 +219,9 @@ export class ApiInstanceMastodon {
 						max_reactions: 1,
 					},
 					translation: {
-						enabled: false,
+						enabled: roles.canUseTranslator && (
+							!!this.meta.deeplAuthKey || (this.meta.deeplFreeMode && !!this.meta.deeplFreeInstance) || !!this.meta.libreTranslateURL
+						),
 					},
 					timelines_access: {
 						live_feeds: {
@@ -207,6 +256,32 @@ export class ApiInstanceMastodon {
 			};
 
 			return reply.send(response);
+		});
+	}
+
+	private async getActivity(): Promise<ActivityWeek[]> {
+		// The charts count each UTC day, so everything here is in UTC days too.
+		const now = this.timeService.date;
+		const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+		const [notes, users, active, activeLastSevenDays] = await Promise.all([
+			this.notesChart.getChart('day', activityDays, null),
+			this.usersChart.getChart('day', activityDays, null),
+			this.activeUsersChart.getChart('day', activityDays, null),
+			this.usersRepository.countBy({ host: IsNull(), lastActiveDate: MoreThanOrEqual(new Date(today - 6 * day)) }),
+		]);
+
+		// Someone who both read and wrote on a day is in both of its counts.
+		const activeByDay = active.read.map((read, index) => read + active.write[index] - active.readWrite[index]);
+
+		return estimateWeeklyActiveUsers(activeByDay, activeLastSevenDays).map((logins, week) => {
+			const days = daysOfActivityWeek(week);
+			return {
+				week: String((today - 7 * week * day) / 1000),
+				statuses: String(sum(days.map(index => notes.local.inc[index] ?? 0))),
+				logins: String(logins),
+				registrations: String(sum(days.map(index => users.local.inc[index] ?? 0))),
+			};
 		});
 	}
 }

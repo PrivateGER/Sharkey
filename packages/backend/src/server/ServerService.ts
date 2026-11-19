@@ -98,6 +98,8 @@ export class ServerService implements BeforeApplicationShutdown {
 		const fastifyConfig = {
 			trustProxy: true,
 			logger: false,
+			// Some Mastodon API clients end the path with a slash, which no route would match.
+			rewriteUrl: (request: { url?: string }) => (request.url ?? '/').replace(/^(\/api\/v[12]\/[^?]*?)\/+(\?|$)/, '$1$2'),
 		};
 
 		// Fuckery to deal with incorrect TypeScript types in Fastify.

@@ -116,11 +116,12 @@ export class ServerUtilityService {
 			// Mastodon uses all types of request methods.
 			reply.header('Access-Control-Allow-Methods', '*');
 
-			// Allow web-based clients to access the Link header (required for mastodon pagination) and the rate limit headers.
+			// Allow web-based clients to access the Link header (required for mastodon pagination), the rate limit headers,
+			// and the notice that more replies of a thread are being fetched.
 			// https://stackoverflow.com/a/54928828
 			// https://docs.joinmastodon.org/api/guidelines/#pagination
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Expose-Headers
-			reply.header('Access-Control-Expose-Headers', 'Link, Retry-After, X-RateLimit-Clear, X-RateLimit-Remaining, X-RateLimit-Reset');
+			reply.header('Access-Control-Expose-Headers', 'Link, Retry-After, X-RateLimit-Clear, X-RateLimit-Remaining, X-RateLimit-Reset, Mastodon-Async-Refresh');
 
 			// Cache to avoid extra pre-flight requests
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Max-Age
