@@ -42,6 +42,8 @@ export interface Status {
 	quote?: Status | null
 	// These parameters are unique to glitch-soc for emoji reactions.
 	reactions?: Reaction[]
+	// The same list under the name that Akkoma uses.
+	emoji_reactions?: Reaction[]
 }
 
 export interface StatusTag {

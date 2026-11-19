@@ -13,7 +13,8 @@ import { IMentionedRemoteUsers, MiNote } from '@/models/Note.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
 import type { MiMeta, NoteEditsRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
-import { CustomEmojiService } from '@/core/CustomEmojiService.js';
+import { CustomEmojiService, encodeEmojiKey } from '@/core/CustomEmojiService.js';
+import { decodeReaction } from '@/core/ReactionService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { IdService } from '@/core/IdService.js';
 import type { Packed } from '@/misc/json-schema.js';
@@ -354,6 +355,7 @@ export class MastodonConverters {
 			quote_id: isQuote ? status.reblog?.id : undefined,
 			quote: isQuote ? this.convertReblog(status.reblog, me) : null,
 			reactions: status.emoji_reactions,
+			emoji_reactions: status.emoji_reactions,
 		});
 	}
 
@@ -404,6 +406,25 @@ export class MastodonConverters {
 			id: notification.id,
 			status,
 			type: convertNotificationType(notification.type as Entity.NotificationType),
+			...(notification.emoji ? await this.convertReactionEmoji(notification.emoji) : {}),
+		};
+	}
+
+	/**
+	 * Names the emoji of a reaction for a notification: the emoji itself, or for a custom emoji its shortcode between colons
+	 * together with the address of its image.
+	 */
+	private async convertReactionEmoji(reaction: string): Promise<{ emoji: string, emoji_url?: string }> {
+		const { name, host } = decodeReaction(reaction);
+		if (name == null) return { emoji: reaction };
+
+		// A local custom emoji is marked with "@.", which other software does not know.
+		const isLocal = host == null || host === '.';
+		const emoji = await this.customEmojiService.emojisByKeyCache.fetchMaybe(encodeEmojiKey({ name, host: isLocal ? null : host }));
+
+		return {
+			emoji: isLocal ? `:${name}:` : `:${name}@${host}:`,
+			emoji_url: emoji ? (emoji.publicUrl || emoji.originalUrl) : undefined,
 		};
 	}
 

@@ -312,29 +312,26 @@ export namespace Converter {
 		) : 0;
 	};
 
+	/**
+	 * Turns a native reaction into the name it has in the Mastodon API: the emoji itself, or the shortcode of a custom emoji
+	 * without its colons, followed by `@host` when the emoji is from another server.
+	 */
+	const reactionName = (reaction: string): string => {
+		const match = reaction.match(/^:([^@:]+)(@[^:]+)?:$/);
+		if (!match) return reaction;
+
+		const [, shortcode, host] = match;
+		// Local custom emoji end in "@.", which we need to remove.
+		return host && host !== '@.' ? shortcode + host : shortcode;
+	}
+
 	export const mapReactions = (r: { [key: string]: number }, e: Record<string, string | undefined>, myReaction?: string): Array<MegalodonEntity.Reaction> => {
 		return Object.entries(r).map(([key, count]) => {
-			const me = myReaction != null && key === myReaction;
-
-			// Name is equal to the key for native emoji reactions, and as a fallback.
-			let name = key;
-
-			// Custom emoji have a leading / trailing ":", which we need to remove.
-			const match = key.match(/^:([^@:]+)(@[^:]+)?:$/);
-			if (match) {
-				const [, prefix, host] = match;
-
-				// Local custom emoji end in "@.", which we need to remove.
-				if (host && host !== '@.') {
-					name = prefix + host;
-				} else {
-					name = prefix;
-				}
-			}
+			const name = reactionName(key);
 
 			return {
 				count,
-				me,
+				me: myReaction != null && key === myReaction,
 				name,
 				url: e[name],
 				static_url: e[name],
@@ -353,21 +350,22 @@ export namespace Converter {
 		}))
 	}
 
+	/**
+	 * Groups single reactions by their name. `me` is not known here.
+	 */
 	export const reactions = (r: Array<Entity.Reaction>): Array<MegalodonEntity.Reaction> => {
-		const result: Array<MegalodonEntity.Reaction> = []
-		r.map(e => {
-			const i = result.findIndex(res => res.name === e.type)
-			if (i >= 0) {
-				result[i].count++
-			} else {
-				result.push({
-					count: 1,
-					me: false,
-					name: e.type,
-				})
+		const byName = new Map<string, MegalodonEntity.Reaction & { accounts: Array<MegalodonEntity.Account> }>()
+		for (const reaction of r) {
+			const name = reactionName(reaction.type)
+			let group = byName.get(name)
+			if (!group) {
+				group = { count: 0, me: false, name, accounts: [] }
+				byName.set(name, group)
 			}
-		})
-		return result
+			group.count++
+			group.accounts.push(user(reaction.user))
+		}
+		return [...byName.values()]
 	}
 
 	export const noteToConversation = (n: Entity.Note): MegalodonEntity.Conversation => {

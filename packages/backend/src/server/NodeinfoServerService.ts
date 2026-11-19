@@ -131,6 +131,8 @@ export class NodeinfoServerService {
 					enableServiceWorker: meta.enableServiceWorker,
 					proxyAccountName: proxyAccount.username,
 					themeColor: meta.themeColor ?? '#86b300',
+					// How Pleroma announces that its emoji reaction routes exist. The Mastodon API has them too.
+					features: ['pleroma_emoji_reactions'],
 				},
 			};
 		};

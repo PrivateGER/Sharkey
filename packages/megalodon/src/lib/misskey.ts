@@ -510,15 +510,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/following/create', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -528,15 +520,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/following/delete', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -546,15 +530,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/blocking/create', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -564,15 +540,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/blocking/delete', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -582,15 +550,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/mute/create', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -600,15 +560,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/mute/delete', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   public async pinAccount(_id: string): Promise<Response<Entity.Relationship>> {
@@ -1001,15 +953,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/following/requests/accept', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   /**
@@ -1019,15 +963,7 @@ export default class Misskey implements MegalodonInterface {
     await this.client.post<{}>('/api/following/requests/reject', {
       userId: id
     })
-    return this.client
-      .post<MisskeyAPI.Entity.Relation>('/api/users/relation', {
-        userId: id
-      })
-      .then(res => {
-        return Object.assign(res, {
-          data: MisskeyAPI.Converter.relation(res.data)
-        })
-      })
+    return this.getRelationship(id)
   }
 
   // ======================================
@@ -2666,10 +2602,15 @@ export default class Misskey implements MegalodonInterface {
       .then(res => ({ ...res, data: MisskeyAPI.Converter.note(res.data, this.baseUrl) }))
   }
 
+  /**
+   * POST /api/notes/reactions
+   * @returns the latest 100 reactions, grouped by emoji, each with the accounts that reacted
+   */
   public async getEmojiReactions(id: string): Promise<Response<Array<Entity.Reaction>>> {
     return this.client
       .post<Array<MisskeyAPI.Entity.Reaction>>('/api/notes/reactions', {
-        noteId: id
+        noteId: id,
+        limit: 100
       })
       .then(res => ({
         ...res,

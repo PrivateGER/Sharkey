@@ -9,8 +9,9 @@ import * as assert from 'assert';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { api, createAppToken, host, post, react, relativeFetch, signup, userList } from '../utils.js';
+import { api, createAppToken, host, post, react, relativeFetch, signup, uploadFile, userList } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
 type User = misskey.entities.SignupResponse;
@@ -239,6 +240,35 @@ describe('Mastodon API', () => {
 
 			assert.strictEqual(res.status, 401);
 		}, 2000);
+
+		test('following, muting and blocking answer with the relationship to that account', async () => {
+			const dave = await signup({ username: 'dave' });
+			const steps = [
+				['follow', 'following', true],
+				['unfollow', 'following', false],
+				['mute', 'muting', true],
+				['unmute', 'muting', false],
+				['block', 'blocking', true],
+				['unblock', 'blocking', false],
+			] as const;
+
+			for (const [action, field, expected] of steps) {
+				const res = await masto('POST', `v1/accounts/${dave.id}/${action}`, alice);
+
+				assert.strictEqual(res.status, 200, action);
+				assert.strictEqual(res.body.id, dave.id, action);
+				assert.strictEqual(res.body[field], expected, action);
+			}
+
+			const relationships = await masto('GET', `v1/accounts/relationships?id[]=${bob.id}&id[]=${dave.id}`, alice);
+			assert.deepStrictEqual(relationships.body.map((relationship: { id: string }) => relationship.id).toSorted(), [bob.id, dave.id].toSorted());
+		});
+
+		test('a request without a body is one without parameters', async () => {
+			const res = await masto('POST', 'v1/reports', alice);
+
+			assert.strictEqual(res.status, 400);
+		});
 	});
 
 	describe('statuses', () => {
@@ -325,6 +355,87 @@ describe('Mastodon API', () => {
 			} finally {
 				provider.close();
 			}
+		});
+
+		test('a reaction made the Pleroma way shows on the status and names who reacted', async () => {
+			const note = await post(bob, { text: 'react to me' });
+			const reactions = `v1/pleroma/statuses/${note.id}/reactions`;
+
+			const reacted = await masto('PUT', `${reactions}/${encodeURIComponent('👍')}`, alice);
+			assert.strictEqual(reacted.status, 200);
+			assert.deepStrictEqual(reacted.body.emoji_reactions.map((reaction: { name: string, count: number, me: boolean }) => [reaction.name, reaction.count, reaction.me]), [['👍', 1, true]]);
+
+			// bob looks at who reacted to his own note.
+			const listed = await masto('GET', reactions, bob);
+			assert.strictEqual(listed.status, 200);
+			assert.deepStrictEqual(listed.body.map((reaction: { name: string, count: number, me: boolean, accounts: { username: string }[] }) => [reaction.name, reaction.count, reaction.me, reaction.accounts.map(account => account.username)]), [['👍', 1, false, ['alice']]]);
+			assert.strictEqual((await masto('GET', `${reactions}/${encodeURIComponent('👍')}`, bob)).body.length, 1);
+			assert.deepStrictEqual((await masto('GET', `${reactions}/${encodeURIComponent('🎉')}`, bob)).body, []);
+
+			const removed = await masto('DELETE', `${reactions}/${encodeURIComponent('👍')}`, alice);
+			assert.strictEqual(removed.status, 200);
+			assert.deepStrictEqual(removed.body.emoji_reactions, []);
+		});
+
+		test('reacting again keeps the reaction, and another emoji replaces it', async () => {
+			const note = await post(bob, { text: 'one reaction each' });
+			const react = async (emoji: string) => await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent(emoji)}`, alice);
+			const names = (res: { body: { emoji_reactions: { name: string, count: number }[] } }) => res.body.emoji_reactions.map(reaction => [reaction.name, reaction.count]);
+
+			await react('👍');
+			const repeated = await react('👍');
+			assert.strictEqual(repeated.status, 200);
+			assert.deepStrictEqual(names(repeated), [['👍', 1]]);
+
+			const replaced = await react('🎉');
+			assert.strictEqual(replaced.status, 200);
+			assert.deepStrictEqual(names(replaced), [['🎉', 1]]);
+		});
+
+		test('a custom emoji named by its bare shortcode is used for the reaction, whatever script the name is in', async () => {
+			for (const name of ['plainblob', 'ねこ']) {
+				await api('admin/emoji/add', { name, fileId: (await uploadFile(alice)).body!.id }, alice);
+			}
+			const note = await post(bob, { text: 'custom reactions' });
+			const names = (res: { body: { emoji_reactions: { name: string }[] } }) => res.body.emoji_reactions.map(reaction => reaction.name);
+
+			// The two ways apps react: glitch-soc's route, then Pleroma's.
+			assert.deepStrictEqual(names(await masto('POST', `v1/statuses/${note.id}/react/plainblob`, alice)), ['plainblob']);
+			assert.deepStrictEqual(names(await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent('ねこ')}`, alice)), ['ねこ']);
+
+			// A keycap emoji is made of characters a shortcode may have too, and must stay an emoji.
+			assert.deepStrictEqual(names(await masto('PUT', `v1/pleroma/statuses/${note.id}/reactions/${encodeURIComponent('1\ufe0f\u20e3')}`, alice)), ['1\u20e3']);
+		});
+
+		test('a reaction notification names the emoji, and shows its picture when it is a custom one', async () => {
+			const picture = await uploadFile(alice);
+			await api('admin/emoji/add', { name: 'blob+', fileId: picture.body!.id }, alice);
+			const note = await post(alice, { text: 'react to this' });
+			const carla = await signup({ username: 'carla' });
+
+			await api('notes/reactions/create', { noteId: note.id, reaction: '👍' }, bob);
+			await api('notes/reactions/create', { noteId: note.id, reaction: ':blob+:' }, carla);
+
+			// The notification is written after the reaction has been answered, so it can take a moment to show.
+			let byAccount: Record<string, { emoji: string, emoji_url?: string } | undefined> = {};
+			for (let attempt = 0; attempt < 30 && !(byAccount.bob && byAccount.carla); attempt++) {
+				if (attempt > 0) await sleep(100);
+				const res = await masto('GET', 'v1/notifications', alice);
+				const reactions = res.body.filter((notification: { type: string, status?: { id: string } }) => notification.type === 'reaction' && notification.status?.id === note.id);
+				byAccount = Object.fromEntries(reactions.map((notification: { account: { username: string } }) => [notification.account.username, notification]));
+			}
+
+			assert.strictEqual(byAccount.bob?.emoji, '👍');
+			assert.strictEqual(byAccount.bob?.emoji_url, undefined);
+			assert.strictEqual(byAccount.carla?.emoji, ':blob+:');
+			assert.match(byAccount.carla?.emoji_url ?? '', /^https?:\/\//);
+		});
+
+		test('nodeinfo announces the Pleroma reaction routes', async () => {
+			const res = await relativeFetch('nodeinfo/2.1');
+			const nodeinfo = await res.json() as { metadata: { features: string[] } };
+
+			assert.ok(nodeinfo.metadata.features.includes('pleroma_emoji_reactions'));
 		});
 	});
 

@@ -84,7 +84,7 @@ export class UserMutingService {
 		}, new Map<string, string[]>);
 
 		for (const [muterId, muteeId] of groups) {
-			await this.internalEventService.emit('mute', { muterId, muteeId });
+			await this.internalEventService.emit('unmute', { muterId, muteeId });
 		}
 	}
 }
