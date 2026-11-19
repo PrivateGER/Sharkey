@@ -292,7 +292,8 @@ export class MastodonConverters {
 		// This must mirror the usual isQuote / isPureRenote logic used elsewhere.
 		const isQuote = note.renoteId && (note.text || note.cw || note.fileIds.length > 0 || note.hasPoll || note.replyId);
 
-		const renote: Promise<MiNote> | null = note.renoteId ? this.mastodonDataService.requireNote(note.renoteId, me) : null;
+		// Nothing awaits this when the note has no text, so it must not reject for an inaccessible renote.
+		const renote: Promise<MiNote | null> | null = note.renoteId ? this.mastodonDataService.getNote(note.renoteId, me) : null;
 
 		const quoteUri = Promise.resolve(renote).then(renote => {
 			if (!renote || !isQuote) return null;
