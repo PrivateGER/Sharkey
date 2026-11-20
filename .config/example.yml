@@ -499,7 +499,9 @@ proxyBypassHosts:
 #
 # Recommended imgproxy settings:
 #   IMGPROXY_ALLOW_SECURITY_OPTIONS=true            # required: static thumbnails ask for the first frame only
-#   IMGPROXY_MAX_ANIMATION_FRAMES=300               # default 1 freezes animated emoji and avatars
+#   IMGPROXY_MAX_ANIMATION_FRAMES=1000              # frames past this are silently dropped (default 1 freezes animations);
+#                                                   # leave IMGPROXY_MAX_ANIMATION_FRAME_RESOLUTION at 0 so IMGPROXY_MAX_SRC_RESOLUTION
+#                                                   # (default 50 megapixels, summed over all frames) is what bounds memory instead
 #   IMGPROXY_ALLOW_PRIVATE_SOURCE_ADDRESSES=false   # any user can make imgproxy fetch a URL; keep it off your LAN
 #   IMGPROXY_ALWAYS_RASTERIZE_SVG=true              # serve remote SVGs as PNG instead of (sanitized) live SVG
 #   IMGPROXY_FALLBACK_IMAGE_URL=https://example.com/client-assets/dummy.png  # optional, shown for broken images
