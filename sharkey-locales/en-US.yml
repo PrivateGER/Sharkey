@@ -841,3 +841,10 @@ root: "Root"
 _uploader:
   compressionNotBeneficial: "Original kept: compressing would not make it smaller"
   smallFileNotCompressed: "Small file, not compressed"
+
+_favorites:
+  empty: "No favorites yet. Use a note's menu to add it to your favorites."
+  noMatches: "No favorites match these filters."
+  searchPlaceholder: "Search text and content warnings"
+  anyUser: "From any user"
+  byUser: "From a specific user"

@@ -74,8 +74,9 @@ export function build() {
 		.reduce((a, [k, v]) => (a[k] = (() => {
 			const [lang] = k.split('-');
 			switch (k) {
-				case 'ja-JP': return v;
-				case 'ja-KS':
+				// Sharkey strings are written in English, so untranslated ones would otherwise be undefined here.
+				case 'ja-JP': return merge(sharkeyLocales['en-US'], v);
+				case 'ja-KS': return merge(sharkeyLocales['en-US'], locales['ja-JP'], v);
 				case 'en-US': return merge(locales['ja-JP'], v);
 				default: return merge(
 					locales['ja-JP'],

@@ -89,6 +89,8 @@ const props = withDefaults(defineProps<{
 	pagination: Paging;
 	disableAutoLoad?: boolean;
 	displayLimit?: number;
+	/** Skips the initial fetch. Ignored for reversed paging. */
+	initialState?: { items: MisskeyEntity[]; more: boolean; };
 }>(), {
 	displayLimit: 20,
 });
@@ -197,7 +199,11 @@ function getActualValue<T>(input: T | Ref<T> | undefined, defaultValue: T) : T {
 	return input;
 }
 
+// Lets responses for superseded params (e.g. a filter toggled mid-request) be dropped.
+let generation = 0;
+
 async function init(): Promise<void> {
+	const gen = ++generation;
 	items.value = new Map();
 	queue.value = new Map();
 	fetching.value = true;
@@ -207,6 +213,8 @@ async function init(): Promise<void> {
 		limit: props.pagination.limit ?? 10,
 		allowPartial: true,
 	}).then(res => {
+		if (gen !== generation) return;
+
 		for (let i = 0; i < res.length; i++) {
 			const item = res[i];
 			if (i === 3) item._shouldInsertAd_ = true;
@@ -226,6 +234,7 @@ async function init(): Promise<void> {
 
 		emit('init');
 	}, err => {
+		if (gen !== generation) return;
 		error.value = true;
 		fetching.value = false;
 	});
@@ -238,6 +247,7 @@ const reload = (): Promise<void> => {
 const fetchMore = async (): Promise<void> => {
 	if (!more.value || fetching.value || moreFetching.value || items.value.size === 0) return;
 	moreFetching.value = true;
+	const gen = generation;
 	try {
 		const params = getActualValue<Paging['params']>(props.pagination.params, {});
 		const offsetMode = getActualValue(props.pagination.offsetMode, false);
@@ -250,6 +260,7 @@ const fetchMore = async (): Promise<void> => {
 				untilId: Array.from(items.value.keys()).at(-1),
 			}),
 		});
+		if (gen !== generation) return;
 		for (let i = 0; i < res.length; i++) {
 			const item = res[i];
 			if (i === 10) item._shouldInsertAd_ = true;
@@ -297,6 +308,7 @@ const fetchMore = async (): Promise<void> => {
 const fetchMoreAhead = async (): Promise<void> => {
 	if (!more.value || fetching.value || moreFetching.value || items.value.size === 0) return;
 	moreFetching.value = true;
+	const gen = generation;
 	const params = getActualValue<Paging['params']>(props.pagination.params, {});
 	const offsetMode = getActualValue(props.pagination.offsetMode, false);
 	await misskeyApi<MisskeyEntity[]>(props.pagination.endpoint, {
@@ -308,6 +320,8 @@ const fetchMoreAhead = async (): Promise<void> => {
 			sinceId: Array.from(items.value.keys()).at(-1),
 		}),
 	}).then(res => {
+		moreFetching.value = false;
+		if (gen !== generation) return;
 		if (res.length === 0) {
 			items.value = concatMapWithArray(items.value, res);
 			more.value = false;
@@ -315,7 +329,6 @@ const fetchMoreAhead = async (): Promise<void> => {
 			items.value = concatMapWithArray(items.value, res);
 			more.value = true;
 		}
-		moreFetching.value = false;
 	}, err => {
 		moreFetching.value = false;
 	});
@@ -450,6 +463,13 @@ function toBottom() {
 }
 
 onBeforeMount(() => {
+	if (props.initialState && !props.pagination.reversed) {
+		items.value = new Map(arrayToEntries(props.initialState.items));
+		more.value = props.initialState.more;
+		fetching.value = false;
+		return;
+	}
+
 	init().then(() => {
 		if (props.pagination.reversed) {
 			nextTick(() => {
