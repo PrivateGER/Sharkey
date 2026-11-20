@@ -490,27 +490,9 @@ proxyBypassHosts:
 # * Perform image compression (on a different server resource than the main process)
 #mediaProxy: https://example.com/proxy
 
-# imgproxy (https://imgproxy.net) as the media proxy
-# Requests to this instance's /proxy endpoint are answered with a redirect to a signed imgproxy URL,
-# so imgproxy does the fetching and resizing instead of the main process.
-# Cannot be combined with an external mediaProxy above.
-# Key and salt are the hex-encoded IMGPROXY_KEY and IMGPROXY_SALT of your imgproxy (e.g. `openssl rand -hex 32`).
-# Environment overrides: MK_CONFIG_IMGPROXYURL, MK_CONFIG_IMGPROXYKEY, MK_CONFIG_IMGPROXYSALT (or *_FILE).
-#
-# Recommended imgproxy settings:
-#   IMGPROXY_ALLOW_SECURITY_OPTIONS=true            # required: static thumbnails ask for the first frame only
-#   IMGPROXY_MAX_ANIMATION_FRAMES=1000              # frames past this are silently dropped (default 1 freezes animations)
-#   IMGPROXY_MAX_ANIMATION_FRAME_RESOLUTION=8       # check resolution per frame; at 0 it is summed over all frames
-#                                                   # and long animations are rejected outright
-#   IMGPROXY_ALLOW_PRIVATE_SOURCE_ADDRESSES=false   # any user can make imgproxy fetch a URL; keep it off your LAN
-#                                                   # (recent versions also block CGNAT, i.e. Tailscale addresses)
-#   IMGPROXY_MAX_SRC_FILE_SIZE=52428800             # sources are buffered in memory; without a cap any size is downloaded
-#   IMGPROXY_ALWAYS_RASTERIZE_SVG=true              # serve remote SVGs as PNG instead of (sanitized) live SVG
-#   IMGPROXY_FALLBACK_IMAGE_URL=https://example.com/client-assets/dummy.png  # optional, shown for broken images
-#   IMGPROXY_ENFORCE_AVIF=true                      # optional, ~15% smaller than WebP at equal quality; responses then
-#                                                   # carry Vary: Accept, so a CDN in front must cache per Accept
-#                                                   # (Cloudflare: cache rule Vary, accept normalized to image/avif)
-# If a CDN caches imgproxy, have it ignore query strings there: imgproxy does, so they only bust the cache.
+# imgproxy (https://imgproxy.net) as the media proxy: /proxy requests are redirected to signed imgproxy URLs.
+# Cannot be combined with an external mediaProxy. Key and salt are imgproxy's hex IMGPROXY_KEY and IMGPROXY_SALT.
+# imgproxy needs IMGPROXY_ALLOW_SECURITY_OPTIONS=true, since static thumbnails request only the first frame.
 #imgproxyURL: https://imgproxy.example.com
 #imgproxyKey: '<hex key>'
 #imgproxySalt: '<hex salt>'
