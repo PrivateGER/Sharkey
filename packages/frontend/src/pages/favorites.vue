@@ -41,7 +41,7 @@ import { i18n } from '@/i18n.js';
 import { defaultMemoryStorage } from '@/memory-storage.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
-import { useRouter } from '@/router.js';
+import { mainRouter, useRouter } from '@/router.js';
 
 type Snapshot = {
 	search: string;
@@ -51,10 +51,14 @@ type Snapshot = {
 	anchor: { id: string; offset: number; } | null;
 };
 
+const router = useRouter();
+// Page windows have their own routers; letting them restore or consume the saved state would clobber the main view's.
+const keepsState = router === mainRouter;
+
 const SNAPSHOT_KEY = 'favorites-page';
-const restored = defaultMemoryStorage.getItem<Snapshot>(SNAPSHOT_KEY);
-// Consumed, so a remount without leaving (e.g. a page window's reload) loads fresh.
-defaultMemoryStorage.removeItem(SNAPSHOT_KEY);
+const restored = keepsState ? defaultMemoryStorage.getItem<Snapshot>(SNAPSHOT_KEY) : null;
+// Consumed, so a remount without leaving loads fresh.
+if (keepsState) defaultMemoryStorage.removeItem(SNAPSHOT_KEY);
 
 const search = ref(restored?.search ?? '');
 const withFiles = ref(restored?.withFiles ?? false);
@@ -79,7 +83,6 @@ const pagination: Paging<'i/favorites'> = {
 
 const rootEl = useTemplateRef('rootEl');
 const paginationEl = useTemplateRef('paginationEl');
-const router = useRouter();
 const ownPath = router.getCurrentFullPath();
 
 function findAnchor(): Snapshot['anchor'] {
@@ -103,7 +106,7 @@ function findAnchor(): Snapshot['anchor'] {
 // The router emits before the next page renders, so the list can still be measured here (it can't once deactivated).
 // Comparing paths instead of tracking activation also works for router views without KeepAlive.
 router.useListener('change', ({ beforeFullPath }) => {
-	if (beforeFullPath !== ownPath || !paginationEl.value) return;
+	if (!keepsState || beforeFullPath !== ownPath || !paginationEl.value) return;
 	const items = Array.from(paginationEl.value.items.values());
 	defaultMemoryStorage.setItem(SNAPSHOT_KEY, {
 		search: search.value,
