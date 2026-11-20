@@ -74,8 +74,7 @@ export function build() {
 		.reduce((a, [k, v]) => (a[k] = (() => {
 			const [lang] = k.split('-');
 			switch (k) {
-				// Japanese is Misskey's source language, so it has no fallback of its own. Sharkey's strings are written
-				// in English first, though, and any not yet translated would otherwise be undefined for Japanese users.
+				// Sharkey strings are written in English, so untranslated ones would otherwise be undefined here.
 				case 'ja-JP': return merge(sharkeyLocales['en-US'], v);
 				case 'ja-KS': return merge(sharkeyLocales['en-US'], locales['ja-JP'], v);
 				case 'en-US': return merge(locales['ja-JP'], v);

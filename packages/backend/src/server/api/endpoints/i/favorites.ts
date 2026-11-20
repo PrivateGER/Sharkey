@@ -60,8 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			// Content filters match the stored note, so a note the caller can no longer read (e.g. followers-only
-			// after an unfollow) must not show up for them, or repeated searches would reveal its contents.
+			// Content filters must not match notes the caller can no longer read, or searches would leak their contents.
 			const search = ps.query?.trim();
 			const filtersContent = !!search || ps.withFiles;
 
@@ -97,9 +96,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				return await this.noteFavoriteEntityService.packMany(await fetchFavorites(ps.sinceId, ps.untilId), me);
 			}
 
-			// The visibility query skips some hiding rules (blocks, makeNotesHiddenBefore, suspensions, …) that packing
-			// applies, so hidden entries are dropped after packing. Keep reading until the page is full or the favorites
-			// run out: a page emptied by hidden entries would otherwise look like the end of the list to clients.
+			// Packing hides more than the visibility query excludes (blocks, suspensions, …). Refill past hidden entries,
+			// since an empty page reads as the end of the list.
 			const ascending = ps.sinceId != null && ps.untilId == null;
 			let sinceId = ps.sinceId;
 			let untilId = ps.untilId;
@@ -114,7 +112,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (ascending) sinceId = last.id;
 				else untilId = last.id;
 			}
-			// Entries past the limit lie beyond the last one returned, so the client's next cursor still reaches them.
 			return visible.slice(0, ps.limit);
 		});
 	}

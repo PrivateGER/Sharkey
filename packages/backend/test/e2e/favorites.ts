@@ -90,7 +90,6 @@ describe('i/favorites with notes the caller can no longer read', () => {
 
 		assert.deepStrictEqual(search.body, []);
 		assert.deepStrictEqual(withFiles.body, []);
-		// Without content filters the favorite is still listed, redacted, as before.
 		assert.strictEqual(unfiltered.body.length, 1);
 		assert.strictEqual(unfiltered.body[0].note.isHidden, true);
 		assert.strictEqual(unfiltered.body[0].note.text, null);
@@ -108,7 +107,6 @@ describe('i/favorites with notes the caller can no longer read', () => {
 		}
 		await api('blocking/create', { userId: reader.id }, blocker);
 
-		// Premise: the newest favorites are now hidden from the reader, but still listed.
 		const unfiltered = await api('i/favorites', { limit: 2 }, reader);
 		assert.deepStrictEqual(unfiltered.body.map(favorite => favorite.note.isHidden), [true, true]);
 

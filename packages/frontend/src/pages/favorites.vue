@@ -10,8 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #prefix><i class="ti ti-search"></i></template>
 		</MkInput>
 
-		<!-- Unlike a timeline this list doesn't need capping, so MkPagination's trim-to-displayLimit whenever the top is
-		     visible would only throw away scrollback (including a restored snapshot, which mounts at the top). -->
+		<!-- MkPagination trims to displayLimit whenever the top is visible, which would drop scrollback. -->
 		<MkPagination ref="paginationEl" :pagination="pagination" :initialState="restored?.list ?? undefined" :displayLimit="Infinity">
 			<template #empty><MkResult type="empty" :text="filtersActive ? i18n.ts._favorites.noMatches : i18n.ts._favorites.empty"/></template>
 
@@ -48,25 +47,26 @@ type Snapshot = {
 	search: string;
 	withFiles: boolean;
 	user: Misskey.entities.UserDetailed | null;
-	/** Null when nothing had loaded yet (request pending or failed), so the next visit fetches normally. */
 	list: { items: MisskeyEntity[]; more: boolean; } | null;
-	/** Favorite nearest the middle of the viewport, and its distance from the top of the scroll container. */
 	anchor: { id: string; offset: number; } | null;
 };
 
-// Lets a deep scroll position survive the page being evicted from the router's page cache.
-// Memory storage is gone after a reload, account switch or logout, so a reload starts fresh.
 const SNAPSHOT_KEY = 'favorites-page';
 const restored = defaultMemoryStorage.getItem<Snapshot>(SNAPSHOT_KEY);
+// Consumed, so a remount without leaving (e.g. a page window's reload) loads fresh.
+defaultMemoryStorage.removeItem(SNAPSHOT_KEY);
 
 const search = ref(restored?.search ?? '');
 const withFiles = ref(restored?.withFiles ?? false);
 const user = shallowRef<Misskey.entities.UserDetailed | null>(restored?.user ?? null);
 
-const filtersActive = computed(() => search.value.trim() !== '' || withFiles.value || user.value != null);
+// Its own computed so whitespace-only edits don't refetch.
+const trimmedSearch = computed(() => search.value.trim());
+
+const filtersActive = computed(() => trimmedSearch.value !== '' || withFiles.value || user.value != null);
 
 const params = computed(() => ({
-	query: search.value.trim() || undefined,
+	query: trimmedSearch.value || undefined,
 	withFiles: withFiles.value,
 	userId: user.value?.id,
 }));
@@ -87,7 +87,7 @@ function findAnchor(): Snapshot['anchor'] {
 	if (!container || !rootEl.value) return null;
 	const containerTop = container.getBoundingClientRect().top;
 	const middle = containerTop + container.clientHeight / 2;
-	// Nearest note rather than the one spanning the middle: the middle can fall in a gap or date divider.
+	// Nearest rather than spanning: the middle can fall in a gap or date divider.
 	let best: { id: string; offset: number; distance: number; } | null = null;
 	for (const el of rootEl.value.querySelectorAll<HTMLElement>('[data-scroll-anchor]')) {
 		const id = el.dataset.scrollAnchor;
@@ -100,9 +100,8 @@ function findAnchor(): Snapshot['anchor'] {
 	return best && { id: best.id, offset: best.offset };
 }
 
-// The router emits before the next page renders, so the list is still laid out here; by the time the page is
-// deactivated or unmounted its DOM is detached and can't be measured. Matching on the path we're leaving (rather
-// than tracking activation) also covers router views that mount pages without KeepAlive.
+// The router emits before the next page renders, so the list can still be measured here (it can't once deactivated).
+// Comparing paths instead of tracking activation also works for router views without KeepAlive.
 router.useListener('change', ({ beforeFullPath }) => {
 	if (beforeFullPath !== ownPath || !paginationEl.value) return;
 	const items = Array.from(paginationEl.value.items.values());
@@ -115,8 +114,7 @@ router.useListener('change', ({ beforeFullPath }) => {
 	} satisfies Snapshot);
 });
 
-// Each note renders from its own copy, so toggling a favorite doesn't reach the list items. Keep them in
-// sync so a restored snapshot doesn't offer "Remove from favorites" on a note that was already removed.
+// Notes render from their own copies, so favorite toggles in the note menu don't reach these items.
 function onFavoriteChanged(noteId: string, favorited: boolean) {
 	for (const item of paginationEl.value?.items.values() ?? []) {
 		if (item.note.id === noteId) item.note.isFavorited = favorited;
@@ -126,20 +124,16 @@ function onFavoriteChanged(noteId: string, favorited: boolean) {
 globalEvents.on('noteFavoriteChanged', onFavoriteChanged);
 onBeforeUnmount(() => globalEvents.off('noteFavoriteChanged', onFavoriteChanged));
 
-/**
- * Favorites added since the snapshot was taken sit above everything it holds, where loading more never reaches.
- * Feed them through prepend(), which holds them back while the user is scrolled down, so the restored
- * position doesn't move.
- */
+// prepend() holds items back while the user is scrolled down, so the restored position stays put.
 async function loadNewerThan(newestId: string) {
 	const known = new Set(Array.from(paginationEl.value?.items.values() ?? [], item => item.note.id));
 	const limit = 100;
 	let sinceId = newestId;
 	for (;;) {
-		// sinceId pages come back oldest first, so prepending one at a time leaves the newest on top.
+		// sinceId pages come back oldest first.
 		const res = await misskeyApi('i/favorites', { ...params.value, sinceId, limit });
 		for (const favorite of res) {
-			// Re-favoriting a note creates a new favorite; keep its existing entry instead of listing it twice.
+			// Re-favoriting creates a new favorite for the same note.
 			if (!known.has(favorite.note.id)) paginationEl.value?.prepend(favorite);
 		}
 		const last = res.at(-1);
@@ -152,8 +146,7 @@ function restoreAnchor(anchor: NonNullable<Snapshot['anchor']>) {
 	const container = getScrollContainer(rootEl.value);
 	if (!container) return;
 
-	// Notes render asynchronously and change height as they lay out, so keep correcting for a short while.
-	// Any user input ends it, so we never fight the user's own scrolling.
+	// Notes keep changing height while they render; stop correcting as soon as the user takes over.
 	let cancelled = false;
 	const cancel = () => { cancelled = true; };
 	const inputEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
@@ -180,7 +173,7 @@ onMounted(() => {
 	const { list, anchor } = restored;
 	if (anchor) nextTick(() => restoreAnchor(anchor));
 	const newest = list.items[0];
-	// Best effort: if this fails the restored list simply stays as it was.
+	// A failed refresh just leaves the restored list.
 	if (newest) loadNewerThan(newest.id).catch(() => {});
 });
 
@@ -206,7 +199,8 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 			avatar: user.value,
 			text: i18n.ts._favorites.byUser,
 			caption: `@${Misskey.acct.toString(user.value)}`,
-			active: true,
+			// Not `active`: the menu ignores clicks on active items.
+			indicate: true,
 			action: selectUser,
 		} : {
 			icon: 'ti ti-user',

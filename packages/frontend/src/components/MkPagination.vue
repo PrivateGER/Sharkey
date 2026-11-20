@@ -89,10 +89,7 @@ const props = withDefaults(defineProps<{
 	pagination: Paging;
 	disableAutoLoad?: boolean;
 	displayLimit?: number;
-	/**
-	 * Items and `more` captured from an earlier instance (via the exposed `items`/`more`).
-	 * When set, they are shown as-is and the initial fetch is skipped. Not supported for reversed paging.
-	 */
+	/** Skips the initial fetch. Ignored for reversed paging. */
 	initialState?: { items: MisskeyEntity[]; more: boolean; };
 }>(), {
 	displayLimit: 20,
@@ -202,8 +199,7 @@ function getActualValue<T>(input: T | Ref<T> | undefined, defaultValue: T) : T {
 	return input;
 }
 
-// Bumped by every init(). A response requested under an older generation was for params that have
-// since changed (e.g. a filter was toggled mid-request), so it must not be merged into the new list.
+// Lets responses for superseded params (e.g. a filter toggled mid-request) be dropped.
 let generation = 0;
 
 async function init(): Promise<void> {
