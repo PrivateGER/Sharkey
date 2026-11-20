@@ -95,4 +95,24 @@ describe('i/favorites with notes the caller can no longer read', () => {
 		assert.strictEqual(unfiltered.body[0].note.isHidden, true);
 		assert.strictEqual(unfiltered.body[0].note.text, null);
 	});
+
+	test('a filtered page skips past hidden entries instead of coming back empty', async () => {
+		const reader = await signup({ username: 'favPager' });
+		const friend = await signup({ username: 'favFriend' });
+		const blocker = await signup({ username: 'favBlocker' });
+		const readable = await post(friend, { text: 'needle in the haystack' });
+		await api('notes/favorites/create', { noteId: readable.id }, reader);
+		for (let i = 0; i < 3; i++) {
+			const note = await post(blocker, { text: `needle ${i}` });
+			await api('notes/favorites/create', { noteId: note.id }, reader);
+		}
+		await api('blocking/create', { userId: reader.id }, blocker);
+
+		// Premise: the newest favorites are now hidden from the reader, but still listed.
+		const unfiltered = await api('i/favorites', { limit: 2 }, reader);
+		assert.deepStrictEqual(unfiltered.body.map(favorite => favorite.note.isHidden), [true, true]);
+
+		const filtered = await api('i/favorites', { query: 'needle', limit: 2 }, reader);
+		assert.deepStrictEqual(filtered.body.map(favorite => favorite.noteId), [readable.id]);
+	});
 });
