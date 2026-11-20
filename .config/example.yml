@@ -490,6 +490,22 @@ proxyBypassHosts:
 # * Perform image compression (on a different server resource than the main process)
 #mediaProxy: https://example.com/proxy
 
+# imgproxy (https://imgproxy.net) as the media proxy
+# Requests to this instance's /proxy endpoint are answered with a redirect to a signed imgproxy URL,
+# so imgproxy does the fetching and resizing instead of the main process.
+# Cannot be combined with an external mediaProxy above.
+# Key and salt are the hex-encoded IMGPROXY_KEY and IMGPROXY_SALT of your imgproxy (e.g. `openssl rand -hex 32`).
+# Environment overrides: MK_CONFIG_IMGPROXYURL, MK_CONFIG_IMGPROXYKEY, MK_CONFIG_IMGPROXYSALT (or *_FILE).
+#
+# Recommended imgproxy settings:
+#   IMGPROXY_ALLOW_SECURITY_OPTIONS=true            # required: static thumbnails ask for the first frame only
+#   IMGPROXY_MAX_ANIMATION_FRAMES=300               # default 1 freezes animated emoji and avatars
+#   IMGPROXY_ALLOW_PRIVATE_SOURCE_ADDRESSES=false   # any user can make imgproxy fetch a URL; keep it off your LAN
+#   IMGPROXY_FALLBACK_IMAGE_URL=https://example.com/client-assets/dummy.png  # optional, shown for broken images
+#imgproxyURL: https://imgproxy.example.com
+#imgproxyKey: '<hex key>'
+#imgproxySalt: '<hex salt>'
+
 # Proxy remote files (default: true)
 # Proxy remote files by this instance or mediaProxy to prevent remote files from running in remote domains.
 proxyRemoteFiles: true
@@ -588,10 +604,6 @@ websocketCompression: false
 #    apiKey: 'apikey'
 #    baseUrl: 'https://openrouter.ai/api/v1'
 #    model: 'google/gemini-flash-1.5-8b'
-
-# imgproxyURL: https://imgproxy.example.com/
-# imgproxySalt: 'example-salt'
-# imgproxyKey: 'example'
 
 # Inject arbitrary HTML tags to customize Sharkey without having to fork it
 #customHtml:

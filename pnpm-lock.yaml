@@ -45,27 +45,15 @@ catalogs:
     jest-environment-node:
       specifier: 30.5.2
       version: 30.5.2
-    jest-fetch-mock:
-      specifier: 4.2.0
-      version: 4.2.0
     jest-mock:
       specifier: 30.5.2
       version: 30.5.2
-    jest-websocket-mock:
-      specifier: 2.5.0
-      version: 2.5.0
-    jest-worker:
-      specifier: 30.5.1
-      version: 30.5.1
     js-yaml:
       specifier: 5.4.3
       version: 5.4.3
     nodemon:
       specifier: 3.1.14
       version: 3.1.14
-    rollup:
-      specifier: 4.63.6
-      version: 4.63.6
     sanitize-html:
       specifier: 2.18.0
       version: 2.18.0
@@ -217,9 +205,6 @@ importers:
       '@fastify/view':
         specifier: 12.0.1
         version: 12.0.1
-      '@imgproxy/imgproxy-node':
-        specifier: 1.0.6
-        version: 1.0.6
       '@misskey-dev/sharp-read-bmp':
         specifier: 1.3.1
         version: 1.3.1(@types/node@26.6.5)
@@ -2484,12 +2469,6 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [x64]
     os: [win32]
-
-  '@imgproxy/imgproxy-js-core@1.9.0':
-    resolution: {integrity: sha512-bfnl6sLt7qoimwd9dx8QLOH5C69tir2KGcx+g51IxGZWVJk32RUk/8+1oUh+T+H6MPrN9ts//V8a7fQ6bUlXow==}
-
-  '@imgproxy/imgproxy-node@1.0.6':
-    resolution: {integrity: sha512-Evdg3Ywry4RzIKTtQnHO3KsSKHa000GcdY4nRM2JRNdAgATv7fBD82nj6qzTgcqxpqcywnT1Sd2XGxxVg7ZC+w==}
 
   '@inquirer/ansi@2.0.10':
     resolution: {integrity: sha512-dwrc+1aqVZpHNkNDswXGtn1typ+Pxpo5FHZRyBw1le7onEJUkPUkYOY1FIFC1LvFMYUqqLuWBwElhAmencL7MQ==}
@@ -11566,12 +11545,6 @@ snapshots:
 
   '@img/sharp-win32-x64@0.35.5':
     optional: true
-
-  '@imgproxy/imgproxy-js-core@1.9.0': {}
-
-  '@imgproxy/imgproxy-node@1.0.6':
-    dependencies:
-      '@imgproxy/imgproxy-js-core': 1.9.0
 
   '@inquirer/ansi@2.0.10': {}
 
