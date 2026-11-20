@@ -89,6 +89,11 @@ const props = withDefaults(defineProps<{
 	pagination: Paging;
 	disableAutoLoad?: boolean;
 	displayLimit?: number;
+	/**
+	 * Items and `more` captured from an earlier instance (via the exposed `items`/`more`).
+	 * When set, they are shown as-is and the initial fetch is skipped. Not supported for reversed paging.
+	 */
+	initialState?: { items: MisskeyEntity[]; more: boolean; };
 }>(), {
 	displayLimit: 20,
 });
@@ -450,6 +455,13 @@ function toBottom() {
 }
 
 onBeforeMount(() => {
+	if (props.initialState && !props.pagination.reversed) {
+		items.value = new Map(arrayToEntries(props.initialState.items));
+		more.value = props.initialState.more;
+		fetching.value = false;
+		return;
+	}
+
 	init().then(() => {
 		if (props.pagination.reversed) {
 			nextTick(() => {

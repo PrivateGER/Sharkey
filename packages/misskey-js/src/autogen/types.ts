@@ -36291,6 +36291,15 @@ export interface operations {
                     sinceId?: string;
                     /** Format: misskey:id */
                     untilId?: string;
+                    /** @description Case-insensitive substring match against the note text and content warning. */
+                    search?: string | null;
+                    /** @default false */
+                    withFiles?: boolean;
+                    /**
+                     * Format: misskey:id
+                     * @description Only favorites of notes by this user.
+                     */
+                    userId?: string | null;
                 };
             };
         };

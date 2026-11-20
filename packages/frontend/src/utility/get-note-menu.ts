@@ -26,6 +26,7 @@ import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { showNoteOnOriginalInstance } from '@/utility/show-note-on-original-instance.js';
+import { globalEvents } from '@/events.js';
 
 export async function getNoteClipMenu(props: {
 	note: Misskey.entities.Note;
@@ -259,6 +260,11 @@ export function getNoteMenu(props: {
 		claimAchievement('noteFavorited1');
 		os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
 			noteId: appearNote.id,
+		}).then(() => {
+			appearNote.isFavorited = favorite;
+			globalEvents.emit('noteFavoriteChanged', appearNote.id, favorite);
+		}, () => {
+			// apiWithDialog already shows the error
 		});
 	}
 

@@ -14163,6 +14163,28 @@ export interface Locale extends ILocale {
      * Root
      */
     "root": string;
+    "_favorites": {
+        /**
+         * No favorites yet. Use a note's menu to add it to your favorites.
+         */
+        "empty": string;
+        /**
+         * No favorites match these filters.
+         */
+        "noMatches": string;
+        /**
+         * Search text and content warnings
+         */
+        "searchPlaceholder": string;
+        /**
+         * Only notes with files
+         */
+        "withFilesOnly": string;
+        /**
+         * From a specific user
+         */
+        "byUser": string;
+    };
 }
 export type Locales = {
     [lang: string]: Locale;

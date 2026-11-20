@@ -4,10 +4,12 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { Brackets } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MiNote, MiNoteFavorite, NoteFavoritesRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteFavoriteEntityService } from '@/core/entities/NoteFavoriteEntityService.js';
+import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -40,6 +42,9 @@ export const paramDef = {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
 		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
+		search: { type: 'string', nullable: true, description: 'Case-insensitive substring match against the note text and content warning.' },
+		withFiles: { type: 'boolean', default: false },
+		userId: { type: 'string', format: 'misskey:id', nullable: true, description: 'Only favorites of notes by this user.' },
 	},
 	required: [],
 } as const;
@@ -57,6 +62,23 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const query = this.queryService.makePaginationQuery(this.noteFavoritesRepository.createQueryBuilder('favorite'), ps.sinceId, ps.untilId)
 				.andWhere('favorite.userId = :meId', { meId: me.id })
 				.innerJoinAndSelect('favorite.note', 'note');
+
+			const search = ps.search?.trim();
+			if (search) {
+				const pattern = `%${sqlLikeEscape(search)}%`;
+				query.andWhere(new Brackets(qb => {
+					qb.where('note.text ILIKE :pattern', { pattern })
+						.orWhere('note.cw ILIKE :pattern', { pattern });
+				}));
+			}
+
+			if (ps.withFiles) {
+				query.andWhere('note.fileIds != \'{}\'');
+			}
+
+			if (ps.userId) {
+				query.andWhere('note.userId = :userId', { userId: ps.userId });
+			}
 
 			const favorites = await query
 				.limit(ps.limit)
