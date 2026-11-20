@@ -503,8 +503,14 @@ proxyBypassHosts:
 #   IMGPROXY_MAX_ANIMATION_FRAME_RESOLUTION=8       # check resolution per frame; at 0 it is summed over all frames
 #                                                   # and long animations are rejected outright
 #   IMGPROXY_ALLOW_PRIVATE_SOURCE_ADDRESSES=false   # any user can make imgproxy fetch a URL; keep it off your LAN
+#                                                   # (recent versions also block CGNAT, i.e. Tailscale addresses)
+#   IMGPROXY_MAX_SRC_FILE_SIZE=52428800             # sources are buffered in memory; without a cap any size is downloaded
 #   IMGPROXY_ALWAYS_RASTERIZE_SVG=true              # serve remote SVGs as PNG instead of (sanitized) live SVG
 #   IMGPROXY_FALLBACK_IMAGE_URL=https://example.com/client-assets/dummy.png  # optional, shown for broken images
+#   IMGPROXY_ENFORCE_AVIF=true                      # optional, ~15% smaller than WebP at equal quality; responses then
+#                                                   # carry Vary: Accept, so a CDN in front must cache per Accept
+#                                                   # (Cloudflare: cache rule Vary, accept normalized to image/avif)
+# If a CDN caches imgproxy, have it ignore query strings there: imgproxy does, so they only bust the cache.
 #imgproxyURL: https://imgproxy.example.com
 #imgproxyKey: '<hex key>'
 #imgproxySalt: '<hex salt>'
