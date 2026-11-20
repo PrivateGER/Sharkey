@@ -10,6 +10,7 @@ import * as yaml from 'js-yaml';
 import fastGlob from 'fast-glob';
 import ipaddr from 'ipaddr.js';
 import type { LoggerService } from '@/core/LoggerService.js';
+import type { ImgproxyConfig } from '@/misc/imgproxy.js';
 import { coreLogger } from '@/boot/coreLogger.js';
 import { QUEUE_TYPES } from '@/queue/const.js';
 import type { QueueType } from '@/queue/types.js';
@@ -161,9 +162,9 @@ type Source = Partial<QueueConfig> & {
 
 	ntfyURL: string;
 
-	imgproxyURL: string,
-	imgproxySalt: string,
-	imgproxyKey: string,
+	imgproxyURL?: string,
+	imgproxySalt?: string,
+	imgproxyKey?: string,
 	filePermissionBits?: string;
 
 	openai?: {
@@ -276,6 +277,29 @@ function parsePostHogConfig(source: Partial<PostHogConfig> | undefined, configLo
 	}
 
 	return { projectToken: source.projectToken, host: source.host, untracedUserIds };
+}
+
+function parseImgproxyConfig(source: Source, externalMediaProxyEnabled: boolean, configLogger: Logger): ImgproxyConfig | null {
+	if (!source.imgproxyURL) return null;
+	if (externalMediaProxyEnabled) {
+		configLogger.warn('imgproxyURL is ignored because mediaProxy points to an external media proxy');
+		return null;
+	}
+	if (!URL.canParse(source.imgproxyURL) || !/^https?:$/.test(new URL(source.imgproxyURL).protocol)) {
+		configLogger.warn('imgproxyURL is not a valid http(s) URL; imgproxy is disabled');
+		return null;
+	}
+	const isHex = (value: unknown): value is string => typeof value === 'string' && /^(?:[0-9a-f]{2})+$/i.test(value);
+	if (!isHex(source.imgproxyKey) || !isHex(source.imgproxySalt)) {
+		configLogger.warn('imgproxyKey and imgproxySalt must both be hex strings (the IMGPROXY_KEY and IMGPROXY_SALT of your imgproxy); imgproxy is disabled');
+		return null;
+	}
+
+	return {
+		url: source.imgproxyURL.replace(/\/+$/, ''),
+		key: source.imgproxyKey,
+		salt: source.imgproxySalt,
+	};
 }
 
 export type Config = QueueConfig & {
@@ -397,9 +421,7 @@ export type Config = QueueConfig & {
 
 	ntfyURL: string;
 
-	imgproxyURL: string,
-	imgproxySalt: string,
-	imgproxyKey: string,
+	imgproxy: ImgproxyConfig | null,
 	filePermissionBits?: string;
 
 	activityLogging: {
@@ -491,6 +513,7 @@ export function loadConfig(logger?: Logger): Config {
 		config.mediaProxy.endsWith('/') ? config.mediaProxy.substring(0, config.mediaProxy.length - 1) : config.mediaProxy
 		: null;
 	const internalMediaProxy = `${scheme}://${host}/proxy`;
+	const externalMediaProxyEnabled = externalMediaProxy !== null && externalMediaProxy !== internalMediaProxy;
 	const redis = convertRedisOptions(config.redis, host);
 
 	// nullish => 300 (default)
@@ -583,7 +606,7 @@ export function loadConfig(logger?: Logger): Config {
 		checkActivityPubGetSignature: config.checkActivityPubGetSignature,
 		mediaDirectory: config.mediaDirectory ?? resolve(_dirname, '../../../files'),
 		mediaProxy: externalMediaProxy ?? internalMediaProxy,
-		externalMediaProxyEnabled: externalMediaProxy !== null && externalMediaProxy !== internalMediaProxy,
+		externalMediaProxyEnabled,
 		videoThumbnailGenerator: config.videoThumbnailGenerator ?
 			config.videoThumbnailGenerator.endsWith('/') ? config.videoThumbnailGenerator.substring(0, config.videoThumbnailGenerator.length - 1) : config.videoThumbnailGenerator
 			: null,
@@ -599,9 +622,7 @@ export function loadConfig(logger?: Logger): Config {
 		pidFile: config.pidFile,
 		ntfyURL: config.ntfyURL,
 
-		imgproxyURL: config.imgproxyURL,
-		imgproxySalt: config.imgproxySalt,
-		imgproxyKey: config.imgproxyKey,
+		imgproxy: parseImgproxyConfig(config, externalMediaProxyEnabled, configLogger),
 		filePermissionBits: config.filePermissionBits,
 		logging: config.logging,
 		activityLogging: {
@@ -726,6 +747,8 @@ function applyEnvOverrides(config: Source) {
 	const alwaysStrings: { [key in string]?: boolean } = {
 		'chmodSocket': true,
 		'filePermissionBits': true,
+		'imgproxyKey': true,
+		'imgproxySalt': true,
 	};
 
 	function _assign(path: (string | number)[], lastStep: string | number, value: string) {
@@ -768,7 +791,7 @@ function applyEnvOverrides(config: Source) {
 	_apply_top(['sentryForFrontend', 'browserTracingIntegration', 'routeLabel']);
 	_apply_top(['posthog', ['projectToken', 'host']]);
 	_apply_top([['clusterLimit', 'deliverJobConcurrency', 'inboxJobConcurrency', 'relashionshipJobConcurrency', 'deliverJobPerSec', 'inboxJobPerSec', 'relashionshipJobPerSec', 'deliverJobMaxAttempts', 'inboxJobMaxAttempts']]);
-	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaDirectory', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator']]);
+	_apply_top([['outgoingAddress', 'outgoingAddressFamily', 'proxy', 'proxySmtp', 'mediaDirectory', 'mediaProxy', 'proxyRemoteFiles', 'videoThumbnailGenerator', 'imgproxyURL', 'imgproxyKey', 'imgproxySalt']]);
 	_apply_top([['maxFileSize', 'maxNoteLength', 'maxRemoteNoteLength', 'maxAltTextLength', 'maxRemoteAltTextLength', 'maxBioLength', 'maxRemoteBioLength', 'maxDialogAnnouncements', 'pidFile', 'filePermissionBits']]);
 	_apply_top(['import', ['downloadTimeout', 'maxFileSize']]);
 	_apply_top([['signToActivityPubGet', 'checkActivityPubGetSignature', 'setupPassword', 'disallowExternalApRedirect']]);

@@ -33,6 +33,7 @@ import { AuthenticateService } from '@/server/api/AuthenticateService.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
+import { buildImgproxyUrl, imgproxyVariantFromQuery } from '@/misc/imgproxy.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions } from 'fastify';
 
 const _filename = fileURLToPath(import.meta.url);
@@ -351,6 +352,20 @@ export class FileServerService {
 
 			return await reply.redirect(
 				url.toString(),
+				301,
+			);
+		}
+
+		// Badges need a greyscale mask that imgproxy cannot produce, so they stay local.
+		if (this.config.imgproxy && !mustOrigin && !('badge' in request.query)) {
+			// imgproxy also resolves local://, s3:// and similar sources when the operator enables them.
+			if (!/^https?:$/.test(new URL(url).protocol)) {
+				throw new StatusError(`Refusing to proxy non-http(s) URL ${url}`, 400, 'Unsupported URL scheme');
+			}
+
+			reply.header('Cache-Control', 'public, max-age=259200'); // 3 days
+			return await reply.redirect(
+				buildImgproxyUrl(this.config.imgproxy, url, imgproxyVariantFromQuery(request.query)),
 				301,
 			);
 		}
