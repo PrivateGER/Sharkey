@@ -72,3 +72,27 @@ describe('i/favorites filters', () => {
 		assert.deepStrictEqual(await favoriteIds({ userId: carol.id, search: 'ramen' }), []);
 	});
 });
+
+describe('i/favorites with notes the caller can no longer read', () => {
+	test('content filters do not match them', async () => {
+		const reader = await signup({ username: 'favReader' });
+		const author = await signup({ username: 'favAuthor' });
+		await api('following/create', { userId: author.id }, reader);
+		const file = await uploadFile(author);
+		assert.ok(file.body);
+		const secret = await post(author, { visibility: 'followers', text: 'secret launch codes', fileIds: [file.body.id] });
+		assert.strictEqual((await api('notes/favorites/create', { noteId: secret.id }, reader)).status, 204);
+		await api('following/delete', { userId: author.id }, reader);
+
+		const search = await api('i/favorites', { search: 'launch codes' }, reader);
+		const withFiles = await api('i/favorites', { withFiles: true }, reader);
+		const unfiltered = await api('i/favorites', {}, reader);
+
+		assert.deepStrictEqual(search.body, []);
+		assert.deepStrictEqual(withFiles.body, []);
+		// Without content filters the favorite is still listed, redacted, as before.
+		assert.strictEqual(unfiltered.body.length, 1);
+		assert.strictEqual(unfiltered.body[0].note.isHidden, true);
+		assert.strictEqual(unfiltered.body[0].note.text, null);
+	});
+});

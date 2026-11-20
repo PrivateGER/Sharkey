@@ -63,7 +63,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.andWhere('favorite.userId = :meId', { meId: me.id })
 				.innerJoinAndSelect('favorite.note', 'note');
 
+			// Content filters match the stored note, so a note the caller can no longer read (e.g. followers-only
+			// after an unfollow) must not show up for them, or repeated searches would reveal its contents.
 			const search = ps.search?.trim();
+			const filtersContent = !!search || ps.withFiles;
+			if (filtersContent) {
+				this.queryService.generateVisibilityQuery(query, me);
+			}
+
 			if (search) {
 				const pattern = `%${sqlLikeEscape(search)}%`;
 				query.andWhere(new Brackets(qb => {
@@ -84,7 +91,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit)
 				.getMany() as (MiNoteFavorite & { note: MiNote })[];
 
-			return await this.noteFavoriteEntityService.packMany(favorites, me);
+			const packed = await this.noteFavoriteEntityService.packMany(favorites, me);
+			// The visibility query skips some hiding rules (blocks, makeNotesHiddenBefore, suspensions, …) that packing applies.
+			return filtersContent ? packed.filter(favorite => !favorite.note.isHidden) : packed;
 		});
 	}
 }

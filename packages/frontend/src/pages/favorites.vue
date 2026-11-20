@@ -21,9 +21,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 
-		<!-- No live updates arrive here, so MkPagination's trim-to-displayLimit whenever the top is visible
-		     would only throw away scrollback (including a restored snapshot, which mounts at the top). -->
-		<MkPagination ref="paginationEl" :pagination="pagination" :initialState="restored ?? undefined" :displayLimit="Infinity">
+		<!-- Unlike a timeline this list doesn't need capping, so MkPagination's trim-to-displayLimit whenever the top is
+		     visible would only throw away scrollback (including a restored snapshot, which mounts at the top). -->
+		<MkPagination ref="paginationEl" :pagination="pagination" :initialState="restored?.list ?? undefined" :displayLimit="Infinity">
 			<template #empty><MkResult type="empty" :text="filtersActive ? i18n.ts._favorites.noMatches : i18n.ts._favorites.empty"/></template>
 
 			<template #default="{ items }">
@@ -45,9 +45,9 @@ type Snapshot = {
 	search: string;
 	withFiles: boolean;
 	user: Misskey.entities.UserDetailed | null;
-	items: MisskeyEntity[];
-	more: boolean;
-	/** Favorite shown in the middle of the viewport, and its distance from the top of the scroll container. */
+	/** Null when nothing had loaded yet (request pending or failed), so the next visit fetches normally. */
+	list: { items: MisskeyEntity[]; more: boolean; } | null;
+	/** Favorite nearest the middle of the viewport, and its distance from the top of the scroll container. */
 	anchor: { id: string; offset: number; } | null;
 };
 
@@ -57,7 +57,7 @@ let snapshot = null as Snapshot | null;
 </script>
 
 <script lang="ts" setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue';
 import { getScrollContainer } from '@@/js/scroll.js';
 import type { Paging } from '@/components/MkPagination.vue';
 import MkPagination from '@/components/MkPagination.vue';
@@ -70,6 +70,7 @@ import * as os from '@/os.js';
 import { $i } from '@/i.js';
 import { globalEvents } from '@/events.js';
 import { i18n } from '@/i18n.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
 
@@ -81,51 +82,54 @@ const user = shallowRef<Misskey.entities.UserDetailed | null>(restored?.user ?? 
 
 const filtersActive = computed(() => search.value.trim() !== '' || withFiles.value || user.value != null);
 
+const params = computed(() => ({
+	search: search.value.trim() || undefined,
+	withFiles: withFiles.value,
+	userId: user.value?.id,
+}));
+
 const pagination: Paging<'i/favorites'> = {
 	endpoint: 'i/favorites',
 	limit: 10,
-	params: computed(() => ({
-		search: search.value.trim() || undefined,
-		withFiles: withFiles.value,
-		userId: user.value?.id,
-	})),
+	params,
 };
 
 const rootEl = useTemplateRef('rootEl');
 const paginationEl = useTemplateRef('paginationEl');
 const router = useRouter();
-let active = false;
-
-onActivated(() => { active = true; });
-onDeactivated(() => { active = false; });
+const ownPath = router.getCurrentFullPath();
 
 function findAnchor(): Snapshot['anchor'] {
 	const container = getScrollContainer(rootEl.value);
 	if (!container || !rootEl.value) return null;
 	const containerTop = container.getBoundingClientRect().top;
 	const middle = containerTop + container.clientHeight / 2;
+	// Nearest note rather than the one spanning the middle: the middle can fall in a gap or date divider.
+	let best: { id: string; offset: number; distance: number; } | null = null;
 	for (const el of rootEl.value.querySelectorAll<HTMLElement>('[data-scroll-anchor]')) {
 		const id = el.dataset.scrollAnchor;
+		if (!id) continue;
 		const rect = el.getBoundingClientRect();
-		if (id && rect.top <= middle && rect.bottom >= middle) {
-			return { id, offset: rect.top - containerTop };
-		}
+		const distance = rect.top > middle ? rect.top - middle : rect.bottom < middle ? middle - rect.bottom : 0;
+		if (best == null || distance < best.distance) best = { id, offset: rect.top - containerTop, distance };
+		if (distance === 0) break;
 	}
-	return null;
+	return best && { id: best.id, offset: best.offset };
 }
 
-// The router emits before the next page renders, so the list is still laid out here;
-// by onDeactivated the DOM has already been detached and can't be measured.
-router.useListener('change', () => {
-	if (!active || !$i || !paginationEl.value) return;
+// The router emits before the next page renders, so the list is still laid out here; by the time the page is
+// deactivated or unmounted its DOM is detached and can't be measured. Matching on the path we're leaving (rather
+// than tracking activation) also covers router views that mount pages without KeepAlive.
+router.useListener('change', ({ beforeFullPath }) => {
+	if (beforeFullPath !== ownPath || !$i || !paginationEl.value) return;
+	const items = Array.from(paginationEl.value.items.values());
 	snapshot = {
 		accountId: $i.id,
 		search: search.value,
 		withFiles: withFiles.value,
 		user: user.value,
-		items: Array.from(paginationEl.value.items.values()),
-		more: paginationEl.value.more,
-		anchor: findAnchor(),
+		list: items.length > 0 ? { items, more: paginationEl.value.more } : null,
+		anchor: items.length > 0 ? findAnchor() : null,
 	};
 });
 
@@ -139,6 +143,28 @@ function onFavoriteChanged(noteId: string, favorited: boolean) {
 
 globalEvents.on('noteFavoriteChanged', onFavoriteChanged);
 onBeforeUnmount(() => globalEvents.off('noteFavoriteChanged', onFavoriteChanged));
+
+/**
+ * Favorites added since the snapshot was taken sit above everything it holds, where loading more never reaches.
+ * Feed them through prepend(), which holds them back while the user is scrolled down, so the restored
+ * position doesn't move.
+ */
+async function loadNewerThan(newestId: string) {
+	const known = new Set(Array.from(paginationEl.value?.items.values() ?? [], item => item.note.id));
+	const limit = 100;
+	let sinceId = newestId;
+	for (;;) {
+		// sinceId pages come back oldest first, so prepending one at a time leaves the newest on top.
+		const res = await misskeyApi('i/favorites', { ...params.value, sinceId, limit });
+		for (const favorite of res) {
+			// Re-favoriting a note creates a new favorite; keep its existing entry instead of listing it twice.
+			if (!known.has(favorite.note.id)) paginationEl.value?.prepend(favorite);
+		}
+		const last = res.at(-1);
+		if (res.length < limit || !last) return;
+		sinceId = last.id;
+	}
+}
 
 function restoreAnchor(anchor: NonNullable<Snapshot['anchor']>) {
 	const container = getScrollContainer(rootEl.value);
@@ -168,8 +194,12 @@ function restoreAnchor(anchor: NonNullable<Snapshot['anchor']>) {
 }
 
 onMounted(() => {
-	const anchor = restored?.anchor;
+	if (!restored?.list) return;
+	const { list, anchor } = restored;
 	if (anchor) nextTick(() => restoreAnchor(anchor));
+	const newest = list.items[0];
+	// Best effort: if this fails the restored list simply stays as it was.
+	if (newest) loadNewerThan(newest.id).catch(() => {});
 });
 
 async function selectUser() {
