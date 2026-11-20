@@ -846,5 +846,5 @@ _favorites:
   empty: "No favorites yet. Use a note's menu to add it to your favorites."
   noMatches: "No favorites match these filters."
   searchPlaceholder: "Search text and content warnings"
-  withFilesOnly: "Only notes with files"
+  anyUser: "From any user"
   byUser: "From a specific user"

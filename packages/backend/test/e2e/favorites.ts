@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: hazelnoot and other Sharkey contributors
+ * SPDX-FileCopyrightText: PrivateGER and other Sharkey contributors
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -47,16 +47,16 @@ describe('i/favorites filters', () => {
 	});
 
 	test('search matches text and content warning case-insensitively', async () => {
-		assert.deepStrictEqual(await favoriteIds({ search: 'RAMEN' }), [bobPlain.id, bobCw.id].sort());
+		assert.deepStrictEqual(await favoriteIds({ query: 'RAMEN' }), [bobPlain.id, bobCw.id].sort());
 	});
 
 	test('search treats LIKE wildcards literally', async () => {
-		assert.deepStrictEqual(await favoriteIds({ search: '100%' }), [bobPercent.id]);
-		assert.deepStrictEqual(await favoriteIds({ search: '_' }), []);
+		assert.deepStrictEqual(await favoriteIds({ query: '100%' }), [bobPercent.id]);
+		assert.deepStrictEqual(await favoriteIds({ query: '_' }), []);
 	});
 
 	test('blank search does not filter', async () => {
-		assert.strictEqual((await favoriteIds({ search: '   ' })).length, 4);
+		assert.strictEqual((await favoriteIds({ query: '   ' })).length, 4);
 	});
 
 	test('withFiles keeps only notes with attachments', async () => {
@@ -68,8 +68,8 @@ describe('i/favorites filters', () => {
 	});
 
 	test('filters combine', async () => {
-		assert.deepStrictEqual(await favoriteIds({ userId: bob.id, search: 'spoilers' }), [bobCw.id]);
-		assert.deepStrictEqual(await favoriteIds({ userId: carol.id, search: 'ramen' }), []);
+		assert.deepStrictEqual(await favoriteIds({ userId: bob.id, query: 'spoilers' }), [bobCw.id]);
+		assert.deepStrictEqual(await favoriteIds({ userId: carol.id, query: 'ramen' }), []);
 	});
 });
 
@@ -84,7 +84,7 @@ describe('i/favorites with notes the caller can no longer read', () => {
 		assert.strictEqual((await api('notes/favorites/create', { noteId: secret.id }, reader)).status, 204);
 		await api('following/delete', { userId: author.id }, reader);
 
-		const search = await api('i/favorites', { search: 'launch codes' }, reader);
+		const search = await api('i/favorites', { query: 'launch codes' }, reader);
 		const withFiles = await api('i/favorites', { withFiles: true }, reader);
 		const unfiltered = await api('i/favorites', {}, reader);
 

@@ -14177,9 +14177,9 @@ export interface Locale extends ILocale {
          */
         "searchPlaceholder": string;
         /**
-         * Only notes with files
+         * From any user
          */
-        "withFilesOnly": string;
+        "anyUser": string;
         /**
          * From a specific user
          */

@@ -4,22 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
+<PageWithHeader :actions="headerActions">
 	<div ref="rootEl" class="_spacer _gaps" style="--MI_SPACER-w: 800px;">
-		<div class="_panel _gaps_s" :class="$style.filters">
-			<MkInput v-model="search" type="search" :placeholder="i18n.ts._favorites.searchPlaceholder" debounce>
-				<template #prefix><i class="ti ti-search"></i></template>
-			</MkInput>
-			<div :class="$style.filterRow">
-				<MkSwitch v-model="withFiles">{{ i18n.ts._favorites.withFilesOnly }}</MkSwitch>
-				<div v-if="user" :class="$style.userChip">
-					<MkAvatar :user="user" :class="$style.userChipAvatar" link preview/>
-					<MkUserName :user="user" :nowrap="true" :class="$style.userChipName"/>
-					<button v-tooltip="i18n.ts.reset" class="_button" :class="$style.userChipRemove" @click="user = null"><i class="ti ti-x"></i></button>
-				</div>
-				<MkButton v-else small rounded @click="selectUser"><i class="ti ti-user"></i> {{ i18n.ts._favorites.byUser }}</MkButton>
-			</div>
-		</div>
+		<MkInput v-model="search" type="search" :placeholder="i18n.ts._favorites.searchPlaceholder" debounce>
+			<template #prefix><i class="ti ti-search"></i></template>
+		</MkInput>
 
 		<!-- Unlike a timeline this list doesn't need capping, so MkPagination's trim-to-displayLimit whenever the top is
 		     visible would only throw away scrollback (including a restored snapshot, which mounts at the top). -->
@@ -36,12 +25,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 </PageWithHeader>
 </template>
 
-<script lang="ts">
-import type * as Misskey from 'misskey-js';
+<script lang="ts" setup>
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue';
+import * as Misskey from 'misskey-js';
+import { getScrollContainer } from '@@/js/scroll.js';
+import type { Paging } from '@/components/MkPagination.vue';
 import type { MisskeyEntity } from '@/types/date-separated-list.js';
+import type { PageHeaderItem } from '@/types/page-header.js';
+import MkPagination from '@/components/MkPagination.vue';
+import DynamicNote from '@/components/DynamicNote.vue';
+import SkDateSeparatedList from '@/components/SkDateSeparatedList.vue';
+import MkInput from '@/components/MkInput.vue';
+import * as os from '@/os.js';
+import { globalEvents } from '@/events.js';
+import { i18n } from '@/i18n.js';
+import { defaultMemoryStorage } from '@/memory-storage.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { definePage } from '@/page.js';
+import { useRouter } from '@/router.js';
 
 type Snapshot = {
-	accountId: string;
 	search: string;
 	withFiles: boolean;
 	user: Misskey.entities.UserDetailed | null;
@@ -51,30 +54,10 @@ type Snapshot = {
 	anchor: { id: string; offset: number; } | null;
 };
 
-// Module scope outlives the page, so a deep scroll position survives the page being evicted
-// from the router's page cache. Deliberately in memory only: a reload starts fresh.
-let snapshot = null as Snapshot | null;
-</script>
-
-<script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue';
-import { getScrollContainer } from '@@/js/scroll.js';
-import type { Paging } from '@/components/MkPagination.vue';
-import MkPagination from '@/components/MkPagination.vue';
-import DynamicNote from '@/components/DynamicNote.vue';
-import SkDateSeparatedList from '@/components/SkDateSeparatedList.vue';
-import MkInput from '@/components/MkInput.vue';
-import MkSwitch from '@/components/MkSwitch.vue';
-import MkButton from '@/components/MkButton.vue';
-import * as os from '@/os.js';
-import { $i } from '@/i.js';
-import { globalEvents } from '@/events.js';
-import { i18n } from '@/i18n.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
-import { definePage } from '@/page.js';
-import { useRouter } from '@/router.js';
-
-const restored = snapshot != null && snapshot.accountId === $i?.id ? snapshot : null;
+// Lets a deep scroll position survive the page being evicted from the router's page cache.
+// Memory storage is gone after a reload, account switch or logout, so a reload starts fresh.
+const SNAPSHOT_KEY = 'favorites-page';
+const restored = defaultMemoryStorage.getItem<Snapshot>(SNAPSHOT_KEY);
 
 const search = ref(restored?.search ?? '');
 const withFiles = ref(restored?.withFiles ?? false);
@@ -83,7 +66,7 @@ const user = shallowRef<Misskey.entities.UserDetailed | null>(restored?.user ?? 
 const filtersActive = computed(() => search.value.trim() !== '' || withFiles.value || user.value != null);
 
 const params = computed(() => ({
-	search: search.value.trim() || undefined,
+	query: search.value.trim() || undefined,
 	withFiles: withFiles.value,
 	userId: user.value?.id,
 }));
@@ -121,16 +104,15 @@ function findAnchor(): Snapshot['anchor'] {
 // deactivated or unmounted its DOM is detached and can't be measured. Matching on the path we're leaving (rather
 // than tracking activation) also covers router views that mount pages without KeepAlive.
 router.useListener('change', ({ beforeFullPath }) => {
-	if (beforeFullPath !== ownPath || !$i || !paginationEl.value) return;
+	if (beforeFullPath !== ownPath || !paginationEl.value) return;
 	const items = Array.from(paginationEl.value.items.values());
-	snapshot = {
-		accountId: $i.id,
+	defaultMemoryStorage.setItem(SNAPSHOT_KEY, {
 		search: search.value,
 		withFiles: withFiles.value,
 		user: user.value,
 		list: items.length > 0 ? { items, more: paginationEl.value.more } : null,
 		anchor: items.length > 0 ? findAnchor() : null,
-	};
+	} satisfies Snapshot);
 });
 
 // Each note renders from its own copy, so toggling a favorite doesn't reach the list items. Keep them in
@@ -206,6 +188,34 @@ async function selectUser() {
 	user.value = await os.selectUser({ includeSelf: true });
 }
 
+const headerActions = computed<PageHeaderItem[]>(() => [{
+	icon: 'ti ti-dots',
+	text: i18n.ts.options,
+	highlighted: withFiles.value || user.value != null,
+	handler: (ev) => {
+		os.popupMenu([{
+			type: 'switch',
+			text: i18n.ts.fileAttachedOnly,
+			ref: withFiles,
+		}, { type: 'divider' }, {
+			icon: 'ti ti-users',
+			text: i18n.ts._favorites.anyUser,
+			active: user.value == null,
+			action: () => { user.value = null; },
+		}, user.value ? {
+			avatar: user.value,
+			text: i18n.ts._favorites.byUser,
+			caption: `@${Misskey.acct.toString(user.value)}`,
+			active: true,
+			action: selectUser,
+		} : {
+			icon: 'ti ti-user',
+			text: i18n.ts._favorites.byUser,
+			action: selectUser,
+		}], ev.currentTarget ?? ev.target);
+	},
+}]);
+
 definePage(() => ({
 	title: i18n.ts.favorites,
 	icon: 'ti ti-star',
@@ -213,49 +223,6 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
-.filters {
-	padding: 12px;
-}
-
-.filterRow {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px 16px;
-}
-
-.userChip {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	min-width: 0;
-	padding: 2px 4px 2px 2px;
-	border: solid 0.5px var(--MI_THEME-divider);
-	border-radius: 999px;
-}
-
-.userChipAvatar {
-	width: 26px;
-	height: 26px;
-}
-
-.userChipName {
-	min-width: 0;
-	font-size: 0.9em;
-}
-
-.userChipRemove {
-	padding: 4px 6px;
-	border-radius: 999px;
-	opacity: 0.7;
-
-	&:hover {
-		opacity: 1;
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-}
-
 .note {
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);

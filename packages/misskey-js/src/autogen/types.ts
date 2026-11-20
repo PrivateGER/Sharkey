@@ -36292,7 +36292,7 @@ export interface operations {
                     /** Format: misskey:id */
                     untilId?: string;
                     /** @description Case-insensitive substring match against the note text and content warning. */
-                    search?: string | null;
+                    query?: string | null;
                     /** @default false */
                     withFiles?: boolean;
                     /**

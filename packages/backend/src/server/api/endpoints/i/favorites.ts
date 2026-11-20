@@ -42,7 +42,7 @@ export const paramDef = {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
 		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
-		search: { type: 'string', nullable: true, description: 'Case-insensitive substring match against the note text and content warning.' },
+		query: { type: 'string', nullable: true, description: 'Case-insensitive substring match against the note text and content warning.' },
 		withFiles: { type: 'boolean', default: false },
 		userId: { type: 'string', format: 'misskey:id', nullable: true, description: 'Only favorites of notes by this user.' },
 	},
@@ -65,7 +65,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Content filters match the stored note, so a note the caller can no longer read (e.g. followers-only
 			// after an unfollow) must not show up for them, or repeated searches would reveal its contents.
-			const search = ps.search?.trim();
+			const search = ps.query?.trim();
 			const filtersContent = !!search || ps.withFiles;
 			if (filtersContent) {
 				this.queryService.generateVisibilityQuery(query, me);
