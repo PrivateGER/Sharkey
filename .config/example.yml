@@ -490,7 +490,7 @@ proxyBypassHosts:
 # * Perform image compression (on a different server resource than the main process)
 #mediaProxy: https://example.com/proxy
 
-# imgproxy (https://imgproxy.net) as the media proxy: /proxy requests are redirected to signed imgproxy URLs.
+# imgproxy (https://imgproxy.net) as the media proxy: /proxy requests and uncached remote images under /files are redirected to signed imgproxy URLs.
 # Cannot be combined with an external mediaProxy. Key and salt are imgproxy's hex IMGPROXY_KEY and IMGPROXY_SALT.
 # imgproxy needs IMGPROXY_ALLOW_SECURITY_OPTIONS=true, since static thumbnails request only the first frame.
 #imgproxyURL: https://imgproxy.example.com
