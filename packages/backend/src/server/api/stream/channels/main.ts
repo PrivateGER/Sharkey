@@ -47,7 +47,9 @@ class MainChannel extends NoteChannel {
 				}
 
 				if (data.body.note) {
-					const preparedNote = await this.prepareNote(data.body.note);
+					// i/notifications lists notifications for replies in others' threads and posts by silenced
+					// authors, so only timeline-specific hiding is relaxed here; mutes still apply.
+					const preparedNote = await this.prepareNote(data.body.note, { includeReplies: true, includeSilencedAuthor: true });
 					if (!preparedNote) return;
 
 					data.body.note = preparedNote;
