@@ -33,13 +33,17 @@ import { AuthenticateService } from '@/server/api/AuthenticateService.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { Keyed, RateLimit, sendRateLimitHeaders } from '@/misc/rate-limit-utils.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
-import { buildImgproxyUrl, imgproxyVariantFromQuery } from '@/misc/imgproxy.js';
+import { buildImgproxyUrl, imgproxyVariantFromQuery, isImgproxySource } from '@/misc/imgproxy.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions } from 'fastify';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
 
 const assets = `${_dirname}/../../server/file/assets/`;
+
+type LoadedDriveFile =
+	| { state: 'remote'; fileRole: 'thumbnail' | 'webpublic' | 'original'; file: MiDriveFile; filename: string; url: string; mime: string; ext: string | null; path: string; cleanup: () => void; }
+	| { state: 'stored_internal'; fileRole: 'thumbnail' | 'webpublic' | 'original'; file: MiDriveFile; filename: string; mime: string; ext: string | null; path: string; };
 
 @Injectable()
 export class FileServerService {
@@ -146,7 +150,18 @@ export class FileServerService {
 	@bindThis
 	private async sendDriveFile(request: FastifyRequest<{ Params: { key: string; } }>, reply: FastifyReply) {
 		const key = request.params.key;
-		const file = await this.getFileFromKey(key).then();
+		const found = await this.findDriveFileByKey(key);
+
+		// Linked remote images go straight to imgproxy, before Sharkey downloads the original.
+		if (this.config.imgproxy && found?.file.isLink && found.file.uri && isImgproxySource(found.file.uri) && isMimeImage(found.file.type, 'sharp-convertible-image-with-bmp')) {
+			reply.header('Cache-Control', 'public, max-age=259200'); // 3 days, like /proxy
+			return await reply.redirect(
+				buildImgproxyUrl(this.config.imgproxy, found.file.uri, { kind: found.fileRole === 'thumbnail' ? 'static' : 'original' }),
+				301,
+			);
+		}
+
+		const file = found ? await this.loadDriveFile(key, found.file, found.fileRole) : '404';
 
 		if (file === '404') {
 			reply.code(404);
@@ -358,9 +373,8 @@ export class FileServerService {
 
 		// Badges need a greyscale mask that imgproxy cannot produce, so they stay local.
 		if (this.config.imgproxy && !mustOrigin && !('badge' in request.query)) {
-			// imgproxy also resolves local://, s3:// and similar sources when the operator enables them.
-			if (!/^https?:$/.test(new URL(url).protocol)) {
-				throw new StatusError(`Refusing to proxy non-http(s) URL ${url}`, 400, 'Unsupported URL scheme');
+			if (!isImgproxySource(url)) {
+				throw new StatusError(`Refusing to proxy ${url} through imgproxy`, 400, 'Unsupported URL');
 			}
 
 			reply.header('Cache-Control', 'public, max-age=259200'); // 3 days
@@ -572,24 +586,28 @@ export class FileServerService {
 	}
 
 	@bindThis
-	private async getFileFromKey(key: string): Promise<
-		{ state: 'remote'; fileRole: 'thumbnail' | 'webpublic' | 'original'; file: MiDriveFile; filename: string; url: string; mime: string; ext: string | null; path: string; cleanup: () => void; }
-		| { state: 'stored_internal'; fileRole: 'thumbnail' | 'webpublic' | 'original'; file: MiDriveFile; filename: string; mime: string; ext: string | null; path: string; }
-		| '404'
-		| '204'
-	> {
-		// Fetch drive file
+	private async getFileFromKey(key: string): Promise<LoadedDriveFile | '404' | '204'> {
+		const found = await this.findDriveFileByKey(key);
+		if (found == null) return '404';
+		return await this.loadDriveFile(key, found.file, found.fileRole);
+	}
+
+	@bindThis
+	private async findDriveFileByKey(key: string): Promise<{ file: MiDriveFile; fileRole: LoadedDriveFile['fileRole'] } | null> {
 		const file = await this.driveFilesRepository.createQueryBuilder('file')
 			.where('file.accessKey = :accessKey', { accessKey: key })
 			.orWhere('file.thumbnailAccessKey = :thumbnailAccessKey', { thumbnailAccessKey: key })
 			.orWhere('file.webpublicAccessKey = :webpublicAccessKey', { webpublicAccessKey: key })
 			.getOne();
 
-		if (file == null) return '404';
+		if (file == null) return null;
 
-		const isThumbnail = file.thumbnailAccessKey === key;
-		const isWebpublic = file.webpublicAccessKey === key;
+		const fileRole = file.thumbnailAccessKey === key ? 'thumbnail' : file.webpublicAccessKey === key ? 'webpublic' : 'original';
+		return { file, fileRole };
+	}
 
+	@bindThis
+	private async loadDriveFile(key: string, file: MiDriveFile, fileRole: LoadedDriveFile['fileRole']): Promise<LoadedDriveFile | '204'> {
 		if (!file.storedInternal) {
 			if (!(file.isLink && file.uri)) return '204';
 			const result = await this.downloadAndDetectTypeFromUrl(file.uri);
@@ -597,7 +615,7 @@ export class FileServerService {
 			return {
 				...result,
 				url: file.uri,
-				fileRole: isThumbnail ? 'thumbnail' : isWebpublic ? 'webpublic' : 'original',
+				fileRole,
 				file,
 				filename: file.name,
 			};
@@ -605,11 +623,11 @@ export class FileServerService {
 
 		const path = this.internalStorageService.resolvePath(key);
 
-		if (isThumbnail || isWebpublic) {
+		if (fileRole !== 'original') {
 			const { mime, ext } = await this.fileInfoService.detectType(path);
 			return {
 				state: 'stored_internal',
-				fileRole: isThumbnail ? 'thumbnail' : 'webpublic',
+				fileRole,
 				file,
 				filename: file.name,
 				mime, ext,

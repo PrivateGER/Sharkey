@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from '@jest/globals';
-import { buildImgproxyUrl, imgproxyVariantFromQuery, signImgproxyPath } from '@/misc/imgproxy.js';
+import { buildImgproxyUrl, imgproxyVariantFromQuery, isImgproxySource, signImgproxyPath } from '@/misc/imgproxy.js';
 
 const config = { url: 'https://imgproxy.example.com', key: '736563726574', salt: '68656C6C6F' };
 
@@ -78,5 +78,17 @@ describe('misc:imgproxy', () => {
 	test('passes browser-safe originals through unprocessed', () => {
 		const result = interpret(buildImgproxyUrl(config, 'https://remote.example/a.png', imgproxyVariantFromQuery({})));
 		expect(result.passthrough).toEqual(expect.arrayContaining(['jpg', 'png', 'gif', 'webp', 'avif']));
+	});
+
+	test.each([
+		['https://remote.example/a.png', true],
+		['http://remote.example/a.png', true],
+		['local:///etc/passwd', false],
+		['s3://bucket/key', false],
+		['file:///etc/passwd', false],
+		['https://user:pass@remote.example/a.png', false],
+		['not a url', false],
+	])('only plain http(s) URLs are imgproxy sources: %s', (url, allowed) => {
+		expect(isImgproxySource(url)).toBe(allowed);
 	});
 });
