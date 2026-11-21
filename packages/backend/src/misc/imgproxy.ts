@@ -50,6 +50,13 @@ export function imgproxyVariantFromQuery(query: object): ImgproxyVariant {
 	return { kind: 'original' };
 }
 
+/** imgproxy also resolves local://, s3:// and similar sources when the operator enables them, so only plain http(s) URLs may be handed to it. */
+export function isImgproxySource(url: string): boolean {
+	if (!URL.canParse(url)) return false;
+	const { protocol, username, password } = new URL(url);
+	return /^https?:$/.test(protocol) && !username && !password;
+}
+
 export function signImgproxyPath(path: string, key: string, salt: string): string {
 	return createHmac('sha256', Buffer.from(key, 'hex'))
 		.update(Buffer.from(salt, 'hex'))
