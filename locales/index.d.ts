@@ -13414,6 +13414,10 @@ export interface Locale extends ILocale {
      */
     "altTextTooLong": string;
     /**
+     * This file can't be uploaded because its metadata, such as location or camera details, couldn't be removed.
+     */
+    "cannotUploadBecauseMetadataRemovalFailed": string;
+    /**
      * Default content warning for new posts
      */
     "defaultCW": string;

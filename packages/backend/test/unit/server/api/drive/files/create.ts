@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import sharp from 'sharp';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { randomString } from '../../../../../utils.js';
@@ -10,11 +14,12 @@ import { CoreModule } from '@/core/CoreModule.js';
 import { RoleService } from '@/core/RoleService.js';
 import { DI } from '@/di-symbols.js';
 import { GlobalModule } from '@/GlobalModule.js';
-import { DriveFoldersRepository, MiDriveFolder, MiRole, UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import { DriveFilesRepository, DriveFoldersRepository, MiDriveFolder, MiRole, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { MiUser } from '@/models/User.js';
 import { ServerModule } from '@/server/ServerModule.js';
 import { ServerService } from '@/server/ServerService.js';
 import { IdService } from '@/core/IdService.js';
+import { InternalStorageService } from '@/core/InternalStorageService.js';
 
 describe('/drive/files/create', () => {
 	let module: TestingModule;
@@ -161,5 +166,50 @@ describe('/drive/files/create', () => {
 		});
 		expect(result.statusCode).toBe(413);
 		expect(result.body.error.code).toBe('MAX_FILE_SIZE_EXCEEDED');
+	});
+
+	test('stores uploaded photos without location or camera details', async () => {
+		const photo = await sharp({ create: { width: 64, height: 48, channels: 3, background: '#3a7' } })
+			.withExif({
+				IFD0: { Make: 'TestPhone', Model: 'GPSCam' },
+				IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '35/1 41/1 22/1', GPSLongitudeRef: 'E', GPSLongitude: '139/1 41/1 30/1' },
+			})
+			.jpeg()
+			.toBuffer();
+		const tagsOf = (bytes: Buffer): string[] => Object.keys(JSON.parse(execFileSync('exiftool', ['-j', '-s', '-a', '-'], { input: bytes }).toString())[0]);
+		expect(tagsOf(photo)).toEqual(expect.arrayContaining(['GPSLatitude', 'Make']));
+
+		const result = await postFile({
+			name: randomString(),
+			comment: randomString(),
+			isSensitive: false,
+			force: true,
+			fileContent: photo,
+		});
+		expect(result.statusCode).toBe(200);
+
+		const file = await module.get<DriveFilesRepository>(DI.driveFilesRepository).findOneByOrFail({ id: result.body.id });
+		const stored = await fs.readFile(module.get(InternalStorageService).resolvePath(file.accessKey!));
+		const storedTags = tagsOf(stored);
+		expect(storedTags.filter(t => t.startsWith('GPS'))).toEqual([]);
+		expect(storedTags).not.toContain('Make');
+		expect(storedTags).not.toContain('Model');
+		expect(file.md5).toBe(createHash('md5').update(stored).digest('hex'));
+		expect(file.size).toBe(stored.length);
+	});
+
+	test('422 when metadata cannot be removed', async () => {
+		const photo = await sharp({ create: { width: 320, height: 240, channels: 3, background: '#3a7' } }).jpeg().toBuffer();
+
+		const result = await postFile({
+			name: randomString(),
+			comment: randomString(),
+			isSensitive: false,
+			force: true,
+			// Still detected as JPEG, but cut off before the image ends
+			fileContent: photo.subarray(0, 300),
+		});
+		expect(result.statusCode).toBe(422);
+		expect(result.body.error.code).toBe('METADATA_REMOVAL_FAILED');
 	});
 });

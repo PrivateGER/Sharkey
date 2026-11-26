@@ -607,6 +607,7 @@ showAltText: "Show alt text"
 mediaLacksAltText: "No alt text"
 altTextOverLimit: "{n} characters over the limit"
 altTextTooLong: "The alt text is too long to save. Shorten it first."
+cannotUploadBecauseMetadataRemovalFailed: "This file can't be uploaded because its metadata, such as location or camera details, couldn't be removed."
 
 defaultCW: "Default content warning for new posts"
 defaultCWDescription: "The value here will be auto-filled as the content warning for all new posts and replies."

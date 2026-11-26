@@ -24,6 +24,7 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { contentDisposition } from '@/misc/content-disposition.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { VideoProcessingService } from '@/core/VideoProcessingService.js';
+import { MediaMetadataService } from '@/core/MediaMetadataService.js';
 import { ImageProcessingService } from '@/core/ImageProcessingService.js';
 import type { IImage } from '@/core/ImageProcessingService.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -137,6 +138,7 @@ export class DriveService {
 		private bunnyService: BunnyService,
 		private imageProcessingService: ImageProcessingService,
 		private videoProcessingService: VideoProcessingService,
+		private mediaMetadataService: MediaMetadataService,
 		private globalEventService: GlobalEventService,
 		private queueService: QueueService,
 		private roleService: RoleService,
@@ -176,13 +178,16 @@ export class DriveService {
 			file.properties = { ...file.properties, duration: alts.duration };
 		}
 
-		if (type && type.startsWith('video/')) {
+		// Local uploads were already remuxed when their metadata was stripped
+		if (file.userHost != null && type.startsWith('video/')) {
 			try {
-				await withSpan('drive.optimize_video', {}, () => this.videoProcessingService.webOptimizeVideo(path, type));
-				const newInfo = await this.fileInfoService.getFileInfo(path);
-				hash = newInfo.md5;
-				size = newInfo.size;
+				if (await withSpan('drive.optimize_video', {}, () => this.videoProcessingService.remuxVideo(path, type))) {
+					const newInfo = await this.fileInfoService.getFileInfo(path);
+					hash = newInfo.md5;
+					size = newInfo.size;
+				}
 			} catch (err) {
+				// Kept as is: a remote file's metadata is already public at its origin
 				this.registerLogger.warn(`Video optimization failed: ${renderInlineError(err)}`);
 			}
 		}
@@ -520,6 +525,17 @@ export class DriveService {
 		ext = null,
 	}: AddFileArgs): Promise<AddFileResult> {
 		const userRoleNSFW = user && (await this.roleService.getUserPolicies(user.id)).alwaysMarkNsfw;
+		// Before getFileInfo, so md5 (and duplicate detection), size and blurhash describe the stored bytes
+		if (user == null || isLocalUser(user)) {
+			const { mime } = await this.fileInfoService.detectType(path);
+			try {
+				await withSpan('drive.strip_metadata', { media_type: mime.split('/')[0] }, () => this.mediaMetadataService.strip(path, mime));
+			} catch (err) {
+				this.registerLogger.warn(`Rejected ${mime} upload, metadata could not be removed: ${renderInlineError(err)}`);
+				throw new IdentifiableError('ec482a67-5050-4659-b833-3b27ee1dd1e1', 'Could not remove metadata from the file.');
+			}
+		}
+
 		const info = await withSpan('drive.analyze', {}, () => this.fileInfoService.getFileInfo(path));
 
 		// detect name
