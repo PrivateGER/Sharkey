@@ -16,13 +16,23 @@ import { appendQuery, query } from '@/misc/prelude/url.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 
-// faststart is only supported for MP4, M4A, M4W and MOV files (the MOV family).
-// WebM (and Matroska) files always support faststart-like behavior.
-const supportedMimeTypes = new Map([
-	['video/mp4', 'mp4'],
-	['video/m4a', 'mp4'],
-	['video/m4v', 'mp4'],
-	['video/quicktime', 'mov'],
+// Keyed by the MIME types file-type reports: local uploads of any video type missing here are rejected.
+const remuxFormats = new Map<string, { format: string; faststart: boolean }>([
+	['video/mp4', { format: 'mp4', faststart: true }],
+	['video/x-m4v', { format: 'mp4', faststart: true }],
+	['video/quicktime', { format: 'mov', faststart: true }],
+	['video/3gpp', { format: '3gp', faststart: true }],
+	['video/3gpp2', { format: '3g2', faststart: true }],
+	['video/webm', { format: 'webm', faststart: false }],
+	['video/matroska', { format: 'matroska', faststart: false }],
+	['video/mp2t', { format: 'mpegts', faststart: false }],
+	['video/mpeg', { format: 'mpeg', faststart: false }],
+	['video/MP1S', { format: 'mpeg', faststart: false }],
+	['video/MP2P', { format: 'vob', faststart: false }],
+	['video/ogg', { format: 'ogg', faststart: false }],
+	['video/vnd.avi', { format: 'avi', faststart: false }],
+	['video/x-flv', { format: 'flv', faststart: false }],
+	['video/x-ms-asf', { format: 'asf', faststart: false }],
 ]);
 
 @Injectable()
@@ -93,47 +103,42 @@ export class VideoProcessingService {
 		);
 	}
 
-	/**
-	 * Optimize video for web playback by adding faststart flag.
-	 * This allows the video to start playing before it is fully downloaded.
-	 * The original file is modified in-place.
-	 * @param source Path to the video file
-	 * @param mimeType The MIME type of the video
-	 * @returns Promise that resolves when optimization is complete
-	 */
 	@bindThis
-	public async webOptimizeVideo(source: string, mimeType: string): Promise<void> {
-		const outputFormat = supportedMimeTypes.get(mimeType);
-		if (!outputFormat) {
-			this.logger.debug(`Skipping web optimization for unsupported MIME type: ${mimeType}`);
-			return;
+	public async remuxVideo(source: string, mimeType: string): Promise<boolean> {
+		const remux = remuxFormats.get(mimeType);
+		if (!remux) {
+			this.logger.debug(`Skipping remux for unsupported MIME type: ${mimeType}`);
+			return false;
 		}
 
 		const [tempPath, cleanup] = await createTemp();
 
 		try {
-			await new Promise<void>((resolve, reject) => {
-				FFmpeg(source)
-					.format(outputFormat) // Specify output format
-					.addOutputOptions('-c copy') // Copy streams without re-encoding
-					.addOutputOptions('-movflags +faststart')
-					.addOutputOptions('-map 0')
-					.on('error', reject)
-					.on('end', async () => {
-						try {
-							// Replace original file with optimized version
-							await fs.copyFile(tempPath, source);
-							this.logger.info(`Web-optimized video: ${source}`);
-							resolve();
-						} catch (copyError) {
-							reject(copyError);
-						}
-					})
-					.save(tempPath);
-			});
-		} catch (error) {
-			this.logger.warn(`Failed to web-optimize video: ${source}`, { error });
-			throw error;
+			const options = [
+				// Only video and audio: MP4 cannot hold some data tracks, so copying everything can fail.
+				// Capital V skips attached pictures, which carry their own EXIF; optional because an
+				// MP4 with only audio and cover art is still detected as video.
+				'-map 0:V?',
+				'-map 0:a?',
+				'-c copy',
+				'-map_metadata -1',
+				'-map_chapters -1',
+				'-fflags +bitexact',
+			];
+			if (remux.faststart) options.push('-movflags +faststart');
+
+			const { promise, resolve, reject } = Promise.withResolvers<void>();
+			FFmpeg(source)
+				.format(remux.format)
+				.addOutputOptions(options)
+				.on('error', reject)
+				.on('end', () => resolve())
+				.save(tempPath);
+			await promise;
+
+			await fs.copyFile(tempPath, source);
+			this.logger.info(`Remuxed video: ${source}`);
+			return true;
 		} finally {
 			cleanup();
 		}

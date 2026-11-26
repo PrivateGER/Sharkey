@@ -71,6 +71,13 @@ export const meta = {
 			id: 'b9d8c348-33f0-4673-b9a9-5d4da058977a',
 			httpStatusCode: 413,
 		},
+
+		metadataRemovalFailed: {
+			message: 'Cannot upload the file because its metadata could not be removed.',
+			code: 'METADATA_REMOVAL_FAILED',
+			id: '01b647d5-5fb5-4f1c-b852-2dd4f7cb97fb',
+			httpStatusCode: 422,
+		},
 	},
 } as const;
 
@@ -139,6 +146,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					if (err.id === '282f77bf-5816-4f72-9264-aa14d8261a21') throw new ApiError(meta.errors.inappropriate);
 					if (err.id === 'c6244ed2-a39a-4e1c-bf93-f0fbd7764fa6') throw new ApiError(meta.errors.noFreeSpace);
 					if (err.id === 'f9e4e5f3-4df4-40b5-b400-f236945f7073') throw new ApiError(meta.errors.maxFileSizeExceeded);
+					if (err.id === 'ec482a67-5050-4659-b833-3b27ee1dd1e1') throw new ApiError(meta.errors.metadataRemovalFailed);
 				}
 				throw err;
 			} finally {

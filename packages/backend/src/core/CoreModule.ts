@@ -81,6 +81,7 @@ import { UserRenoteMutingService } from './UserRenoteMutingService.js';
 import { UserSuspendService } from './UserSuspendService.js';
 import { UserAuthService } from './UserAuthService.js';
 import { VideoProcessingService } from './VideoProcessingService.js';
+import { MediaMetadataService } from './MediaMetadataService.js';
 import { UserWebhookService } from './UserWebhookService.js';
 import { UtilityService } from './UtilityService.js';
 import { FileInfoService } from './FileInfoService.js';
@@ -234,6 +235,7 @@ const $UserSuspendService: Provider = { provide: 'UserSuspendService', useExisti
 const $UserAuthService: Provider = { provide: 'UserAuthService', useExisting: UserAuthService };
 const $CollapsedQueueService: Provider = { provide: 'CollapsedQueueService', useExisting: CollapsedQueueService };
 const $VideoProcessingService: Provider = { provide: 'VideoProcessingService', useExisting: VideoProcessingService };
+const $MediaMetadataService: Provider = { provide: 'MediaMetadataService', useExisting: MediaMetadataService };
 const $UserWebhookService: Provider = { provide: 'UserWebhookService', useExisting: UserWebhookService };
 const $SystemWebhookService: Provider = { provide: 'SystemWebhookService', useExisting: SystemWebhookService };
 const $WebhookTestService: Provider = { provide: 'WebhookTestService', useExisting: WebhookTestService };
@@ -401,6 +403,7 @@ const $Imports = [
 		UserAuthService,
 		CollapsedQueueService,
 		VideoProcessingService,
+		MediaMetadataService,
 		UserWebhookService,
 		SystemWebhookService,
 		WebhookTestService,
@@ -565,6 +568,7 @@ const $Imports = [
 		$UserAuthService,
 		$CollapsedQueueService,
 		$VideoProcessingService,
+		$MediaMetadataService,
 		$UserWebhookService,
 		$SystemWebhookService,
 		$WebhookTestService,
@@ -728,6 +732,7 @@ const $Imports = [
 		UserAuthService,
 		CollapsedQueueService,
 		VideoProcessingService,
+		MediaMetadataService,
 		UserWebhookService,
 		SystemWebhookService,
 		WebhookTestService,
@@ -891,6 +896,7 @@ const $Imports = [
 		$UserAuthService,
 		$CollapsedQueueService,
 		$VideoProcessingService,
+		$MediaMetadataService,
 		$UserWebhookService,
 		$SystemWebhookService,
 		$WebhookTestService,

@@ -49,7 +49,7 @@ FROM node:${NODE_VERSION}
 ARG UID="991"
 ARG GID="991"
 
-RUN apk add ffmpeg tini jemalloc pixman pango cairo libpng librsvg font-noto font-noto-cjk font-noto-thai \
+RUN apk add ffmpeg exiftool tini jemalloc pixman pango cairo libpng librsvg font-noto font-noto-cjk font-noto-thai \
   && npm install -g corepack@0.36.0 \
 	&& corepack enable \
 	&& addgroup -g "${GID}" sharkey \

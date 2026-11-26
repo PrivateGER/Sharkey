@@ -122,6 +122,12 @@ export function uploadFile(
 								title: i18n.ts.failedToUpload,
 								text: i18n.ts.cannotUploadBecauseNoFreeSpace,
 							});
+						} else if (res.error?.id === '01b647d5-5fb5-4f1c-b852-2dd4f7cb97fb') {
+							alert({
+								type: 'error',
+								title: i18n.ts.failedToUpload,
+								text: i18n.ts.cannotUploadBecauseMetadataRemovalFailed,
+							});
 						} else {
 							alert({
 								type: 'error',
