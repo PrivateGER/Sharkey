@@ -21,6 +21,7 @@ import type { LoggerService } from '@/core/LoggerService.js';
 import type { Config } from '@/config.js';
 
 const execFileAsync = promisify(execFile);
+const resources = join(import.meta.dirname, '../resources');
 
 const exif = {
 	IFD0: { Make: 'TestPhone', Model: 'GPSCam' },
@@ -94,6 +95,34 @@ describe('MediaMetadataService', () => {
 		expect(bytes.includes('Example St')).toBe(false);
 		expect(bytes.includes('GPSCam')).toBe(false);
 		expect((await sharp(path).metadata()).width).toBe(32);
+	});
+
+	test('removes EXIF from an animated WebP without touching its frames', async () => {
+		const path = join(dir, 'animated.webp');
+		await fs.writeFile(path, await sharp(`${resources}/anime.gif`, { animated: true }).withExif(exif).webp().toBuffer());
+		const before = await sharp(path, { animated: true }).raw().toBuffer({ resolveWithObject: true });
+		expect((await fs.readFile(path)).includes('GPSCam')).toBe(true);
+
+		await service.strip(path, 'image/webp');
+
+		const after = await sharp(path, { animated: true }).raw().toBuffer({ resolveWithObject: true });
+		expect((await fs.readFile(path)).includes('GPSCam')).toBe(false);
+		expect(after.info.pages).toBe(before.info.pages);
+		expect(after.info.pages).toBeGreaterThan(1);
+		expect(after.data.equals(before.data)).toBe(true);
+	});
+
+	test('keeps an APNG animated', async () => {
+		const path = join(dir, 'animated.png');
+		await fs.copyFile(`${resources}/anime.png`, path);
+		const before = await sharp(path, { animated: true }).raw().toBuffer({ resolveWithObject: true });
+
+		await service.strip(path, 'image/apng');
+
+		const bytes = await fs.readFile(path);
+		expect(bytes.includes('acTL')).toBe(true);
+		expect(bytes.includes('fdAT')).toBe(true);
+		expect((await sharp(path, { animated: true }).raw().toBuffer()).equals(before.data)).toBe(true);
 	});
 
 	test('removes location and device tags from a phone-style MP4 and drops data tracks the MP4 muxer cannot write', async () => {
